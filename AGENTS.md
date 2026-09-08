@@ -1,5 +1,35 @@
 # CampusFlow — AI Development Rules
 
+## Accepted Architecture Baseline
+
+Read [the architecture overview](docs/architecture/overview.md) and
+[ADR 001](docs/adr/001-initial-architecture.md) before implementation.
+The product requirements remain in [ToR.docx](ToR.docx).
+
+Phase 0 establishes documentation only. The directories and contracts below
+describe the target architecture; they are not implemented yet.
+
+* Use one TypeScript monorepo with npm workspaces and one root lockfile.
+* `apps/mobile` owns presentation, device capabilities, and SQLite caching.
+* `apps/api` is one modular NestJS backend and the only PostgreSQL/Canvas client.
+* `packages/contracts` owns REST DTOs and Zod boundary schemas, never Prisma or
+  provider payloads. `packages/domain` owns pure entities and business rules.
+* Both apps may import these packages. Shared packages must not import apps;
+  contracts and domain remain independent. Map between them in the apps.
+* `packages/config` is reserved for shared tooling configuration when needed.
+* `GET /today` is an authenticated, derived read model. Never persist a Today
+  table or use a generic Today endpoint to mutate different entity types.
+* Keep Canvas/Event provider ports and implementations inside the API integration
+  modules. Return normalized records; application services own persistence.
+* Keep Canvas OAuth credentials and tokens on the backend. Institutional OAuth
+  approval is unverified; use fixtures until a supported connection is available.
+* Store timed values as UTC instants, date-only values as calendar dates, and
+  recurrence zones as IANA identifiers. Apply shared domain rules for day bounds.
+* PostgreSQL is authoritative; SQLite is an account-scoped cache. Initial offline
+  support guarantees reads. Offline writes need a separate conflict/retry design.
+
+Change accepted architecture through a subsequent ADR; do not silently diverge.
+
 ## Project
 
 CampusFlow is a cross-platform iOS/Android student-life management application.
