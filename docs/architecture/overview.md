@@ -1,6 +1,7 @@
 # CampusFlow architecture overview
 
-Status: accepted architecture baseline, 2026-09-08. Implementation has not begun.
+Status: accepted architecture baseline, 2026-09-08. The initial MVP implementation
+is present as of 2026-09-22; this overview remains the governing architecture.
 Decision record: [ADR 001](../adr/001-initial-architecture.md).
 Requirements: [Terms of Reference v0.2](../../ToR.docx), especially sections 4,
 7, 9–13, 18–19 and the technology table. Development rules: [AGENTS.md](../../AGENTS.md).
@@ -14,7 +15,7 @@ database schema or API specification.
 
 Use one TypeScript monorepo with npm workspaces, one root lockfile, and workspace
 scripts for checks. Start with ordinary workspace tooling; no monorepo build
-orchestrator is needed. This is the target layout, not a claim that it exists:
+orchestrator is needed. The implemented layout is:
 
 ```text
 apps/
@@ -40,9 +41,9 @@ in this phase. Mobile accesses data through NestJS, including when PostgreSQL
 is hosted by Supabase. Supabase client-side database access and Supabase Auth
 are not implied by the database hosting choice.
 
-Retain Jest, React Native Testing Library, Supertest, Maestro, and GitHub Actions
-as the planned testing/CI stack. Pin compatible versions during repository
-scaffolding, not in this architecture document.
+Use Jest, React Native Testing Library, Supertest, Maestro, and GitHub Actions
+for testing and CI. The initial workspace and CI configuration are implemented;
+add or adjust tool versions only when a concrete compatibility need arises.
 
 ## Boundaries and dependency direction
 
@@ -268,7 +269,9 @@ design. Reliable remote updates would require a later push-delivery decision.
 
 ## Validation and next gates
 
-No application checks exist yet. Future behavior tests must trace to the ToR:
+The initial MVP has workspace boundary checks, linting, TypeScript checks,
+unit/integration tests, API builds, and a mobile web-export check in CI. Continue
+to trace new behavior tests to the ToR:
 
 | Requirement | Required evidence when implemented |
 | --- | --- |
@@ -280,9 +283,7 @@ No application checks exist yet. Future behavior tests must trace to the ToR:
 | ToR 3.4, 5, goals | Daily/weekly schedules, occurrence completion retries, pause/skip/snooze without history loss |
 | Cross-cutting dates | IANA conversion, both DST transitions, exact midnight, date-only/no-date cases, changed deadlines and overdue boundaries |
 
-The next task is repository/workspace and CI scaffolding with empty app/package
-entry points and runnable lint/typecheck/test commands. Then choose account
-authentication and build personal tasks end-to-end before Today and integrations.
-Institutional Canvas approval and at least one usable event feed remain external
-MVP dependencies. Recurrence syntax, retention policy, and push delivery details
-are feature-level follow-ups, not permission to redesign the baseline.
+The next major gates are institutional Canvas approval and at least one usable
+structured campus-event feed. Recurrence syntax, retention policy, offline-write
+conflict handling, and push delivery details remain feature-level follow-ups,
+not permission to redesign the baseline.

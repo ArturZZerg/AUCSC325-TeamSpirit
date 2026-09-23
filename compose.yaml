@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: campusflow
+      POSTGRES_PASSWORD: campusflow_local_only
+      POSTGRES_DB: campusflow
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - campusflow_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campusflow -d campusflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  campusflow_postgres:

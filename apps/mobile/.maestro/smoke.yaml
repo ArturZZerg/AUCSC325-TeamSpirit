@@ -1,0 +1,6 @@
+appId: com.campusflow.mobile
+---
+- launchApp
+- assertVisible: "CampusFlow"
+- tapOn: "Create an account"
+- assertVisible: "Create your account"
