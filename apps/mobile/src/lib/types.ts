@@ -1,0 +1,13 @@
+import type { z } from 'zod';
+import type { academicItemSchema, eventSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, sessionSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
+export type Priority = 'low' | 'medium' | 'high';
+export type PersonalTask = z.infer<typeof personalTaskSchema>;
+export type AcademicItem = z.infer<typeof academicItemSchema>;
+export type Goal = z.infer<typeof goalSchema>;
+export type CampusEvent = z.infer<typeof eventSchema> & { saved?: boolean; includedInPlan?: boolean };
+export type WellnessEntry = z.infer<typeof wellnessEntrySchema>;
+export type Today = z.infer<typeof todayResponseSchema>;
+export type PlanItem = Today['items'][number];
+export type NotificationPreferences = z.infer<typeof notificationPreferencesSchema>;
+export type Reminder = z.infer<typeof reminderSchema>;
+export type Session = z.infer<typeof sessionSchema>;

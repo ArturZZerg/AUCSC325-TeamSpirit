@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  email String @unique
+  passwordHash String
+  displayName String
+  timeZone String
+  createdAt DateTime @default(now())
+  sessions Session[]
+  tasks PersonalTask[]
+  taskCompletions TaskCompletion[]
+  courses Course[]
+  academicItems AcademicItem[]
+  goals Goal[]
+  goalCompletions GoalCompletion[]
+  savedEvents SavedEvent[]
+  wellnessEntries WellnessEntry[]
+  reminders Reminder[]
+  notificationPreference NotificationPreference?
+  canvasConnection CanvasConnection?
+}
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  tokenHash String @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@index([userId, expiresAt])
+}
+model PersonalTask {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  title String
+  description String?
+  priority String @default("medium")
+  category String @default("personal")
+  due Json?
+  scheduled Json?
+  recurrence Json?
+  reminder Json?
+  estimatedMinutes Int?
+  completedAt DateTime?
+  snoozedUntil DateTime?
+  mainGoalDate String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  completions TaskCompletion[]
+  reminders Reminder[]
+  @@index([userId, updatedAt])
+  @@index([userId, mainGoalDate])
+}
+model TaskCompletion {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  taskId String @db.Uuid
+  occurrenceKey String
+  completedAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  task PersonalTask @relation(fields:[taskId], references:[id], onDelete:Cascade)
+  @@unique([userId, taskId, occurrenceKey])
+}
+model Course {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  source String
+  externalId String
+  name String
+  code String?
+  active Boolean @default(true)
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  academicItems AcademicItem[]
+  @@unique([userId, source, externalId])
+}
+model AcademicItem {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  courseId String? @db.Uuid
+  source String
+  externalId String
+  title String
+  kind String
+  due Json?
+  submissionState String?
+  mainGoalDate String?
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  course Course? @relation(fields:[courseId], references:[id], onDelete:SetNull)
+  reminders Reminder[]
+  @@unique([userId, source, externalId])
+  @@index([userId, updatedAt])
+}
+model Goal {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  title String
+  category String @default("health")
+  schedule Json
+  timeZone String
+  reminder Json?
+  pausedAt DateTime?
+  snoozedUntil DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  completions GoalCompletion[]
+  reminders Reminder[]
+  @@index([userId, updatedAt])
+}
+model GoalCompletion {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  goalId String @db.Uuid
+  occurrenceKey String
+  state String
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  goal Goal @relation(fields:[goalId], references:[id], onDelete:Cascade)
+  @@unique([userId, goalId, occurrenceKey])
+}
+model Event {
+  id String @id @default(uuid()) @db.Uuid
+  source String
+  sourceScope String @default("public")
+  externalId String
+  title String
+  description String?
+  category String?
+  timing Json
+  location String?
+  url String?
+  sortAt DateTime
+  savedBy SavedEvent[]
+  @@unique([source, sourceScope, externalId])
+  @@index([sortAt])
+}
+model SavedEvent {
+  userId String @db.Uuid
+  eventId String @db.Uuid
+  includedInPlan Boolean @default(false)
+  reminder Json?
+  savedAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  event Event @relation(fields:[eventId], references:[id], onDelete:Cascade)
+  reminders Reminder[]
+  @@id([userId, eventId])
+}
+model WellnessEntry {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  date String
+  mood Int?
+  energy Int?
+  stress Int?
+  note String?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@unique([userId, date])
+}
+model NotificationPreference {
+  userId String @id @db.Uuid
+  academicEnabled Boolean @default(true)
+  personalEnabled Boolean @default(true)
+  goalEnabled Boolean @default(true)
+  eventEnabled Boolean @default(true)
+  dailyOverviewEnabled Boolean @default(false)
+  quietHoursStart String?
+  quietHoursEnd String?
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+}
+model Reminder {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  targetKind String
+  targetId String @db.Uuid
+  occurrenceKey String?
+  fireAt DateTime
+  enabled Boolean @default(true)
+  personalTaskId String? @db.Uuid
+  academicItemId String? @db.Uuid
+  goalId String? @db.Uuid
+  savedEventUserId String? @db.Uuid
+  savedEventEventId String? @db.Uuid
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  personalTask PersonalTask? @relation(fields:[personalTaskId], references:[id], onDelete:Cascade)
+  academicItem AcademicItem? @relation(fields:[academicItemId], references:[id], onDelete:Cascade)
+  goal Goal? @relation(fields:[goalId], references:[id], onDelete:Cascade)
+  savedEvent SavedEvent? @relation(fields:[savedEventUserId, savedEventEventId], references:[userId, eventId], onDelete:Cascade)
+  @@unique([userId, targetKind, targetId, occurrenceKey])
+  @@index([userId, fireAt])
+}
+model CanvasConnection {
+  userId String @id @db.Uuid
+  baseUrl String
+  externalAccountId String?
+  encryptedAccessToken String
+  encryptedRefreshToken String?
+  tokenExpiresAt DateTime?
+  oauthStateHash String?
+  oauthStateExpiresAt DateTime?
+  lastSyncAttemptAt DateTime?
+  lastSuccessfulSyncAt DateTime?
+  lastError String?
+  syncLeaseUntil DateTime?
+  coveredFrom String?
+  coveredThrough String?
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+}

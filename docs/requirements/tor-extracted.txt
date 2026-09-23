@@ -1,0 +1,536 @@
+CampusFlow — Terms of Reference
+Project Type: Cross-platform mobile applicationPlatforms: iOS and AndroidTeam Size: 4 developersCourse: AUCSC 325Document Version: 0.2Status: Living Product Specification
+
+1. Product Definition
+CampusFlow is a student-life management application designed to bring university responsibilities, personal tasks, campus activities, routines, and basic wellbeing tools into one daily interface.
+The application should reduce the number of separate systems a student needs to check during the day.
+Instead of separately opening:
+Canvas;
+Google Tasks;
+a calendar;
+university event pages;
+reminders;
+a habit/wellness application;
+CampusFlow should provide one place where the student can answer:
+What do I need to do today, what is coming up, and what is happening around me?
+CampusFlow is not intended to replace Canvas or other university systems. It acts as a student-oriented management layer on top of them.
+
+2. Core Product Concept
+The primary CampusFlow experience is inspired by goal-oriented applications such as Finch.
+However, CampusFlow will initially not contain a virtual pet, virtual currency, shop, or complicated reward system.
+The central experience is a simple daily list.
+Example:
+Today — Tuesday, September 15
+Important
+☐ Finish AUCSC 325 proposalDue 11:59 PM · AUCSC 325
+University
+☐ Read Chapter 4AUMGT 310
+☐ Complete Statistics QuizDue tomorrow · AUSTA 213
+My Tasks
+☐ Call insurance company
+☐ Buy groceries
+☐ Gym
+Campus
+📅 Board Game Club7:00 PM · Student Forum
+📅 Career Workshop4:00 PM · Library
+Wellness
+☐ Drink enough water
+☐ 30-minute walk
+☐ Evening check-in
+The important design principle is:
+The student should not care which system the information originally came from.
+CampusFlow should organize information around the student's day.
+
+3. Types of Information
+CampusFlow should support four major categories.
+3.1 Academic Items
+Automatically imported from Canvas.
+Examples:
+assignments;
+quizzes;
+exams where available;
+course calendar events;
+discussions;
+course reminders;
+other relevant Canvas planner items.
+Academic items should normally not require manual re-entry.
+
+3.2 Personal Tasks
+Tasks manually created by the student.
+This functionality should cover the common use case currently handled by applications such as Google Tasks or Apple Reminders.
+Examples:
+buy groceries;
+call somebody;
+submit an application;
+go to the gym;
+clean room;
+pay bill;
+study Chapter 5.
+Personal tasks may have:
+title;
+description;
+date;
+time;
+reminder;
+priority;
+category;
+recurrence;
+estimated duration.
+
+3.3 Campus Events
+Events relevant to student life.
+Examples:
+student club events;
+workshops;
+guest speakers;
+recreation events;
+university social events;
+career events;
+campus activities;
+wellness events.
+Where technically possible, these events should be retrieved automatically from supported university data sources.
+The system should maintain the source of each event internally.
+Potential event sources may include:
+Canvas Calendar;
+Canvas account calendars;
+university event calendars;
+Augustana campus calendar;
+student association event feeds;
+other structured university feeds.
+The application should not depend on web scraping when an official API, calendar feed, or structured source is available.
+
+3.4 Goals and Routines
+Goals represent recurring actions rather than one-time tasks.
+Examples:
+go to the gym three times per week;
+drink water every day;
+read for 30 minutes;
+review tomorrow's tasks every evening;
+walk outside;
+study one hour each weekday.
+Goals should use a lightweight interaction model similar to Finch:
+daily or recurring goals;
+simple completion checkbox;
+optional reminder;
+ability to pause;
+ability to skip/snooze;
+history of completion.
+A future gamification system may reward consistent completion, but it is not part of the initial MVP.
+
+4. The Daily Plan
+The Today screen is the most important screen in CampusFlow.
+It should combine information from different sources into one useful daily plan.
+The Today screen may contain:
+Academic
+Canvas assignments and university work.
+Personal
+User-created tasks.
+Events
+Campus or personal events happening today.
+Routine
+Recurring goals and wellbeing activities.
+The student should be able to complete normal daily interaction without navigating deeply through the application.
+For example:
+Open app
+    ↓
+See today
+    ↓
+Complete task
+    ↓
+Check next deadline
+    ↓
+See evening campus event
+    ↓
+Close app
+
+This should take seconds.
+
+5. Item States
+Tasks and goals should support clear states.
+Possible states:
+upcoming;
+today;
+completed;
+overdue;
+skipped;
+snoozed.
+Canvas-generated items may have additional states such as:
+submitted;
+graded;
+missing.
+The UI should make the difference clear.
+
+6. Goal of the Day / Main Priority
+A user should be able to designate one task as their Main Goal or Priority of the Day.
+Example:
+⭐ MAIN GOALFinish AUCSC 325 proposal
+This should appear prominently on the Today screen.
+The system may eventually recommend a Main Goal automatically based on:
+deadline;
+importance;
+estimated workload;
+overdue status.
+Automatic selection is not required for the MVP.
+
+7. Personal Task Management
+CampusFlow should function as a useful standalone task manager even without Canvas.
+Users must be able to:
+create tasks;
+edit tasks;
+delete tasks;
+complete tasks;
+schedule tasks;
+create recurring tasks;
+set reminders;
+assign categories;
+assign priority;
+snooze tasks;
+search/filter tasks.
+A task must not require a university course.
+Example:
+Task:
+Buy groceries
+
+Category:
+Personal
+
+Date:
+Tuesday
+
+Reminder:
+5:00 PM
+
+
+8. Task Categories / Areas
+Tasks and routines may be organized into areas.
+Initial system categories could include:
+University;
+Personal;
+Health;
+Fitness;
+Work;
+Social.
+Users may eventually create custom categories.
+Canvas-imported work should automatically belong to University while retaining its specific course information.
+
+9. Canvas Integration
+Canvas is one of CampusFlow's primary automatic data sources.
+The integration layer should attempt to import relevant student planning information rather than only assignments.
+Relevant data may include:
+active courses;
+assignments;
+due dates;
+quizzes;
+planner items;
+calendar events;
+submission state;
+announcements where useful.
+Canvas data must be translated into CampusFlow's internal model.
+The rest of the application must not depend directly on Canvas JSON structures.
+Example:
+Canvas Assignment
+       ↓
+Canvas Adapter
+       ↓
+AcademicItem
+       ↓
+Daily Planner
+
+This makes it possible to add other university systems later.
+
+10. Synchronization
+CampusFlow should synchronize Canvas periodically and when requested by the user.
+Synchronization must:
+retrieve new items;
+update changed items;
+avoid duplicates;
+recognize changed deadlines;
+recognize completed/submitted work where available;
+preserve previously cached information if synchronization fails.
+Example:
+Canvas:
+
+Assignment 4
+Due: Sep 18
+
+Professor changes deadline.
+
+Canvas:
+Due: Sep 20
+
+CampusFlow syncs.
+
+CampusFlow:
+Due: Sep 20
+
+Any associated notification should also be recalculated.
+
+11. Campus Events
+CampusFlow should provide a Campus screen.
+Example:
+Campus
+Today
+Board Game Night7:00 PMStudent Forum
+Career Resume Workshop4:00 PMLibrary
+Tomorrow
+Vikings Volleyball6:00 PMGymnasium
+The user should be able to:
+browse upcoming events;
+view event details;
+filter event categories;
+save an event;
+optionally add an event to their personal plan;
+receive a reminder.
+Saving an event should not modify the original external event.
+
+12. Event Sources
+The event system must support multiple providers through a common interface.
+Example:
+                EventProvider
+
+                /      |       \
+               /       |        \
+          Canvas    Calendar    Future
+          Provider   Provider   Provider
+               \       |       /
+                \      |      /
+ Event
+                    ↓
+              Campus Screen
+
+This is important because not every university event will necessarily exist in Canvas.
+A developer should be able to add another event provider without rewriting the Campus screen.
+
+13. Notifications
+CampusFlow should notify the student about relevant upcoming information.
+Notification types may include:
+Academic
+assignment due tomorrow;
+assignment due soon;
+overdue work;
+changed deadline.
+Personal
+scheduled task reminder;
+recurring goal reminder.
+Campus
+saved event beginning soon.
+Planning
+daily morning overview;
+optional evening review.
+The user must control which notification categories are enabled.
+CampusFlow should avoid excessive notifications.
+
+14. Daily Overview Notification
+A future important feature is a morning summary.
+Example:
+Good morning 👋
+You have 4 things planned today.
+🎓 2 university tasks✅ 1 personal task📅 Board Game Night at 7 PM
+Your closest deadline is tomorrow at 11:59 PM.
+Opening the notification should open the Today screen.
+This feature is desirable but may be implemented after the core notification system.
+
+15. Wellness
+Wellness should be integrated into normal student planning rather than built as an unrelated mini-application.
+Examples:
+☐ Walk for 30 minutes
+☐ Gym
+☐ Drink water
+☐ Take study break
+☐ Evening check-in
+
+The wellness module may additionally provide:
+mood check-in;
+energy check-in;
+stress check-in;
+simple breathing exercise;
+focus timer;
+basic history.
+Wellness features must remain non-medical.
+
+16. Student Life Screen
+A later version may introduce a broader Student Life section containing information that is useful but does not belong on the Today screen.
+Possible categories:
+campus events;
+clubs;
+student services;
+academic resources;
+recreation;
+career resources;
+important university dates.
+The purpose is not to copy the university website.
+The section should surface information students commonly miss or have difficulty finding.
+
+17. Home Navigation
+Recommended initial bottom navigation:
+ Today  │  Tasks  │ Campus  │ Wellness│ Settings │
+Today
+Unified daily plan.
+Tasks
+All academic and personal tasks.
+Campus
+Campus events.
+Wellness
+Goals, routines and check-ins.
+Settings
+Canvas, notifications, preferences and account settings.
+A separate calendar can be added later or accessed through Today/Tasks.
+
+18. Internal Domain Model
+Developers should not model everything as the same database object simply because everything appears on Today.
+The application should preserve conceptual differences.
+Recommended entities:
+User
+
+Course
+
+AcademicItem
+    └── Canvas assignment / quiz / planner item
+
+PersonalTask
+
+Goal
+    └── recurring activity
+
+Event
+    └── campus/course/personal event
+
+WellnessEntry
+
+Reminder
+
+For display, these can be transformed into a unified structure:
+DailyPlanItem
+
+For example:
+AcademicItem
+PersonalTask
+Goa→ DailyPlanItem[] → Today Screen
+Event
+
+This provides a unified UI without destroying the domain model.
+
+19. MVP
+The first working version should contain:
+Required
+iOS/Android application.
+Canvas connection.
+Canvas course import.
+Canvas academic/planner item import.
+Today screen.
+Personal task creation.
+Personal task editing/deletion/completion.
+Recurring goals.
+Task reminders.
+Campus events from at least one usable source.
+Event saving.
+Basic wellness goals/check-in.
+Cached Canvas data.
+Automated tests for core requirements.
+Not Required for MVP
+pets;
+currency;
+shops;
+social network;
+friends;
+achievements;
+sophisticated AI;
+automatic schedule generation;
+Apple Health integration;
+Google Fit integration;
+multiple universities;
+instructor functionality.
+
+20. Future Gamification
+The architecture may leave room for a motivational system.
+Possible future concepts include:
+student avatar;
+pet;
+campus mascot;
+XP;
+levels;
+streaks;
+achievements;
+unlockable customization.
+However, task completion must remain useful without gamification.
+Gamification should enhance the core product rather than become the core product.
+
+21. Product Identity
+CampusFlow should feel like:
+Finch's approachable daily task experience + a real task manager + Canvas automation + campus discovery.
+It should not feel like:
+Canvas rebuilt with prettier screens.
+The core advantage is aggregation.
+Canvas knows:
+"You have Assignment 3 in AUCSC 325."
+A task application knows:
+"Buy groceries."
+A university calendar knows:
+"Board Game Night is tonight."
+CampusFlow should know all three:
+TODAY
+
+⭐ Finish Assignment 3        11:59 PM
+☐ Buy groceries               5:00 PM
+📅 Board Game Night            7:00 PM
+☐ Gym
+
+That unified view is the product.
+
+22. Core Development Rule
+Whenever a developer proposes a feature, evaluate it using this question:
+Does this make it easier for a student to understand, organize, or participate in their student life?
+If yes, it may belong in CampusFlow.
+Then ask:
+Does it need to exist for the core daily experience to work?
+If no, it belongs in the post-MVP backlog.
+The team should prioritize a small number of polished, interconnected features over a large collection of partially implemented features.
+Technology :
+Layer
+Technology
+Why
+Mobile
+React Native + Expo + TypeScript
+One codebase for iOS/Android
+Navigation
+Expo Router
+Simple file-based screens/navigation
+Server data
+TanStack Query
+Caching, loading, retries, refresh
+Local UI state
+Zustand
+Simple state without Redux complexity
+Forms
+React Hook Form + Zod
+Tasks/settings/check-ins + validation
+Local storage
+Expo SQLite
+Offline cached tasks/events
+Backend
+NestJS + TypeScript
+Structured backend, easy to divide among team
+Database
+PostgreSQL
+Best fit for your relational data
+DB hosting
+Supabase Postgres
+Saves you from managing PostgreSQL yourself
+ORM
+Prisma
+Migrations + typed database access
+Notifications
+expo-notifications
+iOS + Android notifications
+Canvas
+Canvas REST API + OAuth2
+Official integration
+Campus events
+Provider adapters: Canvas + ICS/calendar feeds
+Allows multiple sources
+Testing
+Jest + React Native Testing Library + Supertest + Maestro
+Good AUCSC 325 test story
+CI
+GitHub Actions
+Tests/lint/typecheck on every PR

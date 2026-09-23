@@ -1,0 +1,3 @@
+import { Tabs } from 'expo-router';
+import { colors } from '@/components/ui';
+export default function TabsLayout() { return <Tabs screenOptions={{ headerStyle: { backgroundColor: colors.canvas }, headerShadowVisible: false, tabBarActiveTintColor: colors.moss, tabBarStyle: { backgroundColor: '#fff' } }}><Tabs.Screen name="today" options={{ title: 'Today' }}/><Tabs.Screen name="tasks" options={{ title: 'Tasks' }}/><Tabs.Screen name="campus" options={{ title: 'Campus' }}/><Tabs.Screen name="wellness" options={{ title: 'Wellness' }}/><Tabs.Screen name="settings" options={{ title: 'Settings' }}/></Tabs>; }
