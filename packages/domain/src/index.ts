@@ -35,6 +35,24 @@ const occursOn = (recurrence: Recurrence | undefined, anchor: DateOnly | undefin
   const days = plainDate(anchor).until(plainDate(date), { largestUnit: 'days' }).days;
   return recurrence.weekdays.includes(plainDate(date).dayOfWeek) && Math.floor(days / 7) % (recurrence.interval ?? 1) === 0;
 };
+/** Recurring task dates use the account timezone; scheduled takes precedence as the anchor. */
+export const taskAnchorDate = (task: Pick<PersonalTask, 'scheduled' | 'due'>, timeZone: string): DateOnly | undefined => {
+  const anchor = task.scheduled ?? task.due;
+  return anchor?.kind === 'instant' ? localDateAt(anchor.at, timeZone) : anchor?.date;
+};
+export const taskOccursOn = (task: Pick<PersonalTask, 'recurrence' | 'scheduled' | 'due'>, date: DateOnly, timeZone: string): boolean =>
+  occursOn(task.recurrence, taskAnchorDate(task, timeZone), date);
+export const addCalendarDays = (date: DateOnly, days: number): DateOnly => plainDate(date).add({ days }).toString();
+/** Shift the template's local wall times, preserving deadline offsets and DST semantics. */
+export const taskOccurrenceTiming = (task: PersonalTask, date: DateOnly, timeZone: string): Pick<PersonalTask, 'scheduled' | 'due'> => {
+  const anchor = taskAnchorDate(task, timeZone);
+  if (!task.recurrence || !anchor) return { scheduled: task.scheduled, due: task.due };
+  const days = plainDate(anchor).until(plainDate(date), { largestUnit: 'days' }).days;
+  const shift = (value: TimedOrDate | undefined): TimedOrDate | undefined => !value ? undefined : value.kind === 'date'
+    ? { kind: 'date', date: addCalendarDays(value.date, days) }
+    : { kind: 'instant', at: Temporal.Instant.from(value.at).toZonedDateTimeISO(timeZone).add({ days }).toInstant().toString() };
+  return { scheduled: shift(task.scheduled), due: shift(task.due) };
+};
 export const goalOccursOn = (goal: Goal, date: DateOnly): boolean => goal.schedule.kind === 'daily' ? true : goal.schedule.kind === 'weekly' ? goal.schedule.weekdays.includes(plainDate(date).dayOfWeek) : false;
 export const isOverdue = (due: TimedOrDate | undefined, now: string, timeZone: string, terminal = false): boolean => {
   if (!due || terminal) return false;
@@ -64,7 +82,8 @@ const sortItems = (zone: string) => (a: PlanItem, b: PlanItem): number => {
   if ((a.state === 'overdue') !== (b.state === 'overdue')) return a.state === 'overdue' ? -1 : 1;
   const aTimed = (a.schedule ?? a.due)?.kind === 'instant', bTimed = (b.schedule ?? b.due)?.kind === 'instant';
   if (aTimed !== bTimed) return aTimed ? -1 : 1;
-  const at = timestamp(a, zone), bt = timestamp(b, zone); if (at && bt && at !== bt) return at.localeCompare(bt);
+  const at = timestamp(a, zone), bt = timestamp(b, zone);
+  if (at && bt) { const order = Temporal.Instant.compare(at, bt); if (order) return order; }
   const p = (a.priority ? priorityRank[a.priority] : 3) - (b.priority ? priorityRank[b.priority] : 3); return p || a.key.localeCompare(b.key);
 };
 export const composeToday = (input: TodayInput): TodayPlan => {
@@ -72,13 +91,31 @@ export const composeToday = (input: TodayInput): TodayPlan => {
   const upcoming: PlanItem[] = [];
   const add = (item: PlanItem, today: boolean) => (today ? items : upcoming).push(item);
   for (const task of input.personalTasks) {
-    const anchor = task.scheduled?.kind === 'instant' ? localDateAt(task.scheduled.at, input.timeZone) : task.scheduled?.kind === 'date' ? task.scheduled.date : task.due?.kind === 'instant' ? localDateAt(task.due.at, input.timeZone) : task.due?.kind === 'date' ? task.due.date : undefined;
-    const recurringToday = occursOn(task.recurrence, anchor, input.date);
-    const completed = task.recurrence ? task.completedOccurrenceKeys?.includes(input.date) : Boolean(task.completedAt);
-    const today = recurringToday || inDay(task.scheduled, input.date, input.timeZone) || inDay(task.due, input.date, input.timeZone) || task.mainGoalDate === input.date || Boolean(task.completedAt && localDateAt(task.completedAt, input.timeZone) === input.date) || (!completed && wasOverdueBeforeDay(task.due, input.date, input.timeZone));
-    const occurrenceSchedule = task.recurrence ? { kind: 'date' as const, date: input.date } : task.scheduled;
-    const item: PlanItem = { key: `personalTask:${task.id}${task.recurrence ? `:${input.date}` : ''}`, kind: 'personalTask', entityId: task.id, occurrenceKey: task.recurrence ? input.date : undefined, title: task.title, schedule: occurrenceSchedule, due: task.due, state: temporalState({ ...task, scheduled: occurrenceSchedule, completedAt: completed ? task.completedAt ?? input.now : undefined, now: input.now, date: input.date, timeZone: input.timeZone }), isMainGoal: task.mainGoalDate === input.date, priority: task.priority };
-    add(item, today);
+    if (task.recurrence) {
+      // Each occurrence has its own identity and deadline. Never carry the template's
+      // old deadline onto an off-schedule date or use series-level completedAt.
+      for (let offset = 0; offset <= 7; offset++) {
+        const occurrenceDate = addCalendarDays(input.date, offset);
+        if (!taskOccursOn(task, occurrenceDate, input.timeZone)) continue;
+        const timing = taskOccurrenceTiming(task, occurrenceDate, input.timeZone);
+        const completed = task.completedOccurrenceKeys?.includes(occurrenceDate) ?? false;
+        const item: PlanItem = {
+          key: `personalTask:${task.id}:${occurrenceDate}`, kind: 'personalTask', entityId: task.id,
+          occurrenceKey: occurrenceDate, title: task.title, schedule: timing.scheduled, due: timing.due,
+          state: temporalState({ ...task, ...timing, completedAt: completed ? input.now : undefined,
+            now: input.now, date: input.date, timeZone: input.timeZone }),
+          isMainGoal: task.mainGoalDate === occurrenceDate && occurrenceDate === input.date, priority: task.priority,
+        };
+        add(item, offset === 0);
+      }
+      continue;
+    }
+    const completed = Boolean(task.completedAt);
+    const today = inDay(task.scheduled, input.date, input.timeZone) || inDay(task.due, input.date, input.timeZone) || task.mainGoalDate === input.date || Boolean(task.completedAt && localDateAt(task.completedAt, input.timeZone) === input.date) || (!completed && wasOverdueBeforeDay(task.due, input.date, input.timeZone));
+    add({ key: `personalTask:${task.id}`, kind: 'personalTask', entityId: task.id, title: task.title,
+      schedule: task.scheduled, due: task.due,
+      state: temporalState({ ...task, now: input.now, date: input.date, timeZone: input.timeZone }),
+      isMainGoal: task.mainGoalDate === input.date, priority: task.priority }, today);
   }
   for (const academic of input.academicItems) {
     const terminal = academic.submissionState === 'submitted' || academic.submissionState === 'graded';
@@ -96,6 +133,10 @@ export const composeToday = (input: TodayInput): TodayPlan => {
   const savedIds = new Set(input.savedEvents.filter(s => s.includedInPlan).map(s => s.eventId)); const campusEvents: Event[] = [];
   for (const event of input.events) { const overlaps = event.timing.kind === 'timed' ? overlapsDay(event.timing.startsAt, event.timing.endsAt, input.date, input.timeZone) : allDayEventOverlapsDay(event.timing.startDate, event.timing.endDateExclusive, input.date); if (overlaps) { if (savedIds.has(event.id)) items.push({ key: `event:${event.id}`, kind: 'event', entityId: event.id, title: event.title, schedule: event.timing.kind === 'timed' ? { kind: 'instant', at: event.timing.startsAt } : { kind: 'date', date: event.timing.startDate }, state: 'today', isMainGoal: false }); else campusEvents.push(event); } }
   const latestUpcoming = plainDate(input.date).add({ days: 7 });
-  const upcomingSort = (a: PlanItem, b: PlanItem) => (a.due ? timestamp({ ...a, schedule: a.due, due: undefined }, input.timeZone) ?? '' : '').localeCompare(b.due ? timestamp({ ...b, schedule: b.due, due: undefined }, input.timeZone) ?? '' : '') || a.key.localeCompare(b.key);
-  return { items: items.sort(sortItems(input.timeZone)), upcoming: upcoming.filter(x => x.state === 'upcoming' && (() => { const value = x.due ?? x.schedule; const dueDate = value?.kind === 'date' ? plainDate(value.date) : value?.kind === 'instant' ? plainDate(localDateAt(value.at, input.timeZone)) : undefined; return !!dueDate && Temporal.PlainDate.compare(dueDate, plainDate(input.date)) > 0 && Temporal.PlainDate.compare(dueDate, latestUpcoming) <= 0; })()).sort(upcomingSort), campusEvents: campusEvents.sort((a, b) => { const left = a.timing.kind === 'timed' ? a.timing.startsAt : a.timing.startDate; const right = b.timing.kind === 'timed' ? b.timing.startsAt : b.timing.startDate; return left.localeCompare(right) || a.id.localeCompare(b.id); }) };
+  const upcomingSort = (a: PlanItem, b: PlanItem) => {
+    const at = timestamp({ ...a, schedule: a.due ?? a.schedule }, input.timeZone);
+    const bt = timestamp({ ...b, schedule: b.due ?? b.schedule }, input.timeZone);
+    return (at && bt ? Temporal.Instant.compare(at, bt) : at ? -1 : bt ? 1 : 0) || a.key.localeCompare(b.key);
+  };
+  return { items: items.sort(sortItems(input.timeZone)), upcoming: upcoming.filter(x => x.state === 'upcoming' && (() => { const value = x.due ?? x.schedule; const dueDate = value?.kind === 'date' ? plainDate(value.date) : value?.kind === 'instant' ? plainDate(localDateAt(value.at, input.timeZone)) : undefined; return !!dueDate && Temporal.PlainDate.compare(dueDate, plainDate(input.date)) > 0 && Temporal.PlainDate.compare(dueDate, latestUpcoming) <= 0; })()).sort(upcomingSort), campusEvents: campusEvents.sort((a, b) => { const left = a.timing.kind === 'timed' ? a.timing.startsAt : zonedStart(a.timing.startDate, input.timeZone).toInstant().toString(); const right = b.timing.kind === 'timed' ? b.timing.startsAt : zonedStart(b.timing.startDate, input.timeZone).toInstant().toString(); return Temporal.Instant.compare(left, right) || a.id.localeCompare(b.id); }) };
 };

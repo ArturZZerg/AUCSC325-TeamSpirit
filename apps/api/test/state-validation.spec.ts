@@ -15,7 +15,7 @@ const goal = {
 };
 const task = {
   id: recordId, userId, title: 'Study', description: null, priority: 'medium',
-  category: 'personal', due: null, scheduled: null,
+  category: 'personal', due: null, scheduled: { kind: 'date', date: '2026-09-27' },
   recurrence: { frequency: 'daily', interval: 1 }, reminder: null,
   estimatedMinutes: null, completedAt: null, snoozedUntil: null,
   mainGoalDate: null, createdAt: now, updatedAt: now,
@@ -24,6 +24,8 @@ const task = {
 describe('task and goal state request validation (ToR sections 5 and 7)', () => {
   let app: INestApplication;
   const prisma = {
+    $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
     session: { findUnique: jest.fn() },
     goal: { findFirst: jest.fn(), update: jest.fn() },
     personalTask: { findFirst: jest.fn(), update: jest.fn() },
@@ -42,6 +44,8 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
 
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.$transaction.mockImplementation(async (work: (tx: typeof prisma) => Promise<unknown>) => work(prisma));
+    prisma.$queryRaw.mockResolvedValue([]);
     prisma.session.findUnique.mockResolvedValue({
       revokedAt: null, expiresAt: new Date('2099-01-01'),
       user: { id: userId, email: 'student@example.test', displayName: 'Student', timeZone: 'America/Denver' },
@@ -55,11 +59,16 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
 
   afterAll(async () => { await app.close(); });
 
-  it.each([true, false, undefined])('accepts paused=%s and preserves the default pause action', async paused => {
-    const response = await post(`/goals/${recordId}/pause`).send(paused === undefined ? {} : { paused }).expect(201);
+  it.each([true, false])('accepts explicit paused=%s', async paused => {
+    const response = await post(`/goals/${recordId}/pause`).send({ paused }).expect(201);
     if (paused === false) expect(response.body.pausedAt).toBeNull();
     else expect(Number.isNaN(Date.parse(response.body.pausedAt))).toBe(false);
     expect(prisma.goal.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an omitted pause state without changing the goal', async () => {
+    await post(`/goals/${recordId}/pause`).send({}).expect(400);
+    expect(prisma.goal.update).not.toHaveBeenCalled();
   });
 
   it.each(['false', 'true', 0, 1, null, [], {}])('rejects malformed paused=%j without changing the goal', async paused => {

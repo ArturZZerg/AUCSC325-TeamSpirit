@@ -5,7 +5,8 @@ const base = { date: '2026-03-08', timeZone: 'America/Edmonton', now: '2026-03-0
 describe('timezone-aware planning', () => {
   it('uses the actual length of daylight-saving days', () => {
     const spring = dayBounds('2026-03-08', 'America/Edmonton');
-    const fall = dayBounds('2026-11-01', 'America/Edmonton');
+    // Historical transition: newer tzdb versions no longer switch Edmonton in fall 2026.
+    const fall = dayBounds('2025-11-02', 'America/Edmonton');
     expect(Date.parse(spring.end) - Date.parse(spring.start)).toBe(23 * 60 * 60 * 1000);
     expect(Date.parse(fall.end) - Date.parse(fall.start)).toBe(25 * 60 * 60 * 1000);
   });
@@ -60,5 +61,83 @@ describe('timezone-aware planning', () => {
   it('keeps a completed recurring occurrence from completing later occurrences', () => {
     const plan = composeToday({ ...base, date: '2026-03-09', personalTasks: [{ id: 'routine', title: 'Walk', priority: 'low', scheduled: { kind: 'date', date: '2026-03-08' }, recurrence: { frequency: 'daily' }, completedAt: '2026-03-08T20:00:00Z', completedOccurrenceKeys: ['2026-03-08'] }] });
     expect(plan.items[0]).toMatchObject({ occurrenceKey: '2026-03-09', state: 'today' });
+  });
+});
+
+describe('recurring task occurrence identity', () => {
+  const task = { id: 'weekly', title: 'Study', priority: 'medium' as const,
+    scheduled: { kind: 'date' as const, date: '2026-03-02' },
+    due: { kind: 'date' as const, date: '2026-03-02' },
+    recurrence: { frequency: 'weekly' as const, weekdays: [1] }, completedOccurrenceKeys: ['2026-03-02'] };
+
+  it('does not turn an old template deadline into an off-schedule occurrence', () => {
+    const plan = composeToday({ ...base, personalTasks: [task] });
+    expect(plan.items).toEqual([]);
+    expect(plan.upcoming).toHaveLength(1);
+    expect(plan.upcoming[0]).toMatchObject({ key: 'personalTask:weekly:2026-03-09', due: { kind: 'date', date: '2026-03-09' } });
+  });
+
+  it('keeps completed occurrences visible and future occurrences incomplete', () => {
+    const completed = composeToday({ ...base, date: '2026-03-02', personalTasks: [task] });
+    expect(completed.items[0].state).toBe('completed');
+    const next = composeToday({ ...base, date: '2026-03-09', now: '2026-03-09T18:00:00Z', personalTasks: [task] });
+    expect(next.items[0]).toMatchObject({ state: 'today', occurrenceKey: '2026-03-09', due: { kind: 'date', date: '2026-03-09' } });
+  });
+
+  it('restores only the undone occurrence', () => {
+    const undone = composeToday({ ...base, date: '2026-03-02', now: '2026-03-02T18:00:00Z', personalTasks: [{ ...task, completedOccurrenceKeys: ['2026-03-09'] }] });
+    expect(undone.items[0].state).toBe('today');
+  });
+
+  it.each([
+    ['2026-03-07', '2026-03-08', '2026-03-07T16:00:00Z', '2026-03-08T15:00:00Z'],
+    ['2025-11-01', '2025-11-02', '2025-11-01T15:00:00Z', '2025-11-02T16:00:00Z'],
+  ])('preserves the local reminder-free task time across DST from %s', (_anchor, date, at, expected) => {
+    const plan = composeToday({ ...base, date, now: `${date}T12:00:00Z`, personalTasks: [{ id: 'timed', title: 'Study', priority: 'low',
+      scheduled: { kind: 'instant', at }, due: { kind: 'instant', at }, recurrence: { frequency: 'daily' } }] });
+    expect(plan.items[0]).toMatchObject({ schedule: { kind: 'instant', at: expected }, due: { kind: 'instant', at: expected }, state: 'today' });
+  });
+});
+
+describe('event and deadline boundaries', () => {
+  it('filters and orders suggestions, with exclusive ends and no duplicate saved events', () => {
+    const events = [
+      { id: 'tomorrow', title: 'Tomorrow', timing: { kind: 'timed' as const, startsAt: '2026-03-09T06:00:00Z' } },
+      { id: 'late', title: 'Late', timing: { kind: 'timed' as const, startsAt: '2026-03-08T20:00:00Z' } },
+      { id: 'overlap', title: 'Overnight', timing: { kind: 'timed' as const, startsAt: '2026-03-08T06:00:00Z', endsAt: '2026-03-08T08:00:00Z' } },
+      { id: 'ended', title: 'Ended', timing: { kind: 'timed' as const, startsAt: '2026-03-08T06:00:00Z', endsAt: '2026-03-08T07:00:00Z' } },
+      { id: 'all', title: 'All day', timing: { kind: 'allDay' as const, startDate: '2026-03-08', endDateExclusive: '2026-03-09' } },
+    ];
+    const plan = composeToday({ ...base, personalTasks: [], events, savedEvents: [{ eventId: 'all', includedInPlan: true }] });
+    expect(plan.campusEvents.map(event => event.id)).toEqual(['overlap', 'late']);
+    expect(plan.items.map(item => item.entityId)).toEqual(['all']);
+  });
+
+  it('includes an exact local-midnight deadline on the day starting then', () => {
+    const task = { id: 'midnight', title: 'Due', priority: 'low' as const, due: { kind: 'instant' as const, at: '2026-03-08T07:00:00Z' } };
+    expect(composeToday({ ...base, personalTasks: [task] }).items[0].entityId).toBe('midnight');
+    expect(composeToday({ ...base, date: '2026-03-07', personalTasks: [task] }).items).toEqual([]);
+    expect(isOverdue(undefined, base.now, base.timeZone)).toBe(false);
+  });
+
+  it('retains both repeated fall-back hours and excludes the next midnight', () => {
+    expect(overlapsDay('2025-11-02T07:30:00Z', undefined, '2025-11-02', base.timeZone)).toBe(true);
+    expect(overlapsDay('2025-11-02T08:30:00Z', undefined, '2025-11-02', base.timeZone)).toBe(true);
+    expect(overlapsDay('2025-11-03T07:00:00Z', undefined, '2025-11-02', base.timeZone)).toBe(false);
+  });
+});
+
+
+describe('chronological ordering', () => {
+  it('compares instants rather than their fractional-second spelling', () => {
+    const plan = composeToday({ ...base, personalTasks: [
+      { id: 'z', title: 'Exact', priority: 'medium', scheduled: { kind: 'instant', at: '2026-03-08T20:00:00Z' } },
+      { id: 'a', title: 'Fraction', priority: 'medium', scheduled: { kind: 'instant', at: '2026-03-08T20:00:00.001Z' } },
+    ], events: [
+      { id: 'z', title: 'Exact', timing: { kind: 'timed', startsAt: '2026-03-08T20:00:00Z' } },
+      { id: 'a', title: 'Fraction', timing: { kind: 'timed', startsAt: '2026-03-08T20:00:00.001Z' } },
+    ] });
+    expect(plan.items.map(item => item.entityId)).toEqual(['z', 'a']);
+    expect(plan.campusEvents.map(event => event.id)).toEqual(['z', 'a']);
   });
 });
