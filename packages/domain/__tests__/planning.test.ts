@@ -1,4 +1,4 @@
-import { composeToday, dayBounds, goalOccursOn, isOverdue, overlapsDay, reminderFireAt, temporalState } from '../src';
+import { eventOverlapsRange, eventStartInstant, composeToday, dayBounds, goalOccursOn, isOverdue, overlapsDay, reminderFireAt, temporalState } from '../src';
 
 const base = { date: '2026-03-08', timeZone: 'America/Edmonton', now: '2026-03-08T18:00:00Z', academicItems: [], goals: [], goalCompletions: [], events: [], savedEvents: [] };
 
@@ -139,5 +139,31 @@ describe('chronological ordering', () => {
     ] });
     expect(plan.items.map(item => item.entityId)).toEqual(['z', 'a']);
     expect(plan.campusEvents.map(event => event.id)).toEqual(['z', 'a']);
+  });
+});
+
+
+describe('half-open event ranges', () => {
+  const zone = 'America/Edmonton';
+  const range = dayBounds('2026-03-08', zone);
+  it.each([
+    ['2026-03-08T06:00:00Z', '2026-03-08T08:00:00Z', true],
+    ['2026-03-01T06:00:00Z', '2026-03-20T08:00:00Z', true],
+    ['2026-03-08T06:00:00Z', '2026-03-08T07:00:00Z', false],
+    ['2026-03-09T06:00:00Z', undefined, false],
+    ['2026-03-08T07:00:00Z', undefined, true],
+  ] as const)('tests timed overlap %s to %s', (startsAt, endsAt, expected) => {
+    expect(eventOverlapsRange({ kind: 'timed', startsAt, endsAt }, range.start, range.end, zone)).toBe(expected);
+  });
+  it('uses exclusive all-day end and a 23-hour spring day', () => {
+    const timing = { kind: 'allDay' as const, startDate: '2026-03-07', endDateExclusive: '2026-03-09' };
+    expect(eventOverlapsRange(timing, range.start, range.end, zone)).toBe(true);
+    expect(eventOverlapsRange({ ...timing, endDateExclusive: '2026-03-08' }, range.start, range.end, zone)).toBe(false);
+    expect(eventStartInstant({ ...timing, startDate: '2026-03-09' }, zone)).toBe('2026-03-09T06:00:00Z');
+  });
+  it('supports either missing bound and chronological fractional instants', () => {
+    const timing = { kind: 'timed' as const, startsAt: '2026-03-08T07:00:00.100Z', endsAt: '2026-03-08T07:00:00.200Z' };
+    expect(eventOverlapsRange(timing, '2026-03-08T07:00:00.15Z', undefined, zone)).toBe(true);
+    expect(eventOverlapsRange(timing, undefined, '2026-03-08T07:00:00.1Z', zone)).toBe(false);
   });
 });

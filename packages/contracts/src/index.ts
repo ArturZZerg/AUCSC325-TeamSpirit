@@ -95,3 +95,10 @@ export type User = z.infer<typeof userSchema>; export type PersonalTask = z.infe
 
 export type TaskCompletion = z.infer<typeof taskCompletionSchema>;
 export type SnapshotCoverage = z.infer<typeof snapshotCoverageSchema>;
+
+/** Half-open event range. Date boundaries are local midnight in the account zone. */
+const eventRangeBoundarySchema = z.union([dateSchema, instantSchema]).refine(value => dateSchema.safeParse(value.slice(0, 10)).success, 'Invalid calendar date');
+export const eventQuerySchema = z.object({
+  from: eventRangeBoundarySchema.optional(), through: eventRangeBoundarySchema.optional(),
+  category: z.string().trim().min(1).max(240).optional(),
+}).strict();
