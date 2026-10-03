@@ -15,20 +15,104 @@ npm run db:generate
 docker compose up -d postgres
 ```
 
-Configure the API environment using `apps/api/.env.example`. The Compose database
-URL is `postgresql://campusflow:campusflow_local_only@localhost:5432/campusflow`.
-The included database credential is exclusively for local development.
+The API reads its configuration from the process environment. The example file at
+`apps/api/.env.example` lists the values; it is not loaded automatically. In
+PowerShell, set the local development values in the same terminal that runs the
+migrations and API:
+
+```powershell
+$env:DATABASE_URL = "postgresql://campusflow:campusflow_local_only@127.0.0.1:5432/campusflow"
+$env:PORT = "3000"
+$env:HOST = "127.0.0.1"
+$env:CANVAS_MODE = "fixture"
+$env:NODE_ENV = "development"
+```
+
+The Compose database credential is exclusively for local development.
 
 ```sh
 npm run db:migrate
 npm run dev:api
 ```
 
+The API should now be listening at `http://127.0.0.1:3000`. Keep this terminal
+running while testing it from a second terminal.
+
 In a separate terminal:
 
 ```sh
 npm run dev:mobile
 ```
+
+## Local Canvas integration
+
+Canvas credentials stay on the API. For deterministic development data, keep
+`CANVAS_MODE=fixture`. First create a CampusFlow account and save its session
+token in PowerShell:
+
+```powershell
+$email = "canvas-test-$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())@example.com"
+$account = @{
+	email = $email
+	password = "a-long-test-password-123"
+	displayName = "Canvas Test"
+	timeZone = "America/Edmonton"
+} | ConvertTo-Json
+
+$session = Invoke-RestMethod -Method Post `
+	-Uri "http://127.0.0.1:3000/auth/register" `
+	-ContentType "application/json" -Body $account
+
+$headers = @{ Authorization = "Bearer $($session.accessToken)" }
+```
+
+Connect the fixture and synchronize it:
+
+```powershell
+Invoke-RestMethod -Method Post `
+	-Uri "http://127.0.0.1:3000/canvas/dev/connect" -Headers $headers
+
+Invoke-RestMethod -Method Post `
+	-Uri "http://127.0.0.1:3000/canvas/sync" -Headers $headers
+```
+
+Verify that Canvas data reached the API:
+
+```powershell
+Invoke-RestMethod -Method Get `
+	-Uri "http://127.0.0.1:3000/canvas/status" -Headers $headers
+
+Invoke-RestMethod -Method Get `
+	-Uri "http://127.0.0.1:3000/courses" -Headers $headers
+
+Invoke-RestMethod -Method Get `
+	-Uri "http://127.0.0.1:3000/academic-items" -Headers $headers
+```
+
+To test against a real Canvas account token, stop and restart the API after
+setting these variables in its terminal:
+
+```powershell
+$env:CANVAS_MODE = "token"
+$env:CANVAS_BASE_URL = "https://canvas.ualberta.ca"
+$env:CANVAS_ACCESS_TOKEN = "your-account-token"
+$env:CANVAS_TOKEN_ENCRYPTION_KEY = (node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
+```
+
+Then, from the authenticated testing terminal, connect and sync without sending
+the Canvas token through the mobile app:
+
+```powershell
+Invoke-RestMethod -Method Post `
+	-Uri "http://127.0.0.1:3000/canvas/connect" -Headers $headers
+
+Invoke-RestMethod -Method Post `
+	-Uri "http://127.0.0.1:3000/canvas/sync" -Headers $headers
+```
+
+The local connection endpoint is disabled when `NODE_ENV=production`. A live
+multi-user deployment still needs an institution-approved Canvas developer key
+and OAuth callback.
 
 Set `EXPO_PUBLIC_API_URL` to the API address reachable from your device. A physical
 phone cannot reach your computer through `localhost`; use its development LAN
@@ -50,14 +134,14 @@ separate release gate.
 
 ## Project layout
 
-| Directory | Responsibility |
-| --- | --- |
-| `apps/mobile` | Expo Router screens, forms, account cache and device reminders |
-| `apps/api` | Identity, feature services, providers and PostgreSQL persistence |
-| `packages/contracts` | REST boundary schemas and DTOs |
-| `packages/domain` | Pure date, recurrence and daily-plan rules |
-| `docs/architecture` and `docs/adr` | Accepted boundaries and decisions |
-| `docs/requirements` | ToR extraction, implementation plan and acceptance status |
+| Directory                          | Responsibility                                                   |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| `apps/mobile`                      | Expo Router screens, forms, account cache and device reminders   |
+| `apps/api`                         | Identity, feature services, providers and PostgreSQL persistence |
+| `packages/contracts`               | REST boundary schemas and DTOs                                   |
+| `packages/domain`                  | Pure date, recurrence and daily-plan rules                       |
+| `docs/architecture` and `docs/adr` | Accepted boundaries and decisions                                |
+| `docs/requirements`                | ToR extraction, implementation plan and acceptance status        |
 
 ## Integrations and release status
 
