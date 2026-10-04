@@ -40,5 +40,6 @@ Run root checks and Expo web export. Native delivery acceptance and a verified
 live campus feed remain external gates; fixtures are not live campus data.
 
 Task/goal snooze now postpones active explicit reminder intent while preserving
-configuration and leaving completed/paused targets inactive. Next: show weekly
-goal targets against validated completion history in the goal's local week.
+configuration and leaving completed/paused targets inactive. Weekly goal progress
+and optional task duration editing are implemented. Next: show deadline/schedule
+details on Today cards using existing read-model values and the account timezone.

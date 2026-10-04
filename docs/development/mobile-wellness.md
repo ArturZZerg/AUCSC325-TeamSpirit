@@ -78,5 +78,5 @@ Saved-event reminder intent now supports replacement and unsave cleanup.
 Mobile event reminder controls now use validated account-owned reads.
 Task/goal snooze now postpones active explicit intent without reactivating paused
 or completed targets. Weekly-target progress now uses validated completion history
-and the goal's local week. Next, expose the existing optional task duration field
-in the mobile editor with contract-bounded validation, clearing and preservation.
+and the goal's local week. Optional task duration is editable with contract bounds,
+clearing and preservation. Next, show deadline/schedule details on Today cards.

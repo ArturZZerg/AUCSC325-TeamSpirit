@@ -62,6 +62,7 @@ export default function Tasks() {
         {task.scheduled && <Text style={styles.meta}>Scheduled: {taskTimingLabel(task.scheduled, timeZone)}</Text>}
         {task.recurrence && <Text style={styles.meta}>Every {task.recurrence.interval} {task.recurrence.frequency === 'daily' ? (task.recurrence.interval === 1 ? 'day' : 'days') : `${task.recurrence.interval === 1 ? 'week' : 'weeks'} · ${task.recurrence.weekdays.map(day => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day - 1]).join(', ')}`}</Text>}
         {task.description && <Text style={styles.meta}>{task.description}</Text>}
+        {task.estimatedMinutes !== null && <Text style={styles.meta}>Estimated duration: {task.estimatedMinutes} min</Text>}
         {task.reminder && <Text style={styles.meta}>Reminder: {taskTimingLabel(task.reminder, timeZone)}{task.reminder.kind === 'date' ? ' · Delivery time needed' : ''}</Text>}
         <View style={styles.actions}>
           {task.recurrence ? <Text style={styles.meta}>Complete recurring occurrences from Today.</Text> :

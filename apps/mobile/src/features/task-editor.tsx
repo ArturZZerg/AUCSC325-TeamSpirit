@@ -31,7 +31,7 @@ export function TaskEditor({ task, onClose, timeZone = 'UTC' }: { task: Personal
     try { await handleSubmit(save)(); }
     finally { saving.current = false; }
   };
-  const error = errors.title?.message || errors.description?.message || errors.dueDate?.message || errors.dueTime?.message
+  const error = errors.title?.message || errors.description?.message || errors.estimatedMinutes?.message || errors.dueDate?.message || errors.dueTime?.message
     || errors.scheduledDate?.message || errors.scheduledTime?.message || errors.recurrenceMode?.message || errors.interval?.message || errors.weekdays?.message || message;
 
   return <Modal visible animationType="slide" onRequestClose={close}>
@@ -42,6 +42,8 @@ export function TaskEditor({ task, onClose, timeZone = 'UTC' }: { task: Personal
           <Text style={styles.meta}>Dates and times follow your account time zone: {timeZone}.</Text>
           <Controller name="title" control={control} render={({ field }) => <Field label="Title" value={field.value} onChangeText={field.onChange} editable={!isSubmitting}/>}/>
           <Controller name="description" control={control} render={({ field }) => <Field label="Description" value={field.value} onChangeText={field.onChange} editable={!isSubmitting} multiline/>}/>
+          <Controller name="estimatedMinutes" control={control} render={({ field }) => <Field label="Estimated minutes (optional)" value={field.value} onChangeText={field.onChange} keyboardType="number-pad" placeholder="e.g. 30" editable={!isSubmitting}/>}/>
+          <Text style={styles.meta}>Use 1–1440 whole minutes. Leave blank to remove the estimate.</Text>
           <Controller name="dueMode" control={control} render={({ field }) => <Choices label="Deadline" value={field.value} onChange={field.onChange} disabled={isSubmitting}
             options={[{ value: 'none', label: 'No deadline' }, { value: 'date', label: 'Date only' }, { value: 'instant', label: 'Timed deadline' }, ...(task?.due?.kind === 'instant' ? [{ value: 'existing', label: 'Keep timed deadline' }] : [])]}/>}/>
           {dueMode === 'existing' && task?.due?.kind === 'instant' && <Text style={styles.meta}>Current deadline: {taskTimingLabel(task.due, timeZone)}</Text>}
