@@ -29,6 +29,12 @@ A guard prevents repeated writes and disables reminder entry during a pending
 change. Refresh events obtains updated configuration through the existing query.
 Unsave cancels intent through the transactional API lifecycle.
 
+Campus resets search, reminder drafts, pending controls and failure messages at
+each session boundary. A late write response stays attached to the discarded
+screen and cannot alter the new account's controls. A new login to the same
+account also starts with fresh drafts. `campus-account.test.tsx` covers account
+switching, sign-out, reminder drafts and late failures.
+
 ## Validation and remaining work
 
 `event-reminder.test.tsx` covers request preservation, save eligibility, retained

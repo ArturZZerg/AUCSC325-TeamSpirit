@@ -7,8 +7,13 @@ import { taskTimingLabel } from '@/features/task-form';
 import { useSessionStore } from '@/store/session';
 import type { CampusEvent } from '@/lib/types';
 export default function CampusScreen() {
+  const session = useSessionStore(state => state.session);
+  // Session changes discard private drafts and detach pending callbacks from
+  // the next account's screen, including a later login to the same account.
+  return <CampusContent key={JSON.stringify([session?.user.id, session?.accessToken])} timeZone={session?.user.timeZone ?? 'UTC'}/>;
+}
+function CampusContent({ timeZone }: { timeZone: string }) {
   const events = useEvents(); const action = useAction(); const [filter, setFilter] = useState('');
-  const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');
   const guard = useRef(false); const [pending, setPending] = useState<string>(); const [message, setMessage] = useState<string>();
   const [reminding, setReminding] = useState<CampusEvent>(); const disabled = !!pending || action.isPending;
   const visible = useMemo(() => (events.data ?? []).filter(event => !filter || event.category?.toLowerCase().includes(filter.toLowerCase()) || event.title.toLowerCase().includes(filter.toLowerCase())), [events.data, filter]);
