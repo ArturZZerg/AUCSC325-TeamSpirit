@@ -112,4 +112,6 @@ acceptance remains outstanding.
 ## Next task
 
 Today and Coming up display existing deadline/schedule values in the account
-timezone. Next, verify the accumulated changes through native device acceptance.
+timezone. The [native editor report](../requirements/android-native-editors-2026-10-04.md)
+records task duration, scheduling, recurrence, failed saves and DST input checks
+on Pixel 10 Pro XL. Continue the remaining native calendar and iOS acceptance.
