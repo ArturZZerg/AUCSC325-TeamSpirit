@@ -35,7 +35,9 @@ before writes, account transitions, stale authorization failures, and logout rac
 Run `npm run check` and the mobile web export, plus the
 [Android preview acceptance](../requirements/android-preview.md).
 
-Today snapshots are still keyed by their requested date. Composing a newly selected
-offline date from `/snapshot`, local midnight rollover, complete recurring
-occurrence controls, notification preferences/rescheduling, and iOS acceptance
-remain follow-up work. This slice does not claim those gates are complete.
+Today snapshots are still keyed by their requested date. Recurring-task completion
+and undo, goal completion/skipping, and write failure controls are covered by the
+[Today actions slice](mobile-today.md), which also handles account-local midnight
+rollover and refreshing on app resume. Composing a newly selected offline date
+from `/snapshot`, snooze controls, notification preferences/rescheduling, and
+iOS acceptance remain follow-up work.

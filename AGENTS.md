@@ -6,8 +6,8 @@ Read [the architecture overview](docs/architecture/overview.md) and
 [ADR 001](docs/adr/001-initial-architecture.md) before implementation.
 The product requirements remain in [ToR.docx](ToR.docx).
 
-Phase 0 establishes documentation only. The directories and contracts below
-describe the target architecture; they are not implemented yet.
+Phase 0 established the documentation baseline. The initial MVP is implemented;
+the directories and contracts below govern continued development.
 
 * Use one TypeScript monorepo with npm workspaces and one root lockfile.
 * `apps/mobile` owns presentation, device capabilities, and SQLite caching.

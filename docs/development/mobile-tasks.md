@@ -30,5 +30,7 @@ and require their occurrence date; Tasks does not send a template-level completi
 
 Run `npm run check` and `npm run build:web -w @campusflow/mobile`. Use the
 [Android preview workflow](../requirements/android-preview.md) for real-device
-validation. Query/cache refresh behavior, Today occurrence actions, and reliable
-offline startup remain separate mobile reliability work.
+validation. Query/cache refresh behavior and offline startup are covered by the
+[cache lifecycle slice](mobile-cache.md); recurring completion/undo and goal
+completion/skipping are covered by the [Today actions slice](mobile-today.md).
+New-date offline composition and native device acceptance remain follow-up work.
