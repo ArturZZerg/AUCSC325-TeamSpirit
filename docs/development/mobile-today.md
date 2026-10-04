@@ -83,6 +83,7 @@ device validation has not been performed for this slice.
 
 ## Next task
 
-Add goal creation, editing, deletion, and history in Wellness. Reminder
-reconciliation is covered in [the reminder slice](mobile-reminders.md). Main Goal selection is
+Goal creation, editing, deletion, and history are covered in
+[the Wellness slice](mobile-wellness.md). Reminder reconciliation is covered in
+[the reminder slice](mobile-reminders.md). Main Goal selection is
 available in [Tasks](mobile-tasks.md); Today displays the selected item first.

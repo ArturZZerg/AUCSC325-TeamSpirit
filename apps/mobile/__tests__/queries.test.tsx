@@ -4,7 +4,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { api, ApiError } from '../src/lib/api';
 import { queryClient } from '../src/lib/query-client';
-import { useAction, useTasks } from '../src/features/queries';
+import { useAction, useGoalHistory, useTasks } from '../src/features/queries';
+import { snapshotFixture } from './snapshot-fixture';
 import { readCache, writeCache, clearAccountCache } from '../src/services/cache';
 import { useSessionStore } from '../src/store/session';
 import type { Session } from '../src/lib/types';
@@ -42,6 +43,25 @@ beforeEach(() => {
 afterEach(() => { queryClient.clear(); });
 
 describe('account-scoped cached query lifecycle (ToR 10, 19)', () => {
+  it('reads validated goal history offline and isolates it when the account changes', async () => {
+    const snapshot = snapshotFixture(); const rows = snapshot.goalCompletions; const goalId = rows[0].goalId;
+    jest.mocked(api).mockRejectedValue(new Error('Offline'));
+    jest.mocked(readCache).mockImplementation(accountId => Promise.resolve(accountId === first.user.id ? rows : []));
+    const { result } = renderHook(() => useGoalHistory(goalId), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual(rows));
+    expect(api).toHaveBeenCalledWith(`/goals/${goalId}/history`, expect.anything());
+    await act(async () => { await useSessionStore.getState().setSession(second); });
+    expect(result.current.data).not.toEqual(rows);
+    await waitFor(() => expect(result.current.data).toEqual([]));
+    expect(readCache).toHaveBeenCalledWith(second.user.id, `goalHistory:${goalId}`);
+  });
+  it('rejects history belonging to another goal from SQLite and the server', async () => {
+    const rows = snapshotFixture().goalCompletions;
+    jest.mocked(api).mockResolvedValue(rows); jest.mocked(readCache).mockResolvedValue(rows);
+    const { result } = renderHook(() => useGoalHistory('30000000-0000-4000-8000-000000000002'), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.data).toBeUndefined(); expect(writeCache).not.toHaveBeenCalled();
+  });
   it('shows saved data immediately while a server read remains pending', async () => {
     const pending = deferred<unknown>();
     jest.mocked(api).mockReturnValue(pending.promise);

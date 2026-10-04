@@ -44,5 +44,6 @@ updates remain separate tasks. No push delivery service is introduced.
 
 ## Next task
 
-Add goal creation, editing, deletion, and completion history to Wellness, with
-account/goal timezone dates and explicit write failure controls.
+Goal creation, editing, deletion, and completion history are implemented in
+[mobile-wellness.md](mobile-wellness.md). Reminder-specific follow-up work remains
+listed in the acceptance gates above.

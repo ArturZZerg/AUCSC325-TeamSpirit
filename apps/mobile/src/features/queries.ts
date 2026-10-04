@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { academicItemSchema, eventSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { academicItemSchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
 import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
@@ -13,6 +13,7 @@ const schemas = {
   tasks: personalTaskSchema.array(), academic: academicItemSchema.array(), goals: goalSchema.array(),
   events: eventSchema.extend({ saved: z.boolean().optional(), includedInPlan: z.boolean().optional() }).array(),
   wellness: wellnessEntrySchema.array(), reminders: reminderSchema.array(),
+  goalHistory: goalCompletionSchema.array(),
 };
 
 function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>, cacheKey = key) {
@@ -98,6 +99,10 @@ export function useToday(selectedDate?: string) {
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
 export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items', schemas.academic);
 export const useGoals = () => cachedQuery<Goal[]>('goals', '/goals', schemas.goals);
+export function useGoalHistory(goalId: string) {
+  const schema = useMemo(() => schemas.goalHistory.refine(rows => rows.every(row => row.goalId === goalId), 'History belongs to another goal'), [goalId]);
+  return cachedQuery(`goalHistory:${goalId}`, `/goals/${goalId}/history`, schema);
+}
 export const useEvents = () => cachedQuery<CampusEvent[]>('events', '/events', schemas.events);
 export const useWellness = () => cachedQuery<WellnessEntry[]>('wellness', '/wellness', schemas.wellness);
 export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences', notificationPreferencesSchema);
