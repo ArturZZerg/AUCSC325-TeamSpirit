@@ -3,10 +3,10 @@ import { campusEventSchema } from '@campusflow/contracts';
 import { BadRequestException, Body, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, createWellnessEntrySchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { configureAcademicReminderSchema, academicReminderConfigurationSchema, dueSchema, eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, createWellnessEntrySchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, parseUuid, toIso } from './common';
 import { PrismaService } from './prisma.service';
-import { goalOccursOn, reminderAfterSnooze, taskOccursOn } from '@campusflow/domain';
+import { academicReminderFireAt, goalOccursOn, reminderAfterSnooze, taskOccursOn } from '@campusflow/domain';
 
 const asJson = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
 const taskDto = (r:{id:string;title:string;description:string|null;priority:string;category:string;due:Prisma.JsonValue|null;scheduled:Prisma.JsonValue|null;recurrence:Prisma.JsonValue|null;reminder:Prisma.JsonValue|null;estimatedMinutes:number|null;completedAt:Date|null;snoozedUntil:Date|null;mainGoalDate:string|null;createdAt:Date;updatedAt:Date}) => personalTaskSchema.parse({...r,completedAt:r.completedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
@@ -16,6 +16,36 @@ const isExplicitReminder = (reminder: unknown): reminder is { kind: 'instant'; a
 
 @Injectable() export class ReminderService {
   constructor(private readonly prisma:PrismaService) {}
+  // Share Main Goal's order: User row before any course/academic/reminder writes.
+  // Canvas takes its sync advisory lock first; no User-lock holder requests it.
+  async lockAcademicReminders(userId: string, tx: Prisma.TransactionClient): Promise<void> {
+    await lockMainGoalAccount(tx, userId);
+  }
+  // The owned row lock also serializes null-occurrence reminder creation with
+  // academic updates. PostgreSQL nullable unique keys alone allow duplicates.
+  async lockAcademicItem(userId: string, id: string, tx: Prisma.TransactionClient): Promise<void> {
+    await tx.$queryRaw`SELECT "id" FROM "AcademicItem" WHERE "id" = ${id}::uuid AND "userId" = ${userId}::uuid FOR NO KEY UPDATE`;
+  }
+  async reconcileAcademicItem(userId: string, id: string, tx: Prisma.TransactionClient): Promise<void> {
+    await this.lockAcademicItem(userId, id, tx);
+    const item = await tx.academicItem.findFirst({ where: { id, userId }, include: { course: true } });
+    if (!item) throw new NotFoundException('Academic item not found');
+    const where = { userId, targetKind: 'academicItem', targetId: id, academicItemId: id };
+    if (item.reminderLeadMinutes === null) {
+      await tx.reminder.deleteMany({ where });
+      return;
+    }
+    const fireAt = academicReminderFireAt(dueSchema.nullable().parse(item.due), item.reminderLeadMinutes,
+      item.submissionState, item.course?.active ?? true);
+    const existing = await tx.reminder.findFirst({ where });
+    if (!fireAt) {
+      await tx.reminder.updateMany({ where: { ...where, enabled: true }, data: { enabled: false } });
+    } else if (!existing) {
+      await tx.reminder.create({ data: { ...where, fireAt: new Date(fireAt) } });
+    } else if (!existing.enabled || existing.fireAt.getTime() !== Date.parse(fireAt)) {
+      await tx.reminder.update({ where: { id: existing.id }, data: { fireAt: new Date(fireAt), enabled: true } });
+    }
+  }
   async replace(userId:string,targetKind:string,targetId:string,reminder:unknown, tx:Prisma.TransactionClient = this.prisma, notBefore?: Date | null):Promise<void> {
     await tx.reminder.deleteMany({where:{userId,targetKind,targetId}});
     if (isExplicitReminder(reminder)) await tx.reminder.create({data:{userId,targetKind,targetId,fireAt:new Date(reminderAfterSnooze(reminder.at, notBefore?.toISOString())),...(targetKind==='personalTask'?{personalTaskId:targetId}:targetKind==='goal'?{goalId:targetId}:targetKind==='savedEvent'?{savedEventUserId:userId,savedEventEventId:targetId}:{})}});
@@ -165,7 +195,25 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
 }
 
 @Controller() @UseGuards(AuthGuard) export class AcademicController {
- constructor(private readonly prisma:PrismaService){}
+ constructor(private readonly prisma:PrismaService, private readonly reminders: ReminderService){}
+ @Get('academic-items/:id/reminder') async reminder(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {
+   const item = await this.prisma.academicItem.findFirst({ where: { id, userId: u.id } });
+   if (!item) throw new NotFoundException('Academic item not found');
+   return academicReminderConfigurationSchema.parse({ academicItemId: id, leadMinutes: item.reminderLeadMinutes });
+ }
+ @Put('academic-items/:id/reminder') async configureReminder(@CurrentUser() u: RequestUser,
+   @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(configureAcademicReminderSchema)) b: z.infer<typeof configureAcademicReminderSchema>) {
+   return this.prisma.$transaction(async tx => {
+     await this.reminders.lockAcademicReminders(u.id, tx);
+     await this.reminders.lockAcademicItem(u.id, id, tx);
+     const item = await tx.academicItem.findFirst({ where: { id, userId: u.id } });
+     if (!item) throw new NotFoundException('Academic item not found');
+     if (item.reminderLeadMinutes !== b.leadMinutes)
+       await tx.academicItem.update({ where: { id }, data: { reminderLeadMinutes: b.leadMinutes } });
+     await this.reminders.reconcileAcademicItem(u.id, id, tx);
+     return academicReminderConfigurationSchema.parse({ academicItemId: id, leadMinutes: b.leadMinutes });
+   }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+ }
  @Get('courses') async courses(@CurrentUser() u:RequestUser){return (await this.prisma.course.findMany({where:{userId:u.id},orderBy:{name:'asc'}})).map(r=>courseSchema.parse(r));}
  @Get('academic-items') async items(@CurrentUser() u:RequestUser){return (await this.prisma.academicItem.findMany({where:{userId:u.id},orderBy:{updatedAt:'desc'}})).map(r=>academicItemSchema.parse({...r,updatedAt:toIso(r.updatedAt)}));}
  @Patch('academic-items/:id/main-goal') async main(@CurrentUser() u: RequestUser,

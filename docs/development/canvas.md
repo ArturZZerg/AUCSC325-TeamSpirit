@@ -37,11 +37,12 @@ Incomplete batches, duplicates, dangling course references and limits (200 cours
 with an abort signal; the transaction itself is bounded at 30 seconds.
 
 Connection and sync writes share a PostgreSQL advisory lock per account, acquired
-before reading the connection or invoking the provider. Upserts and successful
+before reading the connection or invoking the provider. Upserts, configured academic reminder reconciliation and successful
 freshness metadata commit in one transaction. Retries preserve internal UUIDs,
 Main Goal selections and related history. Fixture rows use `source=canvas:fixture`
 so they cannot overwrite institutional `canvas` records. Account ownership is part
-of every external identity. No schema migration is needed.
+of every external identity. Academic reminder configuration adds the nullable
+`AcademicItem.reminderLeadMinutes` column; existing records default to unconfigured.
 
 Provider failure commits only generic failure/attempt metadata, preserving cached
 entities and the last success. Database errors roll back all writes, including
@@ -70,3 +71,76 @@ Institutional approval, registered developer key/scopes/callback, backend OAuth
 state and encrypted token lifecycle, authorized live-account tests, planner/calendar
 imports and source coverage/reconciliation remain future integration work. This
 fixture implementation does not claim the live Canvas MVP gate is satisfied.
+
+## Explicit academic deadline reminders (ToR 10)
+
+Authenticated `GET /academic-items/:id/reminder` returns
+`{ "academicItemId": "<UUID>", "leadMinutes": null }` until configured.
+`PUT /academic-items/:id/reminder` accepts exactly `{ "leadMinutes": 1440 }`
+for 24 elapsed hours before the deadline, `{ "leadMinutes": 0 }` at the deadline,
+or `{ "leadMinutes": null }` to clear. Lead time is a nonnegative integer within
+PostgreSQL's signed Int range. Missing fields, fractions, negatives, unknown
+fields, and other-account IDs are rejected. The response includes the item UUID
+and current leadMinutes. This is an API configuration surface, not a new mobile
+editor or a default notification for every import.
+
+The nullable column stores durable **relative intent**, not a delivery time.
+`Reminder.fireAt` alone cannot recover that intent after a deadline disappears.
+No backfill enables existing items. The existing Reminder table is the delivery
+projection, linked through `academicItemId`, with the same UUID retained across
+deadline changes and temporary suppression. Configuration and imports acquire
+the same User-row `FOR NO KEY UPDATE` lock as Main Goal selection before writing
+courses or academics. Canvas takes its existing per-account sync advisory lock
+first; User-lock holders never acquire that advisory lock. Main Goal selection,
+reminder configuration, and sync therefore serialize before taking subordinate
+row locks, including retained items omitted from an import. Different accounts
+lock different User rows. This also prevents stale active-course reads even for
+newly configured items omitted from the import. Academic-item row locks additionally serialize
+reconciliation with academic updates, so repeated or concurrent requests cannot
+create multiple null-occurrence reminders. All writers must use this transaction
+hook; the existing nullable composite unique key alone is not sufficient.
+
+- Timed deadlines subtract elapsed lead minutes in UTC, including across DST.
+- Absent and date-only deadlines produce no invented midnight delivery time.
+  An extreme lead that places delivery before the supported four-digit-year
+  wire range is also suppressed while configuration is retained.
+- Submitted/graded items and explicitly inactive courses suppress delivery.
+  `missing`/`unsubmitted` items remain actionable.
+- Suppression retains leadMinutes and disables an existing Reminder. If no
+  reminder exists yet, no placeholder fire time is stored. Restoring an
+  actionable timed deadline re-enables the same row (or creates the first one).
+- Explicit clearing deletes delivery intent. A later sync cannot recreate it.
+  Explicit database deletion of an AcademicItem cascades its reminder; a later
+  re-import is a new, unconfigured item. No new academic deletion endpoint is added.
+- Imports never infer deletion from omission, even in accepted complete batches.
+  An explicit course active-state change reconciles retained configured items,
+  including items omitted from that batch. Provider deletion tombstones remain
+  outside the current provider contract; filtered/absent records are not tombstones.
+
+The generic ReminderService hook reads normalized persistence only. It runs after
+academic upserts and before successful sync freshness, inside the same transaction.
+Any persistence/reconciliation failure rolls back all successful sync writes.
+Rejected provider batches preserve previous academics, reminder intent and last
+success, while retaining the existing sanitized failure-attempt metadata.
+Configuration changes and their reminder projection also commit atomically.
+
+`GET /reminders` and the mobile scheduler contract are unchanged. Enabled intent
+is returned with `targetKind=academicItem`, the existing ID and recalculated
+`fireAt`. Device reconciliation cancels/reschedules that ID rather than adding a
+second notification. Academic category preferences, account-local quiet hours,
+permission and expiry remain device policies; disabling a category does not erase
+server configuration. Device refresh is required to apply server changes; an
+offline device cannot receive immediate cancellation without a push mechanism.
+
+Verification: `academic-reminders.spec.ts` runs against PostgreSQL and covers
+configuration, real FK failure rollback, injected reconciliation rollback,
+provider rejection, restoration, concurrent writes, isolation, Main Goal and
+Today/snapshot parity. Domain tests cover UTC/DST and suppression policy;
+contracts tests validate explicit configuration; mobile reminder tests exercise
+academic DTO rescheduling, cancellation, category re-enabling and quiet hours.
+
+The PostgreSQL concurrency regression pauses sync after an academic upsert and
+observes the competing transaction with `pg_blocking_pids`: Main Goal selection
+must wait on the User row before writing either academic item. It covers moves
+in both directions, configuration/clearing during a deadline change, retained
+omitted items, and another account completing writes while the first is paused.
