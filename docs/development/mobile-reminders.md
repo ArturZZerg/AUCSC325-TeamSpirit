@@ -55,4 +55,5 @@ updates remain separate tasks. No push delivery service is introduced.
 Goal creation, editing, deletion, and completion history are implemented in
 [mobile-wellness.md](mobile-wellness.md). Reminder-specific follow-up work remains
 listed in the acceptance gates above. Task-editor repeat submission is guarded
-before asynchronous validation; timed scheduling and recurrence editing is next.
+before asynchronous validation; timed scheduling and recurrence editing are
+implemented. Task search/filter controls are next.

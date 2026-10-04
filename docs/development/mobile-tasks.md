@@ -13,12 +13,20 @@ taps cannot launch parallel writes. Validation failures and failed saves release
 the guard for correction or retry.
 
 An empty description and the No deadline choice send explicit nulls when editing.
-Date-only deadlines remain calendar dates. Existing timed deadlines are preserved
-exactly unless the user explicitly chooses a date-only replacement or removal.
-Schedule, recurrence, reminder, estimated duration, and completion fields are
-omitted from this editor's update so their existing values are preserved. A
-recurring task cannot lose its only schedule anchor. Time selection, recurrence
-configuration, reminder editing, and task search/filter remain follow-up work.
+Existing timed deadlines and schedules are preserved exactly unless the user
+chooses to replace or remove them. The editor supports separate date-only or
+timed deadlines and schedules, plus daily and selected-weekday recurrence with
+contract-bounded repeat intervals. Scheduled dates anchor recurrence before
+deadlines; recurring tasks cannot lose their only anchor. Removing recurrence
+allows both date fields to be cleared explicitly.
+
+New timed values use shared domain conversion from the account timezone to UTC.
+Date-only values remain calendar dates. Explicit input rejects missing or repeated
+DST wall times with a correction message. Existing instants in a repeated hour
+can still be retained exactly. Tasks displays instants in the account timezone,
+including schedule and repeat details. Unchanged scheduling/recurrence is omitted
+from updates; reminder, duration, and completion fields are preserved. Reminder
+editing and task search/filter remain follow-up work.
 
 Deletion requires confirmation and reports failure without hiding the task.
 One-time tasks support completion and undo. Recurring occurrences belong to Today
@@ -41,6 +49,8 @@ repeat taps; failed writes preserve the selection and allow retry.
 | --- | --- |
 | Valid request shapes, explicit clearing, exact timed-deadline preservation, calendar validation, recurrence anchor protection | `apps/mobile/__tests__/task-form.test.ts` |
 | Editor initialization, cancelled drafts, validation, save/retry/pending states, delete confirmation/failure, completion failure | `apps/mobile/__tests__/task-editor.test.tsx` |
+| Timed scheduling, recurrence creation/edit/removal, interval/weekdays/anchor validation, preservation, account-zone display, failed drafts | `apps/mobile/__tests__/task-scheduling.test.tsx` |
+| Explicit local-time conversion, midnight/leap dates, DST gaps and overlaps | `packages/domain/__tests__/local-clock.test.ts` |
 
 Run `npm run check` and `npm run build:web -w @campusflow/mobile`. Use the
 [Android preview workflow](../requirements/android-preview.md) for real-device
@@ -54,6 +64,6 @@ acceptance remains outstanding.
 
 ## Next task
 
-Expose timed deadlines, scheduled dates/times, and daily/weekly recurrence in the
-editor using account-timezone conversion and explicit DST validation. Preserve
-existing instants exactly unless the user chooses to replace them.
+Add task search and category/completion filters over the complete validated
+account cache, so the same controls remain useful offline without fragmenting
+the persisted task list.
