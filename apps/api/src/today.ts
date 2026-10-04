@@ -1,4 +1,4 @@
-import { Controller, Get, Injectable, Query, ServiceUnavailableException, UseGuards } from '@nestjs/common';
+import { Controller, Get, Injectable, Query, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { addCalendarDays, composeToday, localDateAt, type TodayInput } from '@campusflow/domain';
 import { offlineSnapshotSchema, todayQuerySchema, todayResponseSchema, type OfflineSnapshot } from '@campusflow/contracts';
@@ -103,12 +103,4 @@ export class TodayController {
   @Get('snapshot') snapshot(@CurrentUser() user: RequestUser, @Query(new ZodPipe(todayQuerySchema)) query: { date?: string }) {
     return this.today.snapshot(user, query.date);
   }
-}
-
-@Controller('canvas')
-@UseGuards(AuthGuard)
-export class CanvasController {
-  constructor(private readonly prisma: PrismaService) {}
-  @Get('status') async status(@CurrentUser() user: RequestUser) { const connection = await this.prisma.canvasConnection.findUnique({ where: { userId: user.id } }); return { connected: Boolean(connection), baseUrl: connection?.baseUrl ?? null, externalAccountId: connection?.externalAccountId ?? null, lastSuccessfulSyncAt: connection?.lastSuccessfulSyncAt?.toISOString() ?? null, lastSyncAttemptAt: connection?.lastSyncAttemptAt?.toISOString() ?? null, lastError: connection?.lastError ?? null }; }
-  @Get('connect/start') connect(): never { throw new ServiceUnavailableException('Canvas OAuth is disabled until this deployment has an institution-approved developer key and HTTPS callback.'); }
 }
