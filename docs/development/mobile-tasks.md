@@ -105,5 +105,5 @@ acceptance remains outstanding.
 
 ## Next task
 
-Add mobile goal reminder controls using the goal's timezone and the implemented
-transactional reminder lifecycle, preserving its schedule and completion history.
+Persist saved-event reminder intent and unsave cleanup before adding event
+reminder controls, reusing the task/goal timed editor where appropriate.
