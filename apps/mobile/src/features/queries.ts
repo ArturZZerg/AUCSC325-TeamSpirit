@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { academicItemSchema, campusEventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
+import { goalOccurrenceDate } from '@campusflow/domain';
 import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
 import { useSessionStore } from '@/store/session';
@@ -64,7 +65,8 @@ function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTyp
 export function useToday(selectedDate?: string) {
   const session = useSessionStore(state => state.session);
   const timeZone = session?.user.timeZone ?? 'UTC';
-  const { date, resumeCount } = useTodayClock(timeZone, selectedDate);
+  const [goalZones, setGoalZones] = useState<string[]>([]);
+  const { date, resumeCount } = useTodayClock(timeZone, selectedDate, goalZones);
   const query = cachedQuery<Today>(`today:${date}`, `/today?date=${date}`, todayResponseSchema);
   const snapshotSchema = useMemo(() => offlineSnapshotSchema.refine(value =>
     value.accountId === session?.user.id && value.timeZone === timeZone
@@ -73,9 +75,32 @@ export function useToday(selectedDate?: string) {
   const snapshot = cachedQuery(`snapshot:${date}:${timeZone}`, `/snapshot?date=${date}`, snapshotSchema, 'snapshot');
   const snapshotData = snapshot.savedData && (!snapshot.data || Date.parse(snapshot.savedData.capturedAt) > Date.parse(snapshot.data.capturedAt))
     ? snapshot.savedData : snapshot.data;
-  const offline = session ? composeOfflineToday(snapshotData, session.user.id, timeZone, date, new Date().toISOString()) : undefined;
+  const zoneKey = [...new Set(snapshotData?.goals.map(goal => goal.timeZone) ?? [])].sort().join('|');
+  useEffect(() => { setGoalZones(zoneKey ? zoneKey.split('|') : []); }, [zoneKey]);
+  const now = new Date().toISOString();
+  const offline = session ? composeOfflineToday(snapshotData, session.user.id, timeZone, date, now) : undefined;
   const validToday = query.data?.date === date && query.data.timeZone === timeZone ? query.data : undefined;
-  const data = validToday && ((!query.isCached && !query.isError) || !offline || Date.parse(validToday.generatedAt) >= Date.parse(offline.generatedAt)) ? validToday : offline;
+  const preferred = validToday && ((!query.isCached && !query.isError) || !offline || Date.parse(validToday.generatedAt) >= Date.parse(offline.generatedAt)) ? validToday : offline;
+  let data = preferred;
+  if (offline && snapshotData && preferred === validToday && validToday) {
+    const snapshotAge = Date.parse(snapshotData.capturedAt) - Date.parse(validToday.generatedAt);
+    const goals = new Map(offline.items.filter(item => item.kind === 'goal').map(item => [item.entityId, item]));
+    const metadata = new Map(snapshotData.goals.map(goal => [goal.id, goal]));
+    // Newer normalized data owns goal membership, configuration and history.
+    // At equal capture times retain already-compatible Today rows.
+    // Older metadata may detect an incompatible derived key, but cannot safely
+    // generate its replacement: withhold that row until usable metadata arrives.
+    const items = validToday.items.flatMap(item => {
+      if (item.kind !== 'goal') return [item];
+      const current = goals.get(item.entityId); goals.delete(item.entityId);
+      if (snapshotAge > 0) return current ? [current] : [];
+      const goal = metadata.get(item.entityId);
+      const compatible = !goal || item.occurrenceKey === goalOccurrenceDate(goal.timeZone, date, timeZone, now);
+      if (compatible) return [item];
+      return snapshotAge === 0 && current ? [current] : [];
+    });
+    data = { ...validToday, items: [...items, ...(snapshotAge >= 0 ? goals.values() : [])] };
+  }
   const lastRefresh = useRef({ resumeCount, timeZone });
 
   useEffect(() => {

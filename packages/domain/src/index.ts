@@ -60,6 +60,10 @@ export const taskOccurrenceTiming = (task: PersonalTask, date: DateOnly, timeZon
     : { kind: 'instant', at: Temporal.Instant.from(value.at).toZonedDateTimeISO(timeZone).add({ days }).toInstant().toString() };
   return { scheduled: shift(task.scheduled), due: shift(task.due) };
 };
+/** Current account day follows the goal's current local date; non-current
+ * account-day views retain their existing account-midnight projection. */
+export const goalOccurrenceDate = (goalTimeZone: string, date: DateOnly, accountTimeZone: string, now: string): DateOnly =>
+  localDateAt(date === localDateAt(now, accountTimeZone) ? now : zonedStart(date, accountTimeZone).toInstant().toString(), goalTimeZone);
 export const goalOccursOn = (goal: Goal, date: DateOnly): boolean => goal.schedule.kind === 'daily' ? true : goal.schedule.kind === 'weekly' ? goal.schedule.weekdays.includes(plainDate(date).dayOfWeek) : false;
 /** Monday–Sunday progress through the supplied date in the goal's own timezone.
  * Count completed occurrence dates once; skips and future dates do not count.
@@ -164,7 +168,7 @@ export const composeToday = (input: TodayInput): TodayPlan => {
     add({ key: `academic:${academic.id}`, kind: 'academic', entityId: academic.id, title: academic.title, due: academic.due, state: temporalState({ ...academic, now: input.now, date: input.date, timeZone: input.timeZone }), isMainGoal: academic.mainGoalDate === input.date }, today);
   }
   for (const goal of input.goals) {
-    const goalDate = localDateAt(zonedStart(input.date, input.timeZone).toInstant().toString(), goal.timeZone);
+    const goalDate = goalOccurrenceDate(goal.timeZone, input.date, input.timeZone, input.now);
     if (!goal.pausedAt && goalOccursOn(goal, goalDate)) {
       const completion = input.goalCompletions.find(c => c.goalId === goal.id && c.occurrenceKey === goalDate);
       const snoozed = Boolean(goal.snoozedUntil && Temporal.Instant.compare(Temporal.Instant.from(goal.snoozedUntil), Temporal.Instant.from(input.now)) > 0);
