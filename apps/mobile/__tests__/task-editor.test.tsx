@@ -77,6 +77,25 @@ describe('task forms and actions (ToR 7)', () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
+  it('guards rapid save taps before asynchronous form validation finishes', async () => {
+    let resolve!: () => void;
+    save.mockReturnValue(new Promise<void>(done => { resolve = done; }));
+    const close = jest.fn(); render(<TaskEditor task={task} onClose={close}/>);
+    act(() => { const button = screen.getByText('Save task'); fireEvent.press(button); fireEvent.press(button); });
+    await screen.findByText('Saving…');
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText('Title')).toHaveProp('editable', false);
+    fireEvent.press(screen.getByText('Cancel')); expect(close).not.toHaveBeenCalled();
+    await act(async () => { resolve(); }); expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases the submission guard after invalid input so a valid draft can save', async () => {
+    const close = jest.fn(); render(<TaskEditor task={null} onClose={close}/>);
+    fireEvent.press(screen.getByText('Save task')); await screen.findByText('Enter a title.');
+    fireEvent.changeText(screen.getByLabelText('Title'), 'Corrected task'); fireEvent.press(screen.getByText('Save task'));
+    await waitFor(() => expect(close).toHaveBeenCalledTimes(1)); expect(save).toHaveBeenCalledTimes(1);
+  });
+
   it('starts each opened editor with that task and discards cancelled drafts', async () => {
     const other = { ...task, id: '10000000-0000-4000-8000-000000000002', title: 'Second task' };
     jest.mocked(useTasks).mockReturnValue({ data: [task, other], isLoading: false } as ReturnType<typeof useTasks>);
