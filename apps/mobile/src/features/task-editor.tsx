@@ -18,6 +18,7 @@ export function TaskEditor({ task, onClose, timeZone = 'UTC' }: { task: Personal
   });
   const dueMode = watch('dueMode');
   const scheduledMode = watch('scheduledMode'); const recurrenceMode = watch('recurrenceMode');
+  const needsUndo = Boolean(task?.completedAt && !task.recurrence);
   const close = () => { if (!isSubmitting && !saving.current) onClose(); };
   const save = async (values: TaskFormValues) => {
     setMessage(undefined);
@@ -31,7 +32,7 @@ export function TaskEditor({ task, onClose, timeZone = 'UTC' }: { task: Personal
     finally { saving.current = false; }
   };
   const error = errors.title?.message || errors.description?.message || errors.dueDate?.message || errors.dueTime?.message
-    || errors.scheduledDate?.message || errors.scheduledTime?.message || errors.interval?.message || errors.weekdays?.message || message;
+    || errors.scheduledDate?.message || errors.scheduledTime?.message || errors.recurrenceMode?.message || errors.interval?.message || errors.weekdays?.message || message;
 
   return <Modal visible animationType="slide" onRequestClose={close}>
     <SafeAreaView style={styles.safe}>
@@ -52,7 +53,8 @@ export function TaskEditor({ task, onClose, timeZone = 'UTC' }: { task: Personal
           {(scheduledMode === 'date' || scheduledMode === 'instant') && <Controller name="scheduledDate" control={control} render={({ field }) => <Field label="Scheduled date" value={field.value} onChangeText={field.onChange} placeholder="YYYY-MM-DD" autoCorrect={false} editable={!isSubmitting}/>}/>}
           {scheduledMode === 'instant' && <Controller name="scheduledTime" control={control} render={({ field }) => <Field label="Scheduled time" value={field.value} onChangeText={field.onChange} placeholder="HH:MM" autoCorrect={false} editable={!isSubmitting}/>}/>}
           <Text style={styles.meta}>Scheduling chooses when to work; a deadline stays separate.</Text>
-          <Controller name="recurrenceMode" control={control} render={({ field }) => <Choices label="Repeat" value={field.value} onChange={field.onChange} disabled={isSubmitting}
+          {needsUndo && <Text style={styles.meta}>Cancel and undo completion before adding a repeat rule.</Text>}
+          <Controller name="recurrenceMode" control={control} render={({ field }) => <Choices label="Repeat" value={field.value} onChange={field.onChange} disabled={isSubmitting || needsUndo}
             options={[{ value: 'none', label: 'Does not repeat' }, { value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }]}/>}/>
           {recurrenceMode !== 'none' && <><Controller name="interval" control={control} render={({ field }) => <Field label={`Repeat every (${recurrenceMode === 'weekly' ? 'weeks' : 'days'})`} value={field.value} onChangeText={field.onChange} keyboardType="number-pad" editable={!isSubmitting}/>}/>
             <Text style={styles.meta}>Repeats start from the scheduled date, or the deadline when no schedule is set.</Text></>}

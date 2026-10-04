@@ -66,4 +66,5 @@ Goal creation, editing, deletion, and completion history are implemented in
 listed in the acceptance gates above. Task-editor repeat submission is guarded
 before asynchronous validation; timed scheduling and recurrence editing are
 implemented along with task search/filter and explicit timed reminder controls.
-Guarding completed-task conversion to recurrence is next.
+Completed-task conversion now requires explicit undo. Persisting explicit goal
+reminder intent, including pause/resume and atomic edits, is next.

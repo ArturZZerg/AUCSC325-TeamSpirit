@@ -16,6 +16,11 @@ beforeEach(() => {
   jest.mocked(useTasks).mockReturnValue({ data: [task], isLoading: false } as ReturnType<typeof useTasks>);
 });
 describe('task scheduling request boundary (ToR 7)', () => {
+  it('requires undo before a completed one-time task becomes recurring', () => {
+    const closed = { ...task, completedAt: task.createdAt, scheduled: { kind: 'date' as const, date: '2025-03-08' } };
+    expect(() => taskFormRequest({ ...taskFormDefaults(closed, zone), recurrenceMode: 'daily' }, closed, zone)).toThrow(/Undo completion/);
+    expect(taskFormRequest({ ...taskFormDefaults(closed, zone), title: 'Still closed' }, closed, zone).body).toMatchObject({ title: 'Still closed' });
+  });
   it('keeps timed deadlines separate from scheduled work and converts both to UTC', () => {
     const request = taskFormRequest({ ...values, dueMode: 'instant', dueDate: '2025-03-08', dueTime: '17:00', scheduledMode: 'instant', scheduledDate: '2025-03-08', scheduledTime: '15:00' }, null, zone);
     expect(request.body).toMatchObject({ due: { kind: 'instant', at: '2025-03-09T00:00:00Z' }, scheduled: { kind: 'instant', at: '2025-03-08T22:00:00Z' } });
@@ -66,6 +71,16 @@ describe('task scheduling request boundary (ToR 7)', () => {
   });
 });
 describe('task scheduling controls', () => {
+  it('explains the undo requirement, disables repeat choices, and still permits ordinary edits', async () => {
+    const closed = { ...task, completedAt: task.createdAt }; const close = jest.fn();
+    render(<TaskEditor task={closed} timeZone={zone} onClose={close}/>);
+    expect(screen.getByText(/Cancel and undo completion/)).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: 'Daily' })).toBeDisabled(); expect(screen.getByRole('radio', { name: 'Weekly' })).toBeDisabled();
+    fireEvent.press(screen.getByRole('radio', { name: 'Daily' })); fireEvent.changeText(screen.getByLabelText('Title'), 'Edited closed task');
+    fireEvent.press(screen.getByText('Save task')); await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ title: 'Edited closed task' }) }));
+    expect(save.mock.calls[0][0].body).not.toHaveProperty('recurrence');
+  });
   it('saves a selected-weekday task and timed deadline in the account zone', async () => {
     const close = jest.fn(); render(<TaskEditor task={null} timeZone={zone} onClose={close}/>);
     fireEvent.changeText(screen.getByLabelText('Title'), 'Read'); fireEvent.press(screen.getByRole('radio', { name: 'Timed deadline' }));
@@ -95,6 +110,13 @@ describe('task scheduling controls', () => {
     expect(screen.getByLabelText('Scheduled date')).toHaveDisplayValue('2025-03-08'); expect(screen.getByRole('checkbox', { name: 'Friday' })).toBeChecked();
     fireEvent.press(screen.getByRole('radio', { name: 'Does not repeat' })); fireEvent.press(screen.getByRole('radio', { name: 'Not scheduled' }));
     fireEvent.press(screen.getByText('Save task')); await waitFor(() => expect(close).toHaveBeenCalled()); expect(save).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ scheduled: null, recurrence: null }) }));
+  });
+  it('permits recovery of legacy completed recurring tasks by removing their rule', async () => {
+    const existing = { ...task, completedAt: task.createdAt, scheduled: { kind: 'date' as const, date: '2025-03-08' }, recurrence: { frequency: 'daily' as const, interval: 1 } };
+    render(<TaskEditor task={existing} timeZone={zone} onClose={jest.fn()}/>);
+    expect(screen.getByRole('radio', { name: 'Does not repeat' })).not.toBeDisabled();
+    fireEvent.press(screen.getByRole('radio', { name: 'Does not repeat' })); fireEvent.press(screen.getByText('Save task'));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({ recurrence: null }) })));
   });
   it('retains timed scheduling and weekday input after a failed save', async () => {
     save.mockRejectedValueOnce(new Error('Offline')); render(<TaskEditor task={task} timeZone={zone} onClose={jest.fn()}/>);

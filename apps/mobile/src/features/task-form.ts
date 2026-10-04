@@ -14,6 +14,7 @@ export function taskFormSchema(task: PersonalTask | null, timeZone = 'UTC') {
     category: categorySchema,
     priority: prioritySchema,
   }).superRefine((values, context) => {
+    if (task?.completedAt && !task.recurrence && values.recurrenceMode !== 'none') context.addIssue({ code: 'custom', path: ['recurrenceMode'], message: 'Undo completion before making this task repeat.' });
     const inputs = [
       { mode: values.dueMode, date: values.dueDate, time: values.dueTime, prefix: 'due', existing: task?.due },
       { mode: values.scheduledMode, date: values.scheduledDate, time: values.scheduledTime, prefix: 'scheduled', existing: task?.scheduled },

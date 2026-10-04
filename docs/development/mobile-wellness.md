@@ -41,4 +41,5 @@ background/resume, cancellation, restart, repeat starts and cleanup.
 Quiet-hour editing is implemented in [notification settings](mobile-reminders.md).
 Task-editor submission, timed scheduling and recurrence editing are implemented
 in [the task slice](mobile-tasks.md), including search/filter and explicit reminder
-controls. Guarding completed-task conversion to recurrence is next.
+controls. Completed-task conversion now requires explicit undo. Persisting
+explicit goal reminder intent with pause/resume lifecycle is next.

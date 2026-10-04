@@ -77,7 +77,9 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
     return this.prisma.$transaction(async tx => {
       await this.lockTask(tx, u.id, id);
       const existing = await this.owned(tx, u.id, id);
-      validateTaskAnchor({ recurrence: b.recurrence === undefined ? existing.recurrence : b.recurrence,
+      const recurrence = b.recurrence === undefined ? existing.recurrence : b.recurrence;
+      if (existing.completedAt && !existing.recurrence && recurrence) throw new BadRequestException('Undo completion before making this task repeat');
+      validateTaskAnchor({ recurrence,
         due: b.due === undefined ? existing.due : b.due, scheduled: b.scheduled === undefined ? existing.scheduled : b.scheduled });
       const data: Prisma.PersonalTaskUpdateInput = { ...b,
         due: b.due === undefined ? undefined : b.due === null ? Prisma.JsonNull : asJson(b.due),
