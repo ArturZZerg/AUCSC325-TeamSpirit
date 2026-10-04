@@ -171,16 +171,35 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
 }
 
 @Controller('goals') @UseGuards(AuthGuard) export class GoalsController {
- constructor(private readonly prisma:PrismaService){}
+ constructor(private readonly prisma: PrismaService, private readonly reminders: ReminderService) {}
  @Get() async list(@CurrentUser() u:RequestUser){return (await this.prisma.goal.findMany({where:{userId:u.id},orderBy:{updatedAt:'desc'}})).map(goalDto);}
- @Post() async create(@CurrentUser() u:RequestUser,@Body(new ZodPipe(createGoalSchema)) b:z.infer<typeof createGoalSchema>){return goalDto(await this.prisma.goal.create({data:{userId:u.id,title:b.title,category:b.category??'health',schedule:asJson(b.schedule),timeZone:b.timeZone,reminder:b.reminder?asJson(b.reminder):Prisma.JsonNull}}));}
- @Patch(':id') async update(@CurrentUser() u:RequestUser,@Param('id',new ZodPipe(parseUuid)) id:string,@Body(new ZodPipe(updateGoalSchema)) b:z.infer<typeof updateGoalSchema>){await this.owned(u.id,id);const data:Prisma.GoalUpdateInput={...b,schedule:b.schedule?asJson(b.schedule):undefined,reminder:b.reminder===undefined?undefined:b.reminder===null?Prisma.JsonNull:asJson(b.reminder)};return goalDto(await this.prisma.goal.update({where:{id},data}));}
- @Delete(':id') async remove(@CurrentUser() u:RequestUser,@Param('id',new ZodPipe(parseUuid)) id:string){await this.owned(u.id,id);await this.prisma.goal.delete({where:{id}});return {deleted:true};}
+ @Post() async create(@CurrentUser() u: RequestUser, @Body(new ZodPipe(createGoalSchema)) b: z.infer<typeof createGoalSchema>) {
+   return this.prisma.$transaction(async tx => {
+     const goal = await tx.goal.create({ data: { userId: u.id, title: b.title, category: b.category ?? 'health', schedule: asJson(b.schedule), timeZone: b.timeZone, reminder: b.reminder ? asJson(b.reminder) : Prisma.JsonNull } });
+     await this.reminders.replace(u.id, 'goal', goal.id, b.reminder, tx);
+     return goalDto(goal);
+   });
+ }
+ @Patch(':id') async update(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(updateGoalSchema)) b: z.infer<typeof updateGoalSchema>) {
+   return this.prisma.$transaction(async tx => {
+     await this.lockGoal(tx, u.id, id); await this.owned(u.id, id, tx);
+     const data: Prisma.GoalUpdateInput = { ...b, schedule: b.schedule ? asJson(b.schedule) : undefined, reminder: b.reminder === undefined ? undefined : b.reminder === null ? Prisma.JsonNull : asJson(b.reminder) };
+     const goal = await tx.goal.update({ where: { id }, data });
+     if (goal.pausedAt || b.reminder !== undefined) await this.reminders.replace(u.id, 'goal', id, goal.pausedAt ? null : b.reminder, tx);
+     return goalDto(goal);
+   });
+ }
+ @Delete(':id') async remove(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {
+   return this.prisma.$transaction(async tx => {
+     await this.lockGoal(tx, u.id, id); await this.owned(u.id, id, tx);
+     await tx.goal.delete({ where: { id } }); return { deleted: true };
+   });
+ }
  @Post(':id/complete') async complete(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
    @Body(new ZodPipe(completeGoalSchema)) b: z.infer<typeof completeGoalSchema>) {
    return this.prisma.$transaction(async tx => {
      // Serialize against schedule edits and deletion while validating the occurrence.
-     await tx.$queryRaw`SELECT "id" FROM "Goal" WHERE "id" = ${id}::uuid AND "userId" = ${u.id}::uuid FOR UPDATE`;
+     await this.lockGoal(tx, u.id, id);
      const record = await tx.goal.findFirst({ where: { id, userId: u.id } });
      if (!record) throw new NotFoundException('Goal not found');
      const goal = goalDto(record);
@@ -196,9 +215,22 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
    });
  }
  @Post(':id/snooze') async snooze(@CurrentUser() u:RequestUser,@Param('id',new ZodPipe(parseUuid)) id:string,@Body(new ZodPipe(snoozeGoalSchema)) b:z.infer<typeof snoozeGoalSchema>){await this.owned(u.id,id);return goalDto(await this.prisma.goal.update({where:{id},data:{snoozedUntil:new Date(b.until)}}));}
- @Post(':id/pause') async pause(@CurrentUser() u:RequestUser,@Param('id',new ZodPipe(parseUuid)) id:string,@Body(new ZodPipe(pauseGoalSchema)) b:z.infer<typeof pauseGoalSchema>){await this.owned(u.id,id);return goalDto(await this.prisma.goal.update({where:{id},data:{pausedAt:b.paused?new Date():null}}));}
+ @Post(':id/pause') async pause(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(pauseGoalSchema)) b: z.infer<typeof pauseGoalSchema>) {
+   return this.prisma.$transaction(async tx => {
+     await this.lockGoal(tx, u.id, id); const existing = await this.owned(u.id, id, tx);
+     const goal = await tx.goal.update({ where: { id }, data: { pausedAt: b.paused ? existing.pausedAt ?? new Date() : null } });
+     // Retain configuration while paused; resume once without replacing intent on retries.
+     if (b.paused || existing.pausedAt) await this.reminders.replace(u.id, 'goal', id, b.paused ? null : goal.reminder, tx);
+     return goalDto(goal);
+   });
+ }
  @Get(':id/history') async history(@CurrentUser() u:RequestUser,@Param('id',new ZodPipe(parseUuid)) id:string){await this.owned(u.id,id);return (await this.prisma.goalCompletion.findMany({where:{userId:u.id,goalId:id},orderBy:{occurrenceKey:'desc'}})).map(r=>goalCompletionSchema.parse({...r,completedAt:r.completedAt?.toISOString()??null,createdAt:toIso(r.createdAt)}));}
- private async owned(userId:string,id:string){const r=await this.prisma.goal.findFirst({where:{id,userId}});if(!r)throw new NotFoundException('Goal not found');return r;}
+ private async lockGoal(tx: Prisma.TransactionClient, userId: string, id: string): Promise<void> {
+   await tx.$queryRaw`SELECT "id" FROM "Goal" WHERE "id" = ${id}::uuid AND "userId" = ${userId}::uuid FOR UPDATE`;
+ }
+ private async owned(userId: string, id: string, db: Prisma.TransactionClient = this.prisma) {
+   const record = await db.goal.findFirst({ where: { id, userId } }); if (!record) throw new NotFoundException('Goal not found'); return record;
+ }
 }
 
 @Controller('wellness') @UseGuards(AuthGuard) export class WellnessController {constructor(private readonly prisma:PrismaService){} @Get() async list(@CurrentUser()u:RequestUser){return(await this.prisma.wellnessEntry.findMany({where:{userId:u.id},orderBy:{date:'desc'}})).map(r=>wellnessEntrySchema.parse({...r,createdAt:toIso(r.createdAt)}));} @Post() async save(@CurrentUser()u:RequestUser,@Body(new ZodPipe(createWellnessEntrySchema))b:z.infer<typeof createWellnessEntrySchema>){const r=await this.prisma.wellnessEntry.upsert({where:{userId_date:{userId:u.id,date:b.date}},create:{userId:u.id,...b},update:b});return wellnessEntrySchema.parse({...r,createdAt:toIso(r.createdAt)});}}

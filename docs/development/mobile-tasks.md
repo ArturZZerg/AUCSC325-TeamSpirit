@@ -105,5 +105,5 @@ acceptance remains outstanding.
 
 ## Next task
 
-Persist explicit goal reminder intent transactionally, including pause/resume,
-edits and deletion, before adding goal reminder controls to mobile.
+Add mobile goal reminder controls using the goal's timezone and the implemented
+transactional reminder lifecycle, preserving its schedule and completion history.

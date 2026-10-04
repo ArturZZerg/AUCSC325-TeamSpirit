@@ -42,4 +42,5 @@ Quiet-hour editing is implemented in [notification settings](mobile-reminders.md
 Task-editor submission, timed scheduling and recurrence editing are implemented
 in [the task slice](mobile-tasks.md), including search/filter and explicit reminder
 controls. Completed-task conversion now requires explicit undo. Persisting
-explicit goal reminder intent with pause/resume lifecycle is next.
+explicit goal reminder intent with pause/resume lifecycle is implemented in the
+API. Mobile goal reminder controls using the goal's timezone are next.

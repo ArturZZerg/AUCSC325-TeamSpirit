@@ -47,6 +47,16 @@ completion/undo, retries, isolation and rollback on reminder failure. Mobile
 mutation invalidation then removes or restores the native schedule through the
 existing reconciliation service.
 
+Goal creation and explicit reminder changes now persist delivery intent in the
+same transaction as configuration. Ordinary edits preserve its identity. Pause
+removes intent and retains configuration; paused edits remain inactive and resume
+restores the latest configuration once. Repeated pause preserves the original
+pause time and cleans legacy intent; repeated resume preserves the active intent
+ID. Goal writes share a row lock with occurrence completion, and goal deletion
+cascades reminder removal through the existing foreign key. PostgreSQL
+`goal-reminders.spec.ts` covers lifecycle, concurrency, isolation and rollback.
+Completing one occurrence preserves a separately chosen future reminder time.
+
 `reminders.test.ts`, `device-reminders.test.tsx`, `notification-settings.test.tsx`,
 `quiet-hours-form.test.ts`, `quiet-hours-editor.test.tsx`, and domain
 `quiet-hours.test.ts` cover changed times, deletion, preferences,
@@ -56,7 +66,7 @@ Run `npm run check` and the mobile web export.
 
 Real iOS/Android permission and delivery acceptance remains outstanding. This
 service reconciles existing API intent; adding date-only/recurring reminder intent,
-goal/event reminder persistence, and reliable remote deadline
+event reminder persistence, and reliable remote deadline
 updates remain separate tasks. No push delivery service is introduced.
 
 ## Next task
@@ -66,5 +76,6 @@ Goal creation, editing, deletion, and completion history are implemented in
 listed in the acceptance gates above. Task-editor repeat submission is guarded
 before asynchronous validation; timed scheduling and recurrence editing are
 implemented along with task search/filter and explicit timed reminder controls.
-Completed-task conversion now requires explicit undo. Persisting explicit goal
-reminder intent, including pause/resume and atomic edits, is next.
+Completed-task conversion now requires explicit undo. Explicit goal reminder
+intent supports pause/resume and atomic edits. Add mobile goal reminder controls
+using the goal's timezone and preserving its schedule/history next.
