@@ -105,5 +105,5 @@ acceptance remains outstanding.
 
 ## Next task
 
-Make task/goal snooze postpone active explicit reminder intent without changing
-saved configuration or reactivating completed/paused targets.
+Show weekly-target goal progress in Wellness using validated completion history
+and the goal's local calendar week, without inventing counts when history is missing.

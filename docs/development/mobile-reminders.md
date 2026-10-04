@@ -68,6 +68,17 @@ public event. `saved-event-reminders.spec.ts` covers replacement, omission,
 unsave/retry, isolation, cascades, rollback and concurrent writes. Date-only
 configuration does not invent a fire time; provider records are not mutated.
 
+Task/goal snooze now postpones existing enabled explicit intent in the same
+transaction as snoozedUntil. It retains intent identity, never advances a later
+delivery, and preserves reminder configuration. Missing/disabled intent is not
+reactivated; absent/date-only configuration and completed/paused targets clear
+legacy stale intent. Reminder edits and undo/resume respect the current snooze
+as a lower bound, without changing the chosen configuration time. The shared
+domain rule compares UTC instants; mobile applies account quiet hours afterward.
+`snoozed-reminders.spec.ts` covers both entity lifecycles, retries, disabled/missing
+intent, isolation, rollback and concurrent edits/state changes. Domain cases cover
+precision, no-advance bounds and snooze followed by quiet hours across spring DST.
+
 `reminders.test.ts`, `device-reminders.test.tsx`, `notification-settings.test.tsx`,
 `quiet-hours-form.test.ts`, `quiet-hours-editor.test.tsx`, and domain
 `quiet-hours.test.ts` cover changed times, deletion, preferences,
@@ -92,5 +103,6 @@ intent supports pause/resume and atomic edits. Mobile goal reminder controls use
 the goal's timezone and preserve its schedule/history. Saved-event intent supports
 replacement and unsave cleanup. Mobile saved-event reminder controls use the
 account timezone and validated account-owned configuration in event reads.
-Make task/goal snooze postpone active explicit reminder intent next, preserving
-configuration and suppressing completed/paused targets.
+Task/goal snooze postpones active explicit intent while preserving configuration
+and leaving completed/paused targets inactive. Show weekly-target goal progress
+in Wellness from validated completion history and the goal's local week next.
