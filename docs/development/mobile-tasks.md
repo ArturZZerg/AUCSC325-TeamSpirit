@@ -105,5 +105,5 @@ acceptance remains outstanding.
 
 ## Next task
 
-Persist saved-event reminder intent and unsave cleanup before adding event
-reminder controls, reusing the task/goal timed editor where appropriate.
+Add mobile saved-event reminder controls and validated account-owned reminder
+configuration to event reads, reusing the task/goal timed editor.

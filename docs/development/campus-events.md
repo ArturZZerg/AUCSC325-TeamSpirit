@@ -95,7 +95,10 @@ and saved-reference recheck protect concurrent saves against cascade deletion.
 
 CanvasConnection, CanvasController and Canvas sourceStatus are untouched. Campus
 sync results are separate from Canvas freshness. Today and snapshot still read
-persisted data only. Task 3 reminder reconciliation is not implemented here.
+persisted data only. Ingestion does not recalculate relative reminder times.
+Explicit saved-event reminder intent is handled by the event API lifecycle
+described in [mobile-reminders.md](mobile-reminders.md), including replacement,
+unsave cleanup and the existing SavedEvent foreign-key cascade.
 
 ## GET /events and frontend coordination
 
