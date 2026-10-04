@@ -89,30 +89,12 @@ Invoke-RestMethod -Method Get `
 	-Uri "http://127.0.0.1:3000/academic-items" -Headers $headers
 ```
 
-To test against a real Canvas account token, stop and restart the API after
-setting these variables in its terminal:
-
-```powershell
-$env:CANVAS_MODE = "token"
-$env:CANVAS_BASE_URL = "https://canvas.ualberta.ca"
-$env:CANVAS_ACCESS_TOKEN = "your-account-token"
-$env:CANVAS_TOKEN_ENCRYPTION_KEY = (node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
-```
-
-Then, from the authenticated testing terminal, connect and sync without sending
-the Canvas token through the mobile app:
-
-```powershell
-Invoke-RestMethod -Method Post `
-	-Uri "http://127.0.0.1:3000/canvas/connect" -Headers $headers
-
-Invoke-RestMethod -Method Post `
-	-Uri "http://127.0.0.1:3000/canvas/sync" -Headers $headers
-```
-
-The local connection endpoint is disabled when `NODE_ENV=production`. A live
-multi-user deployment still needs an institution-approved Canvas developer key
-and OAuth callback.
+Live Canvas connection and synchronization remain disabled until
+institution-approved backend OAuth is implemented. The API does not accept
+personal Canvas tokens or client-selected Canvas URLs. Fixtures require
+`NODE_ENV=development` (or `test`) and `CANVAS_MODE=fixture`; production cannot
+enable them. See [Canvas development](docs/development/canvas.md) for scope and
+verification.
 
 Set `EXPO_PUBLIC_API_URL` to the API address reachable from your device. A physical
 phone cannot reach your computer through `localhost`; use its development LAN
@@ -134,14 +116,14 @@ separate release gate.
 
 ## Project layout
 
-| Directory                          | Responsibility                                                   |
-| ---------------------------------- | ---------------------------------------------------------------- |
-| `apps/mobile`                      | Expo Router screens, forms, account cache and device reminders   |
-| `apps/api`                         | Identity, feature services, providers and PostgreSQL persistence |
-| `packages/contracts`               | REST boundary schemas and DTOs                                   |
-| `packages/domain`                  | Pure date, recurrence and daily-plan rules                       |
-| `docs/architecture` and `docs/adr` | Accepted boundaries and decisions                                |
-| `docs/requirements`                | ToR extraction, implementation plan and acceptance status        |
+| Directory | Responsibility |
+| --- | --- |
+| `apps/mobile` | Expo Router screens, forms, account cache and device reminders |
+| `apps/api` | Identity, feature services, providers and PostgreSQL persistence |
+| `packages/contracts` | REST boundary schemas and DTOs |
+| `packages/domain` | Pure date, recurrence and daily-plan rules |
+| `docs/architecture` and `docs/adr` | Accepted boundaries and decisions |
+| `docs/requirements` | ToR extraction, implementation plan and acceptance status |
 
 ## Integrations and release status
 

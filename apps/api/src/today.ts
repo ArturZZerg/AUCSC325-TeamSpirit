@@ -1,49 +1,36 @@
-import { Controller, Get, Injectable, Query, UseGuards } from "@nestjs/common";
-import {
-  composeToday,
-  type AcademicItem as DomainAcademicItem,
-  type Event as DomainEvent,
-  type Goal as DomainGoal,
-  type GoalCompletion as DomainGoalCompletion,
-  type PersonalTask as DomainPersonalTask,
-} from "@campusflow/domain";
-import {
-  dateSchema,
-  offlineSnapshotSchema,
-  todayQuerySchema,
-  todayResponseSchema,
-} from "@campusflow/contracts";
-import { AuthGuard, CurrentUser, RequestUser, ZodPipe, toIso } from "./common";
-import { PrismaService } from "./prisma.service";
+import { Controller, Get, Injectable, Query, UseGuards } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { addCalendarDays, composeToday, localDateAt, type TodayInput } from '@campusflow/domain';
+import { offlineSnapshotSchema, todayQuerySchema, todayResponseSchema, type OfflineSnapshot } from '@campusflow/contracts';
+import { AuthGuard, CurrentUser, RequestUser, ZodPipe, toIso } from './common';
+import { PrismaService } from './prisma.service';
 
-const jsonRecord = (value: unknown): Record<string, unknown> | undefined =>
-  value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-const currentDate = (timeZone: string): string => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const value = (type: string) =>
-    parts.find((part) => part.type === type)?.value;
-  return `${value("year")}-${value("month")}-${value("day")}`;
-};
-const actionsFor = (
-  kind: "academic" | "personalTask" | "goal" | "event",
-  state: string,
-): Array<"complete" | "uncomplete" | "skip" | "snooze" | "open" | "save"> => {
-  if (kind === "personalTask")
-    return state === "completed"
-      ? ["uncomplete", "open"]
-      : ["complete", "snooze", "open"];
-  if (kind === "goal")
-    return state === "completed" || state === "skipped"
-      ? ["open"]
-      : ["complete", "skip", "snooze", "open"];
-  return kind === "event" ? ["open"] : ["open"];
+/** App-level wire/domain mapping; shared packages remain independent. */
+export function snapshotToDomainInput(snapshot: OfflineSnapshot, date: string, now: string): TodayInput {
+  return {
+    date, now, timeZone: snapshot.timeZone,
+    personalTasks: snapshot.personalTasks.map(task => ({
+      id: task.id, title: task.title, priority: task.priority, due: task.due ?? undefined,
+      scheduled: task.scheduled ?? undefined, recurrence: task.recurrence ?? undefined,
+      completedAt: task.completedAt ?? undefined, snoozedUntil: task.snoozedUntil ?? undefined,
+      mainGoalDate: task.mainGoalDate ?? undefined,
+      completedOccurrenceKeys: snapshot.taskCompletions.filter(row => row.taskId === task.id).map(row => row.occurrenceKey),
+    })),
+    academicItems: snapshot.academicItems.map(item => ({ id: item.id, title: item.title, due: item.due ?? undefined,
+      submissionState: item.submissionState ?? undefined, mainGoalDate: item.mainGoalDate ?? undefined })),
+    goals: snapshot.goals.map(goal => ({ id: goal.id, title: goal.title, schedule: goal.schedule, timeZone: goal.timeZone,
+      pausedAt: goal.pausedAt ?? undefined, snoozedUntil: goal.snoozedUntil ?? undefined })),
+    goalCompletions: snapshot.goalCompletions.map(row => ({ ...row, completedAt: row.completedAt ?? undefined })),
+    events: snapshot.events.map(event => ({ id: event.id, title: event.title,
+      timing: event.timing.kind === 'timed' ? { ...event.timing, endsAt: event.timing.endsAt ?? undefined } : event.timing })),
+    savedEvents: snapshot.savedEvents.map(row => ({ eventId: row.eventId, includedInPlan: row.includedInPlan })),
+  };
+}
+
+const actionsFor = (kind: 'academic' | 'personalTask' | 'goal' | 'event', state: string): Array<'complete' | 'uncomplete' | 'skip' | 'snooze' | 'open' | 'save'> => {
+  if (kind === 'personalTask') return state === 'completed' ? ['uncomplete', 'open'] : ['complete', 'snooze', 'open'];
+  if (kind === 'goal') return state === 'completed' || state === 'skipped' ? ['open'] : ['complete', 'skip', 'snooze', 'open'];
+  return ['open'];
 };
 
 @Injectable()
@@ -51,191 +38,58 @@ export class TodayService {
   constructor(private readonly prisma: PrismaService) {}
 
   async read(user: RequestUser, date: string) {
-    const [tasks, academics, goals, completions, events, savedEvents, canvas] =
-      await Promise.all([
-        this.prisma.personalTask.findMany({
-          where: { userId: user.id },
-          include: { completions: true },
-        }),
-        this.prisma.academicItem.findMany({ where: { userId: user.id } }),
-        this.prisma.goal.findMany({ where: { userId: user.id } }),
-        this.prisma.goalCompletion.findMany({ where: { userId: user.id } }),
-        this.prisma.event.findMany({
-          where: {
-            OR: [{ sourceScope: "public" }, { sourceScope: `user:${user.id}` }],
-          },
-        }),
-        this.prisma.savedEvent.findMany({ where: { userId: user.id } }),
-        this.prisma.canvasConnection.findUnique({ where: { userId: user.id } }),
-      ]);
-    const plan = composeToday({
-      date,
-      timeZone: user.timeZone,
-      now: new Date().toISOString(),
-      personalTasks: tasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        priority: task.priority as DomainPersonalTask["priority"],
-        due: jsonRecord(task.due) as DomainPersonalTask["due"],
-        scheduled: jsonRecord(
-          task.scheduled,
-        ) as DomainPersonalTask["scheduled"],
-        recurrence: jsonRecord(
-          task.recurrence,
-        ) as DomainPersonalTask["recurrence"],
-        completedAt: task.completedAt?.toISOString(),
-        completedOccurrenceKeys: task.completions.map(
-          (completion) => completion.occurrenceKey,
-        ),
-        snoozedUntil: task.snoozedUntil?.toISOString(),
-        mainGoalDate: task.mainGoalDate ?? undefined,
-      })),
-      academicItems: academics.map((item) => ({
-        id: item.id,
-        title: item.title,
-        due: jsonRecord(item.due) as DomainAcademicItem["due"],
-        submissionState:
-          item.submissionState as DomainAcademicItem["submissionState"],
-        mainGoalDate: item.mainGoalDate ?? undefined,
-      })),
-      goals: goals.map((goal) => ({
-        id: goal.id,
-        title: goal.title,
-        schedule: jsonRecord(goal.schedule) as DomainGoal["schedule"],
-        timeZone: goal.timeZone,
-        pausedAt: goal.pausedAt?.toISOString(),
-        snoozedUntil: goal.snoozedUntil?.toISOString(),
-      })),
-      goalCompletions: completions.map((completion) => ({
-        goalId: completion.goalId,
-        occurrenceKey: completion.occurrenceKey,
-        state: completion.state as DomainGoalCompletion["state"],
-        completedAt: completion.completedAt?.toISOString(),
-      })),
-      events: events.map((event) => ({
-        id: event.id,
-        title: event.title,
-        timing: jsonRecord(event.timing) as DomainEvent["timing"],
-      })),
-      savedEvents: savedEvents.map((event) => ({
-        eventId: event.eventId,
-        includedInPlan: event.includedInPlan,
-      })),
-    });
-    const sourceStatus = canvas
-      ? {
-          lastSuccessfulSyncAt:
-            canvas.lastSuccessfulSyncAt?.toISOString() ?? null,
-          availability: canvas.lastError
-            ? ("unavailable" as const)
-            : canvas.lastSuccessfulSyncAt
-              ? ("available" as const)
-              : ("stale" as const),
-          coveredFrom: canvas.coveredFrom ?? null,
-          coveredThrough: canvas.coveredThrough ?? null,
-        }
-      : {
-          lastSuccessfulSyncAt: null,
-          availability: "notConnected" as const,
-          coveredFrom: null,
-          coveredThrough: null,
-        };
-    return todayResponseSchema.parse({
-      date,
-      timeZone: user.timeZone,
-      generatedAt: new Date().toISOString(),
-      sourceStatus,
-      items: plan.items.map((item) => ({
-        ...item,
-        occurrenceKey: item.occurrenceKey ?? null,
-        schedule: item.schedule ?? null,
-        due: item.due ?? null,
-        priority: item.priority ?? null,
-        allowedActions: actionsFor(item.kind, item.state),
-      })),
-      upcoming: plan.upcoming.map((item) => ({
-        ...item,
-        occurrenceKey: item.occurrenceKey ?? null,
-        schedule: item.schedule ?? null,
-        due: item.due ?? null,
-        priority: item.priority ?? null,
-        allowedActions: actionsFor(item.kind, item.state),
-      })),
-      campusEvents: events
-        .filter(
-          (event) =>
-            !savedEvents.some(
-              (saved) => saved.eventId === event.id && saved.includedInPlan,
-            ),
-        )
-        .map((event) => ({
-          id: event.id,
-          title: event.title,
-          description: event.description,
-          category: event.category,
-          source: event.source,
-          externalId: event.externalId,
-          timing: event.timing,
-          location: event.location,
-          url: event.url,
-        })),
+    const snapshot = await this.snapshot(user, date);
+    const plan = composeToday(snapshotToDomainInput(snapshot, date, snapshot.capturedAt));
+    const eventsById = new Map(snapshot.events.map(event => [event.id, event]));
+    const itemDto = (item: (typeof plan.items)[number]) => ({ ...item,
+      occurrenceKey: item.occurrenceKey ?? null, schedule: item.schedule ?? null,
+      due: item.due ?? null, priority: item.priority ?? null, allowedActions: actionsFor(item.kind, item.state) });
+    return todayResponseSchema.parse({ date, timeZone: snapshot.timeZone, generatedAt: snapshot.capturedAt,
+      sourceStatus: snapshot.sourceStatus, items: plan.items.map(itemDto), upcoming: plan.upcoming.map(itemDto),
+      campusEvents: plan.campusEvents.map(event => eventsById.get(event.id)),
     });
   }
 
-  async snapshot(user: RequestUser) {
-    const date = currentDate(user.timeZone);
-    const today = await this.read(user, date);
-    const [tasks, courses, academics, goals, completions, events, saved] =
-      await Promise.all([
-        this.prisma.personalTask.findMany({ where: { userId: user.id } }),
-        this.prisma.course.findMany({ where: { userId: user.id } }),
-        this.prisma.academicItem.findMany({ where: { userId: user.id } }),
-        this.prisma.goal.findMany({ where: { userId: user.id } }),
-        this.prisma.goalCompletion.findMany({ where: { userId: user.id } }),
-        this.prisma.event.findMany({ where: { sourceScope: "public" } }),
-        this.prisma.savedEvent.findMany({ where: { userId: user.id } }),
+  async snapshot(user: RequestUser, date?: string): Promise<OfflineSnapshot> {
+    // A consistent persisted read: concurrent completion/import writes cannot mix
+    // old entity records with new completion rows inside one snapshot.
+    return this.prisma.$transaction(async tx => {
+      const capturedAt = new Date().toISOString();
+      const from = date ?? localDateAt(capturedAt, user.timeZone);
+      const visibility = { OR: [{ sourceScope: 'public' }, { sourceScope: `user:${user.id}` }] };
+      const [tasks, taskCompletions, courses, academics, goals, completions, events, saved, canvas] = await Promise.all([
+        tx.personalTask.findMany({ where: { userId: user.id } }),
+        tx.taskCompletion.findMany({ where: { userId: user.id, task: { userId: user.id } } }),
+        tx.course.findMany({ where: { userId: user.id } }),
+        tx.academicItem.findMany({ where: { userId: user.id } }),
+        tx.goal.findMany({ where: { userId: user.id } }),
+        tx.goalCompletion.findMany({ where: { userId: user.id, goal: { userId: user.id } } }),
+        tx.event.findMany({ where: visibility }),
+        tx.savedEvent.findMany({ where: { userId: user.id, event: visibility } }),
+        tx.canvasConnection.findUnique({ where: { userId: user.id } }),
       ]);
-    return offlineSnapshotSchema.parse({
-      capturedAt: new Date().toISOString(),
-      timeZone: user.timeZone,
-      sourceStatus: today.sourceStatus,
-      courses,
-      academicItems: academics.map((item) => ({
-        ...item,
-        due: item.due ?? null,
-        updatedAt: toIso(item.updatedAt),
-      })),
-      personalTasks: tasks.map((task) => ({
-        ...task,
-        due: task.due ?? null,
-        scheduled: task.scheduled ?? null,
-        recurrence: task.recurrence ?? null,
-        completedAt: task.completedAt?.toISOString() ?? null,
-        snoozedUntil: task.snoozedUntil?.toISOString() ?? null,
-        mainGoalDate: task.mainGoalDate ?? null,
-        createdAt: toIso(task.createdAt),
-        updatedAt: toIso(task.updatedAt),
-      })),
-      goals: goals.map((goal) => ({
-        ...goal,
-        reminder: goal.reminder ?? null,
-        pausedAt: goal.pausedAt?.toISOString() ?? null,
-        snoozedUntil: goal.snoozedUntil?.toISOString() ?? null,
-        createdAt: toIso(goal.createdAt),
-        updatedAt: toIso(goal.updatedAt),
-      })),
-      goalCompletions: completions.map((completion) => ({
-        ...completion,
-        completedAt: completion.completedAt?.toISOString() ?? null,
-        createdAt: toIso(completion.createdAt),
-      })),
-      events: events.map((event) => ({ ...event, timing: event.timing })),
-      savedEvents: saved.map((event) => ({
-        ...event,
-        reminder: event.reminder ?? null,
-        savedAt: toIso(event.savedAt),
-      })),
-    });
+      const sourceStatus = canvas ? {
+        lastSuccessfulSyncAt: canvas.lastSuccessfulSyncAt?.toISOString() ?? null,
+        availability: canvas.lastError ? 'unavailable' : canvas.lastSuccessfulSyncAt ? 'available' : 'stale',
+        coveredFrom: canvas.coveredFrom ?? null, coveredThrough: canvas.coveredThrough ?? null,
+      } : { lastSuccessfulSyncAt: null, availability: 'notConnected', coveredFrom: null, coveredThrough: null };
+      // Currently load all persisted records, including overdue work and future
+      // deadlines. Advertise only an eight-day plan window; each day also has its
+      // seven-day upcoming data. Source coverage is independent of this window.
+      return offlineSnapshotSchema.parse({ accountId: user.id, capturedAt, timeZone: user.timeZone,
+        coverage: { from, through: addCalendarDays(from, 7), includesOverdue: true, basis: 'persisted' }, sourceStatus,
+        courses,
+        academicItems: academics.map(item => ({ ...item, updatedAt: toIso(item.updatedAt) })),
+        personalTasks: tasks.map(task => ({ ...task, completedAt: task.completedAt?.toISOString() ?? null,
+          snoozedUntil: task.snoozedUntil?.toISOString() ?? null, createdAt: toIso(task.createdAt), updatedAt: toIso(task.updatedAt) })),
+        taskCompletions: taskCompletions.map(row => ({ taskId: row.taskId, occurrenceKey: row.occurrenceKey, completedAt: toIso(row.completedAt) })),
+        goals: goals.map(goal => ({ ...goal, pausedAt: goal.pausedAt?.toISOString() ?? null,
+          snoozedUntil: goal.snoozedUntil?.toISOString() ?? null, createdAt: toIso(goal.createdAt), updatedAt: toIso(goal.updatedAt) })),
+        goalCompletions: completions.map(row => ({ ...row, completedAt: row.completedAt?.toISOString() ?? null, createdAt: toIso(row.createdAt) })),
+        events,
+        savedEvents: saved.map(row => ({ ...row, savedAt: toIso(row.savedAt) })),
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
   }
 }
 
@@ -243,14 +97,10 @@ export class TodayService {
 @UseGuards(AuthGuard)
 export class TodayController {
   constructor(private readonly today: TodayService) {}
-  @Get("today") read(
-    @CurrentUser() user: RequestUser,
-    @Query(new ZodPipe(todayQuerySchema)) query: { date?: string },
-  ) {
-    const date = query.date ?? currentDate(user.timeZone);
-    return this.today.read(user, dateSchema.parse(date));
+  @Get('today') read(@CurrentUser() user: RequestUser, @Query(new ZodPipe(todayQuerySchema)) query: { date?: string }) {
+    return this.today.read(user, query.date ?? localDateAt(new Date().toISOString(), user.timeZone));
   }
-  @Get("snapshot") snapshot(@CurrentUser() user: RequestUser) {
-    return this.today.snapshot(user);
+  @Get('snapshot') snapshot(@CurrentUser() user: RequestUser, @Query(new ZodPipe(todayQuerySchema)) query: { date?: string }) {
+    return this.today.snapshot(user, query.date);
   }
 }

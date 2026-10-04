@@ -1,37 +1,15 @@
-import { Module } from "@nestjs/common";
-import { AuthController, AuthService, MeController } from "./auth";
-import {
-  AcademicController,
-  EventsController,
-  GoalsController,
-  PreferencesController,
-  ReminderService,
-  TasksController,
-  WellnessController,
-} from "./data";
-import { PrismaService } from "./prisma.service";
-import { CanvasController, CanvasService } from "./canvas";
-import { TodayController, TodayService } from "./today";
+import { EventSyncService } from './integrations/events/event-sync.service';
+import { Module } from '@nestjs/common';
+import { AuthController, AuthService, MeController } from './auth';
+import { AcademicController, EventsController, GoalsController, PreferencesController, ReminderService, TasksController, WellnessController } from './data';
+import { PrismaService } from './prisma.service';
+import { TodayController, TodayService } from './today';
+import { CanvasController, CanvasService } from './canvas';
+import { CanvasProvider, FixtureCanvasProvider } from './integrations/canvas/canvas-provider';
 
 @Module({
-  controllers: [
-    AuthController,
-    MeController,
-    TasksController,
-    AcademicController,
-    GoalsController,
-    WellnessController,
-    EventsController,
-    PreferencesController,
-    TodayController,
-    CanvasController,
-  ],
-  providers: [
-    PrismaService,
-    AuthService,
-    ReminderService,
-    TodayService,
-    CanvasService,
-  ],
+  controllers: [AuthController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController],
+  providers: [EventSyncService, PrismaService, AuthService, ReminderService, TodayService, CanvasService,
+    { provide: CanvasProvider, useClass: FixtureCanvasProvider }],
 })
 export class AppModule {}

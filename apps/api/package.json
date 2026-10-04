@@ -14,10 +14,12 @@
   "dependencies": {
     "@campusflow/contracts": "0.1.0",
     "@campusflow/domain": "0.1.0",
+    "@js-temporal/polyfill": "0.5.1",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
     "@prisma/client": "6.19.0",
+    "ical.js": "2.2.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^3.25.76"
