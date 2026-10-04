@@ -40,9 +40,11 @@ requesting yesterday again. Changing the account timezone also refreshes the
 plan, even when the calendar date stays the same. Unmount removes the timer and
 AppState listener.
 
-Rollover uses only the newly requested date's cache. An uncached offline date
-remains unavailable; yesterday's plan is not relabelled as today's, and no empty
-plan is invented. Snapshot-based offline composition remains follow-up work.
+Rollover uses the newly requested date's cache or composes it from the account's
+validated snapshot using shared domain planning rules. The snapshot must match
+the account and timezone and cover the requested date, including overdue work and
+the seven-day upcoming list. Capture time and source freshness are retained while
+temporal states use the current clock. Uncovered dates remain unavailable.
 
 ## Automated evidence
 
@@ -73,6 +75,6 @@ device validation has not been performed for this slice.
 
 ## Next task
 
-Compose new offline dates from the account's validated `/snapshot` coverage.
-Snooze controls, Main Goal selection, goal history/editing, and notification
-reconciliation remain separate follow-up work.
+Add Today snooze controls through the existing task and goal endpoints.
+Main Goal selection, goal history/editing, and notification reconciliation remain
+separate follow-up work.

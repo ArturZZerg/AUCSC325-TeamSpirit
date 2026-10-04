@@ -35,9 +35,14 @@ before writes, account transitions, stale authorization failures, and logout rac
 Run `npm run check` and the mobile web export, plus the
 [Android preview acceptance](../requirements/android-preview.md).
 
-Today snapshots are still keyed by their requested date. Recurring-task completion
+Today responses are keyed by their requested date. Recurring-task completion
 and undo, goal completion/skipping, and write failure controls are covered by the
 [Today actions slice](mobile-today.md), which also handles account-local midnight
-rollover and refreshing on app resume. Composing a newly selected offline date
-from `/snapshot`, snooze controls, notification preferences/rescheduling, and
-iOS acceptance remain follow-up work.
+rollover and refreshing on app resume. The account's validated `/snapshot` is also
+saved in SQLite and refreshed alongside Today, on resume, and after successful
+writes. New offline dates within its inclusive persisted coverage are composed
+with shared domain rules. Snapshot age and provider freshness remain visible;
+missing, corrupt, foreign-account, wrong-timezone, or uncovered data cannot confirm
+an empty plan. A fresh Today response wins over late disk data; cached fallbacks
+use the newer capture time. Snooze controls, notification preferences/rescheduling,
+and iOS acceptance remain follow-up work.

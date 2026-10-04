@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { academicItemSchema, eventSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { academicItemSchema, eventSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
 import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
 import { useSessionStore } from '@/store/session';
 import { readCache, writeCache } from '@/services/cache';
 import { useTodayClock } from '@/features/today-clock';
+import { composeOfflineToday } from '@/features/offline-today';
 
 const schemas = {
   tasks: personalTaskSchema.array(), academic: academicItemSchema.array(), goals: goalSchema.array(),
@@ -14,7 +15,7 @@ const schemas = {
   wellness: wellnessEntrySchema.array(), reminders: reminderSchema.array(),
 };
 
-function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>) {
+function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>, cacheKey = key) {
   const session = useSessionStore(state => state.session);
   const accountId = session?.user.id;
   const token = session?.accessToken;
@@ -24,7 +25,7 @@ function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTyp
   useEffect(() => {
     if (!accountId) return;
     let active = true;
-    void readCache<T>(accountId, key).then(cached => {
+    void readCache<T>(accountId, cacheKey).then(cached => {
       // SQLite may finish after the network or after sign-out. Keep it as a
       // fallback, so loading it cannot erase a refresh error or a fresh result.
       const valid = schema.safeParse(cached);
@@ -33,7 +34,7 @@ function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTyp
       }
     }).catch(() => { /* Server data remains usable if the disposable cache fails. */ });
     return () => { active = false; };
-  }, [accountId, token, key, schema]);
+  }, [accountId, token, key, cacheKey, schema]);
 
   const query = useQuery({
     enabled: !!accountId, queryKey: ['account', accountId, key],
@@ -43,7 +44,7 @@ function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTyp
         const fresh = schema.parse(await api<unknown>(path, { signal }));
         if (signal.aborted || !isCurrent()) throw new CancelledError();
         // Cache failure must not turn a successful server read into an error.
-        await writeCache(accountId, key, fresh).catch(() => undefined);
+        await writeCache(accountId, cacheKey, fresh).catch(() => undefined);
         if (signal.aborted || !isCurrent()) throw new CancelledError();
         return fresh;
       } catch (error) {
@@ -54,8 +55,9 @@ function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTyp
       }
     },
   });
-  const data = query.data ?? (saved?.token === token && saved?.key === key ? saved.data : undefined);
-  return { ...query, data, isLoading: query.isLoading && data === undefined };
+  const savedData = saved?.token === token && saved?.key === key ? saved.data : undefined;
+  const data = query.data ?? savedData;
+  return { ...query, data, savedData, isCached: query.data === undefined, isLoading: query.isLoading && data === undefined };
 }
 
 export function useToday(selectedDate?: string) {
@@ -63,6 +65,16 @@ export function useToday(selectedDate?: string) {
   const timeZone = session?.user.timeZone ?? 'UTC';
   const { date, resumeCount } = useTodayClock(timeZone, selectedDate);
   const query = cachedQuery<Today>(`today:${date}`, `/today?date=${date}`, todayResponseSchema);
+  const snapshotSchema = useMemo(() => offlineSnapshotSchema.refine(value =>
+    value.accountId === session?.user.id && value.timeZone === timeZone
+      && value.coverage.from <= date && value.coverage.through >= date,
+  'Snapshot does not cover this account calendar'), [session?.user.id, timeZone, date]);
+  const snapshot = cachedQuery(`snapshot:${date}:${timeZone}`, `/snapshot?date=${date}`, snapshotSchema, 'snapshot');
+  const snapshotData = snapshot.savedData && (!snapshot.data || Date.parse(snapshot.savedData.capturedAt) > Date.parse(snapshot.data.capturedAt))
+    ? snapshot.savedData : snapshot.data;
+  const offline = session ? composeOfflineToday(snapshotData, session.user.id, timeZone, date, new Date().toISOString()) : undefined;
+  const validToday = query.data?.date === date && query.data.timeZone === timeZone ? query.data : undefined;
+  const data = validToday && ((!query.isCached && !query.isError) || !offline || Date.parse(validToday.generatedAt) >= Date.parse(offline.generatedAt)) ? validToday : offline;
   const lastRefresh = useRef({ resumeCount, timeZone });
 
   useEffect(() => {
@@ -72,10 +84,16 @@ export function useToday(selectedDate?: string) {
       // A changed date already starts its own query. Join that request instead
       // of cancelling it; a same-day resume refreshes even a still-fresh cache.
       void query.refetch({ cancelRefetch: false });
+      void snapshot.refetch({ cancelRefetch: false });
     }
-  }, [resumeCount, timeZone, query.refetch, session]);
+  }, [resumeCount, timeZone, query.refetch, snapshot.refetch, session]);
 
-  return { ...query, date, timeZone };
+  const refetch: typeof query.refetch = async options => {
+    const [today] = await Promise.all([query.refetch(options), snapshot.refetch(options)]);
+    return today;
+  };
+  return { ...query, data, refetch, isRefetching: query.isRefetching || snapshot.isRefetching,
+    isLoading: query.isLoading && data === undefined, date, timeZone };
 }
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
 export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items', schemas.academic);
