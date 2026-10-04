@@ -25,6 +25,14 @@ state. Pull to refresh retries reads, including when cached items are shown.
 
 ## Account calendar and app resume
 
+Active tasks and goals offer **Snooze 1 hour** on the account's current day when
+allowed by the read model. The action sends a UTC instant to the owning snooze
+endpoint; goals retain their supplied occurrence key. Historical and future
+plans hide this time-relative action. The existing API stores snooze at the task
+or goal level; no occurrence-specific snooze persistence is introduced. Source
+deadlines and overdue status are preserved. Pending controls, failure messages,
+and retry behavior follow the same rules as completion.
+
 With no explicit date parameter, Today uses the signed-in account's IANA timezone.
 The query supplies the screen date, request date, and account-scoped cache key
 together. The date heading represents that calendar date; timed campus events
@@ -75,6 +83,5 @@ device validation has not been performed for this slice.
 
 ## Next task
 
-Add Today snooze controls through the existing task and goal endpoints.
-Main Goal selection, goal history/editing, and notification reconciliation remain
-separate follow-up work.
+Add Main Goal selection through the existing personal-task and academic endpoints.
+Goal history/editing and notification reconciliation remain separate follow-up work.

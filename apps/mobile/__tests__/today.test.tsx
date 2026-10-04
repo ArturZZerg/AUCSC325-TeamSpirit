@@ -39,7 +39,9 @@ beforeEach(() => {
   jest.mocked(useLocalSearchParams).mockReturnValue({ date });
   jest.mocked(useAction).mockReturnValue({ mutateAsync: mutate, isPending: false } as unknown as ReturnType<typeof useAction>);
   show([task]);
+  jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-10-03T18:00:00Z').getTime());
 });
+afterEach(() => { jest.restoreAllMocks(); });
 
 describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
   it('uses the query account date for the header when no date is selected', () => {
@@ -172,6 +174,72 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     expect(screen.getByText('completed')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Undo completion' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Complete' })).toBeNull();
+  });
+
+  it.each([task, recurring])('snoozes a task without changing its deadline or completion (occurrence=$occurrenceKey)', async item => {
+    show([item]); render(<TodayScreen/>);
+    fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledWith({ path: `/tasks/${item.entityId}/snooze`,
+      body: { until: '2026-10-03T19:00:00.000Z' } }));
+    expect(screen.getByText('today')).toBeOnTheScreen();
+    expect(item.due).toEqual(task.due);
+  });
+
+  it('snoozes a goal with its timezone-specific occurrence', async () => {
+    show([goal]); render(<TodayScreen/>);
+    fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledWith({ path: `/goals/${goal.entityId}/snooze`,
+      body: { until: '2026-10-03T19:00:00.000Z', occurrenceKey: '2026-10-02' } }));
+  });
+
+  it('refuses to invent a missing goal occurrence for snooze', async () => {
+    show([{ ...goal, occurrenceKey: null }]); render(<TodayScreen/>);
+    fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
+    await screen.findByText('Refresh your plan before changing this goal.');
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('rechecks the current day if midnight passes after rendering a selected plan', async () => {
+    render(<TodayScreen/>);
+    jest.mocked(Date.now).mockReturnValue(new Date('2026-10-04T06:00:00Z').getTime());
+    fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
+    await screen.findByText('Open today’s plan before snoozing.');
+    expect(mutate).not.toHaveBeenCalled();
+  });
+
+  it('snoozes for an elapsed hour across the spring daylight-saving jump', async () => {
+    jest.mocked(Date.now).mockReturnValue(new Date('2025-03-09T08:30:00Z').getTime());
+    show([task], { date: '2025-03-09' }); render(<TodayScreen/>);
+    fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
+    await waitFor(() => expect(mutate).toHaveBeenCalledWith({ path: `/tasks/${task.entityId}/snooze`,
+      body: { until: '2025-03-09T09:30:00.000Z' } }));
+  });
+
+  it.each(['2026-10-02', '2026-10-04'])('hides time-relative snooze on selected date %s', selected => {
+    show([task, goal], { date: selected }); render(<TodayScreen/>);
+    expect(screen.queryByRole('button', { name: 'Snooze 1 hour' })).toBeNull();
+  });
+
+  it('does not claim an offline snooze succeeded and lets the user retry', async () => {
+    mutate.mockRejectedValueOnce(new Error('Network unavailable'));
+    render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
+    await screen.findByText('Network unavailable');
+    expect(screen.getByText('today')).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(mutate).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks repeated snooze taps and completion until the write finishes', async () => {
+    let resolve!: () => void;
+    mutate.mockReturnValueOnce(new Promise<void>(done => { resolve = done; }));
+    render(<TodayScreen/>);
+    const snooze = screen.getByRole('button', { name: 'Snooze 1 hour' });
+    act(() => { fireEvent.press(snooze); fireEvent.press(snooze); fireEvent.press(screen.getByRole('button', { name: 'Complete' })); });
+    expect(mutate).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+    await act(async () => { resolve(); });
+    expect(screen.getByRole('button', { name: 'Snooze 1 hour' })).toBeEnabled();
   });
 
   it('lets the user refresh a cached plan after a read failure', () => {

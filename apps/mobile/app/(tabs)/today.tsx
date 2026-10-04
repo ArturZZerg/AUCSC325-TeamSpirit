@@ -1,16 +1,18 @@
 import { useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { localDateAt } from '@campusflow/domain';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAction, useToday } from '@/features/queries';
 import type { PlanItem } from '@/lib/types';
 
-type PlanAction = 'complete' | 'uncomplete' | 'skip';
+type PlanAction = 'complete' | 'uncomplete' | 'skip' | 'snooze';
 
 export default function TodayScreen() {
   const selectedDate = useLocalSearchParams<{ date?: string }>().date;
   const query = useToday(selectedDate === undefined ? undefined : String(selectedDate));
   const date = query.date;
+  const isCurrentDay = date === localDateAt(new Date(Date.now()).toISOString(), query.timeZone);
   const action = useAction();
   const busy = useRef(false);
   const [pending, setPending] = useState<{ key: string; action: PlanAction }>();
@@ -22,7 +24,14 @@ export default function TodayScreen() {
     setPending({ key: item.key, action: selected });
     setFailure(undefined);
     try {
-      if (item.kind === 'personalTask' && selected !== 'skip') {
+      if (selected === 'snooze' && (item.kind === 'personalTask' || item.kind === 'goal')) {
+        if (date !== localDateAt(new Date(Date.now()).toISOString(), query.timeZone)) throw new Error('Open today’s plan before snoozing.');
+        if (item.kind === 'goal' && !item.occurrenceKey) throw new Error('Refresh your plan before changing this goal.');
+        await action.mutateAsync({ path: `/${item.kind === 'goal' ? 'goals' : 'tasks'}/${item.entityId}/snooze`, body: {
+          until: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          ...(item.kind === 'goal' ? { occurrenceKey: item.occurrenceKey } : {}),
+        } });
+      } else if (item.kind === 'personalTask' && selected !== 'skip') {
         await action.mutateAsync({ path: `/tasks/${item.entityId}/complete`, body: {
           completed: selected === 'complete',
           ...(item.occurrenceKey !== null ? { occurrenceKey: item.occurrenceKey } : {}),
@@ -49,7 +58,7 @@ export default function TodayScreen() {
     <Text style={styles.title}>Your daily flow</Text>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <State loading={query.isLoading} error={query.error} empty={query.data && !query.data.items.length ? 'Nothing is planned yet. Add a task or choose a goal.' : undefined}/>
-    {query.data?.items.map(item => <PlanCard key={item.key} item={item} disabled={!!pending || action.isPending}
+    {query.data?.items.map(item => <PlanCard key={item.key} item={item} isCurrentDay={isCurrentDay} disabled={!!pending || action.isPending}
       pendingAction={pending?.key === item.key ? pending.action : undefined}
       error={failure?.key === item.key ? failure.message : undefined}
       onAction={selected => { void run(item, selected); }}/>) }
@@ -62,22 +71,24 @@ export default function TodayScreen() {
   </ScrollView></Screen>;
 }
 
-function PlanCard({ item, disabled, pendingAction, error, onAction }: {
-  item: PlanItem; disabled: boolean; pendingAction?: PlanAction; error?: string; onAction: (action: PlanAction) => void;
+function PlanCard({ item, isCurrentDay, disabled, pendingAction, error, onAction }: {
+  item: PlanItem; isCurrentDay: boolean; disabled: boolean; pendingAction?: PlanAction; error?: string; onAction: (action: PlanAction) => void;
 }) {
   const canComplete = (item.kind === 'personalTask' || item.kind === 'goal') && item.allowedActions.includes('complete');
   const canUndo = item.kind === 'personalTask' && item.allowedActions.includes('uncomplete');
   const canSkip = item.kind === 'goal' && item.allowedActions.includes('skip');
+  const canSnooze = isCurrentDay && (item.kind === 'personalTask' || item.kind === 'goal') && item.allowedActions.includes('snooze');
   return <Card>
     <View style={styles.details}>
       <Text style={styles.kind}>{item.isMainGoal ? '★ MAIN GOAL' : item.kind === 'academic' ? 'UNIVERSITY' : item.kind.toUpperCase()}</Text>
       <Text style={[styles.item, (item.state === 'completed' || item.state === 'submitted') && styles.done]}>{item.title}</Text>
       <Text style={styles.meta}>{item.state}</Text>
     </View>
-    {(canComplete || canUndo || canSkip) && <View style={styles.actions}>
+    {(canComplete || canUndo || canSkip || canSnooze) && <View style={styles.actions}>
       {canComplete && <Button title={pendingAction === 'complete' ? 'Saving…' : 'Complete'} disabled={disabled} onPress={() => onAction('complete')}/>}
       {canUndo && <Button title={pendingAction === 'uncomplete' ? 'Saving…' : 'Undo completion'} tone="plain" disabled={disabled} onPress={() => onAction('uncomplete')}/>}
       {canSkip && <Button title={pendingAction === 'skip' ? 'Saving…' : 'Skip today'} tone="plain" disabled={disabled} onPress={() => onAction('skip')}/>}
+      {canSnooze && <Button title={pendingAction === 'snooze' ? 'Saving…' : 'Snooze 1 hour'} tone="plain" disabled={disabled} onPress={() => onAction('snooze')}/>}
     </View>}
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
   </Card>;

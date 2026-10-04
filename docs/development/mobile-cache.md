@@ -44,5 +44,5 @@ writes. New offline dates within its inclusive persisted coverage are composed
 with shared domain rules. Snapshot age and provider freshness remain visible;
 missing, corrupt, foreign-account, wrong-timezone, or uncovered data cannot confirm
 an empty plan. A fresh Today response wins over late disk data; cached fallbacks
-use the newer capture time. Snooze controls, notification preferences/rescheduling,
+use the newer capture time. Notification preferences/rescheduling,
 and iOS acceptance remain follow-up work.
