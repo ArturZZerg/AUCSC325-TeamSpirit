@@ -91,20 +91,24 @@ Verify on the phone before claiming this preview works end to end:
     including date-only values. Check local midnight/background resume and cached
     new-date plans while the API is unavailable; uncovered dates stay unavailable.
 
-Task/goal/event controls and reminder reconciliation are implemented, but their
-native interaction and delivery remain acceptance gates. Real Canvas imports
-and a verified campus source also remain external MVP gates. The current Maestro
-smoke scenario covers navigation to registration only; it does not verify this
-acceptance list. The [2026-10-04 native report](android-native-acceptance-2026-10-04.md)
+The reports below record native interaction and delivery for the tested Android
+build. iOS, actual DST clock transitions and delivery across reboot/Doze/battery
+saver still need platform evidence. Real Canvas imports and a verified campus
+source remain external MVP gates. The current Maestro smoke scenario covers
+navigation to registration only; it does not verify this acceptance list.
+The [2026-10-04 native report](android-native-acceptance-2026-10-04.md)
 records successful Pixel 10 Pro XL checks for offline dates, account switching,
 offline sign-out cleanup and actual background reminder delivery. The
 [reminder lifecycle follow-up](android-native-reminders-2026-10-04.md) records
-further controls. Remaining editor, midnight/DST and iOS gates are listed there;
-these targeted results do not establish the entire acceptance list.
+further controls. These targeted results apply to the tested build and fixtures;
+they do not establish full cross-platform or production acceptance.
 The [native editor report](android-native-editors-2026-10-04.md) adds task/goal
 forms, failed-save retry, duration, recurrence and DST input observations.
 The [offline midnight report](android-native-midnight-2026-10-04.md) records a
 real account-calendar rollover, background resume and cold SQLite restoration.
+The [foreground/session report](android-native-lifecycle-2026-10-04.md) adds
+foreground midnight, invalid-session modal disposal, goal snooze and offline
+notification permission denial/restoration.
 
 Official workflow references: [Expo local builds](https://docs.expo.dev/guides/local-app-development/)
 and [installable Android APKs](https://docs.expo.dev/build-reference/apk/).

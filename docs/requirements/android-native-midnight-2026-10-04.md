@@ -45,7 +45,8 @@ attempt does not change the earlier offline observations.
 
 ## Remaining gates
 
-This run proves background midnight resume, not the foreground timer or an actual
-DST transition. Foreground rollover, native modal disposal across session expiry,
-iOS, reboot/Doze delivery, live institutional Canvas and a verified campus feed
-remain separate acceptance work. The API forwarding was restored after testing.
+This run proves background midnight resume; the
+[lifecycle follow-up](android-native-lifecycle-2026-10-04.md) records the foreground
+timer and native invalid-session modal disposal. An actual DST transition, iOS,
+reboot/Doze delivery, live institutional Canvas and a verified campus feed remain
+separate acceptance work. The API forwarding was restored after testing.

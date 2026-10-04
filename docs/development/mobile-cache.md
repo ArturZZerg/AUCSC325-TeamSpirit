@@ -17,8 +17,10 @@ signing out or starting a new login discards retained task/goal/reminder editors
 delete confirmations, check-in drafts and action errors. Ordinary rerenders in
 the same session preserve drafts. Late callbacks from discarded routes cannot
 change the next session's controls. `tab-session.test.tsx` exercises actual
-screen forms under a mocked navigator; native route lifecycle acceptance remains
-outstanding. This complements account-scoped query/storage cleanup and API
+screen forms under a mocked navigator. The
+[native lifecycle report](../requirements/android-native-lifecycle-2026-10-04.md)
+also verifies an invalid session dismisses an open task modal and the next account
+opens a blank editor. This complements account-scoped query/storage cleanup and API
 ownership checks.
 
 Query requests consume TanStack Query's abort signal. Mutations capture the
