@@ -27,7 +27,7 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     $transaction: jest.fn(),
     $queryRaw: jest.fn(),
     session: { findUnique: jest.fn() },
-    goal: { findFirst: jest.fn(), update: jest.fn() },
+    goal: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
     personalTask: { findFirst: jest.fn(), update: jest.fn() },
     reminder: { deleteMany: jest.fn(), create: jest.fn() },
     taskCompletion: { upsert: jest.fn(), deleteMany: jest.fn() },
@@ -65,6 +65,13 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     if (paused === false) expect(response.body.pausedAt).toBeNull();
     else expect(Number.isNaN(Date.parse(response.body.pausedAt))).toBe(false);
     expect(prisma.goal.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates delivery intent for an explicit goal reminder', async () => {
+    const reminder = { kind: 'instant', at: '2030-03-08T18:00:00Z' };
+    prisma.goal.create.mockResolvedValue({ ...goal, reminder });
+    await post('/goals').send({ title: goal.title, schedule: goal.schedule, timeZone: goal.timeZone, reminder }).expect(201);
+    expect(prisma.reminder.create).toHaveBeenCalledWith({ data: { userId, targetKind: 'goal', targetId: recordId, goalId: recordId, fireAt: new Date(reminder.at) } });
   });
 
   it('rejects an omitted pause state without changing the goal', async () => {
