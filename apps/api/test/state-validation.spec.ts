@@ -29,6 +29,7 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     session: { findUnique: jest.fn() },
     goal: { findFirst: jest.fn(), update: jest.fn() },
     personalTask: { findFirst: jest.fn(), update: jest.fn() },
+    reminder: { deleteMany: jest.fn(), create: jest.fn() },
     taskCompletion: { upsert: jest.fn(), deleteMany: jest.fn() },
   };
   const post = (path: string) => request(app.getHttpServer()).post(path).set('Authorization', 'Bearer test-session');
