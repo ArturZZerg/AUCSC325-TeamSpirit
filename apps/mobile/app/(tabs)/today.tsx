@@ -6,11 +6,11 @@ import { useAction, useToday } from '@/features/queries';
 import type { PlanItem } from '@/lib/types';
 
 type PlanAction = 'complete' | 'uncomplete' | 'skip';
-const today = () => new Date().toLocaleDateString('en-CA');
 
 export default function TodayScreen() {
-  const date = String(useLocalSearchParams<{ date?: string }>().date ?? today());
-  const query = useToday(date);
+  const selectedDate = useLocalSearchParams<{ date?: string }>().date;
+  const query = useToday(selectedDate === undefined ? undefined : String(selectedDate));
+  const date = query.date;
   const action = useAction();
   const busy = useRef(false);
   const [pending, setPending] = useState<{ key: string; action: PlanAction }>();
@@ -45,7 +45,7 @@ export default function TodayScreen() {
 
   return <Screen><ScrollView contentContainerStyle={styles.content}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
-    <Text style={styles.kicker}>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+    <Text style={styles.kicker}>{new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}</Text>
     <Text style={styles.title}>Your daily flow</Text>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <State loading={query.isLoading} error={query.error} empty={query.data && !query.data.items.length ? 'Nothing is planned yet. Add a task or choose a goal.' : undefined}/>
@@ -54,7 +54,7 @@ export default function TodayScreen() {
       error={failure?.key === item.key ? failure.message : undefined}
       onAction={selected => { void run(item, selected); }}/>) }
     {query.data?.campusEvents.length ? <><Text style={styles.section}>Campus today</Text>
-      {query.data.campusEvents.map(event => <Card key={event.id}><Text style={styles.item}>{event.title}</Text><Text style={styles.meta}>{event.timing.kind === 'timed' ? new Date(event.timing.startsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : event.timing.startDate} · {event.location ?? 'Campus'}</Text></Card>)}
+      {query.data.campusEvents.map(event => <Card key={event.id}><Text style={styles.item}>{event.title}</Text><Text style={styles.meta}>{event.timing.kind === 'timed' ? new Date(event.timing.startsAt).toLocaleTimeString([], { timeZone: query.timeZone, hour: 'numeric', minute: '2-digit' }) : event.timing.startDate} · {event.location ?? 'Campus'}</Text></Card>)}
     </> : null}
     {query.data?.upcoming.length ? <><Text style={styles.section}>Coming up</Text>
       {query.data.upcoming.map(item => <Card key={item.key}><Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.state}</Text></Card>)}

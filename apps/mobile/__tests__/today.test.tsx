@@ -29,7 +29,7 @@ function plan(items: PlanItem[]): Today {
     items, upcoming: [], campusEvents: [] };
 }
 function show(items: PlanItem[], overrides = {}) {
-  jest.mocked(useToday).mockReturnValue({ data: plan(items), isLoading: false, isRefetching: false, refetch, ...overrides } as unknown as ReturnType<typeof useToday>);
+  jest.mocked(useToday).mockReturnValue({ date, timeZone: 'America/Edmonton', data: plan(items), isLoading: false, isRefetching: false, refetch, ...overrides } as unknown as ReturnType<typeof useToday>);
 }
 
 beforeEach(() => {
@@ -42,6 +42,24 @@ beforeEach(() => {
 });
 
 describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
+  it('uses the query account date for the header when no date is selected', () => {
+    jest.mocked(useLocalSearchParams).mockReturnValue({});
+    show([], { date: '2026-10-02' });
+    render(<TodayScreen/>);
+    expect(useToday).toHaveBeenCalledWith(undefined);
+    expect(screen.getByText('Friday, October 2')).toBeOnTheScreen();
+  });
+
+  it('shows timed campus events in the account timezone', () => {
+    const data = { ...plan([]), campusEvents: [{ id: '30000000-0000-4000-8000-000000000001',
+      title: 'Campus meetup', description: null, category: null, source: 'fixture', externalId: 'meetup',
+      timing: { kind: 'timed' as const, startsAt: '2026-10-03T18:00:00Z', endsAt: null }, location: null, url: null }] };
+    show([], { timeZone: 'Pacific/Honolulu', data });
+    render(<TodayScreen/>);
+    expect(useToday).toHaveBeenCalledWith(date);
+    expect(screen.getByText(/^0?8:00.* · Campus$/)).toBeOnTheScreen();
+  });
+
   it('completes a one-time task without sending an occurrence date', async () => {
     render(<TodayScreen/>);
     fireEvent.press(screen.getByRole('button', { name: 'Complete' }));

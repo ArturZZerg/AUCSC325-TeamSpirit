@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { academicItemSchema, eventSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
@@ -6,6 +6,7 @@ import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
 import { useSessionStore } from '@/store/session';
 import { readCache, writeCache } from '@/services/cache';
+import { useTodayClock } from '@/features/today-clock';
 
 const schemas = {
   tasks: personalTaskSchema.array(), academic: academicItemSchema.array(), goals: goalSchema.array(),
@@ -57,7 +58,25 @@ function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTyp
   return { ...query, data, isLoading: query.isLoading && data === undefined };
 }
 
-export const useToday = (date: string) => cachedQuery<Today>(`today:${date}`, `/today?date=${date}`, todayResponseSchema);
+export function useToday(selectedDate?: string) {
+  const session = useSessionStore(state => state.session);
+  const timeZone = session?.user.timeZone ?? 'UTC';
+  const { date, resumeCount } = useTodayClock(timeZone, selectedDate);
+  const query = cachedQuery<Today>(`today:${date}`, `/today?date=${date}`, todayResponseSchema);
+  const lastRefresh = useRef({ resumeCount, timeZone });
+
+  useEffect(() => {
+    if (lastRefresh.current.resumeCount === resumeCount && lastRefresh.current.timeZone === timeZone) return;
+    lastRefresh.current = { resumeCount, timeZone };
+    if (session) {
+      // A changed date already starts its own query. Join that request instead
+      // of cancelling it; a same-day resume refreshes even a still-fresh cache.
+      void query.refetch({ cancelRefetch: false });
+    }
+  }, [resumeCount, timeZone, query.refetch, session]);
+
+  return { ...query, date, timeZone };
+}
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
 export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items', schemas.academic);
 export const useGoals = () => cachedQuery<Goal[]>('goals', '/goals', schemas.goals);
