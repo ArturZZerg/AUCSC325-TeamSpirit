@@ -83,5 +83,6 @@ device validation has not been performed for this slice.
 
 ## Next task
 
-Add Main Goal selection through the existing personal-task and academic endpoints.
-Goal history/editing and notification reconciliation remain separate follow-up work.
+Reconcile changed reminder times and preferences without duplicate notifications.
+Goal history/editing remains separate follow-up work. Main Goal selection is
+available in [Tasks](mobile-tasks.md); Today displays the selected item first.

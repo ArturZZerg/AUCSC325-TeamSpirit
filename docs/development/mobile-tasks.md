@@ -21,6 +21,17 @@ Deletion requires confirmation and reports failure without hiding the task.
 One-time tasks support completion and undo. Recurring occurrences belong to Today
 and require their occurrence date; Tasks does not send a template-level completion.
 
+## Main Goal selection
+
+Tasks offers **Make Main Goal today** for open personal tasks (including undated
+tasks) and unsubmitted academic work. Recurring tasks must occur on the account's
+current local date. Selection calls the owning task POST or academic PATCH
+endpoint with that date; the API serializes selection and clears the previous
+task/academic choice. **Remove Main Goal** sends an explicit null, including for
+an already completed selection. The star reflects refreshed server data, with
+no optimistic offline selection. Pending writes disable other controls and block
+repeat taps; failed writes preserve the selection and allow retry.
+
 ## Automated evidence
 
 | Behavior | Tests |
@@ -33,4 +44,7 @@ Run `npm run check` and `npm run build:web -w @campusflow/mobile`. Use the
 validation. Query/cache refresh behavior and offline startup are covered by the
 [cache lifecycle slice](mobile-cache.md); recurring completion/undo and goal
 completion/skipping are covered by the [Today actions slice](mobile-today.md).
-New-date offline composition and native device acceptance remain follow-up work.
+`main-goal.test.tsx` covers account-date selection, undated and recurring tasks,
+academic routing, clearing, replacement, pending controls, and offline retry.
+New-date offline composition is covered by the snapshot tests. Native device
+acceptance remains outstanding.
