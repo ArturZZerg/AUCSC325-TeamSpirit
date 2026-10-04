@@ -5,12 +5,10 @@ import { taskOccursOn } from '@campusflow/domain';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAcademic, useAction, useTasks } from '@/features/queries';
 import { TaskEditor } from '@/features/task-editor';
+import { taskTimingLabel } from '@/features/task-form';
 import type { PersonalTask } from '@/lib/types';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
-
-const dateLabel = (due: PersonalTask['due']) => due?.kind === 'instant'
-  ? new Date(due.at).toLocaleString() : due?.kind === 'date' ? due.date : 'No deadline';
 
 export default function Tasks() {
   const tasks = useTasks();
@@ -51,7 +49,9 @@ export default function Tasks() {
       {tasks.data?.map(task => <Card key={task.id}>
         {task.mainGoalDate === today && <Text style={styles.mainGoal}>★ MAIN GOAL TODAY</Text>}
         <Text style={[styles.item, task.completedAt && styles.done]}>{task.title}</Text>
-        <Text style={styles.meta}>{task.category} · {task.priority} · {dateLabel(task.due)}</Text>
+        <Text style={styles.meta}>{task.category} · {task.priority} · {taskTimingLabel(task.due, timeZone)}</Text>
+        {task.scheduled && <Text style={styles.meta}>Scheduled: {taskTimingLabel(task.scheduled, timeZone)}</Text>}
+        {task.recurrence && <Text style={styles.meta}>Every {task.recurrence.interval} {task.recurrence.frequency === 'daily' ? (task.recurrence.interval === 1 ? 'day' : 'days') : `${task.recurrence.interval === 1 ? 'week' : 'weeks'} · ${task.recurrence.weekdays.map(day => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day - 1]).join(', ')}`}</Text>}
         {task.description && <Text style={styles.meta}>{task.description}</Text>}
         <View style={styles.actions}>
           {task.recurrence ? <Text style={styles.meta}>Complete recurring occurrences from Today.</Text> :
@@ -68,13 +68,13 @@ export default function Tasks() {
       <State loading={academic.isLoading} error={academic.error} empty={academic.data?.length === 0 ? 'Canvas work appears here after a successful sync.' : undefined}/>
       {academic.data?.map(item => <Card key={item.id}>
         {item.mainGoalDate === today && <Text style={styles.mainGoal}>★ MAIN GOAL TODAY</Text>}
-        <Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.kind} · {item.submissionState ?? 'unsubmitted'} · {dateLabel(item.due)}</Text>
+        <Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.kind} · {item.submissionState ?? 'unsubmitted'} · {taskTimingLabel(item.due, timeZone)}</Text>
         {(item.mainGoalDate === today || (!!session && item.submissionState !== 'submitted' && item.submissionState !== 'graded')) && <Button
           title={pending === `/academic-items/${item.id}/main-goal` ? 'Saving…' : item.mainGoalDate === today ? 'Remove Main Goal' : 'Make Main Goal today'}
           tone="plain" disabled={disabled} onPress={() => mainGoal('academic', item.id, item.mainGoalDate === today)}/>}
       </Card>)}
     </ScrollView>
-    {editing !== undefined && <TaskEditor key={editing?.id ?? 'new'} task={editing} onClose={() => setEditing(undefined)}/>}
+    {editing !== undefined && <TaskEditor key={editing?.id ?? 'new'} task={editing} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}
     {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!disabled) setDeleting(undefined); }}>
       <SafeAreaView style={styles.confirm}><Card>
         <Text style={styles.section}>Delete task?</Text><Text style={styles.meta}>Delete “{deleting.title}” and its reminder?</Text>

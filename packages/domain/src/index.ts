@@ -22,6 +22,13 @@ const plainDate = (date: DateOnly) => Temporal.PlainDate.from(date);
 const zonedStart = (date: DateOnly, timeZone: string) => plainDate(date).toZonedDateTime({ timeZone, plainTime: Temporal.PlainTime.from('00:00') });
 export const dayBounds = (date: DateOnly, timeZone: string): { start: string; end: string } => { const start = zonedStart(date, timeZone); return { start: start.toInstant().toString(), end: start.add({ days: 1 }).toInstant().toString() }; };
 export const localDateAt = (instant: string, timeZone: string): DateOnly => Temporal.Instant.from(instant).toZonedDateTimeISO(timeZone).toPlainDate().toString();
+/** Explicit wall-clock input must identify one instant; reject DST gaps and overlaps. */
+export const instantAtLocalTime = (date: DateOnly, time: string, timeZone: string): string =>
+  Temporal.PlainDateTime.from(`${date}T${time}`).toZonedDateTime(timeZone, { disambiguation: 'reject' }).toInstant().toString();
+export const localClockAt = (instant: string, timeZone: string): { date: DateOnly; time: string } => {
+  const local = Temporal.Instant.from(instant).toZonedDateTimeISO(timeZone);
+  return { date: local.toPlainDate().toString(), time: local.toPlainTime().toString({ smallestUnit: 'minute' }) };
+};
 export const overlapsDay = (startAt: string, endAt: string | undefined, date: DateOnly, timeZone: string): boolean => {
   const bounds = dayBounds(date, timeZone); const start = Temporal.Instant.from(startAt); const end = Temporal.Instant.from(endAt ?? startAt);
   if (Temporal.Instant.compare(start, end) === 0) return Temporal.Instant.compare(start, Temporal.Instant.from(bounds.start)) >= 0 && Temporal.Instant.compare(start, Temporal.Instant.from(bounds.end)) < 0;
