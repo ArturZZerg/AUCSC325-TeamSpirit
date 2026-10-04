@@ -158,9 +158,13 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
   });
 
   it('renders the refreshed server state after a successful action', async () => {
+    let resolve!: () => void;
+    mutate.mockReturnValueOnce(new Promise<void>(done => { resolve = done; }));
     const view = render(<TodayScreen/>);
     fireEvent.press(screen.getByRole('button', { name: 'Complete' }));
-    await waitFor(() => expect(screen.queryByText('Saving…')).toBeNull());
+    expect(screen.getByText('Saving…')).toBeOnTheScreen();
+    await act(async () => { resolve(); });
+    expect(screen.queryByText('Saving…')).toBeNull();
     // The screen itself never claims success before the API's refreshed plan.
     expect(screen.getByText('today')).toBeOnTheScreen();
     show([{ ...task, state: 'completed', allowedActions: ['uncomplete', 'open'] }]);
