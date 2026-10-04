@@ -39,6 +39,5 @@ alarms. `breathing-pause.test.tsx` covers elapsed time, delayed callbacks,
 background/resume, cancellation, restart, repeat starts and cleanup.
 
 Quiet-hour editing is implemented in [notification settings](mobile-reminders.md).
-Next, guard task-editor submission before asynchronous validation so rapid
-repeat taps cannot start parallel saves, then expose timed scheduling and
-recurrence editing through the existing task APIs.
+Task-editor submission is guarded before asynchronous validation. Next, expose
+timed scheduling and recurrence editing through the existing task APIs.

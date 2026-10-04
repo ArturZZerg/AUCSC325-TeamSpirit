@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,16 +11,23 @@ import type { PersonalTask } from '@/lib/types';
 
 export function TaskEditor({ task, onClose }: { task: PersonalTask | null; onClose: () => void }) {
   const action = useAction();
+  const saving = useRef(false);
   const [message, setMessage] = useState<string>();
   const { control, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema(task)), defaultValues: taskFormDefaults(task),
   });
   const dueMode = watch('dueMode');
-  const close = () => { if (!isSubmitting) onClose(); };
+  const close = () => { if (!isSubmitting && !saving.current) onClose(); };
   const save = async (values: TaskFormValues) => {
     setMessage(undefined);
     try { await action.mutateAsync(taskFormRequest(values, task)); onClose(); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the task. Please try again.'); }
+  };
+  const submit = async () => {
+    if (saving.current) return;
+    saving.current = true;
+    try { await handleSubmit(save)(); }
+    finally { saving.current = false; }
   };
   const error = errors.title?.message || errors.description?.message || errors.dueDate?.message || errors.category?.message || errors.priority?.message || message;
 
@@ -38,7 +45,7 @@ export function TaskEditor({ task, onClose }: { task: PersonalTask | null; onClo
           <Controller name="category" control={control} render={({ field }) => <Choices label="Category" value={field.value} onChange={field.onChange} disabled={isSubmitting} options={categorySchema.options.map(value => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}/>}/>
           <Controller name="priority" control={control} render={({ field }) => <Choices label="Priority" value={field.value} onChange={field.onChange} disabled={isSubmitting} options={prioritySchema.options.map(value => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}/>}/>
           {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-          <Button title={isSubmitting ? 'Saving…' : 'Save task'} onPress={handleSubmit(save)} disabled={isSubmitting}/>
+          <Button title={isSubmitting ? 'Saving…' : 'Save task'} onPress={() => { void submit(); }} disabled={isSubmitting}/>
           <Button title="Cancel" tone="plain" onPress={close} disabled={isSubmitting}/>
         </ScrollView>
       </KeyboardAvoidingView>

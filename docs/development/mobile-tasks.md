@@ -8,6 +8,9 @@ draft; editing another task loads that task's current values. Category and
 priority use the shared contract options. Titles and calendar dates are validated
 before submission, and failures leave the draft available for retry. Saving
 disables inputs and dismissal until the request completes.
+The submission guard starts before asynchronous form validation, so rapid save
+taps cannot launch parallel writes. Validation failures and failed saves release
+the guard for correction or retry.
 
 An empty description and the No deadline choice send explicit nulls when editing.
 Date-only deadlines remain calendar dates. Existing timed deadlines are preserved
@@ -48,3 +51,9 @@ completion/skipping are covered by the [Today actions slice](mobile-today.md).
 academic routing, clearing, replacement, pending controls, and offline retry.
 New-date offline composition is covered by the snapshot tests. Native device
 acceptance remains outstanding.
+
+## Next task
+
+Expose timed deadlines, scheduled dates/times, and daily/weekly recurrence in the
+editor using account-timezone conversion and explicit DST validation. Preserve
+existing instants exactly unless the user chooses to replace them.
