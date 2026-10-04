@@ -83,6 +83,6 @@ device validation has not been performed for this slice.
 
 ## Next task
 
-Reconcile changed reminder times and preferences without duplicate notifications.
-Goal history/editing remains separate follow-up work. Main Goal selection is
+Add goal creation, editing, deletion, and history in Wellness. Reminder
+reconciliation is covered in [the reminder slice](mobile-reminders.md). Main Goal selection is
 available in [Tasks](mobile-tasks.md); Today displays the selected item first.

@@ -74,6 +74,26 @@ export const reminderFireAt = (target: TimedOrDate, leadMinutes: number, timeZon
   const occurrence = target.kind === 'instant' ? Temporal.Instant.from(target.at) : zonedStart(target.date, timeZone).toInstant();
   return occurrence.subtract({ minutes: leadMinutes }).toString();
 };
+/** Delay delivery to the end of account-local quiet hours; source intent is unchanged.
+ * The interval includes its start and excludes its end. Equal/missing bounds disable it.
+ * Temporal's compatible disambiguation shifts a nonexistent DST end time forward.
+ */
+export const reminderAfterQuietHours = (fireAt: string, timeZone: string, start: string | null, end: string | null): string => {
+  if (!start || !end || start === end) return fireAt;
+  const local = Temporal.Instant.from(fireAt).toZonedDateTimeISO(timeZone);
+  const time = local.toPlainTime();
+  const afterStart = Temporal.PlainTime.compare(time, Temporal.PlainTime.from(start)) >= 0;
+  const beforeEnd = Temporal.PlainTime.compare(time, Temporal.PlainTime.from(end)) < 0;
+  const overnight = start > end;
+  if (!(overnight ? afterStart || beforeEnd : afterStart && beforeEnd)) return fireAt;
+  const date = local.toPlainDate().add({ days: overnight && afterStart ? 1 : 0 });
+  const endLocal = date.toPlainDateTime(Temporal.PlainTime.from(end));
+  const earliest = endLocal.toZonedDateTime(timeZone).toInstant();
+  // In the repeated fall-back hour, the first end may precede the fire instant.
+  // Pick the later end in that case so delaying never moves delivery backwards.
+  return (Temporal.Instant.compare(earliest, Temporal.Instant.from(fireAt)) < 0
+    ? endLocal.toZonedDateTime(timeZone, { disambiguation: 'later' }).toInstant() : earliest).toString();
+};
 export const allDayEventOverlapsDay = (startDate: DateOnly, endDateExclusive: DateOnly, date: DateOnly): boolean => compareDate(startDate, date) <= 0 && compareDate(date, endDateExclusive) < 0;
 const inDay = (value: TimedOrDate | undefined, date: DateOnly, zone: string) => value ? value.kind === 'date' ? value.date === date : localDateAt(value.at, zone) === date : false;
 const timestamp = (item: PlanItem, zone: string): string | undefined => { const value = item.schedule ?? item.due; return value?.kind === 'instant' ? value.at : value?.kind === 'date' ? zonedStart(value.date, zone).toInstant().toString() : undefined; };
