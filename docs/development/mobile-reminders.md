@@ -38,6 +38,15 @@ controls do not claim a preference write succeeded.
 
 ## Evidence and remaining gates
 
+One-time task completion removes API delivery intent in the same transaction as
+the state change, while retaining the task's reminder configuration. Undo restores
+the latest configuration once; repeated undo preserves the reminder ID. Updates
+to completed tasks keep configuration inactive. Recurring occurrence completion
+does not cancel a separate future template intent. PostgreSQL core tests cover
+completion/undo, retries, isolation and rollback on reminder failure. Mobile
+mutation invalidation then removes or restores the native schedule through the
+existing reconciliation service.
+
 `reminders.test.ts`, `device-reminders.test.tsx`, `notification-settings.test.tsx`,
 `quiet-hours-form.test.ts`, `quiet-hours-editor.test.tsx`, and domain
 `quiet-hours.test.ts` cover changed times, deletion, preferences,

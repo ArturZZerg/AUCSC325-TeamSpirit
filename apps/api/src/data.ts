@@ -86,7 +86,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
         reminder: b.reminder === undefined ? undefined : b.reminder === null ? Prisma.JsonNull : asJson(b.reminder),
       };
       const task = await tx.personalTask.update({ where: { id }, data });
-      if (b.reminder !== undefined) await this.reminders.replace(u.id, 'personalTask', id, b.reminder, tx);
+      if (task.completedAt || b.reminder !== undefined) await this.reminders.replace(u.id, 'personalTask', id, task.completedAt ? null : b.reminder, tx);
       return taskDto(task);
     });
   }
@@ -113,7 +113,11 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
         return taskDto(task);
       }
       if (b.occurrenceKey !== undefined) throw new BadRequestException('Non-recurring tasks do not accept an occurrence date');
-      return taskDto(await tx.personalTask.update({ where: { id }, data: { completedAt: b.completed ? task.completedAt ?? new Date() : null } }));
+      const updated = await tx.personalTask.update({ where: { id }, data: { completedAt: b.completed ? task.completedAt ?? new Date() : null } });
+      // Retain configuration for undo, but remove delivery intent while closed.
+      // Retried completion cleans up legacy intent; retried undo keeps its ID.
+      if (b.completed || task.completedAt) await this.reminders.replace(u.id, 'personalTask', id, b.completed ? null : task.reminder, tx);
+      return taskDto(updated);
     });
   }
 

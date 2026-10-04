@@ -236,6 +236,65 @@ databaseSuite('core planning correctness with PostgreSQL', () => {
     finally { failure.mockRestore(); }
   });
 
+  const reminderConfig = { kind: 'instant', at: '2030-03-08T18:00:00Z' };
+  const reminderRows = async (id: string, auth = token) => {
+    const response = await client().get('/reminders').set('Authorization', auth).expect(200);
+    return (response.body as { id: string; targetId: string; fireAt: string }[]).filter(row => row.targetId === id);
+  };
+  it('removes one-time delivery intent on completion, preserves configuration and restores it once on undo', async () => {
+    const id = await createTask({ reminder: reminderConfig }); expect(await reminderRows(id)).toHaveLength(1);
+    await Promise.all([complete(id, true).expect(201), complete(id, true).expect(201)]);
+    expect(await reminderRows(id)).toEqual([]);
+    const task = await client().get(`/tasks/${id}`).set('Authorization', token).expect(200);
+    expect(task.body.reminder).toEqual(reminderConfig); expect(task.body.completedAt).not.toBeNull();
+    await complete(id, false).expect(201); const restored = await reminderRows(id); expect(restored).toHaveLength(1);
+    expect(restored[0].fireAt).toBe('2030-03-08T18:00:00.000Z');
+    await Promise.all([complete(id, false).expect(201), complete(id, false).expect(201)]);
+    expect(await reminderRows(id)).toEqual(restored);
+  });
+  it('keeps updated reminder configuration inactive while completed and restores the latest value', async () => {
+    const id = await createTask({ reminder: reminderConfig }); await complete(id, true).expect(201);
+    const next = { kind: 'instant', at: '2030-03-09T18:00:00Z' };
+    const updated = await client().patch(`/tasks/${id}`).set('Authorization', token).send({ reminder: next, title: 'Closed task' }).expect(200);
+    expect(updated.body.reminder).toEqual(next); expect(updated.body.completedAt).not.toBeNull(); expect(await reminderRows(id)).toEqual([]);
+    await complete(id, false).expect(201); expect((await reminderRows(id))[0].fireAt).toBe('2030-03-09T18:00:00.000Z');
+  });
+  it('cleans up legacy completed-task intent during retry or a later edit', async () => {
+    const id = await createTask({ reminder: reminderConfig }); await complete(id, true).expect(201);
+    const stale = () => db.reminder.create({ data: { userId, targetKind: 'personalTask', targetId: id, personalTaskId: id, fireAt: new Date(reminderConfig.at) } });
+    await stale(); await complete(id, true).expect(201); expect(await reminderRows(id)).toEqual([]);
+    await stale(); await client().patch(`/tasks/${id}`).set('Authorization', token).send({ title: 'Still closed' }).expect(200);
+    expect(await reminderRows(id)).toEqual([]);
+  });
+  it('does not change another account’s reminder intent', async () => {
+    const own = await createTask({ reminder: reminderConfig });
+    const other = await client().post('/tasks').set('Authorization', otherToken).send({ title: 'Other reminder', reminder: reminderConfig }).expect(201);
+    const original = await reminderRows(other.body.id, otherToken);
+    await complete(other.body.id, true, undefined, token).expect(404); await complete(own, true).expect(201);
+    expect(await reminderRows(other.body.id, otherToken)).toEqual(original);
+    expect(await reminderRows(other.body.id)).toEqual([]);
+  });
+  it('rolls back completion when reminder cleanup fails', async () => {
+    const id = await createTask({ reminder: reminderConfig }); const original = await reminderRows(id);
+    const failure = jest.spyOn(app.get(ReminderService), 'replace').mockRejectedValueOnce(new Error('Injected reminder failure'));
+    try { await complete(id, true).expect(500); } finally { failure.mockRestore(); }
+    const task = await client().get(`/tasks/${id}`).set('Authorization', token).expect(200);
+    expect(task.body.completedAt).toBeNull(); expect(await reminderRows(id)).toEqual(original);
+  });
+  it('rolls back undo when reminder restoration fails', async () => {
+    const id = await createTask({ reminder: reminderConfig }); const closed = await complete(id, true).expect(201);
+    const failure = jest.spyOn(app.get(ReminderService), 'replace').mockRejectedValueOnce(new Error('Injected reminder failure'));
+    try { await complete(id, false).expect(500); } finally { failure.mockRestore(); }
+    const task = await client().get(`/tasks/${id}`).set('Authorization', token).expect(200);
+    expect(task.body.completedAt).toBe(closed.body.completedAt); expect(await reminderRows(id)).toEqual([]);
+  });
+  it('preserves future reminder intent when completing or undoing a recurring occurrence', async () => {
+    const id = await createTask({ reminder: reminderConfig, scheduled: { kind: 'date', date }, recurrence: { frequency: 'daily' } });
+    const original = await reminderRows(id);
+    await complete(id, true, date).expect(201); await complete(id, false, date).expect(201);
+    expect(await reminderRows(id)).toEqual(original);
+  });
+
   it('uses the full historical 25-hour fall day in the API event response', async () => {
     const make = (externalId: string, startsAt: string) => db.event.create({ data: {
       source: marker, externalId, title: externalId, sortAt: new Date(startsAt),
