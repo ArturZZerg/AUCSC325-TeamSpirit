@@ -101,6 +101,8 @@ offline sign-out cleanup and actual background reminder delivery. The
 [reminder lifecycle follow-up](android-native-reminders-2026-10-04.md) records
 further controls. Remaining editor, midnight/DST and iOS gates are listed there;
 these targeted results do not establish the entire acceptance list.
+The [native editor report](android-native-editors-2026-10-04.md) adds task/goal
+forms, failed-save retry, duration, recurrence and DST input observations.
 
 Official workflow references: [Expo local builds](https://docs.expo.dev/guides/local-app-development/)
 and [installable Android APKs](https://docs.expo.dev/build-reference/apk/).

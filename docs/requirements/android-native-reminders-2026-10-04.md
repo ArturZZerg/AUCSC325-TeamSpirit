@@ -58,7 +58,8 @@ recorded separately, with Android's inexact timing limitations.
 
 ## Remaining gates
 
-Native task scheduling/recurrence/duration editors, goal schedule editing and
-skip behavior, actual midnight rollover, native DST, iOS and reboot/Doze delivery
-still require their own evidence. Reminder calculations remain behind the
-existing service; no new delivery mechanism or offline-write design was added.
+The [editor follow-up](android-native-editors-2026-10-04.md) records task/goal
+forms and DST input validation. Actual midnight and DST rollover, iOS and
+reboot/Doze delivery still require their own evidence. Reminder calculations
+remain behind the existing service; no new delivery mechanism or offline-write
+design was added.
