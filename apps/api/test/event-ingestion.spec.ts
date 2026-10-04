@@ -72,6 +72,20 @@ databaseSuite('campus event ingestion and API with PostgreSQL', () => {
     expect(await db.event.findUniqueOrThrow({ where: { id: original.id } })).toMatchObject({ title: 'Moved', timing: { startsAt: '2026-05-08T16:00:00Z' } });
     expect(await db.savedEvent.count({ where: { eventId: original.id } })).toBe(1);
   });
+  it('retains a new save and its explicit reminder when empty reconciliation is already fetching', async () => {
+    await sync.sync(source, provider(body()), coverage); const original = await db.event.findFirstOrThrow({ where: source });
+    let entered!: () => void, release!: () => void;
+    const fetched = new Promise<void>(resolve => { entered = resolve; }); const gate = new Promise<void>(resolve => { release = resolve; });
+    const pending = sync.sync(source, new IcsEventProvider(async () => { entered(); await gate; return calendar(); }), coverage);
+    await fetched;
+    try {
+      await client().put(`/events/${original.id}/saved`).set('Authorization', token).send({ includedInPlan: true, reminder: { kind: 'instant', at: '2030-03-08T18:00:00Z' } }).expect(200);
+    } finally { release(); }
+    expect(await pending).toMatchObject({ status: 'complete', retainedSaved: 1, removed: 0 });
+    expect(await db.event.findUnique({ where: { id: original.id } })).not.toBeNull();
+    const reminders = await client().get('/reminders').set('Authorization', token).expect(200);
+    expect(reminders.body.filter((row: { targetKind: string; targetId: string }) => row.targetKind === 'savedEvent' && row.targetId === original.id)).toHaveLength(1);
+  });
   it('updates a moved recurrence instance under its original identity', async () => {
     const master = vevent('DTSTART:20260308T160000Z\r\nRRULE:FREQ=DAILY;COUNT=3');
     await sync.sync(source, provider(calendar(master)), coverage);

@@ -61,5 +61,5 @@ in [the task slice](mobile-tasks.md), including search/filter and explicit remin
 controls. Completed-task conversion now requires explicit undo. Persisting
 explicit goal reminder intent with pause/resume lifecycle is implemented in the
 API. Mobile goal reminder controls using the goal's timezone are implemented.
-Persist saved-event reminder intent, including replacement and unsave cleanup,
-before adding event reminder controls.
+Saved-event reminder intent now supports replacement and unsave cleanup.
+Mobile event reminder controls with validated account-owned reads are next.

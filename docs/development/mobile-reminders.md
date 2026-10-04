@@ -57,6 +57,17 @@ cascades reminder removal through the existing foreign key. PostgreSQL
 `goal-reminders.spec.ts` covers lifecycle, concurrency, isolation and rollback.
 Completing one occurrence preserves a separately chosen future reminder time.
 
+Saved-event PUT/PATCH reminder changes now persist explicit intent atomically
+with user configuration. Omitting reminder preserves the current configuration
+and intent ID, including plan-only updates. Intent uses the existing composite
+SavedEvent foreign key. Unsave cancels intent and cleans legacy orphaned rows in
+the same transaction; relationship/event deletion also cascades linked intent.
+All saved-event writers lock the Event row, coordinating first-save races and
+provider deletion. Account-owned saves and intent remain separate for a shared
+public event. `saved-event-reminders.spec.ts` covers replacement, omission,
+unsave/retry, isolation, cascades, rollback and concurrent writes. Date-only
+configuration does not invent a fire time; provider records are not mutated.
+
 `reminders.test.ts`, `device-reminders.test.tsx`, `notification-settings.test.tsx`,
 `quiet-hours-form.test.ts`, `quiet-hours-editor.test.tsx`, and domain
 `quiet-hours.test.ts` cover changed times, deletion, preferences,
@@ -65,8 +76,8 @@ logout during native scheduling, cached settings, errors, retry, and app resume.
 Run `npm run check` and the mobile web export.
 
 Real iOS/Android permission and delivery acceptance remains outstanding. This
-service reconciles existing API intent; adding date-only/recurring reminder intent,
-event reminder persistence, and reliable remote deadline
+service reconciles existing API intent; adding date-only/recurring reminder intent
+and reliable remote deadline
 updates remain separate tasks. No push delivery service is introduced.
 
 ## Next task
@@ -78,5 +89,6 @@ before asynchronous validation; timed scheduling and recurrence editing are
 implemented along with task search/filter and explicit timed reminder controls.
 Completed-task conversion now requires explicit undo. Explicit goal reminder
 intent supports pause/resume and atomic edits. Mobile goal reminder controls use
-the goal's timezone and preserve its schedule/history. Persist saved-event intent,
-including replacement and unsave cleanup, next.
+the goal's timezone and preserve its schedule/history. Saved-event intent supports
+replacement and unsave cleanup. Add mobile event reminder controls and validated
+account-owned configuration to event reads next.

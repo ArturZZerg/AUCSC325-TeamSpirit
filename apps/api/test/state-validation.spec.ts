@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AuthGuard } from '../src/common';
-import { GoalsController, ReminderService, TasksController } from '../src/data';
+import { EventsController, GoalsController, ReminderService, TasksController } from '../src/data';
 import { PrismaService } from '../src/prisma.service';
 
 const userId = '00000000-0000-4000-8000-000000000001';
@@ -28,6 +28,7 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     $queryRaw: jest.fn(),
     session: { findUnique: jest.fn() },
     goal: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
+    event: { findFirst: jest.fn() }, savedEvent: { upsert: jest.fn(), deleteMany: jest.fn() },
     personalTask: { findFirst: jest.fn(), update: jest.fn() },
     reminder: { deleteMany: jest.fn(), create: jest.fn() },
     taskCompletion: { upsert: jest.fn(), deleteMany: jest.fn() },
@@ -36,7 +37,7 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
-      controllers: [GoalsController, TasksController],
+      controllers: [GoalsController, TasksController, EventsController],
       providers: [AuthGuard, ReminderService, { provide: PrismaService, useValue: prisma }],
     }).compile();
     app = module.createNestApplication();
@@ -72,6 +73,18 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     prisma.goal.create.mockResolvedValue({ ...goal, reminder });
     await post('/goals').send({ title: goal.title, schedule: goal.schedule, timeZone: goal.timeZone, reminder }).expect(201);
     expect(prisma.reminder.create).toHaveBeenCalledWith({ data: { userId, targetKind: 'goal', targetId: recordId, goalId: recordId, fireAt: new Date(reminder.at) } });
+  });
+
+  it('creates saved-event intent tied to the account/event relationship', async () => {
+    const reminder = { kind: 'instant', at: '2030-03-08T18:00:00Z' }; prisma.event.findFirst.mockResolvedValue({ id: recordId });
+    prisma.savedEvent.upsert.mockResolvedValue({ eventId: recordId, includedInPlan: true, reminder, savedAt: now });
+    await request(app.getHttpServer()).put(`/events/${recordId}/saved`).set('Authorization', 'Bearer test-session').send({ includedInPlan: true, reminder }).expect(200);
+    expect(prisma.reminder.create).toHaveBeenCalledWith({ data: { userId, targetKind: 'savedEvent', targetId: recordId, savedEventUserId: userId, savedEventEventId: recordId, fireAt: new Date(reminder.at) } });
+  });
+
+  it('cleans owned legacy reminder intent on unsave even when the save is already absent', async () => {
+    await request(app.getHttpServer()).delete(`/events/${recordId}/saved`).set('Authorization', 'Bearer test-session').expect(200);
+    expect(prisma.reminder.deleteMany).toHaveBeenCalledWith({ where: { userId, targetKind: 'savedEvent', targetId: recordId } });
   });
 
   it('rejects an omitted pause state without changing the goal', async () => {
