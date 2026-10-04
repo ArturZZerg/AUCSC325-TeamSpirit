@@ -86,8 +86,11 @@ permissions, quiet-hour/DST boundaries, duplicate prevention, concurrent refresh
 logout during native scheduling, cached settings, errors, retry, and app resume.
 Run `npm run check` and the mobile web export.
 
-Real iOS/Android permission and delivery acceptance remains outstanding. This
-service reconciles existing API intent; adding date-only/recurring reminder intent
+The [Android native reports](../requirements/android-native-reminders-2026-10-04.md)
+record Pixel 10 Pro XL permission, delivery and lifecycle observations, including
+the need to restart a stale API before acceptance. Remaining native scenarios and
+iOS still require evidence. This service reconciles existing API intent; adding
+date-only/recurring reminder intent
 and reliable remote deadline
 updates remain separate tasks. No push delivery service is introduced.
 
@@ -106,4 +109,4 @@ account timezone and validated account-owned configuration in event reads.
 Task/goal snooze postpones active explicit intent while preserving configuration
 and leaving completed/paused targets inactive. Weekly-target progress and optional
 task duration controls and Today deadline/schedule details are implemented. Next,
-verify permission, delivery, snooze and account cleanup on a native device.
+continue the unverified native scenarios listed in the linked acceptance reports.

@@ -72,8 +72,8 @@ forwarding.
 
 ## Remaining acceptance
 
-Next, exercise native task/goal editing and reminder lifecycle controls, including
-replacement, removal, completion/undo, pause/resume, snooze, category preferences,
-quiet hours and saved-event unsave. Real midnight rollover, native DST behavior,
+The [reminder lifecycle follow-up](android-native-reminders-2026-10-04.md) records
+additional native controls. Next, exercise the remaining task/goal editors.
+Real midnight rollover, native DST behavior,
 iOS, reboot/Doze delivery, live institutional Canvas and a verified campus feed
 remain unproved. Automated tests and fixture data do not close those gates.

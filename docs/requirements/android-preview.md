@@ -33,6 +33,8 @@ not x86 Android emulators or older 32-bit-only phones.
 ## Connect the phone through USB
 
 Start PostgreSQL, apply migrations, and start the API using the README workflow.
+When testing changed backend code, rebuild and restart the API or use its watching
+development server; a previous running process still uses its old loaded modules.
 For the API process, explicitly set DATABASE_URL in its environment; setting
 HOST to `127.0.0.1` and PORT to `3000` keeps the USB workflow local to the PC.
 
@@ -95,8 +97,9 @@ and a verified campus source also remain external MVP gates. The current Maestro
 smoke scenario covers navigation to registration only; it does not verify this
 acceptance list. The [2026-10-04 native report](android-native-acceptance-2026-10-04.md)
 records successful Pixel 10 Pro XL checks for offline dates, account switching,
-offline sign-out cleanup and actual background reminder delivery. The remaining
-editor, reminder-lifecycle, midnight/DST and iOS gates are listed in that report;
+offline sign-out cleanup and actual background reminder delivery. The
+[reminder lifecycle follow-up](android-native-reminders-2026-10-04.md) records
+further controls. Remaining editor, midnight/DST and iOS gates are listed there;
 these targeted results do not establish the entire acceptance list.
 
 Official workflow references: [Expo local builds](https://docs.expo.dev/guides/local-app-development/)
