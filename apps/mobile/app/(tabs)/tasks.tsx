@@ -1,6 +1,61 @@
+import { useState } from 'react';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { zodResolver } from '@hookform/resolvers/zod'; import { useState } from 'react'; import { Controller, useForm } from 'react-hook-form'; import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native'; import { z } from 'zod'; import { Button, Card, Field, Screen, State, colors } from '@/components/ui'; import { useAcademic, useAction, useTasks } from '@/features/queries'; import type { PersonalTask } from '@/lib/types';
-const schema=z.object({title:z.string().min(1),description:z.string().optional(),date:z.string().optional(),category:z.enum(['university','personal','health','fitness','work','social','other']).default('personal'),priority:z.enum(['low','medium','high']).default('medium')}); type Form=z.infer<typeof schema>; const dateLabel=(d:PersonalTask['due'])=>d?.kind==='instant'?new Date(d.at).toLocaleString():d?.kind==='date'?d.date:'No deadline';
-export default function Tasks(){const tasks=useTasks(),academic=useAcademic(),action=useAction(),[editing,setEditing]=useState<PersonalTask|null|undefined>();return <Screen><ScrollView contentContainerStyle={s.content}><View style={s.top}><Text style={s.title}>Tasks</Text><Button title="Add task" onPress={()=>setEditing(null)}/></View><Text style={s.section}>My tasks</Text><State loading={tasks.isLoading} error={tasks.error} empty={!tasks.data?.length?'No personal tasks yet.':undefined}/>{tasks.data?.map(t=><Card key={t.id}><Text style={[s.item,t.completedAt&&s.done]}>{t.title}</Text><Text style={s.meta}>{t.category} · {t.priority} · {dateLabel(t.due)}</Text><View style={s.actions}><Button title={t.completedAt?'Completed':'Complete'} tone="plain" onPress={()=>action.mutate({path:`/tasks/${t.id}/complete`,body:{completed:!t.completedAt}})}/><Button title="Edit" tone="plain" onPress={()=>setEditing(t)}/><Button title="Delete" tone="danger" onPress={()=>action.mutate({path:`/tasks/${t.id}`,method:'DELETE'})}/></View></Card>)}<Text style={s.section}>University</Text><State loading={academic.isLoading} error={academic.error} empty={!academic.data?.length?'Canvas work appears here after a successful sync.':undefined}/>{academic.data?.map(x=><Card key={x.id}><Text style={s.item}>{x.title}</Text><Text style={s.meta}>{x.kind} · {x.submissionState??'unsubmitted'} · {dateLabel(x.due)}</Text></Card>)}</ScrollView><Form task={editing} close={()=>setEditing(undefined)}/></Screen>}
-function Form({task,close}:{task:PersonalTask|null|undefined;close:()=>void}){const a=useAction(),{control,handleSubmit}=useForm<Form>({resolver:zodResolver(schema),defaultValues:{title:task?.title??'',description:task?.description??'',date:task?.due?.kind==='date'?task.due.date:'',category:task?.category??'personal',priority:task?.priority??'medium'}});if(task===undefined)return null;const save=async(v:Form)=>{await a.mutateAsync({path:task?`/tasks/${task.id}`:'/tasks',method:task?'PATCH':'POST',body:{title:v.title,description:v.description||undefined,category:v.category,priority:v.priority,due:v.date?{kind:'date',date:v.date}:undefined}});close()};return <Modal visible animationType="slide"><SafeAreaView style={{ flex: 1, backgroundColor: colors.canvas }}><ScrollView contentContainerStyle={s.modal}><Text style={s.title}>{task?'Edit task':'New task'}</Text><Controller name="title" control={control} render={({field})=><Field label="Title" value={field.value} onChangeText={field.onChange}/>}/><Controller name="description" control={control} render={({field})=><Field label="Description" value={field.value??''} onChangeText={field.onChange} multiline/>}/><Controller name="date" control={control} render={({field})=><Field label="Due date" value={field.value??''} onChangeText={field.onChange} placeholder="YYYY-MM-DD"/>}/><Controller name="category" control={control} render={({field})=><Field label="Category" value={field.value} onChangeText={field.onChange}/>}/><Controller name="priority" control={control} render={({field})=><Field label="Priority" value={field.value} onChangeText={field.onChange}/>}/><Button title="Save task" onPress={handleSubmit(save)}/><Button title="Cancel" tone="plain" onPress={close}/></ScrollView></SafeAreaView></Modal>}
-const s=StyleSheet.create({content:{padding:16,gap:12},top:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},title:{fontSize:28,color:colors.ink,fontWeight:'800'},section:{fontSize:19,fontWeight:'800',color:colors.ink},actions:{gap:7},item:{fontSize:16,fontWeight:'700',color:colors.ink},done:{textDecorationLine:'line-through',color:colors.muted},meta:{color:colors.muted},modal:{padding:20,gap:14,flexGrow:1,backgroundColor:colors.canvas}});
+import { Button, Card, Screen, State, colors } from '@/components/ui';
+import { useAcademic, useAction, useTasks } from '@/features/queries';
+import { TaskEditor } from '@/features/task-editor';
+import type { PersonalTask } from '@/lib/types';
+
+const dateLabel = (due: PersonalTask['due']) => due?.kind === 'instant'
+  ? new Date(due.at).toLocaleString() : due?.kind === 'date' ? due.date : 'No deadline';
+
+export default function Tasks() {
+  const tasks = useTasks();
+  const academic = useAcademic();
+  const action = useAction();
+  const [editing, setEditing] = useState<PersonalTask | null>();
+  const [deleting, setDeleting] = useState<PersonalTask>();
+  const [message, setMessage] = useState<string>();
+  const run = async (request: Parameters<typeof action.mutateAsync>[0]) => {
+    setMessage(undefined);
+    try { await action.mutateAsync(request); return true; }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the change. Please try again.'); return false; }
+  };
+
+  return <Screen>
+    <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.top}><Text style={styles.title}>Tasks</Text><Button title="Add task" disabled={action.isPending} onPress={() => setEditing(null)}/></View>
+      {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
+      <Text style={styles.section}>My tasks</Text>
+      <State loading={tasks.isLoading} error={tasks.error} empty={tasks.data?.length === 0 ? 'No personal tasks yet.' : undefined}/>
+      {tasks.data?.map(task => <Card key={task.id}>
+        <Text style={[styles.item, task.completedAt && styles.done]}>{task.title}</Text>
+        <Text style={styles.meta}>{task.category} · {task.priority} · {dateLabel(task.due)}</Text>
+        {task.description && <Text style={styles.meta}>{task.description}</Text>}
+        <View style={styles.actions}>
+          {task.recurrence ? <Text style={styles.meta}>Complete recurring occurrences from Today.</Text> :
+            <Button title={task.completedAt ? 'Undo completion' : 'Complete'} tone="plain" disabled={action.isPending}
+              onPress={() => { void run({ path: `/tasks/${task.id}/complete`, body: { completed: !task.completedAt } }); }}/>}
+          <Button title="Edit" tone="plain" disabled={action.isPending} onPress={() => setEditing(task)}/>
+          <Button title="Delete" tone="danger" disabled={action.isPending} onPress={() => { setMessage(undefined); setDeleting(task); }}/>
+        </View>
+      </Card>)}
+      <Text style={styles.section}>University</Text>
+      <State loading={academic.isLoading} error={academic.error} empty={academic.data?.length === 0 ? 'Canvas work appears here after a successful sync.' : undefined}/>
+      {academic.data?.map(item => <Card key={item.id}><Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.kind} · {item.submissionState ?? 'unsubmitted'} · {dateLabel(item.due)}</Text></Card>)}
+    </ScrollView>
+    {editing !== undefined && <TaskEditor key={editing?.id ?? 'new'} task={editing} onClose={() => setEditing(undefined)}/>}
+    {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!action.isPending) setDeleting(undefined); }}>
+      <SafeAreaView style={styles.confirm}><Card>
+        <Text style={styles.section}>Delete task?</Text><Text style={styles.meta}>Delete “{deleting.title}” and its reminder?</Text>
+        {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
+        <Button title={action.isPending ? 'Deleting…' : 'Delete task'} tone="danger" disabled={action.isPending} onPress={() => {
+          void run({ path: `/tasks/${deleting.id}`, method: 'DELETE' }).then(saved => { if (saved) setDeleting(undefined); });
+        }}/>
+        <Button title="Keep task" tone="plain" disabled={action.isPending} onPress={() => setDeleting(undefined)}/>
+      </Card></SafeAreaView>
+    </Modal>}
+  </Screen>;
+}
+
+const styles = StyleSheet.create({ content: { padding: 16, gap: 12 }, top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, title: { fontSize: 28, color: colors.ink, fontWeight: '800' }, section: { fontSize: 19, fontWeight: '800', color: colors.ink }, actions: { gap: 7 }, item: { fontSize: 16, fontWeight: '700', color: colors.ink }, done: { textDecorationLine: 'line-through', color: colors.muted }, meta: { color: colors.muted }, error: { color: colors.coral }, confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.35)' } });
