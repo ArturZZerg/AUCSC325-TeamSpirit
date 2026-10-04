@@ -57,6 +57,10 @@ resume, explicit dates, timezone/account changes, cleanup, query/cache date
 identity, signed-out resume, and cached/uncached offline days. Screen tests also
 cover the account date heading and timed event display.
 
+DST regressions use historical transitions so fixed expectations remain stable
+across runtime timezone database revisions. Scheduling always uses the running
+device's timezone data for the current date.
+
 Run `npm run check` and `npm run build:web -w @campusflow/mobile`. Native
 interaction still needs the [Android preview acceptance](../requirements/android-preview.md)
 and iOS validation.

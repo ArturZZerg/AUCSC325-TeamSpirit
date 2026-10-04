@@ -89,8 +89,10 @@ describe('account calendar clock (ToR 4, date/time rules)', () => {
   });
 
   it.each([
-    ['2026-03-08T07:00:00Z', 23, '2026-03-08', '2026-03-09'],
-    ['2026-11-01T06:00:00Z', 25, '2026-11-01', '2026-11-02'],
+    // Historical transitions keep fixed expectations stable across runtime
+    // timezone databases, which can disagree about future rule changes.
+    ['2025-03-09T07:00:00Z', 23, '2025-03-09', '2025-03-10'],
+    ['2025-11-02T06:00:00Z', 25, '2025-11-02', '2025-11-03'],
   ])('rolls over after the real DST day starting %s (%s hours)', (start, hours, before, after) => {
     jest.setSystemTime(new Date(start));
     const { result } = renderHook(() => useTodayClock('America/Edmonton'));
