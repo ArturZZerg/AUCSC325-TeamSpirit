@@ -97,6 +97,8 @@ Goal creation, editing, deletion, and history are covered in
 [the Wellness slice](mobile-wellness.md). Reminder reconciliation is covered in
 [the reminder slice](mobile-reminders.md). Main Goal selection is
 available in [Tasks](mobile-tasks.md); Today displays the selected item first.
-Next, run native acceptance of the accumulated task, Today, goal and reminder
-changes with a connected Android device and an API test environment. Web export
-and Jest cannot prove native notification delivery or phone lifecycle behavior.
+The [Android midnight report](../requirements/android-native-midnight-2026-10-04.md)
+records actual offline background rollover, overdue recalculation and cold
+restoration on Pixel 10 Pro XL. Continue the remaining foreground/iOS and
+integration gates listed in the linked native reports. Web export and Jest cannot
+prove native notification delivery or phone lifecycle behavior.
