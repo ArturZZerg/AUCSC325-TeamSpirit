@@ -140,3 +140,14 @@ export const composeToday = (input: TodayInput): TodayPlan => {
   };
   return { items: items.sort(sortItems(input.timeZone)), upcoming: upcoming.filter(x => x.state === 'upcoming' && (() => { const value = x.due ?? x.schedule; const dueDate = value?.kind === 'date' ? plainDate(value.date) : value?.kind === 'instant' ? plainDate(localDateAt(value.at, input.timeZone)) : undefined; return !!dueDate && Temporal.PlainDate.compare(dueDate, plainDate(input.date)) > 0 && Temporal.PlainDate.compare(dueDate, latestUpcoming) <= 0; })()).sort(upcomingSort), campusEvents: campusEvents.sort((a, b) => { const left = a.timing.kind === 'timed' ? a.timing.startsAt : zonedStart(a.timing.startDate, input.timeZone).toInstant().toString(); const right = b.timing.kind === 'timed' ? b.timing.startsAt : zonedStart(b.timing.startDate, input.timeZone).toInstant().toString(); return Temporal.Instant.compare(left, right) || a.id.localeCompare(b.id); }) };
 };
+
+/** Actual timing in a half-open instant range; all-day dates use the reader's zone. */
+export const eventStartInstant = (timing: EventTiming, timeZone: string): string => timing.kind === 'timed'
+  ? timing.startsAt : dayBounds(timing.startDate, timeZone).start;
+export const eventOverlapsRange = (timing: EventTiming, from: string | undefined, through: string | undefined, timeZone: string): boolean => {
+  const start = eventStartInstant(timing, timeZone);
+  const end = timing.kind === 'timed' ? timing.endsAt ?? start : dayBounds(timing.endDateExclusive, timeZone).start;
+  const point = Temporal.Instant.compare(start, end) === 0;
+  return (!through || Temporal.Instant.compare(start, through) < 0)
+    && (!from || Temporal.Instant.compare(point ? start : end, from) >= (point ? 0 : 1));
+};

@@ -1,4 +1,4 @@
-import { completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema } from '../src';
+import { eventQuerySchema, completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema } from '../src';
 
 describe('public contract validation', () => {
   it('keeps date-only and timed task values unambiguous', () => {
@@ -39,5 +39,18 @@ describe('core request and snapshot boundaries', () => {
     expect(snapshotCoverageSchema.safeParse({ from: '2026-03-09', through: '2026-03-08', basis: 'persisted', includesOverdue: true }).success).toBe(false);
     expect(snapshotCoverageSchema.parse({ from: '2026-03-08', through: '2026-03-15', basis: 'persisted', includesOverdue: true }).through).toBe('2026-03-15');
     expect(offlineSnapshotSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('event range query boundary', () => {
+  it.each(['2026-02-30', '2026-02-30T12:00:00Z', 'yesterday', '2026-03-08T09:00:00'])('rejects invalid boundary %s', from => {
+    expect(eventQuerySchema.safeParse({ from }).success).toBe(false);
+  });
+  it('accepts date and UTC boundaries with free-text source categories', () => {
+    expect(eventQuerySchema.parse({ from: '2026-03-08', through: '2026-03-09T06:00:00Z', category: 'lecture' })).toEqual({ from: '2026-03-08', through: '2026-03-09T06:00:00Z', category: 'lecture' });
+  });
+  it('rejects duplicate and unknown query parameters', () => {
+    expect(eventQuerySchema.safeParse({ from: ['2026-03-08', '2026-03-09'] }).success).toBe(false);
+    expect(eventQuerySchema.safeParse({ sourceScope: 'public' }).success).toBe(false);
   });
 });

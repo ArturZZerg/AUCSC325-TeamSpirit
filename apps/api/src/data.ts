@@ -1,7 +1,8 @@
+import { eventRange, selectEvents } from './integrations/events/event-query';
 import { BadRequestException, Body, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, createWellnessEntrySchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, createWellnessEntrySchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, parseUuid, toIso } from './common';
 import { PrismaService } from './prisma.service';
 import { goalOccursOn, taskOccursOn } from '@campusflow/domain';
@@ -198,7 +199,14 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
 
 @Controller('events') @UseGuards(AuthGuard) export class EventsController {
  constructor(private readonly prisma:PrismaService){}
- @Get() async list(@CurrentUser()u:RequestUser,@Query('category')category?:string,@Query('from')from?:string,@Query('through')through?:string){const rows=await this.prisma.event.findMany({where:{OR:[{sourceScope:'public'},{sourceScope:`user:${u.id}`}],...(category?{category}:{}),...(from||through?{sortAt:{...(from?{gte:new Date(from)}:{}),...(through?{lt:new Date(through)}:{})}}:{})},orderBy:{sortAt:'asc'},include:{savedBy:{where:{userId:u.id}}}});return rows.map(r=>({...eventDto(r),saved:r.savedBy.length>0,includedInPlan:r.savedBy[0]?.includedInPlan??false}));}
+ @Get() async list(@CurrentUser() u: RequestUser, @Query(new ZodPipe(eventQuerySchema)) query: z.infer<typeof eventQuerySchema>) {
+   const range = eventRange(query, u.timeZone);
+   const rows = await this.prisma.event.findMany({ where: {
+     OR: [{ sourceScope: 'public' }, { sourceScope: `user:${u.id}` }],
+     ...(query.category ? { category: query.category } : {}),
+   }, include: { savedBy: { where: { userId: u.id } } } });
+   return selectEvents(rows.map(r => ({ ...eventDto(r), saved: r.savedBy.length > 0, includedInPlan: r.savedBy[0]?.includedInPlan ?? false })), range, u.timeZone);
+ }
  @Put(':id/saved') async save(@CurrentUser()u:RequestUser,@Param('id',new ZodPipe(parseUuid))id:string,@Body(new ZodPipe(saveEventSchema))b:z.infer<typeof saveEventSchema>){await this.event(id,u.id);const r=await this.prisma.savedEvent.upsert({where:{userId_eventId:{userId:u.id,eventId:id}},create:{userId:u.id,eventId:id,includedInPlan:b.includedInPlan,reminder:b.reminder?asJson(b.reminder):Prisma.JsonNull},update:{includedInPlan:b.includedInPlan,reminder:b.reminder===undefined?undefined:b.reminder===null?Prisma.JsonNull:asJson(b.reminder)}});return savedEventSchema.parse({...r,savedAt:toIso(r.savedAt)});}
  @Patch(':id/saved') async patch(@CurrentUser()u:RequestUser,@Param('id',new ZodPipe(parseUuid))id:string,@Body(new ZodPipe(updateSavedEventSchema))b:z.infer<typeof updateSavedEventSchema>){const existing=await this.prisma.savedEvent.findUnique({where:{userId_eventId:{userId:u.id,eventId:id}}});if(!existing)throw new NotFoundException('Saved event not found');const r=await this.prisma.savedEvent.update({where:{userId_eventId:{userId:u.id,eventId:id}},data:{includedInPlan:b.includedInPlan,reminder:b.reminder===undefined?undefined:b.reminder===null?Prisma.JsonNull:asJson(b.reminder)}});return savedEventSchema.parse({...r,savedAt:toIso(r.savedAt)});}
  @Delete(':id/saved') async unsave(@CurrentUser()u:RequestUser,@Param('id',new ZodPipe(parseUuid))id:string){await this.prisma.savedEvent.deleteMany({where:{userId:u.id,eventId:id}});return {deleted:true};}
