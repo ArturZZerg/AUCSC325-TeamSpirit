@@ -77,5 +77,6 @@ listed in the acceptance gates above. Task-editor repeat submission is guarded
 before asynchronous validation; timed scheduling and recurrence editing are
 implemented along with task search/filter and explicit timed reminder controls.
 Completed-task conversion now requires explicit undo. Explicit goal reminder
-intent supports pause/resume and atomic edits. Add mobile goal reminder controls
-using the goal's timezone and preserving its schedule/history next.
+intent supports pause/resume and atomic edits. Mobile goal reminder controls use
+the goal's timezone and preserve its schedule/history. Persist saved-event intent,
+including replacement and unsave cleanup, next.
