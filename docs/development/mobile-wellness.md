@@ -38,5 +38,7 @@ cleans up on unmount. It stays local to the mounted screen and schedules no
 alarms. `breathing-pause.test.tsx` covers elapsed time, delayed callbacks,
 background/resume, cancellation, restart, repeat starts and cleanup.
 
-Add account-timezone quiet-hour editing to notification settings, with input
-validation, clear/disable controls and retryable write failures.
+Quiet-hour editing is implemented in [notification settings](mobile-reminders.md).
+Next, guard task-editor submission before asynchronous validation so rapid
+repeat taps cannot start parallel saves, then expose timed scheduling and
+recurrence editing through the existing task APIs.

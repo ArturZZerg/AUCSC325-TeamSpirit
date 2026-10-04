@@ -4,6 +4,7 @@ import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAction, usePreferences, useReminders } from '@/features/queries';
 import { useSessionStore } from '@/store/session';
 import { ensureNotificationPermission, reconcileReminders } from '@/services/reminders';
+import { QuietHoursEditor } from '@/features/quiet-hours-editor';
 
 const categories = [
   { key: 'academicEnabled', label: 'Academic' }, { key: 'personalEnabled', label: 'Personal' },
@@ -19,6 +20,7 @@ export default function SettingsScreen() {
   const guard = useRef(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
+  const [editingQuietHours, setEditingQuietHours] = useState(false);
   const disabled = busy || action.isPending;
   const run = async (operation: () => Promise<void>) => {
     if (guard.current || action.isPending) return;
@@ -55,7 +57,12 @@ export default function SettingsScreen() {
         title={`${category.label} reminders: ${preferences.data![category.key] ? 'on' : 'off'}`} tone="plain" disabled={disabled}
         onPress={() => { void run(async () => { await action.mutateAsync({ path: '/notification-preferences', method: 'PATCH',
           body: { [category.key]: !preferences.data![category.key] } }); }); }}/>) }
+      {preferences.data && <><Text style={styles.muted}>{preferences.data.quietHoursStart && preferences.data.quietHoursEnd && preferences.data.quietHoursStart !== preferences.data.quietHoursEnd
+        ? `Quiet hours: ${preferences.data.quietHoursStart}–${preferences.data.quietHoursEnd} · ${session?.user.timeZone}` : 'Quiet hours: off'}</Text>
+        <Button title="Edit quiet hours" tone="plain" disabled={disabled} onPress={() => setEditingQuietHours(true)}/></>}
     </Card>
-  </ScrollView></Screen>;
+  </ScrollView>
+    {editingQuietHours && preferences.data && session && <QuietHoursEditor key={session.user.id} preferences={preferences.data} timeZone={session.user.timeZone} onClose={() => setEditingQuietHours(false)}/>}
+  </Screen>;
 }
 const styles = StyleSheet.create({ content: { padding: 16, gap: 12 }, title: { fontSize: 29, fontWeight: '800', color: colors.ink }, label: { fontSize: 18, fontWeight: '800', color: colors.ink }, muted: { color: colors.muted }, error: { color: colors.coral } });
