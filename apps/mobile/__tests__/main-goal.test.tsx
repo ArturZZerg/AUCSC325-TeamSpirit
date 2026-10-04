@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe('Main Goal selection (ToR 6)', () => {
   it('selects an undated task for the account day without changing its deadline', async () => {
-    render(<Tasks/>); fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' }));
+    render(<Tasks/>); await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
     await waitFor(() => expect(save).toHaveBeenCalledWith({ path: `/tasks/${task.id}/main-goal`, body: { date } }));
     expect(useTodayClock).toHaveBeenCalledWith('America/Edmonton');
     expect(screen.getByText(/No deadline/)).toBeOnTheScreen();
@@ -34,25 +34,25 @@ describe('Main Goal selection (ToR 6)', () => {
   });
   it('uses PATCH for academic work and supports clearing the selection', async () => {
     show([], [academic]); const view = render(<Tasks/>);
-    fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' }));
+    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
     await waitFor(() => expect(save).toHaveBeenCalledWith({ path: `/academic-items/${academic.id}/main-goal`, method: 'PATCH', body: { date } }));
     await waitFor(() => expect(screen.queryByText('Saving…')).toBeNull());
     show([], [{ ...academic, mainGoalDate: date }]); view.rerender(<Tasks/>);
     expect(screen.getByText('★ MAIN GOAL TODAY')).toBeOnTheScreen();
-    fireEvent.press(screen.getByRole('button', { name: 'Remove Main Goal' }));
+    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Remove Main Goal' })); });
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ path: `/academic-items/${academic.id}/main-goal`, method: 'PATCH', body: { date: null } }));
   });
   it('can remove a completed personal task selection', async () => {
     show([{ ...task, mainGoalDate: date, completedAt: '2025-03-09T15:00:00Z' }]); render(<Tasks/>);
-    fireEvent.press(screen.getByRole('button', { name: 'Remove Main Goal' }));
+    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Remove Main Goal' })); });
     await waitFor(() => expect(save).toHaveBeenCalledWith({ path: `/tasks/${task.id}/main-goal`, body: { date: null } }));
   });
   it('keeps failed selection unchanged and supports retry', async () => {
     save.mockRejectedValueOnce(new Error('Network unavailable')); render(<Tasks/>);
-    fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' }));
+    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
     await screen.findByText('Network unavailable');
     expect(screen.queryByText('★ MAIN GOAL TODAY')).toBeNull();
-    fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' }));
+    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull()); expect(save).toHaveBeenCalledTimes(2);
   });
   it('guards repeated selection and disables unrelated writes while pending', async () => {
@@ -76,8 +76,9 @@ describe('Main Goal selection (ToR 6)', () => {
   });
   it('renders only the refreshed server selection when replacing a Main Goal', async () => {
     show([{ ...task, mainGoalDate: date }], [academic]); const view = render(<Tasks/>);
-    fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' }));
-    await waitFor(() => expect(screen.queryByText('Saving…')).toBeNull());
+    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
+    expect(save).toHaveBeenCalledWith({ path: `/academic-items/${academic.id}/main-goal`, method: 'PATCH', body: { date } });
+    expect(screen.queryByText('Saving…')).toBeNull();
     expect(screen.getAllByText('★ MAIN GOAL TODAY')).toHaveLength(1);
     show([task], [{ ...academic, mainGoalDate: date }]); view.rerender(<Tasks/>);
     expect(screen.getAllByText('★ MAIN GOAL TODAY')).toHaveLength(1);
