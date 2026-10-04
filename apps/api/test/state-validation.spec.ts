@@ -30,7 +30,7 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     goal: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
     event: { findFirst: jest.fn() }, savedEvent: { upsert: jest.fn(), deleteMany: jest.fn() },
     personalTask: { findFirst: jest.fn(), update: jest.fn() },
-    reminder: { deleteMany: jest.fn(), create: jest.fn() },
+    reminder: { deleteMany: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
     taskCompletion: { upsert: jest.fn(), deleteMany: jest.fn() },
   };
   const post = (path: string) => request(app.getHttpServer()).post(path).set('Authorization', 'Bearer test-session');
@@ -85,6 +85,15 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
   it('cleans owned legacy reminder intent on unsave even when the save is already absent', async () => {
     await request(app.getHttpServer()).delete(`/events/${recordId}/saved`).set('Authorization', 'Bearer test-session').expect(200);
     expect(prisma.reminder.deleteMany).toHaveBeenCalledWith({ where: { userId, targetKind: 'savedEvent', targetId: recordId } });
+  });
+
+  it.each(['tasks', 'goals'])('postpones existing explicit %s intent when snoozed', async resource => {
+    const reminder = { kind: 'instant', at: '2030-03-08T18:00:00Z' }; const until = new Date('2030-03-09T18:00:00Z');
+    if (resource === 'tasks') { prisma.personalTask.findFirst.mockResolvedValue({ ...task, reminder }); prisma.personalTask.update.mockResolvedValue({ ...task, reminder, snoozedUntil: until }); }
+    else { prisma.goal.findFirst.mockResolvedValue({ ...goal, reminder }); prisma.goal.update.mockResolvedValue({ ...goal, reminder, snoozedUntil: until }); }
+    const response = await post(`/${resource}/${recordId}/snooze`).send({ until: until.toISOString() }).expect(201);
+    expect(response.body.reminder).toEqual(reminder); expect(response.body.snoozedUntil).toBe(until.toISOString());
+    expect(prisma.reminder.updateMany).toHaveBeenCalledWith({ where: { userId, targetKind: resource === 'tasks' ? 'personalTask' : 'goal', targetId: recordId, enabled: true, fireAt: { lt: until } }, data: { fireAt: until } });
   });
 
   it('rejects an omitted pause state without changing the goal', async () => {

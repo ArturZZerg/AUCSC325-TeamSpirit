@@ -81,6 +81,9 @@ export const reminderFireAt = (target: TimedOrDate, leadMinutes: number, timeZon
   const occurrence = target.kind === 'instant' ? Temporal.Instant.from(target.at) : zonedStart(target.date, timeZone).toInstant();
   return occurrence.subtract({ minutes: leadMinutes }).toString();
 };
+/** Explicit configuration stays unchanged; snooze is a lower bound for delivery. */
+export const reminderAfterSnooze = (fireAt: string, snoozedUntil?: string | null): string => !snoozedUntil
+  || Temporal.Instant.compare(Temporal.Instant.from(snoozedUntil), Temporal.Instant.from(fireAt)) <= 0 ? fireAt : snoozedUntil;
 /** Delay delivery to the end of account-local quiet hours; source intent is unchanged.
  * The interval includes its start and excludes its end. Equal/missing bounds disable it.
  * Temporal's compatible disambiguation shifts a nonexistent DST end time forward.

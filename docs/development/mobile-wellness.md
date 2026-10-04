@@ -62,6 +62,7 @@ controls. Completed-task conversion now requires explicit undo. Persisting
 explicit goal reminder intent with pause/resume lifecycle is implemented in the
 API. Mobile goal reminder controls using the goal's timezone are implemented.
 Saved-event reminder intent now supports replacement and unsave cleanup.
-Mobile event reminder controls now use validated account-owned reads. Make
-task/goal snooze postpone active explicit intent without reactivating paused or
-completed targets next.
+Mobile event reminder controls now use validated account-owned reads.
+Task/goal snooze now postpones active explicit intent without reactivating paused
+or completed targets. Show weekly-target progress from validated completion
+history and the goal's local week next; missing history must remain unavailable.

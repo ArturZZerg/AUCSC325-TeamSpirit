@@ -39,5 +39,6 @@ explicit null. `saved-event-reminders.spec.ts` verifies reader-specific API valu
 Run root checks and Expo web export. Native delivery acceptance and a verified
 live campus feed remain external gates; fixtures are not live campus data.
 
-Next: task/goal snooze should postpone active explicit reminder intent while
-preserving configuration and leaving completed/paused targets inactive.
+Task/goal snooze now postpones active explicit reminder intent while preserving
+configuration and leaving completed/paused targets inactive. Next: show weekly
+goal targets against validated completion history in the goal's local week.

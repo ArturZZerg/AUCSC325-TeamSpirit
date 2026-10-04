@@ -6,18 +6,24 @@ import { z } from 'zod';
 import { eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, createWellnessEntrySchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, parseUuid, toIso } from './common';
 import { PrismaService } from './prisma.service';
-import { goalOccursOn, taskOccursOn } from '@campusflow/domain';
+import { goalOccursOn, reminderAfterSnooze, taskOccursOn } from '@campusflow/domain';
 
 const asJson = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
 const taskDto = (r:{id:string;title:string;description:string|null;priority:string;category:string;due:Prisma.JsonValue|null;scheduled:Prisma.JsonValue|null;recurrence:Prisma.JsonValue|null;reminder:Prisma.JsonValue|null;estimatedMinutes:number|null;completedAt:Date|null;snoozedUntil:Date|null;mainGoalDate:string|null;createdAt:Date;updatedAt:Date}) => personalTaskSchema.parse({...r,completedAt:r.completedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
 const goalDto = (r:{id:string;title:string;category:string;schedule:Prisma.JsonValue;timeZone:string;reminder:Prisma.JsonValue|null;pausedAt:Date|null;snoozedUntil:Date|null;createdAt:Date;updatedAt:Date}) => goalSchema.parse({...r,pausedAt:r.pausedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
 const eventDto = (r:{id:string;title:string;description:string|null;category:string|null;source:string;externalId:string;timing:Prisma.JsonValue;location:string|null;url:string|null}) => eventSchema.parse(r);
+const isExplicitReminder = (reminder: unknown): reminder is { kind: 'instant'; at: string } => Boolean(reminder && typeof reminder === 'object' && 'kind' in reminder && reminder.kind === 'instant' && 'at' in reminder && typeof reminder.at === 'string');
 
 @Injectable() export class ReminderService {
   constructor(private readonly prisma:PrismaService) {}
-  async replace(userId:string,targetKind:string,targetId:string,reminder:unknown, tx:Prisma.TransactionClient = this.prisma):Promise<void> {
+  async replace(userId:string,targetKind:string,targetId:string,reminder:unknown, tx:Prisma.TransactionClient = this.prisma, notBefore?: Date | null):Promise<void> {
     await tx.reminder.deleteMany({where:{userId,targetKind,targetId}});
-    if (reminder && typeof reminder==='object' && 'kind' in reminder && reminder.kind==='instant' && 'at' in reminder && typeof reminder.at==='string') await tx.reminder.create({data:{userId,targetKind,targetId,fireAt:new Date(reminder.at),...(targetKind==='personalTask'?{personalTaskId:targetId}:targetKind==='goal'?{goalId:targetId}:targetKind==='savedEvent'?{savedEventUserId:userId,savedEventEventId:targetId}:{})}});
+    if (isExplicitReminder(reminder)) await tx.reminder.create({data:{userId,targetKind,targetId,fireAt:new Date(reminderAfterSnooze(reminder.at, notBefore?.toISOString())),...(targetKind==='personalTask'?{personalTaskId:targetId}:targetKind==='goal'?{goalId:targetId}:targetKind==='savedEvent'?{savedEventUserId:userId,savedEventEventId:targetId}:{})}});
+  }
+  async postpone(userId: string, targetKind: string, targetId: string, reminder: unknown, until: Date, tx: Prisma.TransactionClient): Promise<void> {
+    if (!isExplicitReminder(reminder)) { await this.replace(userId, targetKind, targetId, null, tx); return; }
+    // Change only existing enabled intent, retaining its ID and never advancing it.
+    await tx.reminder.updateMany({ where: { userId, targetKind, targetId, enabled: true, fireAt: { lt: until } }, data: { fireAt: until } });
   }
 }
 
@@ -89,7 +95,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
         reminder: b.reminder === undefined ? undefined : b.reminder === null ? Prisma.JsonNull : asJson(b.reminder),
       };
       const task = await tx.personalTask.update({ where: { id }, data });
-      if (task.completedAt || b.reminder !== undefined) await this.reminders.replace(u.id, 'personalTask', id, task.completedAt ? null : b.reminder, tx);
+      if (task.completedAt || b.reminder !== undefined) await this.reminders.replace(u.id, 'personalTask', id, task.completedAt ? null : b.reminder, tx, task.snoozedUntil);
       return taskDto(task);
     });
   }
@@ -119,15 +125,19 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
       const updated = await tx.personalTask.update({ where: { id }, data: { completedAt: b.completed ? task.completedAt ?? new Date() : null } });
       // Retain configuration for undo, but remove delivery intent while closed.
       // Retried completion cleans up legacy intent; retried undo keeps its ID.
-      if (b.completed || task.completedAt) await this.reminders.replace(u.id, 'personalTask', id, b.completed ? null : task.reminder, tx);
+      if (b.completed || task.completedAt) await this.reminders.replace(u.id, 'personalTask', id, b.completed ? null : task.reminder, tx, task.snoozedUntil);
       return taskDto(updated);
     });
   }
 
   @Post(':id/snooze') async snooze(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
     @Body(new ZodPipe(snoozePersonalTaskSchema)) b: z.infer<typeof snoozePersonalTaskSchema>) {
-    await this.owned(this.prisma, u.id, id);
-    return taskDto(await this.prisma.personalTask.update({ where: { id, userId: u.id }, data: { snoozedUntil: new Date(b.until) } }));
+    return this.prisma.$transaction(async tx => {
+      await this.lockTask(tx, u.id, id); const task = await this.owned(tx, u.id, id); const until = new Date(b.until);
+      const updated = await tx.personalTask.update({ where: { id }, data: { snoozedUntil: until } });
+      await this.reminders.postpone(u.id, 'personalTask', id, task.completedAt ? null : task.reminder, until, tx);
+      return taskDto(updated);
+    });
   }
 
   @Post(':id/main-goal') async main(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
@@ -186,7 +196,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
      await this.lockGoal(tx, u.id, id); await this.owned(u.id, id, tx);
      const data: Prisma.GoalUpdateInput = { ...b, schedule: b.schedule ? asJson(b.schedule) : undefined, reminder: b.reminder === undefined ? undefined : b.reminder === null ? Prisma.JsonNull : asJson(b.reminder) };
      const goal = await tx.goal.update({ where: { id }, data });
-     if (goal.pausedAt || b.reminder !== undefined) await this.reminders.replace(u.id, 'goal', id, goal.pausedAt ? null : b.reminder, tx);
+     if (goal.pausedAt || b.reminder !== undefined) await this.reminders.replace(u.id, 'goal', id, goal.pausedAt ? null : b.reminder, tx, goal.snoozedUntil);
      return goalDto(goal);
    });
  }
@@ -215,13 +225,20 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
      return goalCompletionSchema.parse({ ...row, completedAt: row.completedAt?.toISOString() ?? null, createdAt: toIso(row.createdAt) });
    });
  }
- @Post(':id/snooze') async snooze(@CurrentUser() u:RequestUser,@Param('id',new ZodPipe(parseUuid)) id:string,@Body(new ZodPipe(snoozeGoalSchema)) b:z.infer<typeof snoozeGoalSchema>){await this.owned(u.id,id);return goalDto(await this.prisma.goal.update({where:{id},data:{snoozedUntil:new Date(b.until)}}));}
+ @Post(':id/snooze') async snooze(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(snoozeGoalSchema)) b: z.infer<typeof snoozeGoalSchema>) {
+   return this.prisma.$transaction(async tx => {
+     await this.lockGoal(tx, u.id, id); const goal = await this.owned(u.id, id, tx); const until = new Date(b.until);
+     const updated = await tx.goal.update({ where: { id }, data: { snoozedUntil: until } });
+     await this.reminders.postpone(u.id, 'goal', id, goal.pausedAt ? null : goal.reminder, until, tx);
+     return goalDto(updated);
+   });
+ }
  @Post(':id/pause') async pause(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(pauseGoalSchema)) b: z.infer<typeof pauseGoalSchema>) {
    return this.prisma.$transaction(async tx => {
      await this.lockGoal(tx, u.id, id); const existing = await this.owned(u.id, id, tx);
      const goal = await tx.goal.update({ where: { id }, data: { pausedAt: b.paused ? existing.pausedAt ?? new Date() : null } });
      // Retain configuration while paused; resume once without replacing intent on retries.
-     if (b.paused || existing.pausedAt) await this.reminders.replace(u.id, 'goal', id, b.paused ? null : goal.reminder, tx);
+     if (b.paused || existing.pausedAt) await this.reminders.replace(u.id, 'goal', id, b.paused ? null : goal.reminder, tx, goal.snoozedUntil);
      return goalDto(goal);
    });
  }
