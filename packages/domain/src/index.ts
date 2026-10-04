@@ -61,6 +61,17 @@ export const taskOccurrenceTiming = (task: PersonalTask, date: DateOnly, timeZon
   return { scheduled: shift(task.scheduled), due: shift(task.due) };
 };
 export const goalOccursOn = (goal: Goal, date: DateOnly): boolean => goal.schedule.kind === 'daily' ? true : goal.schedule.kind === 'weekly' ? goal.schedule.weekdays.includes(plainDate(date).dayOfWeek) : false;
+/** Monday–Sunday progress through the supplied date in the goal's own timezone.
+ * Count completed occurrence dates once; skips and future dates do not count.
+ */
+export const weeklyGoalProgress = (goal: Pick<Goal, 'id' | 'schedule'>, history: Pick<GoalCompletion, 'goalId' | 'occurrenceKey' | 'state'>[], date: DateOnly): { weekStart: DateOnly; endExclusive: DateOnly; completed: number; target: number; reached: boolean } | undefined => {
+  if (goal.schedule.kind !== 'weeklyTarget') return undefined;
+  const day = plainDate(date); const start = day.subtract({ days: day.dayOfWeek - 1 });
+  const completedDates = new Set(history.filter(row => row.goalId === goal.id && row.state === 'completed'
+    && compareDate(row.occurrenceKey, start.toString()) >= 0 && compareDate(row.occurrenceKey, date) <= 0).map(row => row.occurrenceKey));
+  const completed = completedDates.size; const target = goal.schedule.target;
+  return { weekStart: start.toString(), endExclusive: start.add({ days: 7 }).toString(), completed, target, reached: completed >= target };
+};
 export const isOverdue = (due: TimedOrDate | undefined, now: string, timeZone: string, terminal = false): boolean => {
   if (!due || terminal) return false;
   if (due.kind === 'instant') return Temporal.Instant.compare(Temporal.Instant.from(due.at), Temporal.Instant.from(now)) < 0;

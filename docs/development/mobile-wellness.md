@@ -12,6 +12,16 @@ targets can be recorded on any day. Account-scoped, validated completion history
 is readable from SQLite when the network fails. Missing history is unavailable,
 not an invented empty result. History from another goal fails validation.
 
+Weekly targets show completed occurrence dates in the goal's Monday–Sunday
+calendar week through its current local date. Skips, future dates, other goals
+and duplicate dates do not increase progress. A known empty history shows zero;
+missing history shows unavailable. Cached history remains usable when refresh
+fails, and the existing goal-local midnight/resume clock resets the displayed
+week. Pausing retains progress, and reaching the target allows extra completions.
+This is a read projection; weekly targets do not acquire mandatory daily Today
+occurrences or a new persisted counter. Editing a target applies to the current
+view while preserving occurrence history.
+
 Forms validate titles, schedules and IANA zones. Failed writes preserve drafts,
 show errors and support retry; pending writes disable repeat submission. Deleting
 a goal requires confirmation and explains that completion history is removed;
@@ -45,6 +55,9 @@ Run the root check and mobile web export. Native device acceptance remains open.
 `goal-reminder.test.tsx` covers goal-zone conversion, precision retention,
 expired/DST input, removal, paused edits, retry/pending guards and refreshed cards.
 Existing task reminder cases verify behavior through the shared form/editor.
+`weekly-goal-progress.test.ts` in domain and `weekly-goal-progress.test.tsx` in
+mobile cover week/year/leap/DST boundaries, goal-local rollover, exclusions,
+cached/unavailable history, paused goals and extra completion after the target.
 
 ## Next task
 
@@ -64,5 +77,6 @@ API. Mobile goal reminder controls using the goal's timezone are implemented.
 Saved-event reminder intent now supports replacement and unsave cleanup.
 Mobile event reminder controls now use validated account-owned reads.
 Task/goal snooze now postpones active explicit intent without reactivating paused
-or completed targets. Show weekly-target progress from validated completion
-history and the goal's local week next; missing history must remain unavailable.
+or completed targets. Weekly-target progress now uses validated completion history
+and the goal's local week. Next, expose the existing optional task duration field
+in the mobile editor with contract-bounded validation, clearing and preservation.

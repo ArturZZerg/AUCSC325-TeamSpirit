@@ -105,5 +105,5 @@ acceptance remains outstanding.
 
 ## Next task
 
-Show weekly-target goal progress in Wellness using validated completion history
-and the goal's local calendar week, without inventing counts when history is missing.
+Expose the existing optional task duration field in the mobile editor with
+contract-bounded validation, explicit clearing and unchanged-value preservation.

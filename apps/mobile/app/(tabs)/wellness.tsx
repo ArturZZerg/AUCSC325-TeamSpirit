@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { goalOccursOn } from '@campusflow/domain';
+import { goalOccursOn, weeklyGoalProgress } from '@campusflow/domain';
 import { ZodError } from 'zod';
 import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
 import { useAction, useGoals, useGoalHistory, useWellness } from '@/features/queries';
@@ -75,6 +75,7 @@ function GoalCard({ goal, disabled, pending, onAction, onEdit, onReminder, onHis
 }) {
   const { date } = useTodayClock(goal.timeZone);
   const history = useGoalHistory(goal.id);
+  const progress = history.data === undefined ? undefined : weeklyGoalProgress(goal, history.data, date);
   const completion = history.data?.find(row => row.occurrenceKey === date);
   const onDay = goal.schedule.kind === 'weeklyTarget' || goalOccursOn({ id: goal.id, title: goal.title, schedule: goal.schedule, timeZone: goal.timeZone }, date);
   const canComplete = history.data !== undefined && !goal.pausedAt && onDay && !completion;
@@ -82,6 +83,11 @@ function GoalCard({ goal, disabled, pending, onAction, onEdit, onReminder, onHis
     <Text style={styles.meta}>{goal.pausedAt ? 'Paused' : goal.schedule.kind === 'weeklyTarget' ? `${goal.schedule.target} times this week` : goal.schedule.kind === 'weekly' ? 'Selected days' : 'Every day'} · {goal.timeZone}</Text>
     {goal.reminder && <Text style={styles.meta}>Reminder: {taskTimingLabel(goal.reminder, goal.timeZone)}{goal.reminder.kind === 'date' ? ' · Delivery time needed' : ''}{goal.pausedAt ? ' · Inactive while paused' : ''}</Text>}
     <State loading={history.isLoading} error={history.error}/>
+    {goal.schedule.kind === 'weeklyTarget' && (progress ? <>
+      <Text style={styles.meta}>This week: {progress.completed} completed · Target {progress.target}</Text>
+      <Text style={styles.meta}>Week of {progress.weekStart} · Monday–Sunday</Text>
+      {progress.reached && <Text style={styles.meta}>Weekly target reached</Text>}
+    </> : <Text style={styles.meta}>Weekly progress unavailable until history is loaded.</Text>)}
     {completion && <Text style={styles.meta}>{completion.state === 'completed' ? 'Completed today' : 'Skipped today'}</Text>}
     {!onDay && !goal.pausedAt && <Text style={styles.meta}>Not scheduled today</Text>}
     <View style={styles.buttons}>
