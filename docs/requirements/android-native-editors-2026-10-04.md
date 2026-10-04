@@ -32,7 +32,7 @@ settled. Existing task/goal/editor/date tests, lint, typecheck, API/shared build
 and mobile web export passed in this session; this documentation adds manual
 acceptance evidence. Hosted CI also checks PostgreSQL cases omitted locally.
 
-Next, verify a real account-local midnight while the API is unavailable and the
-app is backgrounded. Actual DST rollover, foreground midnight timing, native
+The [midnight follow-up](android-native-midnight-2026-10-04.md) records actual
+offline background rollover. Actual DST rollover, foreground midnight timing, native
 modal disposal across account changes, iOS, reboot/Doze notification delivery,
 institutional Canvas and a verified live campus feed remain separate gates.
