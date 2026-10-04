@@ -36,6 +36,10 @@ address. Android emulators commonly reach the host through `10.0.2.2`.
 Native notification and SecureStore behavior requires a real device/development
 build. The web export is useful for reviewing layouts and interaction flows.
 
+For an installable Android phone preview, run `npm run build:android` after
+configuring the Android SDK/JDK. See the [Android preview guide](docs/requirements/android-preview.md)
+for prerequisites, USB installation, API connection, and device acceptance.
+
 ## Checks
 
 ```sh

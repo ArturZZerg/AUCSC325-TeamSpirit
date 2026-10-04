@@ -4,3 +4,6 @@
 
 expo-env.d.ts
 # @end expo-cli
+# Native projects are regenerated from the Expo configuration.
+/android/
+/ios/
