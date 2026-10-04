@@ -105,5 +105,5 @@ replacement and unsave cleanup. Mobile saved-event reminder controls use the
 account timezone and validated account-owned configuration in event reads.
 Task/goal snooze postpones active explicit intent while preserving configuration
 and leaving completed/paused targets inactive. Weekly-target progress and optional
-task duration controls are implemented. Next, show deadline/schedule details on
-Today cards using existing read-model values and the account timezone.
+task duration controls and Today deadline/schedule details are implemented. Next,
+verify permission, delivery, snooze and account cleanup on a native device.

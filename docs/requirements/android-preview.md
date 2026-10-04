@@ -74,10 +74,27 @@ Verify on the phone before claiming this preview works end to end:
 4. Restart the app and verify the session and stored records.
 5. After populating the cache, disconnect the API and verify cached reading.
 6. Sign out offline and verify that the next account cannot see cached data.
+7. Set/change/clear estimated minutes, timed scheduling and recurrence. Verify
+   refreshed cards, failed-save drafts and the completed-task undo requirement.
+8. Create a weekly-target goal in a zone different from the account. Complete
+   and skip occurrences, check its Monday–Sunday progress and history, then
+   pause/resume it. Missing history must not appear as zero progress.
+9. Set/change/remove a future task, goal and saved-event reminder. Verify device
+   permission, one scheduled notification per active intent and actual delivery.
+   Paused/completed targets remain inactive; undo/resume restores eligible intent.
+10. Snooze a task/goal with active reminder intent; verify delivery is postponed
+    while the original configuration stays visible. Apply quiet hours and category
+    controls, then verify cancellation on removal, deletion, unsave and sign-out.
+11. Check Today/Coming up deadline and schedule labels in the account timezone,
+    including date-only values. Check local midnight/background resume and cached
+    new-date plans while the API is unavailable; uncovered dates stay unavailable.
 
-Reminder delivery, complete goal-management UI, real Canvas imports, and a
-campus event source remain separate MVP acceptance gates. The current Maestro
-smoke scenario covers navigation to registration only.
+Task/goal/event controls and reminder reconciliation are implemented, but their
+native interaction and delivery remain acceptance gates. Real Canvas imports
+and a verified campus source also remain external MVP gates. The current Maestro
+smoke scenario covers navigation to registration only; it does not verify this
+acceptance list. On 2026-10-04, ADB reported no attached devices and Maestro was
+not available on PATH, so no phone interaction or notification delivery was proved.
 
 Official workflow references: [Expo local builds](https://docs.expo.dev/guides/local-app-development/)
 and [installable Android APKs](https://docs.expo.dev/build-reference/apk/).

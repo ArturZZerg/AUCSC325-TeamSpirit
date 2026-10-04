@@ -41,5 +41,6 @@ live campus feed remain external gates; fixtures are not live campus data.
 
 Task/goal snooze now postpones active explicit reminder intent while preserving
 configuration and leaving completed/paused targets inactive. Weekly goal progress
-and optional task duration editing are implemented. Next: show deadline/schedule
-details on Today cards using existing read-model values and the account timezone.
+and optional task duration editing are implemented. Today now shows deadline/
+schedule details. Next, verify saved-event reminder delivery and account cleanup
+through native device acceptance.

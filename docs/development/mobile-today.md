@@ -10,6 +10,13 @@ occurrenceKey, which can differ from the displayed date because the goal has
 its own timezone. A goal missing its occurrence date asks the user to refresh
 instead of submitting an invented date.
 
+Today and Coming up cards display the read model's deadline and scheduled-work
+values separately. Timed values use shared account-local formatting; date-only
+values stay calendar dates and missing values have no invented timestamp.
+Saved-event schedule values are labeled Starts. Recurring tasks use the supplied
+occurrence timing without recalculating from a template. Cached timing remains
+visible during refresh failure, and changed server deadlines update after refresh.
+
 Controls respect the read model's allowedActions. Personal tasks offer completion
 or undo; active goals offer completion and skipping when permitted. Completed
 and skipped goals, academic submission states, and events have no completion
@@ -66,6 +73,9 @@ midnight and repeated rollover, both DST transitions, multi-day and same-day
 resume, explicit dates, timezone/account changes, cleanup, query/cache date
 identity, signed-out resume, and cached/uncached offline days. Screen tests also
 cover the account date heading and timed event display.
+`today-timing.test.tsx` covers separate deadlines/schedules, date-only/leap dates,
+both DST transitions, local midnight, occurrence-specific values, Coming up,
+event starts, missing timing, cached failures and refreshed/pending behavior.
 
 DST regressions use historical transitions so fixed expectations remain stable
 across runtime timezone database revisions. Scheduling always uses the running
@@ -87,3 +97,6 @@ Goal creation, editing, deletion, and history are covered in
 [the Wellness slice](mobile-wellness.md). Reminder reconciliation is covered in
 [the reminder slice](mobile-reminders.md). Main Goal selection is
 available in [Tasks](mobile-tasks.md); Today displays the selected item first.
+Next, run native acceptance of the accumulated task, Today, goal and reminder
+changes with a connected Android device and an API test environment. Web export
+and Jest cannot prove native notification delivery or phone lifecycle behavior.

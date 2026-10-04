@@ -111,5 +111,5 @@ acceptance remains outstanding.
 
 ## Next task
 
-Show existing deadline and scheduled-work values on Today and Coming up cards
-in the account timezone, preserving date-only values and absent dates.
+Today and Coming up display existing deadline/schedule values in the account
+timezone. Next, verify the accumulated changes through native device acceptance.
