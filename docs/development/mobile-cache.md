@@ -12,6 +12,15 @@ against shared response schemas; corrupt JSON or invalid cached shapes are treat
 as missing data. No cached data means an unavailable query remains unavailable
 rather than becoming a confirmed empty result.
 
+The tab navigator mounts its routes per authenticated session. Switching accounts,
+signing out or starting a new login discards retained task/goal/reminder editors,
+delete confirmations, check-in drafts and action errors. Ordinary rerenders in
+the same session preserve drafts. Late callbacks from discarded routes cannot
+change the next session's controls. `tab-session.test.tsx` exercises actual
+screen forms under a mocked navigator; native route lifecycle acceptance remains
+outstanding. This complements account-scoped query/storage cleanup and API
+ownership checks.
+
 Query requests consume TanStack Query's abort signal. Mutations capture the
 session at invocation, cancel older account reads, verify the same session before
 submitting, and invalidate only that account after success. A late response from

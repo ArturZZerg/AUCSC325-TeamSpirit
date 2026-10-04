@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
 import { colors } from '@/components/ui';
+import { useSessionStore } from '@/store/session';
 
 const icons: Record<string, ComponentProps<typeof Ionicons>['name']> = {
   today: 'today-outline',
@@ -12,7 +13,10 @@ const icons: Record<string, ComponentProps<typeof Ionicons>['name']> = {
 };
 
 export default function TabsLayout() {
-  return <Tabs screenOptions={({ route }) => ({
+  const session = useSessionStore(state => state.session);
+  // Retained routes must discard private forms, selections and pending UI when
+  // the authenticated session changes. Query/cache cleanup remains separate.
+  return <Tabs key={JSON.stringify([session?.user.id, session?.accessToken])} screenOptions={({ route }) => ({
     headerStyle: { backgroundColor: colors.canvas },
     headerShadowVisible: false,
     tabBarActiveTintColor: colors.moss,
