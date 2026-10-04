@@ -5,7 +5,7 @@ const base = { date: '2026-03-08', timeZone: 'America/Edmonton', now: '2026-03-0
 describe('timezone-aware planning', () => {
   it('uses the actual length of daylight-saving days', () => {
     const spring = dayBounds('2026-03-08', 'America/Edmonton');
-    const fall = dayBounds('2026-11-01', 'America/Edmonton');
+    const fall = dayBounds('2025-11-02', 'America/Edmonton');
     expect(Date.parse(spring.end) - Date.parse(spring.start)).toBe(23 * 60 * 60 * 1000);
     expect(Date.parse(fall.end) - Date.parse(fall.start)).toBe(25 * 60 * 60 * 1000);
   });
