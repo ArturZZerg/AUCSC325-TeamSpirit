@@ -65,5 +65,5 @@ Goal creation, editing, deletion, and completion history are implemented in
 [mobile-wellness.md](mobile-wellness.md). Reminder-specific follow-up work remains
 listed in the acceptance gates above. Task-editor repeat submission is guarded
 before asynchronous validation; timed scheduling and recurrence editing are
-implemented along with task search/filter controls. Explicit timed personal-task
-reminder editing is next.
+implemented along with task search/filter and explicit timed reminder controls.
+Guarding completed-task conversion to recurrence is next.

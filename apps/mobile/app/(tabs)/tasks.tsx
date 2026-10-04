@@ -8,6 +8,7 @@ import { TaskEditor } from '@/features/task-editor';
 import { taskTimingLabel } from '@/features/task-form';
 import { filterPersonalTasks, useTaskFilters } from '@/features/task-filters';
 import { TaskFilterControls } from '@/features/task-filter-controls';
+import { TaskReminderEditor } from '@/features/task-reminder-editor';
 import type { PersonalTask } from '@/lib/types';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
@@ -25,6 +26,7 @@ export default function Tasks() {
   const [pending, setPending] = useState<string>();
   const disabled = !!pending || action.isPending;
   const [editing, setEditing] = useState<PersonalTask | null>();
+  const [reminding, setReminding] = useState<PersonalTask>();
   const [deleting, setDeleting] = useState<PersonalTask>();
   const [message, setMessage] = useState<string>();
   const run = async (request: Parameters<typeof action.mutateAsync>[0]) => {
@@ -60,6 +62,7 @@ export default function Tasks() {
         {task.scheduled && <Text style={styles.meta}>Scheduled: {taskTimingLabel(task.scheduled, timeZone)}</Text>}
         {task.recurrence && <Text style={styles.meta}>Every {task.recurrence.interval} {task.recurrence.frequency === 'daily' ? (task.recurrence.interval === 1 ? 'day' : 'days') : `${task.recurrence.interval === 1 ? 'week' : 'weeks'} · ${task.recurrence.weekdays.map(day => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day - 1]).join(', ')}`}</Text>}
         {task.description && <Text style={styles.meta}>{task.description}</Text>}
+        {task.reminder && <Text style={styles.meta}>Reminder: {taskTimingLabel(task.reminder, timeZone)}{task.reminder.kind === 'date' ? ' · Delivery time needed' : ''}</Text>}
         <View style={styles.actions}>
           {task.recurrence ? <Text style={styles.meta}>Complete recurring occurrences from Today.</Text> :
             <Button title={task.completedAt ? 'Undo completion' : 'Complete'} tone="plain" disabled={disabled}
@@ -68,6 +71,7 @@ export default function Tasks() {
             title={pending === `/tasks/${task.id}/main-goal` ? 'Saving…' : task.mainGoalDate === today ? 'Remove Main Goal' : 'Make Main Goal today'}
             tone="plain" disabled={disabled} onPress={() => mainGoal('personalTask', task.id, task.mainGoalDate === today)}/>}
           <Button title="Edit" tone="plain" disabled={disabled} onPress={() => setEditing(task)}/>
+          <Button title={task.reminder ? 'Edit reminder' : 'Set reminder'} tone="plain" disabled={disabled} onPress={() => setReminding(task)}/>
           <Button title="Delete" tone="danger" disabled={disabled} onPress={() => { setMessage(undefined); setDeleting(task); }}/>
         </View>
       </Card>)}
@@ -82,6 +86,7 @@ export default function Tasks() {
       </Card>)}
     </ScrollView>
     {editing !== undefined && <TaskEditor key={editing?.id ?? 'new'} task={editing} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}
+    {reminding && <TaskReminderEditor key={reminding.id} task={reminding} timeZone={timeZone} onClose={() => setReminding(undefined)}/>}
     {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!disabled) setDeleting(undefined); }}>
       <SafeAreaView style={styles.confirm}><Card>
         <Text style={styles.section}>Delete task?</Text><Text style={styles.meta}>Delete “{deleting.title}” and its reminder?</Text>

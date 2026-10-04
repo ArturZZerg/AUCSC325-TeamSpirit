@@ -25,8 +25,24 @@ Date-only values remain calendar dates. Explicit input rejects missing or repeat
 DST wall times with a correction message. Existing instants in a repeated hour
 can still be retained exactly. Tasks displays instants in the account timezone,
 including schedule and repeat details. Unchanged scheduling/recurrence is omitted
-from updates; reminder, duration, and completion fields are preserved. Reminder
-editing remains follow-up work.
+from updates; reminder, duration, and completion fields are preserved.
+
+## Explicit timed reminders
+
+Each task offers Set/Edit reminder with account-local date and HH:MM input.
+New times must be in the future and identify one UTC instant; missing/repeated
+DST times require correction. The request updates only reminder configuration,
+and removal sends an explicit null. Keeping an existing instant closes without
+rewriting its intent, including fractional-second and repeated-hour values.
+Saved date-only configuration requires a chosen delivery time rather than an
+invented default. This sets one explicit time, including for recurring templates.
+
+Failed writes preserve drafts and support retry; pending saves block repeat taps
+and dismissal. Server refresh supplies the displayed reminder value. Settings
+owns notification permission and category/quiet-hour preferences; the root
+reminder service owns native reconciliation. Completed one-time tasks retain
+configuration for undo while delivery intent stays inactive. No offline writes
+or repeating reminder generator is introduced in this slice.
 
 ## Personal-task search and filters
 
@@ -67,6 +83,7 @@ repeat taps; failed writes preserve the selection and allow retry.
 | Timed scheduling, recurrence creation/edit/removal, interval/weekdays/anchor validation, preservation, account-zone display, failed drafts | `apps/mobile/__tests__/task-scheduling.test.tsx` |
 | Explicit local-time conversion, midnight/leap dates, DST gaps and overlaps | `packages/domain/__tests__/local-clock.test.ts` |
 | Search/category/completion combinations, cache reuse, empty/unavailable results, refreshed data, correct action targets, account reset | `apps/mobile/__tests__/task-filters.test.tsx` |
+| Timed reminder UTC input, expired/DST validation, removal, unchanged configuration, pending/retry controls and refreshed display | `apps/mobile/__tests__/task-reminder.test.tsx` |
 
 Run `npm run check` and `npm run build:web -w @campusflow/mobile`. Use the
 [Android preview workflow](../requirements/android-preview.md) for real-device
@@ -80,6 +97,6 @@ acceptance remains outstanding.
 
 ## Next task
 
-Add creation/editing/removal of explicit timed personal-task reminders through
-the existing reminder intent API, preserving other task fields and validating
-account-local times before converting them to UTC.
+Prevent assigning a repeat rule to a completed one-time task until completion
+has been explicitly undone. Enforce this at both mobile and API boundaries so
+converting an already closed task cannot leave every future occurrence completed.
