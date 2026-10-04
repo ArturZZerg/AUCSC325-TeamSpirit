@@ -9,6 +9,7 @@ jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), usePreferenc
 jest.mock('../src/services/reminders', () => ({ ensureNotificationPermission: jest.fn(), reconcileReminders: jest.fn(), clearScheduledReminders: jest.fn() }));
 jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn() }));
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
+jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
 const session: Session = { accessToken: 'settings-test', expiresAt: '2099-01-01T00:00:00Z', user: { id: '10000000-0000-4000-8000-000000000001',
   email: 'settings@example.test', displayName: 'Settings', timeZone: 'America/Edmonton', createdAt: '2025-03-08T18:00:00Z' } };
 const preferences = { academicEnabled: true, personalEnabled: true, goalEnabled: true, eventEnabled: true,
@@ -25,6 +26,32 @@ beforeEach(() => {
   jest.mocked(reconcileReminders).mockReset().mockResolvedValue(undefined);
 });
 describe('notification Settings (ToR 13)', () => {
+  it('opens quiet hours with current values and the account timezone', () => {
+    const current = { ...preferences, quietHoursStart: '22:00', quietHoursEnd: '07:00' };
+    jest.mocked(usePreferences).mockReturnValue({ data: current, refetch: refreshPreferences, isLoading: false } as unknown as ReturnType<typeof usePreferences>);
+    render(<Settings/>); expect(screen.getByText('Quiet hours: 22:00–07:00 · America/Edmonton')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('Edit quiet hours')); expect(screen.getByLabelText('Quiet hours start')).toHaveDisplayValue('22:00');
+    expect(screen.getByText(/Times follow your account/)).toHaveTextContent(/America\/Edmonton/);
+    fireEvent.press(screen.getByText('Cancel')); expect(save).not.toHaveBeenCalled();
+  });
+  it('discards a cancelled quiet-hour draft before reopening', () => {
+    render(<Settings/>); expect(screen.getByText('Quiet hours: off')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('Edit quiet hours')); fireEvent.changeText(screen.getByLabelText('Quiet hours start'), '23:00');
+    fireEvent.press(screen.getByText('Cancel')); fireEvent.press(screen.getByText('Edit quiet hours'));
+    expect(screen.getByLabelText('Quiet hours start')).toHaveDisplayValue(''); expect(save).not.toHaveBeenCalled();
+  });
+  it('does not offer editing when quiet-hour preferences are unavailable', () => {
+    jest.mocked(usePreferences).mockReturnValue({ data: undefined, refetch: refreshPreferences, error: new Error('Offline') } as unknown as ReturnType<typeof usePreferences>);
+    render(<Settings/>); expect(screen.queryByText('Edit quiet hours')).toBeNull(); expect(screen.queryByText('Quiet hours: off')).toBeNull();
+  });
+  it('shows only the server quiet-hour values after successful save', async () => {
+    const view = render(<Settings/>); fireEvent.press(screen.getByText('Edit quiet hours'));
+    fireEvent.changeText(screen.getByLabelText('Quiet hours start'), '22:00'); fireEvent.changeText(screen.getByLabelText('Quiet hours end'), '07:00');
+    await act(async () => { fireEvent.press(screen.getByText('Save quiet hours')); });
+    expect(screen.queryByLabelText('Quiet hours start')).toBeNull(); expect(screen.getByText('Quiet hours: off')).toBeOnTheScreen();
+    jest.mocked(usePreferences).mockReturnValue({ data: { ...preferences, quietHoursStart: '22:00', quietHoursEnd: '07:00' }, refetch: refreshPreferences } as unknown as ReturnType<typeof usePreferences>);
+    view.rerender(<Settings/>); expect(screen.getByText('Quiet hours: 22:00–07:00 · America/Edmonton')).toBeOnTheScreen();
+  });
   it.each([['Academic', 'academicEnabled'], ['Personal', 'personalEnabled'], ['Goal', 'goalEnabled'], ['Event', 'eventEnabled']])('toggles %s through validated preferences', async (label, key) => {
     render(<Settings/>);
     await act(async () => { fireEvent.press(screen.getByRole('button', { name: `${label} reminders: on` })); });

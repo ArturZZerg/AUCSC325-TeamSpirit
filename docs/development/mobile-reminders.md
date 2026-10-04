@@ -25,25 +25,34 @@ A delayed notification is retained until its effective delivery time passes.
 The root synchronizer uses validated cached reminder/preference reads, refreshes
 both on app resume, and reruns reconciliation after changed reads or successful
 mutations. Settings offers all four category toggles, explicit device permission,
-and a retry button. An offline permission grant may reuse validated saved data;
+and a retry button. Quiet-hour editing displays the account timezone, accepts
+same-day and overnight intervals in 24-hour HH:MM format, and requires both bounds
+or neither. Equal bounds are rejected by the editor to avoid ambiguous intent;
+previously saved equal bounds still mean disabled. Disable clears both fields in
+the draft; Save submits explicit nulls without changing category preferences.
+Validation and failed writes retain input; pending writes block repeat saves and
+dismissal. Successful saves refresh the existing preference/reminder lifecycle.
+An offline permission grant may reuse validated saved data;
 missing preferences are not replaced with invented defaults. Errors and pending
 controls do not claim a preference write succeeded.
 
 ## Evidence and remaining gates
 
 `reminders.test.ts`, `device-reminders.test.tsx`, `notification-settings.test.tsx`,
-and domain `quiet-hours.test.ts` cover changed times, deletion, preferences,
+`quiet-hours-form.test.ts`, `quiet-hours-editor.test.tsx`, and domain
+`quiet-hours.test.ts` cover changed times, deletion, preferences,
 permissions, quiet-hour/DST boundaries, duplicate prevention, concurrent refresh,
 logout during native scheduling, cached settings, errors, retry, and app resume.
 Run `npm run check` and the mobile web export.
 
 Real iOS/Android permission and delivery acceptance remains outstanding. This
 service reconciles existing API intent; adding date-only/recurring reminder intent,
-goal/event reminder persistence, quiet-hour editing, and reliable remote deadline
+goal/event reminder persistence, and reliable remote deadline
 updates remain separate tasks. No push delivery service is introduced.
 
 ## Next task
 
 Goal creation, editing, deletion, and completion history are implemented in
 [mobile-wellness.md](mobile-wellness.md). Reminder-specific follow-up work remains
-listed in the acceptance gates above.
+listed in the acceptance gates above. Next, guard task-editor submission before
+asynchronous validation so rapid repeat taps cannot start parallel saves.
