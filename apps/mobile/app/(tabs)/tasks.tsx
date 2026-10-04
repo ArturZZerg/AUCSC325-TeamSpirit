@@ -6,6 +6,8 @@ import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAcademic, useAction, useTasks } from '@/features/queries';
 import { TaskEditor } from '@/features/task-editor';
 import { taskTimingLabel } from '@/features/task-form';
+import { filterPersonalTasks, useTaskFilters } from '@/features/task-filters';
+import { TaskFilterControls } from '@/features/task-filter-controls';
 import type { PersonalTask } from '@/lib/types';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
@@ -17,6 +19,8 @@ export default function Tasks() {
   const session = useSessionStore(state => state.session);
   const timeZone = session?.user.timeZone ?? 'UTC';
   const { date: today } = useTodayClock(timeZone);
+  const { filters, update: updateFilters, reset: resetFilters } = useTaskFilters(session?.user.id);
+  const visibleTasks = tasks.data ? filterPersonalTasks(tasks.data, filters) : undefined;
   const busy = useRef(false);
   const [pending, setPending] = useState<string>();
   const disabled = !!pending || action.isPending;
@@ -45,8 +49,11 @@ export default function Tasks() {
       <View style={styles.top}><Text style={styles.title}>Tasks</Text><Button title="Add task" disabled={disabled} onPress={() => setEditing(null)}/></View>
       {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
       <Text style={styles.section}>My tasks</Text>
-      <State loading={tasks.isLoading} error={tasks.error} empty={tasks.data?.length === 0 ? 'No personal tasks yet.' : undefined}/>
-      {tasks.data?.map(task => <Card key={task.id}>
+      <TaskFilterControls filters={filters} onChange={updateFilters} onReset={resetFilters}/>
+      {visibleTasks && <Text style={styles.meta}>{visibleTasks.length} personal {visibleTasks.length === 1 ? 'task' : 'tasks'}</Text>}
+      <State loading={tasks.isLoading} error={tasks.error}/>
+      {visibleTasks?.length === 0 && <Text style={styles.meta}>{tasks.data?.length === 0 ? 'No personal tasks yet.' : 'No personal tasks match your filters.'}</Text>}
+      {visibleTasks?.map(task => <Card key={task.id}>
         {task.mainGoalDate === today && <Text style={styles.mainGoal}>★ MAIN GOAL TODAY</Text>}
         <Text style={[styles.item, task.completedAt && styles.done]}>{task.title}</Text>
         <Text style={styles.meta}>{task.category} · {task.priority} · {taskTimingLabel(task.due, timeZone)}</Text>
