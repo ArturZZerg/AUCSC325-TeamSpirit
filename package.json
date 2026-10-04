@@ -7,9 +7,11 @@
   "scripts": {
     "build:shared": "npm run build -w @campusflow/contracts && npm run build -w @campusflow/domain",
     "build": "npm run build:shared && npm run build -w @campusflow/api",
+    "build:android": "npm run build:shared && node scripts/build-android.mjs",
     "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
     "lint": "eslint apps packages && node scripts/check-boundaries.mjs",
-    "test": "npm run build:shared && npm run test --workspaces --if-present",
+    "test": "npm run build:shared && npm run test --workspaces --if-present && npm run test:android-build",
+    "test:android-build": "node --test scripts/android-preview.test.mjs",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "dev:api": "npm run build:shared && npm run start:dev -w @campusflow/api",
     "dev:mobile": "npm run build:shared && npm run start -w @campusflow/mobile",
