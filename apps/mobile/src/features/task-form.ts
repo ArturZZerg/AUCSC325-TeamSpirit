@@ -1,4 +1,4 @@
-import { categorySchema, createPersonalTaskSchema, dateSchema, localTimeSchema, prioritySchema, updatePersonalTaskSchema } from '@campusflow/contracts';
+import { categorySchema, createPersonalTaskSchema, dateSchema, localTimeSchema, personalTaskSchema, prioritySchema, updatePersonalTaskSchema } from '@campusflow/contracts';
 import { instantAtLocalTime, localClockAt } from '@campusflow/domain';
 import { z } from 'zod';
 import type { PersonalTask } from '@/lib/types';
@@ -8,6 +8,7 @@ export function taskFormSchema(task: PersonalTask | null, timeZone = 'UTC') {
   return z.object({
     title: z.string().trim().min(1, 'Enter a title.').max(240, 'Keep the title within 240 characters.'),
     description: z.string().max(10_000),
+    estimatedMinutes: z.string().trim().refine(value => value === '' || (/^\d+$/.test(value) && personalTaskSchema.shape.estimatedMinutes.safeParse(Number(value)).success), 'Enter whole minutes from 1 to 1440, or leave blank.'),
     dueMode: timingMode, dueDate: z.string(), dueTime: z.string(),
     scheduledMode: timingMode, scheduledDate: z.string(), scheduledTime: z.string(),
     recurrenceMode: z.enum(['none', 'daily', 'weekly']), interval: z.string(), weekdays: z.array(z.number().int().min(1).max(7)),
@@ -57,6 +58,7 @@ export function taskFormDefaults(task: PersonalTask | null, timeZone = 'UTC'): T
   const due = fields(task?.due ?? null); const scheduled = fields(task?.scheduled ?? null);
   return {
     title: task?.title ?? '', description: task?.description ?? '',
+    estimatedMinutes: task?.estimatedMinutes == null ? '' : String(task.estimatedMinutes),
     dueMode: due.mode, dueDate: due.date, dueTime: due.time,
     scheduledMode: scheduled.mode, scheduledDate: scheduled.date, scheduledTime: scheduled.time,
     recurrenceMode: task?.recurrence?.frequency ?? 'none', interval: String(task?.recurrence?.interval ?? 1), weekdays: task?.recurrence?.frequency === 'weekly' ? task.recurrence.weekdays : [],
@@ -69,6 +71,7 @@ export function taskFormRequest(values: TaskFormValues, task: PersonalTask | nul
   const timing = (mode: TaskFormValues['dueMode'], date: string, time: string, existing: PersonalTask['due']) => mode === 'existing' ? existing
     : mode === 'date' ? { kind: 'date' as const, date } : mode === 'instant' ? { kind: 'instant' as const, at: instantAtLocalTime(date, time, timeZone) } : null;
   const scheduled = timing(valid.scheduledMode, valid.scheduledDate, valid.scheduledTime, task?.scheduled ?? null);
+  const estimatedMinutes = valid.estimatedMinutes === '' ? null : Number(valid.estimatedMinutes);
   const recurrence = valid.recurrenceMode === 'none' ? null : valid.recurrenceMode === 'daily' ? { frequency: 'daily' as const, interval: Number(valid.interval) }
     : { frequency: 'weekly' as const, interval: Number(valid.interval), weekdays: [...new Set(valid.weekdays)].sort() };
   const changed = (value: unknown, previous: unknown) => JSON.stringify(value) !== JSON.stringify(previous ?? null);
@@ -79,6 +82,7 @@ export function taskFormRequest(values: TaskFormValues, task: PersonalTask | nul
   const body = {
     title: valid.title, description: valid.description || null, category: valid.category, priority: valid.priority,
     due: timing(valid.dueMode, valid.dueDate, valid.dueTime, task?.due ?? null),
+    ...(estimatedMinutes !== (task?.estimatedMinutes ?? null) ? { estimatedMinutes } : {}),
     ...(changed(scheduled, task?.scheduled) ? { scheduled } : {}),
     ...(!sameRecurrence ? { recurrence } : {}),
   };

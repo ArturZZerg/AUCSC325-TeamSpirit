@@ -104,5 +104,6 @@ the goal's timezone and preserve its schedule/history. Saved-event intent suppor
 replacement and unsave cleanup. Mobile saved-event reminder controls use the
 account timezone and validated account-owned configuration in event reads.
 Task/goal snooze postpones active explicit intent while preserving configuration
-and leaving completed/paused targets inactive. Show weekly-target goal progress
-in Wellness from validated completion history and the goal's local week next.
+and leaving completed/paused targets inactive. Weekly-target progress and optional
+task duration controls are implemented. Next, show deadline/schedule details on
+Today cards using existing read-model values and the account timezone.

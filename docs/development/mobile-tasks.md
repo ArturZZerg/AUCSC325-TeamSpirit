@@ -25,7 +25,12 @@ Date-only values remain calendar dates. Explicit input rejects missing or repeat
 DST wall times with a correction message. Existing instants in a repeated hour
 can still be retained exactly. Tasks displays instants in the account timezone,
 including schedule and repeat details. Unchanged scheduling/recurrence is omitted
-from updates; reminder, duration, and completion fields are preserved.
+from updates; reminder and completion fields are preserved. Optional estimated
+duration uses the existing contract's whole-minute range of 1–1440. The editor
+loads saved estimates, omits unchanged values from writes, and sends explicit
+null when a saved estimate is cleared. Blank new tasks omit the estimate. Failed
+writes retain it for retry, and pending saves disable the field. Task cards show
+the refreshed estimate and remove the label when the saved estimate is cleared.
 
 Completed one-time tasks require explicit undo before adding a repeat rule.
 The editor explains this and disables repeat choices while allowing ordinary
@@ -92,6 +97,7 @@ repeat taps; failed writes preserve the selection and allow retry.
 | Explicit local-time conversion, midnight/leap dates, DST gaps and overlaps | `packages/domain/__tests__/local-clock.test.ts` |
 | Search/category/completion combinations, cache reuse, empty/unavailable results, refreshed data, correct action targets, account reset | `apps/mobile/__tests__/task-filters.test.tsx` |
 | Timed reminder UTC input, expired/DST validation, removal, unchanged configuration, pending/retry controls and refreshed display | `apps/mobile/__tests__/task-reminder.test.tsx` |
+| Duration bounds, optional/unchanged values, explicit clearing, validation correction, retry/pending guards and refreshed cards | `apps/mobile/__tests__/task-duration.test.tsx` |
 
 Run `npm run check` and `npm run build:web -w @campusflow/mobile`. Use the
 [Android preview workflow](../requirements/android-preview.md) for real-device
@@ -105,5 +111,5 @@ acceptance remains outstanding.
 
 ## Next task
 
-Expose the existing optional task duration field in the mobile editor with
-contract-bounded validation, explicit clearing and unchanged-value preservation.
+Show existing deadline and scheduled-work values on Today and Coming up cards
+in the account timezone, preserving date-only values and absent dates.
