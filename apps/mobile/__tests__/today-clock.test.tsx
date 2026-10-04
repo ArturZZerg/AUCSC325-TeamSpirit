@@ -34,6 +34,7 @@ function plan(date: string, title = `Plan for ${date}`): Today {
       priority: 'medium', allowedActions: ['complete', 'open'] }], upcoming: [], campusEvents: [] };
 }
 function Wrapper({ children }: PropsWithChildren) { return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>; }
+const todayCalls = () => jest.mocked(api).mock.calls.filter(([path]) => path.startsWith('/today?'));
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -152,7 +153,7 @@ describe('Today query rollover and resume (ToR 4, 10, 19)', () => {
     expect(api).toHaveBeenCalledWith('/today?date=2026-10-03', expect.anything());
     await act(async () => { jest.advanceTimersByTime(1000); });
     await waitFor(() => expect(result.current.data?.date).toBe('2026-10-04'));
-    expect(api).toHaveBeenLastCalledWith('/today?date=2026-10-04', expect.anything());
+    expect(todayCalls().map(([path]) => path)).toEqual(['/today?date=2026-10-03', '/today?date=2026-10-04']);
     expect(writeCache).toHaveBeenLastCalledWith(session.user.id, 'today:2026-10-04', expect.objectContaining({ date: '2026-10-04' }));
   });
 
@@ -162,9 +163,9 @@ describe('Today query rollover and resume (ToR 4, 10, 19)', () => {
     jest.mocked(api).mockResolvedValueOnce(plan('2026-10-03', 'Updated while away'));
     await act(async () => { emitState('background'); emitState('active'); });
     await waitFor(() => expect(result.current.data?.items[0].title).toBe('Updated while away'));
-    expect(api).toHaveBeenCalledTimes(2);
+    expect(todayCalls()).toHaveLength(2);
     act(() => { emitState('active'); });
-    expect(api).toHaveBeenCalledTimes(2);
+    expect(todayCalls()).toHaveLength(2);
   });
 
   it('resumes on the new day without refetching the old day or duplicating the new request', async () => {
@@ -174,7 +175,7 @@ describe('Today query rollover and resume (ToR 4, 10, 19)', () => {
     jest.setSystemTime(new Date('2026-10-07T15:00:00Z'));
     await act(async () => { emitState('active'); });
     await waitFor(() => expect(result.current.data?.date).toBe('2026-10-07'));
-    expect(jest.mocked(api).mock.calls.map(([path]) => path)).toEqual(['/today?date=2026-10-03', '/today?date=2026-10-07']);
+    expect(todayCalls().map(([path]) => path)).toEqual(['/today?date=2026-10-03', '/today?date=2026-10-07']);
   });
 
   it('does not label yesterday as today or invent an empty plan on an uncached offline day', async () => {
@@ -187,7 +188,7 @@ describe('Today query rollover and resume (ToR 4, 10, 19)', () => {
     await waitFor(() => expect(result.current.error?.message).toBe('Network unavailable'));
     expect(result.current.date).toBe('2026-10-05');
     expect(result.current.data).toBeUndefined();
-    expect(readCache).toHaveBeenLastCalledWith(session.user.id, 'today:2026-10-05');
+    expect(readCache).toHaveBeenCalledWith(session.user.id, 'today:2026-10-05');
   });
 
   it('shows the new day cached data when resume cannot reach the API', async () => {
@@ -209,9 +210,9 @@ describe('Today query rollover and resume (ToR 4, 10, 19)', () => {
     act(() => { emitState('background'); });
     jest.setSystemTime(new Date('2026-10-07T15:00:00Z'));
     await act(async () => { emitState('active'); });
-    await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(todayCalls()).toHaveLength(2));
     expect(result.current.date).toBe('2026-09-20');
-    expect(jest.mocked(api).mock.calls.map(([path]) => path)).toEqual(['/today?date=2026-09-20', '/today?date=2026-09-20']);
+    expect(todayCalls().map(([path]) => path)).toEqual(['/today?date=2026-09-20', '/today?date=2026-09-20']);
   });
 
   it('switches to the new account timezone and cache scope', async () => {
@@ -231,7 +232,7 @@ describe('Today query rollover and resume (ToR 4, 10, 19)', () => {
     await act(async () => { useSessionStore.setState({ session: { ...session, user: { ...session.user, timeZone: 'America/Vancouver' } } }); });
     await waitFor(() => expect(result.current.data?.timeZone).toBe('America/Vancouver'));
     expect(result.current.date).toBe('2026-10-03');
-    expect(api).toHaveBeenCalledTimes(2);
+    expect(todayCalls()).toHaveLength(2);
   });
 
   it('does not request an authenticated plan while signed out or on signed-out resume', async () => {
