@@ -7,8 +7,9 @@ require a successful CampusFlow API response.
 SQLite loads alongside each account-scoped TanStack Query request. Saved data is
 a fallback while the server is pending or unavailable. A slow disk read cannot
 replace a fresh response or hide a refresh error. Disposable cache failures do
-not fail otherwise successful server reads, and corrupt JSON is treated as
-missing cache data. No cached data means an unavailable query remains unavailable
+not fail otherwise successful server reads. Cache and server records are checked
+against shared response schemas; corrupt JSON or invalid cached shapes are treated
+as missing data. No cached data means an unavailable query remains unavailable
 rather than becoming a confirmed empty result.
 
 Query requests consume TanStack Query's abort signal. Mutations capture the

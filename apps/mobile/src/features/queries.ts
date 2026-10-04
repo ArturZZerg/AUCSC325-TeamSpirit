@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react';
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { academicItemSchema, eventSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { z } from 'zod';
 import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
 import { useSessionStore } from '@/store/session';
 import { readCache, writeCache } from '@/services/cache';
 
-function cachedQuery<T>(key: string, path: string) {
+const schemas = {
+  tasks: personalTaskSchema.array(), academic: academicItemSchema.array(), goals: goalSchema.array(),
+  events: eventSchema.extend({ saved: z.boolean().optional(), includedInPlan: z.boolean().optional() }).array(),
+  wellness: wellnessEntrySchema.array(), reminders: reminderSchema.array(),
+};
+
+function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>) {
   const session = useSessionStore(state => state.session);
   const accountId = session?.user.id;
   const token = session?.accessToken;
@@ -18,20 +26,20 @@ function cachedQuery<T>(key: string, path: string) {
     void readCache<T>(accountId, key).then(cached => {
       // SQLite may finish after the network or after sign-out. Keep it as a
       // fallback, so loading it cannot erase a refresh error or a fresh result.
-      if (active && useSessionStore.getState().session?.accessToken === token
-        && token && cached !== undefined) {
-        setSaved({ token, key, data: cached });
+      const valid = schema.safeParse(cached);
+      if (active && useSessionStore.getState().session?.accessToken === token && token && valid.success) {
+        setSaved({ token, key, data: valid.data });
       }
     }).catch(() => { /* Server data remains usable if the disposable cache fails. */ });
     return () => { active = false; };
-  }, [accountId, token, key]);
+  }, [accountId, token, key, schema]);
 
   const query = useQuery({
     enabled: !!accountId, queryKey: ['account', accountId, key],
     queryFn: async ({ signal }) => {
       if (!accountId || !isCurrent()) throw new CancelledError();
       try {
-        const fresh = await api<T>(path, { signal });
+        const fresh = schema.parse(await api<unknown>(path, { signal }));
         if (signal.aborted || !isCurrent()) throw new CancelledError();
         // Cache failure must not turn a successful server read into an error.
         await writeCache(accountId, key, fresh).catch(() => undefined);
@@ -49,14 +57,14 @@ function cachedQuery<T>(key: string, path: string) {
   return { ...query, data, isLoading: query.isLoading && data === undefined };
 }
 
-export const useToday = (date: string) => cachedQuery<Today>(`today:${date}`, `/today?date=${date}`);
-export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks');
-export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items');
-export const useGoals = () => cachedQuery<Goal[]>('goals', '/goals');
-export const useEvents = () => cachedQuery<CampusEvent[]>('events', '/events');
-export const useWellness = () => cachedQuery<WellnessEntry[]>('wellness', '/wellness');
-export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences');
-export const useReminders = () => cachedQuery<Reminder[]>('reminders', '/reminders');
+export const useToday = (date: string) => cachedQuery<Today>(`today:${date}`, `/today?date=${date}`, todayResponseSchema);
+export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
+export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items', schemas.academic);
+export const useGoals = () => cachedQuery<Goal[]>('goals', '/goals', schemas.goals);
+export const useEvents = () => cachedQuery<CampusEvent[]>('events', '/events', schemas.events);
+export const useWellness = () => cachedQuery<WellnessEntry[]>('wellness', '/wellness', schemas.wellness);
+export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences', notificationPreferencesSchema);
+export const useReminders = () => cachedQuery<Reminder[]>('reminders', '/reminders', schemas.reminders);
 
 type ActionRequest = { path: string; method?: string; body?: unknown };
 export function useAction<T = unknown>() {

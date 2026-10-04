@@ -18,8 +18,10 @@ const first: Session = { accessToken: 'first-token', expiresAt: '2099-01-01T00:0
   id: '10000000-0000-4000-8000-000000000001', email: 'first@example.test', displayName: 'First', timeZone: 'America/Edmonton', createdAt: '2026-10-03T00:00:00Z',
 } };
 const second: Session = { ...first, accessToken: 'second-token', user: { ...first.user, id: '10000000-0000-4000-8000-000000000002', email: 'second@example.test' } };
-const oldTasks = [{ title: 'Saved task' }];
-const freshTasks = [{ title: 'Fresh task' }];
+const task = { id: '20000000-0000-4000-8000-000000000001', title: 'Saved task', description: null, priority: 'medium', category: 'personal', due: null, scheduled: null,
+  recurrence: null, reminder: null, estimatedMinutes: null, completedAt: null, snoozedUntil: null, mainGoalDate: null, createdAt: '2026-10-03T00:00:00Z', updatedAt: '2026-10-03T00:00:00Z' };
+const oldTasks = [task];
+const freshTasks = [{ ...task, title: 'Fresh task' }];
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (reason: Error) => void;
   const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; }); return { promise, resolve, reject }; }
 function Wrapper({ children }: PropsWithChildren) { return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>; }
@@ -147,13 +149,31 @@ describe('account-scoped cached query lifecycle (ToR 10, 19)', () => {
   it('uses the next account’s cache without displaying the previous account’s saved data', async () => {
     const pending = deferred<unknown>();
     jest.mocked(api).mockReturnValue(pending.promise);
-    jest.mocked(readCache).mockImplementation(accountId => Promise.resolve(accountId === first.user.id ? oldTasks : [{ title: 'Second account task' }]));
+    const secondTasks = [{ ...task, title: 'Second account task' }];
+    jest.mocked(readCache).mockImplementation(accountId => Promise.resolve(accountId === first.user.id ? oldTasks : secondTasks));
     const { result } = renderHook(() => useTasks(), { wrapper: Wrapper });
     await waitFor(() => expect(result.current.data).toEqual(oldTasks));
     await act(async () => { await useSessionStore.getState().setSession(second); });
     expect(result.current.data).not.toEqual(oldTasks);
-    await waitFor(() => expect(result.current.data).toEqual([{ title: 'Second account task' }]));
+    await waitFor(() => expect(result.current.data).toEqual(secondTasks));
     expect(readCache).toHaveBeenCalledWith(second.user.id, 'tasks');
     await act(async () => { pending.resolve(freshTasks); });
+  });
+
+  it('discards cache records with an invalid shape and reports unavailable data', async () => {
+    jest.mocked(readCache).mockResolvedValue({ unexpected: 'shape' });
+    jest.mocked(api).mockRejectedValue(new Error('Offline'));
+    const { result } = renderHook(() => useTasks(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.error?.message).toBe('Offline'));
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('keeps valid saved data when a server response fails its contract', async () => {
+    jest.mocked(readCache).mockResolvedValue(oldTasks);
+    jest.mocked(api).mockResolvedValue([{ title: 'Missing required fields' }]);
+    const { result } = renderHook(() => useTasks(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    await waitFor(() => expect(result.current.data).toEqual(oldTasks));
+    expect(writeCache).not.toHaveBeenCalled();
   });
 });
