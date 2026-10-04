@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { canvasConnectionStatusSchema, canvasSyncResultSchema } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe } from './common';
+import { ReminderService } from './data';
 import { PrismaService } from './prisma.service';
 import { academicSnapshotSchema, CanvasProvider } from './integrations/canvas/canvas-provider';
 
@@ -14,7 +15,7 @@ const oauthUnavailable = () => new ServiceUnavailableException('Canvas OAuth is 
 
 @Injectable()
 export class CanvasService {
-  constructor(private readonly prisma: PrismaService, private readonly provider: CanvasProvider) {}
+  constructor(private readonly prisma: PrismaService, private readonly provider: CanvasProvider, private readonly reminders: ReminderService) {}
   private assertFixtureEnabled(): void {
     if (!['development', 'test'].includes(process.env.NODE_ENV ?? '') || process.env.CANVAS_MODE !== 'fixture')
       throw new ForbiddenException('Canvas fixtures require explicit development/test fixture mode');
@@ -66,6 +67,7 @@ export class CanvasService {
           data: { lastSyncAttemptAt: startedAt, lastError: 'Canvas source unavailable or invalid' } });
         return null;
       } finally { if (timer) clearTimeout(timer); }
+      await this.reminders.lockAcademicReminders(user.id, tx);
       for (const course of batch.courses) {
         const record = await tx.course.upsert({ where: { userId_source_externalId: { userId: user.id, source: fixtureSource, externalId: course.externalId } },
           create: { userId: user.id, source: fixtureSource, ...course }, update: course });
@@ -75,6 +77,11 @@ export class CanvasService {
           await tx.academicItem.upsert({ where: { userId_source_externalId: { userId: user.id, source: fixtureSource, externalId: item.externalId } },
             create: { userId: user.id, source: fixtureSource, ...data }, update: data });
         }
+        // Reconcile persisted intent, including retained items when a course is
+        // explicitly inactivated/reactivated. Absence is never a deletion signal.
+        const configured = await tx.academicItem.findMany({ where: { userId: user.id, courseId: record.id,
+          reminderLeadMinutes: { not: null } }, select: { id: true }, orderBy: { id: 'asc' } });
+        for (const item of configured) await this.reminders.reconcileAcademicItem(user.id, item.id, tx);
       }
       const finishedAt = new Date();
       await tx.canvasConnection.update({ where: { userId: user.id },

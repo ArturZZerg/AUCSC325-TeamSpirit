@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AuthGuard } from '../src/common';
 import { CanvasController, CanvasService, fixtureBaseUrl } from '../src/canvas';
 import { CanvasProvider, FixtureCanvasProvider } from '../src/integrations/canvas/canvas-provider';
+import { ReminderService } from '../src/data';
 import { PrismaService } from '../src/prisma.service';
 
 describe('Canvas HTTP connection and sync boundaries', () => {
@@ -13,12 +14,12 @@ describe('Canvas HTTP connection and sync boundaries', () => {
   const prisma = {
     $transaction: jest.fn(), $queryRaw: jest.fn(), session: { findUnique: jest.fn() },
     canvasConnection: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn() },
-    course: { upsert: jest.fn() }, academicItem: { upsert: jest.fn() },
+    course: { upsert: jest.fn() }, academicItem: { upsert: jest.fn(), findMany: jest.fn() },
   };
   const provider = { fetchAcademicSnapshot: jest.fn() };
   const post = (path: string) => request(app.getHttpServer()).post(path).set('Authorization', 'Bearer campusflow-session');
   beforeAll(async () => {
-    const module = await Test.createTestingModule({ controllers: [CanvasController], providers: [AuthGuard, CanvasService,
+    const module = await Test.createTestingModule({ controllers: [CanvasController], providers: [AuthGuard, CanvasService, ReminderService,
       { provide: PrismaService, useValue: prisma }, { provide: CanvasProvider, useValue: provider }] }).compile();
     app = module.createNestApplication(); app.useLogger(false); await app.init();
   });
@@ -32,6 +33,7 @@ describe('Canvas HTTP connection and sync boundaries', () => {
       encryptedAccessToken: 'do-not-expose', lastSuccessfulSyncAt: null, lastSyncAttemptAt: null, lastError: null });
     provider.fetchAcademicSnapshot.mockImplementation(() => new FixtureCanvasProvider().fetchAcademicSnapshot());
     prisma.course.upsert.mockResolvedValue({ id: 'course-id' });
+    prisma.academicItem.findMany.mockResolvedValue([]);
   });
   afterAll(async () => {
     await app.close();

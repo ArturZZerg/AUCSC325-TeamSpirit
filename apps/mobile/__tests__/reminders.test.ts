@@ -126,3 +126,47 @@ describe('device reminder reconciliation (ToR 13, 19)', () => {
     expect(useReminderStatus.getState().error).toBeUndefined();
   });
 });
+
+describe('Academic deadline reminder DTO consumer contract', () => {
+  const academic = (): Reminder => ({ ...reminder, targetKind: 'academicItem' });
+  it('replaces rather than duplicates academic notifications for earlier and later deadline DTOs', async () => {
+    const first = academic();
+    for (const fireAt of ['2025-03-09T20:00:00Z', '2025-03-09T19:00:00Z', '2025-03-09T21:00:00Z']) {
+      const dto = { ...first, fireAt };
+      await reconcileReminders([dto], context()); await reconcileReminders([dto], context());
+      expect(scheduled).toHaveLength(1);
+      expect(scheduled[0].identifier).toBe(`campusflow:${context().accountId}:${first.id}`);
+      expect(scheduled[0].content.data?.fireAt).toBe(new Date(fireAt).toISOString());
+    }
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(3);
+    expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(2);
+  });
+  it('cancels suppressed academic intent and restores the same logical notification', async () => {
+    await reconcileReminders([academic()], context());
+    await reconcileReminders([], context()); expect(scheduled).toEqual([]);
+    await reconcileReminders([academic()], context()); expect(scheduled).toHaveLength(1);
+    expect(scheduled[0].identifier).toBe(`campusflow:${context().accountId}:${reminder.id}`);
+  });
+  it('disables and re-enables academic delivery without changing server intent', async () => {
+    const owner = context(); const dto = academic();
+    await reconcileReminders([dto], owner);
+    owner.preferences.academicEnabled = false;
+    await reconcileReminders([dto], owner); expect(scheduled).toEqual([]);
+    owner.preferences.academicEnabled = true;
+    await reconcileReminders([dto], owner); await reconcileReminders([dto], owner);
+    expect(scheduled).toHaveLength(1); expect(dto).toEqual(academic());
+  });
+  it('applies quiet hours across spring DST to academic intent', async () => {
+    jest.mocked(Date.now).mockReturnValue(Date.parse('2025-03-09T05:00:00Z'));
+    const owner = context(); owner.preferences.quietHoursStart = '22:00'; owner.preferences.quietHoursEnd = '07:00';
+    await reconcileReminders([{ ...academic(), fireAt: '2025-03-09T06:00:00Z' }], owner);
+    expect(scheduled).toHaveLength(1); expect(scheduled[0].content.data?.fireAt).toBe('2025-03-09T13:00:00.000Z');
+  });
+  it('never carries academic notification identity across accounts', async () => {
+    await reconcileReminders([academic()], context());
+    const next = { ...context(), accountId: '10000000-0000-4000-8000-000000000002' };
+    await reconcileReminders([], next); expect(scheduled).toEqual([]);
+    await reconcileReminders([academic()], next);
+    expect(scheduled).toHaveLength(1); expect(scheduled[0].content.data?.accountId).toBe(next.accountId);
+  });
+});

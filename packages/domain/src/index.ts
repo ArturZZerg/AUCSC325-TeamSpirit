@@ -192,3 +192,15 @@ export const eventOverlapsRange = (timing: EventTiming, from: string | undefined
   return (!through || Temporal.Instant.compare(start, through) < 0)
     && (!from || Temporal.Instant.compare(point ? start : end, from) >= (point ? 0 : 1));
 };
+
+/** Academic date-only deadlines have no chosen delivery time. Retain intent upstream.
+ * Lead minutes are elapsed time, not wall-clock days (including across DST). */
+export const academicReminderFireAt = (due: TimedOrDate | null | undefined, leadMinutes: number | null,
+  submissionState: string | null | undefined, active = true): string | null => {
+  if (leadMinutes === null || !active || due?.kind !== 'instant'
+    || submissionState === 'submitted' || submissionState === 'graded') return null;
+  const fireAt = Temporal.Instant.from(due.at).subtract({ minutes: leadMinutes }).toString();
+  // Extreme lead times can precede year 0000. Such elapsed delivery cannot be
+  // represented by the four-digit-year wire format and must not poison reads.
+  return /^\d{4}-/.test(fireAt) ? fireAt : null;
+};
