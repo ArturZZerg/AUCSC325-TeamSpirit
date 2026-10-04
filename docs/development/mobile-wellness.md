@@ -40,4 +40,5 @@ background/resume, cancellation, restart, repeat starts and cleanup.
 
 Quiet-hour editing is implemented in [notification settings](mobile-reminders.md).
 Task-editor submission, timed scheduling and recurrence editing are implemented
-in [the task slice](mobile-tasks.md). Task search/filter controls are next.
+in [the task slice](mobile-tasks.md), including search/filter controls. Explicit
+timed personal-task reminder editing is next.

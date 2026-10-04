@@ -26,7 +26,22 @@ DST wall times with a correction message. Existing instants in a repeated hour
 can still be retained exactly. Tasks displays instants in the account timezone,
 including schedule and repeat details. Unchanged scheduling/recurrence is omitted
 from updates; reminder, duration, and completion fields are preserved. Reminder
-editing and task search/filter remain follow-up work.
+editing remains follow-up work.
+
+## Personal-task search and filters
+
+Search matches task titles and descriptions without case sensitivity and trims
+outer whitespace. Category and open/completed selections combine with search;
+Clear filters restores all personal tasks. Completion filters use the same
+template-level completion field as the task-list API; recurring occurrence
+progress remains on Today. Academic work stays in its own list below.
+
+Filtering reads the complete validated account task list in memory or SQLite,
+so controls remain usable offline and never replace the persisted list with a
+filtered subset. Missing data is unavailable rather than an invented zero count;
+known empty results have an explicit message. Results update after successful
+entity mutations. Filter text and selections reset at account boundaries,
+including when returning to the previous account.
 
 Deletion requires confirmation and reports failure without hiding the task.
 One-time tasks support completion and undo. Recurring occurrences belong to Today
@@ -51,6 +66,7 @@ repeat taps; failed writes preserve the selection and allow retry.
 | Editor initialization, cancelled drafts, validation, save/retry/pending states, delete confirmation/failure, completion failure | `apps/mobile/__tests__/task-editor.test.tsx` |
 | Timed scheduling, recurrence creation/edit/removal, interval/weekdays/anchor validation, preservation, account-zone display, failed drafts | `apps/mobile/__tests__/task-scheduling.test.tsx` |
 | Explicit local-time conversion, midnight/leap dates, DST gaps and overlaps | `packages/domain/__tests__/local-clock.test.ts` |
+| Search/category/completion combinations, cache reuse, empty/unavailable results, refreshed data, correct action targets, account reset | `apps/mobile/__tests__/task-filters.test.tsx` |
 
 Run `npm run check` and `npm run build:web -w @campusflow/mobile`. Use the
 [Android preview workflow](../requirements/android-preview.md) for real-device
@@ -64,6 +80,6 @@ acceptance remains outstanding.
 
 ## Next task
 
-Add task search and category/completion filters over the complete validated
-account cache, so the same controls remain useful offline without fragmenting
-the persisted task list.
+Add creation/editing/removal of explicit timed personal-task reminders through
+the existing reminder intent API, preserving other task fields and validating
+account-local times before converting them to UTC.
