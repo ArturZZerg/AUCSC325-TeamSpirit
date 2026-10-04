@@ -81,3 +81,62 @@ or completed targets. Weekly-target progress now uses validated completion histo
 and the goal's local week. Optional task duration is editable with contract bounds,
 clearing and preservation. Today now shows deadline/schedule details. Next,
 verify goal progress, reminders and offline reads through native acceptance.
+
+## Cross-timezone occurrence identity
+
+A goal occurrence key is a calendar date in the goal's IANA timezone, not the
+account's display date. For the current account-local day, Today and Wellness
+both derive that key with the shared domain `localDateAt` rule at the current
+instant. For example, at `2026-10-04T18:00:00Z`, an Edmonton account displays
+October 4 while its Tokyo goal addresses occurrence `2026-10-05`. Weekday
+eligibility and completed/skipped history lookup use that same goal-local key.
+
+The ToR does not specify how a non-current account-day view should choose among
+overlapping goal-local days. This implementation preserves the existing rule
+for those views: convert the requested account day's midnight into the goal
+zone. It does not project the current goal day onto a historical/future view.
+Current-day views can therefore advance at goal-local midnight before the
+account date changes. Mobile Today observes the goal zones from its persisted
+snapshot, refreshes at those boundaries, and recomposes an older response from
+that snapshot while a refresh is pending or unavailable. Snapshot capture time,
+source freshness and coverage are retained, not presented as a fresh server read.
+No provider fetch is introduced into Today/snapshot composition.
+
+Daily and selected-weekday goals use this identity; weekly targets retain their
+existing optional goal-local daily history and Monday–Sunday progress rules,
+without mandatory Today items. Pausing hides a goal without erasing history;
+resuming uses the same keys. There is no non-recurring goal schedule type.
+
+No history migration or key rewriting is performed. Previous completed/skipped
+rows remain accessible through history and snapshots. A key written using the
+old incorrect account-midnight interpretation cannot safely be relabelled:
+there is no stored record of which surface or intended date produced it. Such a
+row does not automatically complete a different, newly correct current key.
+
+Goal undo is not currently implemented: the contract supports `completed` and
+`skipped`, and both surfaces reserve undo for personal tasks. This timezone fix
+does not add an undo endpoint or reinterpret skip as undo. A future goal-undo
+operation must address the explicit stored goal-local occurrence key.
+
+Verification covers fixed instants in Edmonton, Tokyo, Honolulu, Kiritimati and
+New York; account and goal midnight; spring-forward and repeated fall-back
+hours; PostgreSQL completion/retry/skip and pause/resume; history isolation;
+Today/snapshot composition; actual Wellness action payloads; and cached Today
+rollover with failed or stale refreshes.
+
+
+Cached Today goal rows are reconciled using snapshot capture time versus Today
+generation time. Newer snapshots own goal membership, configuration and history;
+equal-time snapshots can roll incompatible occurrences forward. Older snapshots
+never add or replace goal rows from a newer Today response. If such an older
+snapshot reveals an incompatible occurrence key, that derived row is withheld
+until sufficiently recent metadata is available: a Today row does not contain
+the recurrence/timezone metadata needed to safely invent its replacement.
+Unrelated Today rows and source timestamps are retained. Normalized snapshots
+and completion history are neither cleared nor rewritten. Without goal metadata,
+the client cannot validate a cached goal key and must await a usable snapshot.
+
+Historical placement is a projection rather than a record of the former screen:
+a Tokyo October 5 occurrence shown during Edmonton October 4 can appear under
+October 5 once Edmonton October 4 becomes historical. The stored key stays
+October 5 throughout.

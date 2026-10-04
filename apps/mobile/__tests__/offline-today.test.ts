@@ -12,7 +12,7 @@ describe('snapshot plan composition (ToR 4, 10, 19)', () => {
     });
     expect(plan.upcoming).toHaveLength(7);
     expect(plan.upcoming[6].occurrenceKey).toBe('2025-03-16');
-    expect(plan.items.find(item => item.entityId === goalId)).toMatchObject({ occurrenceKey: '2025-03-08', state: 'skipped', allowedActions: ['open'] });
+    expect(plan.items.find(item => item.entityId === goalId)).toMatchObject({ occurrenceKey: '2025-03-09', state: 'today', allowedActions: ['complete', 'skip', 'snooze', 'open'] });
   });
 
   it('keeps snapshot age/source coverage while reevaluating overdue work at the current clock', () => {
@@ -59,4 +59,19 @@ describe('snapshot plan composition (ToR 4, 10, 19)', () => {
     const snapshot = { ...snapshotFixture(), personalTasks: [], goals: [] };
     expect(composeOfflineToday(snapshot, accountId, zone, '2025-03-09', now)?.items).toEqual([]);
   });
+});
+
+it('recomposes Tokyo occurrences across goal midnight without changing snapshot freshness or history', () => {
+  const snapshot = snapshotFixture(); snapshot.timeZone = zone;
+  snapshot.coverage = { ...snapshot.coverage, from: '2026-10-04', through: '2026-10-11' };
+  snapshot.goals[0].timeZone = 'Asia/Tokyo'; snapshot.personalTasks = []; snapshot.goalCompletions = [];
+  const before = composeOfflineToday(snapshot, accountId, zone, '2026-10-04', '2026-10-04T14:59:59Z')!;
+  const after = composeOfflineToday(snapshot, accountId, zone, '2026-10-04', '2026-10-04T15:00:00Z')!;
+  expect(before.items[0].occurrenceKey).toBe('2026-10-04'); expect(after.items[0].occurrenceKey).toBe('2026-10-05');
+  expect(after.date).toBe(before.date); expect(after.generatedAt).toBe(snapshot.capturedAt);
+  expect(after.sourceStatus).toEqual(snapshot.sourceStatus);
+  snapshot.goalCompletions = [{ id: '40000000-0000-4000-8000-000000000001', goalId,
+    occurrenceKey: '2026-10-05', state: 'completed', completedAt: '2026-10-04T15:01:00Z', createdAt: '2026-10-04T15:01:00Z' }];
+  expect(composeOfflineToday(snapshot, accountId, zone, '2026-10-04', '2026-10-04T18:00:00Z')!.items[0])
+    .toMatchObject({ occurrenceKey: '2026-10-05', state: 'completed' });
 });
