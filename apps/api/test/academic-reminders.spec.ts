@@ -146,13 +146,16 @@ databaseSuite('Explicit academic reminder lifecycle with PostgreSQL (ToR changed
   it('rolls back reminder intent, academic writes and freshness on a subsequent academic persistence failure', async () => {
     await configure(60).expect(200); const before = await state();
     batch.academicItems[0].due = { kind: 'instant', at: '2026-10-12T00:00:00.000Z' };
+    let invalidWriteReached = false;
     const original = reminders.reconcileAcademicItem.bind(reminders);
     const spy = jest.spyOn(reminders, 'reconcileAcademicItem').mockImplementation(async (userId, itemId, tx) => {
       await original(userId, itemId, tx);
       // A real PostgreSQL FK violation, after both academic and reminder updates.
+      invalidWriteReached = true;
       await tx.academicItem.update({ where: { id: itemId }, data: { courseId: '00000000-0000-4000-8000-000000000099' } });
     });
-    try { await expect(sync.sync(user)).rejects.toThrow(); } finally { spy.mockRestore(); }
+    try { await expect(sync.sync(user)).rejects.toMatchObject({ code: 'P2003' }); } finally { spy.mockRestore(); }
+    expect(invalidWriteReached).toBe(true);
     expect(await state()).toEqual(before);
   });
   it('rolls back configuration and delivery intent together when configuring fails', async () => {
@@ -196,6 +199,115 @@ databaseSuite('Explicit academic reminder lifecycle with PostgreSQL (ToR changed
     }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     expect(await db.reminder.findMany({ where: { userId: other.id } })).toEqual(untouched);
   });
+  it.each(['B to A', 'A to B'] as const)('prevents the retained-item deadlock when Main Goal moves %s', async direction => {
+    // A is imported; configured B is deliberately retained, not in this batch.
+    batch.academicItems[1].submissionState = 'unsubmitted';
+    await sync.sync(user); await sync.connectFixture(other); await sync.sync(other);
+    const b = await db.academicItem.findFirstOrThrow({ where: { userId: user.id, externalId: '92002' } });
+    const otherA = await db.academicItem.findFirstOrThrow({ where: { userId: other.id, externalId: '92001' } });
+    await configure(1440).expect(200); await configure(60, b.id).expect(200);
+    const originalReminders = await rows();
+    const date = '2026-10-10';
+    const from = direction === 'B to A' ? b.id : id;
+    const to = direction === 'B to A' ? id : b.id;
+    const select = (itemId: string, auth = token) => client().patch(`/academic-items/${itemId}/main-goal`)
+      .set('Authorization', auth).send({ date }).expect(200);
+    await select(from);
+    const previousSuccess = (await state()).success;
+    batch.courses = [batch.courses[0]];
+    batch.academicItems = [{ ...batch.academicItems[0], due: { kind: 'instant', at: '2026-10-12T00:00:00.000Z' } }];
+
+    // Pause the real sync after its A upsert has acquired A's row lock, before
+    // reconciliation can lock retained B. This hook delegates all persistence
+    // to the real service/transaction; it does not simulate PostgreSQL locks.
+    const { reached, release, restore } = pauseReconciliation();
+    const running = sync.sync(user); void running.catch(() => undefined);
+    let moving: Promise<request.Response> | undefined;
+    try {
+      const pid = await Promise.race([reached, running.then(() => { throw new Error('Sync did not reach the reconciliation barrier'); })]);
+      moving = select(to).then(response => response); void moving.catch(() => undefined);
+      // Observe the actual blocked backend, not a sleep-based guess about
+      // overlap. Old code waits on AcademicItem A after locking B; corrected
+      // code must wait on User before either Main Goal item write.
+      const blockedQuery = await waitForBlockedQuery(pid);
+      expect(blockedQuery).toContain('"User"');
+      expect(blockedQuery).toContain('FOR NO KEY UPDATE');
+
+      // Another account must finish sync/configuration/Main Goal while the
+      // first account's sync is still held at the barrier.
+      await sync.sync(other);
+      await configure(30, otherA.id, otherToken).expect(200);
+      await select(otherA.id, otherToken);
+      const otherBefore = await db.academicItem.findMany({ where: { userId: other.id }, orderBy: { id: 'asc' } });
+      const otherReminders = await db.reminder.findMany({ where: { userId: other.id } });
+      release();
+      const [result] = await Promise.all([running, moving]);
+      expect(result.status).toBe('succeeded');
+      const items = await db.academicItem.findMany({ where: { userId: user.id } });
+      expect(items.filter(item => item.mainGoalDate === date).map(item => item.id)).toEqual([to]);
+      expect(items.find(item => item.id === id)).toMatchObject({ due: batch.academicItems[0].due, reminderLeadMinutes: 1440 });
+      expect(items.find(item => item.id === b.id)).toMatchObject({ due: b.due, reminderLeadMinutes: 60 });
+      expect(await rows()).toEqual(originalReminders.map(reminder => reminder.academicItemId === id
+        ? { ...reminder, fireAt: new Date('2026-10-11T00:00:00.000Z') } : reminder));
+      const connection = await db.canvasConnection.findUniqueOrThrow({ where: { userId: user.id } });
+      expect(connection.lastSuccessfulSyncAt?.toISOString()).toBe(result.finishedAt);
+      expect(connection.lastSuccessfulSyncAt!.getTime()).toBeGreaterThan(previousSuccess!.getTime());
+      expect(connection.lastError).toBeNull();
+      expect(await db.academicItem.findMany({ where: { userId: other.id }, orderBy: { id: 'asc' } })).toEqual(otherBefore);
+      expect(await db.reminder.findMany({ where: { userId: other.id } })).toEqual(otherReminders);
+    } finally {
+      release(); await Promise.allSettled(moving ? [running, moving] : [running]); restore();
+    }
+  }, 15000);
+
+  it.each([120, null])('serializes a changed deadline with reminder leadMinutes=%s', async leadMinutes => {
+    await configure(60).expect(200); const original = (await rows())[0];
+    batch.academicItems[0].due = { kind: 'instant', at: '2026-10-12T00:00:00.000Z' };
+    const { reached, release, restore } = pauseReconciliation();
+    const running = sync.sync(user); void running.catch(() => undefined);
+    let configuring: Promise<request.Response> | undefined;
+    try {
+      const pid = await Promise.race([reached, running.then(() => { throw new Error('Sync did not reach the reconciliation barrier'); })]);
+      configuring = configure(leadMinutes).expect(200).then(response => response);
+      void configuring.catch(() => undefined);
+      expect(await waitForBlockedQuery(pid)).toContain('"User"');
+      release(); await Promise.all([running, configuring]);
+      const item = await db.academicItem.findUniqueOrThrow({ where: { id } });
+      expect(item).toMatchObject({ due: batch.academicItems[0].due, reminderLeadMinutes: leadMinutes });
+      expect(await rows()).toEqual(leadMinutes === null ? [] : [{ ...original, fireAt: new Date('2026-10-11T22:00:00.000Z') }]);
+    } finally {
+      release(); await Promise.allSettled(configuring ? [running, configuring] : [running]); restore();
+    }
+  });
+
+  function pauseReconciliation() {
+    let entered!: (pid: number) => void, release!: () => void;
+    const reached = new Promise<number>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const reconcile = reminders.reconcileAcademicItem.bind(reminders);
+    let paused = false;
+    const hook = jest.spyOn(reminders, 'reconcileAcademicItem').mockImplementation(async (owner, itemId, tx) => {
+      if (owner === user.id && !paused) {
+        paused = true;
+        const [connection] = await tx.$queryRaw<Array<{ pid: number }>>`SELECT pg_backend_pid() AS pid`;
+        entered(connection.pid); await gate;
+      }
+      return reconcile(owner, itemId, tx);
+    });
+    return { reached, release, restore: () => hook.mockRestore() };
+  }
+
+  async function waitForBlockedQuery(blockerPid: number): Promise<string> {
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline) {
+      const blocked = await db.$queryRaw<Array<{ query: string }>>`
+        SELECT query FROM pg_stat_activity WHERE ${blockerPid}::integer = ANY(pg_blocking_pids(pid))`;
+      if (blocked.length) return blocked[0].query;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    throw new Error('Expected a competing transaction blocked by the paused sync');
+  }
+
   it('preserves Main Goal and Today/snapshot parity after a changed deadline', async () => {
     await configure(60).expect(200);
     await client().patch(`/academic-items/${id}/main-goal`).set('Authorization', token).send({ date: '2026-10-10' }).expect(200);

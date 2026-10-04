@@ -89,9 +89,13 @@ The nullable column stores durable **relative intent**, not a delivery time.
 No backfill enables existing items. The existing Reminder table is the delivery
 projection, linked through `academicItemId`, with the same UUID retained across
 deadline changes and temporary suppression. Configuration and imports acquire
-the same account-scoped academic-reminder advisory lock before writing courses
-or academics. This prevents stale active-course reads even for newly configured
-items omitted from the import. Academic-item row locks additionally serialize
+the same User-row `FOR NO KEY UPDATE` lock as Main Goal selection before writing
+courses or academics. Canvas takes its existing per-account sync advisory lock
+first; User-lock holders never acquire that advisory lock. Main Goal selection,
+reminder configuration, and sync therefore serialize before taking subordinate
+row locks, including retained items omitted from an import. Different accounts
+lock different User rows. This also prevents stale active-course reads even for
+newly configured items omitted from the import. Academic-item row locks additionally serialize
 reconciliation with academic updates, so repeated or concurrent requests cannot
 create multiple null-occurrence reminders. All writers must use this transaction
 hook; the existing nullable composite unique key alone is not sufficient.
@@ -134,3 +138,9 @@ provider rejection, restoration, concurrent writes, isolation, Main Goal and
 Today/snapshot parity. Domain tests cover UTC/DST and suppression policy;
 contracts tests validate explicit configuration; mobile reminder tests exercise
 academic DTO rescheduling, cancellation, category re-enabling and quiet hours.
+
+The PostgreSQL concurrency regression pauses sync after an academic upsert and
+observes the competing transaction with `pg_blocking_pids`: Main Goal selection
+must wait on the User row before writing either academic item. It covers moves
+in both directions, configuration/clearing during a deadline change, retained
+omitted items, and another account completing writes while the first is paused.

@@ -16,10 +16,10 @@ const isExplicitReminder = (reminder: unknown): reminder is { kind: 'instant'; a
 
 @Injectable() export class ReminderService {
   constructor(private readonly prisma:PrismaService) {}
-  // Acquire before any academic/course persistence, including configuration.
-  // This also covers newly configured items omitted from a course-state import.
+  // Share Main Goal's order: User row before any course/academic/reminder writes.
+  // Canvas takes its sync advisory lock first; no User-lock holder requests it.
   async lockAcademicReminders(userId: string, tx: Prisma.TransactionClient): Promise<void> {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('academic-reminders'), hashtext(${userId}))::text`;
+    await lockMainGoalAccount(tx, userId);
   }
   // The owned row lock also serializes null-occurrence reminder creation with
   // academic updates. PostgreSQL nullable unique keys alone allow duplicates.
