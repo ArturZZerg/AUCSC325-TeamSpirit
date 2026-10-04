@@ -7,6 +7,7 @@ import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
 import { useAction, useGoals, useGoalHistory, useWellness } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { GoalEditor } from '@/features/goal-editor';
+import { BreathingPause } from '@/features/breathing-pause';
 import { wellnessFormRequest } from '@/features/wellness-form';
 import { useSessionStore } from '@/store/session';
 import type { Goal } from '@/lib/types';
@@ -21,7 +22,6 @@ export default function WellnessScreen() {
   const [history, setHistory] = useState<Goal>();
   const [note, setNote] = useState(''); const [mood, setMood] = useState('3');
   const [energy, setEnergy] = useState(''); const [stress, setStress] = useState('');
-  const [seconds, setSeconds] = useState(0);
   const disabled = !!pending || action.isPending;
   const run = async (key: string, operation: () => Promise<unknown>) => {
     if (guard.current || action.isPending) return false;
@@ -47,8 +47,7 @@ export default function WellnessScreen() {
       <Button title={pending === 'check-in' ? 'Saving…' : 'Save check-in'} disabled={disabled} onPress={() => {
         void run('check-in', () => action.mutateAsync(wellnessFormRequest(today, { mood, energy, stress, note }))).then(saved => { if (saved) setNote(''); });
       }}/></Card>
-    <Card><Text style={styles.section}>One minute to breathe</Text><Text style={styles.meta}>{seconds ? `${seconds}s of calm focus` : 'Start a simple, optional breathing pause.'}</Text>
-      <Button title={seconds ? 'Reset' : 'Start 60 seconds'} tone="plain" onPress={() => setSeconds(seconds ? 0 : 60)}/></Card>
+    <BreathingPause/>
     <Text style={styles.section}>Check-in history</Text><State loading={entries.isLoading} error={entries.error}/>
     {entries.data?.map(entry => <Card key={entry.id}><Text style={styles.item}>{entry.date}</Text><Text style={styles.meta}>Mood {entry.mood ?? '—'} · Energy {entry.energy ?? '—'} · Stress {entry.stress ?? '—'}</Text>{entry.note && <Text>{entry.note}</Text>}</Card>)}
   </ScrollView>

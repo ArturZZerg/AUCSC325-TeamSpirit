@@ -31,5 +31,12 @@ Run the root check and mobile web export. Native device acceptance remains open.
 
 ## Next task
 
-Replace the static breathing-pause label with a working one-minute countdown
-that handles cancellation, app resume and completion without background alarms.
+The optional breathing pause now counts down from an end time, so delayed
+callbacks or app suspension do not extend the minute. It suspends callbacks in
+the background, recalculates on resume, supports cancellation and restart, and
+cleans up on unmount. It stays local to the mounted screen and schedules no
+alarms. `breathing-pause.test.tsx` covers elapsed time, delayed callbacks,
+background/resume, cancellation, restart, repeat starts and cleanup.
+
+Add account-timezone quiet-hour editing to notification settings, with input
+validation, clear/disable controls and retryable write failures.
