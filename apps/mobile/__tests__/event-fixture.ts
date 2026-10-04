@@ -1,0 +1,2 @@
+import type { CampusEvent } from '../src/lib/types';
+export const eventFixture = (): CampusEvent => ({ id: '50000000-0000-4000-8000-000000000001', title: 'Board Game Night', description: 'Games and company.', category: 'club', source: 'fixture', externalId: 'board-games', timing: { kind: 'timed', startsAt: '2025-03-09T00:00:00Z', endsAt: null }, location: 'Library', url: null, saved: true, includedInPlan: true, savedReminder: null });

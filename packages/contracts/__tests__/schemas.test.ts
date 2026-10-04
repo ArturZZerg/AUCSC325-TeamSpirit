@@ -1,6 +1,16 @@
-import { eventQuerySchema, completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema } from '../src';
+import { campusEventSchema, eventQuerySchema, completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema } from '../src';
 
 describe('public contract validation', () => {
+  const event = { id: '50000000-0000-4000-8000-000000000001', title: 'Event', description: null, category: null, source: 'fixture', externalId: 'event', timing: { kind: 'allDay', startDate: '2030-03-08', endDateExclusive: '2030-03-09' }, location: null, url: null };
+  it('distinguishes missing cached reminder metadata from explicit no-reminder configuration', () => {
+    expect(campusEventSchema.parse({ ...event, saved: true }).savedReminder).toBeUndefined();
+    expect(campusEventSchema.parse({ ...event, saved: true, savedReminder: null }).savedReminder).toBeNull();
+  });
+  it('rejects invalid saved reminder times and contradictory unsaved metadata', () => {
+    expect(campusEventSchema.safeParse({ ...event, saved: true, savedReminder: { kind: 'date', date: '2030-02-30' } }).success).toBe(false);
+    expect(campusEventSchema.safeParse({ ...event, saved: false, savedReminder: { kind: 'instant', at: '2030-03-08T18:00:00Z' } }).success).toBe(false);
+    expect(campusEventSchema.safeParse({ ...event, saved: false, includedInPlan: true }).success).toBe(false);
+  });
   it('keeps date-only and timed task values unambiguous', () => {
     expect(createPersonalTaskSchema.parse({ title: 'Buy groceries', due: { kind: 'date', date: '2026-09-21' } }).due).toEqual({ kind: 'date', date: '2026-09-21' });
     expect(createPersonalTaskSchema.safeParse({ title: 'Broken', due: { date: '2026-09-21' } }).success).toBe(false);

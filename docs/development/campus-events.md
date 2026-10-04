@@ -119,6 +119,13 @@ The current implementation reads visible/category-matching records before pure
 domain filtering, avoiding an incorrect sortAt prefilter. Large datasets may
 need a measured query/index optimization later; this is not pagination.
 
+Continued development adds account-owned `savedReminder` metadata to GET /events
+through `campusEventSchema`. Only the reader's SavedEvent contributes this field;
+the normalized Event and snapshot entity contracts remain separate. Mobile now
+validates/caches this configuration and offers explicit reminder controls in
+[mobile-campus.md](mobile-campus.md). Older cached reads lacking metadata remain
+readable with reminder editing unavailable until refresh.
+
 ## Verification
 
 Unit fixtures: `apps/api/test/fixtures/campus-calendar.ts` and provider tests.

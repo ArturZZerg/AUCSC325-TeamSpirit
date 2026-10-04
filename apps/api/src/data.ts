@@ -1,4 +1,5 @@
 import { eventRange, selectEvents } from './integrations/events/event-query';
+import { campusEventSchema } from '@campusflow/contracts';
 import { BadRequestException, Body, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
@@ -243,7 +244,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
      OR: [{ sourceScope: 'public' }, { sourceScope: `user:${u.id}` }],
      ...(query.category ? { category: query.category } : {}),
    }, include: { savedBy: { where: { userId: u.id } } } });
-   return selectEvents(rows.map(r => ({ ...eventDto(r), saved: r.savedBy.length > 0, includedInPlan: r.savedBy[0]?.includedInPlan ?? false })), range, u.timeZone);
+   return selectEvents(rows.map(r => campusEventSchema.parse({ ...eventDto(r), saved: r.savedBy.length > 0, includedInPlan: r.savedBy[0]?.includedInPlan ?? false, savedReminder: r.savedBy[0]?.reminder ?? null })), range, u.timeZone);
  }
  @Put(':id/saved') async save(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(saveEventSchema)) b: z.infer<typeof saveEventSchema>) {
    return this.prisma.$transaction(async tx => {
