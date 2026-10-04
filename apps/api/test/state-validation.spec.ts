@@ -108,6 +108,14 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     expect(prisma.taskCompletion.upsert).not.toHaveBeenCalled();
   });
 
+  it('rejects adding recurrence to a completed one-time task without changing state', async () => {
+    prisma.personalTask.findFirst.mockResolvedValue({ ...task, recurrence: null, completedAt: now });
+    const response = await request(app.getHttpServer()).patch(`/tasks/${recordId}`).set('Authorization', 'Bearer test-session')
+      .send({ recurrence: { frequency: 'daily' } }).expect(400);
+    expect(response.body.message).toBe('Undo completion before making this task repeat');
+    expect(prisma.personalTask.update).not.toHaveBeenCalled(); expect(prisma.reminder.deleteMany).not.toHaveBeenCalled();
+  });
+
   it('keeps missing records distinct from invalid state requests', async () => {
     prisma.goal.findFirst.mockResolvedValue(null);
     prisma.personalTask.findFirst.mockResolvedValue(null);

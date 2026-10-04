@@ -27,6 +27,13 @@ can still be retained exactly. Tasks displays instants in the account timezone,
 including schedule and repeat details. Unchanged scheduling/recurrence is omitted
 from updates; reminder, duration, and completion fields are preserved.
 
+Completed one-time tasks require explicit undo before adding a repeat rule.
+The editor explains this and disables repeat choices while allowing ordinary
+edits. The API checks persisted state under the existing task row lock, so a
+concurrent completion/conversion cannot globally complete a recurring template.
+Existing invalid records can recover by removing their rule, undoing completion,
+and then adding a new rule. No completion history is silently reset.
+
 ## Explicit timed reminders
 
 Each task offers Set/Edit reminder with account-local date and HH:MM input.
@@ -81,6 +88,7 @@ repeat taps; failed writes preserve the selection and allow retry.
 | Valid request shapes, explicit clearing, exact timed-deadline preservation, calendar validation, recurrence anchor protection | `apps/mobile/__tests__/task-form.test.ts` |
 | Editor initialization, cancelled drafts, validation, save/retry/pending states, delete confirmation/failure, completion failure | `apps/mobile/__tests__/task-editor.test.tsx` |
 | Timed scheduling, recurrence creation/edit/removal, interval/weekdays/anchor validation, preservation, account-zone display, failed drafts | `apps/mobile/__tests__/task-scheduling.test.tsx` |
+| Completed-task recurrence conversion, explicit undo, concurrent state changes and legacy recovery | `apps/api/test/core-correctness.spec.ts`, `apps/api/test/state-validation.spec.ts`, `apps/mobile/__tests__/task-scheduling.test.tsx` |
 | Explicit local-time conversion, midnight/leap dates, DST gaps and overlaps | `packages/domain/__tests__/local-clock.test.ts` |
 | Search/category/completion combinations, cache reuse, empty/unavailable results, refreshed data, correct action targets, account reset | `apps/mobile/__tests__/task-filters.test.tsx` |
 | Timed reminder UTC input, expired/DST validation, removal, unchanged configuration, pending/retry controls and refreshed display | `apps/mobile/__tests__/task-reminder.test.tsx` |
@@ -97,6 +105,5 @@ acceptance remains outstanding.
 
 ## Next task
 
-Prevent assigning a repeat rule to a completed one-time task until completion
-has been explicitly undone. Enforce this at both mobile and API boundaries so
-converting an already closed task cannot leave every future occurrence completed.
+Persist explicit goal reminder intent transactionally, including pause/resume,
+edits and deletion, before adding goal reminder controls to mobile.

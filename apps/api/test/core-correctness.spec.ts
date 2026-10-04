@@ -309,4 +309,35 @@ databaseSuite('core planning correctness with PostgreSQL', () => {
     expect(response.body.campusEvents.map((row: { id: string }) => row.id)).not.toContain(next.id);
   });
 
+  it('requires explicit undo before converting a completed one-time task to recurrence', async () => {
+    const id = await createTask({ scheduled: { kind: 'date', date } }); const closed = await complete(id, true).expect(201);
+    const patch = () => client().patch(`/tasks/${id}`).set('Authorization', token).send({ recurrence: { frequency: 'daily' } });
+    const rejected = await patch().expect(400); expect(rejected.body.message).toBe('Undo completion before making this task repeat');
+    const retained = await client().get(`/tasks/${id}`).set('Authorization', token).expect(200);
+    expect(retained.body.completedAt).toBe(closed.body.completedAt); expect(retained.body.recurrence).toBeNull();
+    await complete(id, false).expect(201); const converted = await patch().expect(200); expect(converted.body.completedAt).toBeNull();
+    const next = await client().get('/today?date=2026-03-09').set('Authorization', token).expect(200);
+    expect(next.body.items.find((item: { entityId: string }) => item.entityId === id).state).not.toBe('completed');
+  });
+
+  it('serializes completion racing with conversion without globally completing a recurring template', async () => {
+    for (let round = 0; round < 3; round++) {
+      const id = await createTask({ scheduled: { kind: 'date', date } });
+      const responses = await Promise.all([complete(id, true), client().patch(`/tasks/${id}`).set('Authorization', token).send({ recurrence: { frequency: 'daily' } })]);
+      expect(responses.filter(response => response.status === 400)).toHaveLength(1);
+      expect(responses.filter(response => response.status === 200 || response.status === 201)).toHaveLength(1);
+      const current = await client().get(`/tasks/${id}`).set('Authorization', token).expect(200);
+      expect(Boolean(current.body.recurrence && current.body.completedAt)).toBe(false);
+    }
+  });
+
+  it('lets legacy globally completed recurring tasks recover by removing the rule and undoing', async () => {
+    const id = await createTask({ scheduled: { kind: 'date', date }, recurrence: { frequency: 'daily' } });
+    await db.personalTask.update({ where: { id }, data: { completedAt: new Date() } });
+    await client().patch(`/tasks/${id}`).set('Authorization', token).send({ recurrence: null }).expect(200);
+    await complete(id, false).expect(201);
+    const converted = await client().patch(`/tasks/${id}`).set('Authorization', token).send({ recurrence: { frequency: 'daily' } }).expect(200);
+    expect(converted.body.completedAt).toBeNull(); expect(converted.body.recurrence.frequency).toBe('daily');
+  });
+
 });
