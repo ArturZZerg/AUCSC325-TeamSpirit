@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { localDateAt } from '@campusflow/domain';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAction, useToday } from '@/features/queries';
+import { taskTimingLabel } from '@/features/task-form';
 import type { PlanItem } from '@/lib/types';
 
 type PlanAction = 'complete' | 'uncomplete' | 'skip' | 'snooze';
@@ -58,7 +59,7 @@ export default function TodayScreen() {
     <Text style={styles.title}>Your daily flow</Text>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <State loading={query.isLoading} error={query.error} empty={query.data && !query.data.items.length ? 'Nothing is planned yet. Add a task or choose a goal.' : undefined}/>
-    {query.data?.items.map(item => <PlanCard key={item.key} item={item} isCurrentDay={isCurrentDay} disabled={!!pending || action.isPending}
+    {query.data?.items.map(item => <PlanCard key={item.key} item={item} timeZone={query.timeZone} isCurrentDay={isCurrentDay} disabled={!!pending || action.isPending}
       pendingAction={pending?.key === item.key ? pending.action : undefined}
       error={failure?.key === item.key ? failure.message : undefined}
       onAction={selected => { void run(item, selected); }}/>) }
@@ -66,13 +67,13 @@ export default function TodayScreen() {
       {query.data.campusEvents.map(event => <Card key={event.id}><Text style={styles.item}>{event.title}</Text><Text style={styles.meta}>{event.timing.kind === 'timed' ? new Date(event.timing.startsAt).toLocaleTimeString([], { timeZone: query.timeZone, hour: 'numeric', minute: '2-digit' }) : event.timing.startDate} · {event.location ?? 'Campus'}</Text></Card>)}
     </> : null}
     {query.data?.upcoming.length ? <><Text style={styles.section}>Coming up</Text>
-      {query.data.upcoming.map(item => <Card key={item.key}><Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.state}</Text></Card>)}
+      {query.data.upcoming.map(item => <Card key={item.key}><Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.state}</Text><PlanTiming item={item} timeZone={query.timeZone}/></Card>)}
     </> : null}
   </ScrollView></Screen>;
 }
 
-function PlanCard({ item, isCurrentDay, disabled, pendingAction, error, onAction }: {
-  item: PlanItem; isCurrentDay: boolean; disabled: boolean; pendingAction?: PlanAction; error?: string; onAction: (action: PlanAction) => void;
+function PlanCard({ item, timeZone, isCurrentDay, disabled, pendingAction, error, onAction }: {
+  item: PlanItem; timeZone: string; isCurrentDay: boolean; disabled: boolean; pendingAction?: PlanAction; error?: string; onAction: (action: PlanAction) => void;
 }) {
   const canComplete = (item.kind === 'personalTask' || item.kind === 'goal') && item.allowedActions.includes('complete');
   const canUndo = item.kind === 'personalTask' && item.allowedActions.includes('uncomplete');
@@ -83,6 +84,7 @@ function PlanCard({ item, isCurrentDay, disabled, pendingAction, error, onAction
       <Text style={styles.kind}>{item.isMainGoal ? '★ MAIN GOAL' : item.kind === 'academic' ? 'UNIVERSITY' : item.kind.toUpperCase()}</Text>
       <Text style={[styles.item, (item.state === 'completed' || item.state === 'submitted') && styles.done]}>{item.title}</Text>
       <Text style={styles.meta}>{item.state}</Text>
+      <PlanTiming item={item} timeZone={timeZone}/>
     </View>
     {(canComplete || canUndo || canSkip || canSnooze) && <View style={styles.actions}>
       {canComplete && <Button title={pendingAction === 'complete' ? 'Saving…' : 'Complete'} disabled={disabled} onPress={() => onAction('complete')}/>}
@@ -92,6 +94,13 @@ function PlanCard({ item, isCurrentDay, disabled, pendingAction, error, onAction
     </View>}
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
   </Card>;
+}
+
+function PlanTiming({ item, timeZone }: { item: PlanItem; timeZone: string }) {
+  return <>
+    {item.due && <Text style={styles.meta}>Due: {taskTimingLabel(item.due, timeZone)}</Text>}
+    {item.schedule && <Text style={styles.meta}>{item.kind === 'event' ? 'Starts' : 'Scheduled'}: {taskTimingLabel(item.schedule, timeZone)}</Text>}
+  </>;
 }
 
 const styles = StyleSheet.create({

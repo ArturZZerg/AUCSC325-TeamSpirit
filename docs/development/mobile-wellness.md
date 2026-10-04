@@ -79,4 +79,5 @@ Mobile event reminder controls now use validated account-owned reads.
 Task/goal snooze now postpones active explicit intent without reactivating paused
 or completed targets. Weekly-target progress now uses validated completion history
 and the goal's local week. Optional task duration is editable with contract bounds,
-clearing and preservation. Next, show deadline/schedule details on Today cards.
+clearing and preservation. Today now shows deadline/schedule details. Next,
+verify goal progress, reminders and offline reads through native acceptance.
