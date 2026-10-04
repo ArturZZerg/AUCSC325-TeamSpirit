@@ -50,6 +50,14 @@ databaseSuite('saved event reminder lifecycle with PostgreSQL (ToR 11, 13, 19)',
     expect(await rows(id)).toEqual([]); expect(await rows(id, otherToken)).toEqual(other);
     const privateId = await event(`user:${otherId}`); await save(privateId).expect(404); await patch(privateId, { reminder }).expect(404); expect(await rows(privateId)).toEqual([]);
   });
+  it('returns only the reader’s saved reminder configuration on event reads', async () => {
+    const id = await event(); const onlyOther = await event(); await save(id).expect(200);
+    await save(id, { includedInPlan: false, reminder: next }, otherToken).expect(200); await save(onlyOther, { reminder: next }, otherToken).expect(200);
+    const own = await client().get('/events').set('Authorization', token).expect(200); const other = await client().get('/events').set('Authorization', otherToken).expect(200);
+    expect(own.body.find((row: { id: string }) => row.id === id)).toMatchObject({ saved: true, includedInPlan: true, savedReminder: reminder });
+    expect(other.body.find((row: { id: string }) => row.id === id)).toMatchObject({ saved: true, includedInPlan: false, savedReminder: next });
+    expect(own.body.find((row: { id: string }) => row.id === onlyOther)).toMatchObject({ saved: false, includedInPlan: false, savedReminder: null });
+  });
   it('cascades intent when the saved relationship or event is deleted directly', async () => {
     const first = await event(); await save(first).expect(200); await db.savedEvent.delete({ where: { userId_eventId: { userId, eventId: first } } }); expect(await rows(first)).toEqual([]);
     const second = await event(); await save(second).expect(200); await db.event.delete({ where: { id: second } }); expect(await rows(second)).toEqual([]);

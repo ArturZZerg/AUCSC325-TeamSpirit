@@ -4,7 +4,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { api, ApiError } from '../src/lib/api';
 import { queryClient } from '../src/lib/query-client';
-import { useAction, useGoalHistory, useTasks } from '../src/features/queries';
+import { useAction, useEvents, useGoalHistory, useTasks } from '../src/features/queries';
+import { eventFixture } from './event-fixture';
 import { snapshotFixture } from './snapshot-fixture';
 import { readCache, writeCache, clearAccountCache } from '../src/services/cache';
 import { useSessionStore } from '../src/store/session';
@@ -43,6 +44,26 @@ beforeEach(() => {
 afterEach(() => { queryClient.clear(); });
 
 describe('account-scoped cached query lifecycle (ToR 10, 19)', () => {
+  it('retains validated saved reminder configuration offline and isolates it across accounts', async () => {
+    const events = [{ ...eventFixture(), savedReminder: { kind: 'instant' as const, at: '2030-03-08T18:00:00Z' } }];
+    jest.mocked(api).mockRejectedValue(new Error('Offline')); jest.mocked(readCache).mockImplementation(accountId => Promise.resolve(accountId === first.user.id ? events : []));
+    const { result } = renderHook(() => useEvents(), { wrapper: Wrapper }); await waitFor(() => expect(result.current.data).toEqual(events));
+    await waitFor(() => expect(result.current.isFetching).toBe(false));
+    await act(async () => { await useSessionStore.getState().setSession(second); }); expect(result.current.data).not.toEqual(events);
+    await waitFor(() => expect(result.current.data).toEqual([])); await waitFor(() => expect(result.current.isFetching).toBe(false)); expect(readCache).toHaveBeenCalledWith(second.user.id, 'events');
+  });
+  it('keeps older event cache metadata unknown rather than inventing no reminder', async () => {
+    const legacy = { ...eventFixture() }; delete legacy.savedReminder;
+    jest.mocked(api).mockRejectedValue(new Error('Offline')); jest.mocked(readCache).mockResolvedValue([legacy]);
+    const { result } = renderHook(() => useEvents(), { wrapper: Wrapper }); await waitFor(() => expect(result.current.data).toEqual([legacy]));
+    await waitFor(() => expect(result.current.isFetching).toBe(false)); expect(result.current.data?.[0].savedReminder).toBeUndefined();
+  });
+  it('rejects malformed event reminder metadata from the server and SQLite', async () => {
+    const invalid = [{ ...eventFixture(), savedReminder: { kind: 'instant', at: 'not-a-time' } }];
+    jest.mocked(api).mockResolvedValue(invalid); jest.mocked(readCache).mockResolvedValue(invalid);
+    const { result } = renderHook(() => useEvents(), { wrapper: Wrapper }); await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.data).toBeUndefined(); expect(writeCache).not.toHaveBeenCalled();
+  });
   it('reads validated goal history offline and isolates it when the account changes', async () => {
     const snapshot = snapshotFixture(); const rows = snapshot.goalCompletions; const goalId = rows[0].goalId;
     jest.mocked(api).mockRejectedValue(new Error('Offline'));

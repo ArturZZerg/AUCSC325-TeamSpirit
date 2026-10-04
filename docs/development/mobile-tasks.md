@@ -105,5 +105,5 @@ acceptance remains outstanding.
 
 ## Next task
 
-Add mobile saved-event reminder controls and validated account-owned reminder
-configuration to event reads, reusing the task/goal timed editor.
+Make task/goal snooze postpone active explicit reminder intent without changing
+saved configuration or reactivating completed/paused targets.

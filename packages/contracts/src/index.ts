@@ -55,8 +55,14 @@ export const snoozeGoalSchema = z.object({ until: instantSchema, occurrenceKey: 
 
 export const eventSchema = z.object({ id: idSchema, title: z.string().min(1), description: z.string().nullable(), category: z.string().nullable(), source: z.string().min(1), externalId: z.string().min(1), timing: z.discriminatedUnion('kind', [z.object({ kind: z.literal('timed'), startsAt: instantSchema, endsAt: instantSchema.nullable() }), z.object({ kind: z.literal('allDay'), startDate: dateSchema, endDateExclusive: dateSchema })]), location: z.string().nullable(), url: z.string().url().nullable() });
 export const savedEventSchema = z.object({ eventId: idSchema, includedInPlan: z.boolean(), reminder: scheduleSchema.nullable(), savedAt: instantSchema });
+// Optional metadata keeps older cached event reads usable without inventing saved state.
+export const campusEventSchema = eventSchema.extend({ saved: z.boolean().optional(), includedInPlan: z.boolean().optional(), savedReminder: scheduleSchema.nullable().optional() }).superRefine((event, context) => {
+  if (event.saved !== true && event.savedReminder != null) context.addIssue({ code: 'custom', path: ['savedReminder'], message: 'Reminder configuration requires a saved event.' });
+  if (event.saved === false && event.includedInPlan === true) context.addIssue({ code: 'custom', path: ['includedInPlan'], message: 'Plan inclusion requires a saved event.' });
+});
 export const saveEventSchema = z.object({ includedInPlan: z.boolean().default(false), reminder: scheduleSchema.nullable().optional() });
 export const updateSavedEventSchema = saveEventSchema.partial();
+export type CampusEvent = z.infer<typeof campusEventSchema>;
 
 export const wellnessEntrySchema = z.object({ id: idSchema, date: dateSchema, mood: z.number().int().min(1).max(5).nullable(), energy: z.number().int().min(1).max(5).nullable(), stress: z.number().int().min(1).max(5).nullable(), note: z.string().max(2_000).nullable(), createdAt: instantSchema });
 export const createWellnessEntrySchema = wellnessEntrySchema.pick({ date: true, mood: true, energy: true, stress: true, note: true });

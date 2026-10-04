@@ -90,5 +90,7 @@ implemented along with task search/filter and explicit timed reminder controls.
 Completed-task conversion now requires explicit undo. Explicit goal reminder
 intent supports pause/resume and atomic edits. Mobile goal reminder controls use
 the goal's timezone and preserve its schedule/history. Saved-event intent supports
-replacement and unsave cleanup. Add mobile event reminder controls and validated
-account-owned configuration to event reads next.
+replacement and unsave cleanup. Mobile saved-event reminder controls use the
+account timezone and validated account-owned configuration in event reads.
+Make task/goal snooze postpone active explicit reminder intent next, preserving
+configuration and suppressing completed/paused targets.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { academicItemSchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { academicItemSchema, campusEventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
 import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
@@ -11,7 +11,7 @@ import { composeOfflineToday } from '@/features/offline-today';
 
 const schemas = {
   tasks: personalTaskSchema.array(), academic: academicItemSchema.array(), goals: goalSchema.array(),
-  events: eventSchema.extend({ saved: z.boolean().optional(), includedInPlan: z.boolean().optional() }).array(),
+  events: campusEventSchema.array(),
   wellness: wellnessEntrySchema.array(), reminders: reminderSchema.array(),
   goalHistory: goalCompletionSchema.array(),
 };
