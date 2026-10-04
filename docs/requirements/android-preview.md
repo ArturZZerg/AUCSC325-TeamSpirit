@@ -93,8 +93,11 @@ Task/goal/event controls and reminder reconciliation are implemented, but their
 native interaction and delivery remain acceptance gates. Real Canvas imports
 and a verified campus source also remain external MVP gates. The current Maestro
 smoke scenario covers navigation to registration only; it does not verify this
-acceptance list. On 2026-10-04, ADB reported no attached devices and Maestro was
-not available on PATH, so no phone interaction or notification delivery was proved.
+acceptance list. The [2026-10-04 native report](android-native-acceptance-2026-10-04.md)
+records successful Pixel 10 Pro XL checks for offline dates, account switching,
+offline sign-out cleanup and actual background reminder delivery. The remaining
+editor, reminder-lifecycle, midnight/DST and iOS gates are listed in that report;
+these targeted results do not establish the entire acceptance list.
 
 Official workflow references: [Expo local builds](https://docs.expo.dev/guides/local-app-development/)
 and [installable Android APKs](https://docs.expo.dev/build-reference/apk/).
