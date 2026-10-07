@@ -57,7 +57,7 @@ export default function TodayScreen() {
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
     <Text style={styles.kicker}>{new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}</Text>
     <Text style={styles.title}>Your daily flow</Text>
-    <View style={styles.actions}><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/></View>
+    <View style={styles.actions}><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/><Button title="Focus space" tone="plain" onPress={() => router.push('/focus')}/></View>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <State loading={query.isLoading} error={query.error} empty={query.data && !query.data.items.length ? 'Nothing is planned yet. Add a task or choose a goal.' : undefined}/>
     {query.data?.items.map(item => <PlanCard key={item.key} item={item} timeZone={query.timeZone} isCurrentDay={isCurrentDay} disabled={!!pending || action.isPending}
@@ -89,6 +89,8 @@ function PlanCard({ item, timeZone, isCurrentDay, disabled, pendingAction, error
     </View>
     {(canComplete || canUndo || canSkip || canSnooze) && <View style={styles.actions}>
       {canComplete && <Button title={pendingAction === 'complete' ? 'Saving…' : 'Complete'} disabled={disabled} onPress={() => onAction('complete')}/>}
+      {canComplete && item.kind === 'personalTask' && item.occurrenceKey === null && <Button title="Focus on this" tone="plain" disabled={disabled}
+        onPress={() => router.push({ pathname: '/focus', params: { taskId: item.entityId } })}/>}
       {canUndo && <Button title={pendingAction === 'uncomplete' ? 'Saving…' : 'Undo completion'} tone="plain" disabled={disabled} onPress={() => onAction('uncomplete')}/>}
       {canSkip && <Button title={pendingAction === 'skip' ? 'Saving…' : 'Skip today'} tone="plain" disabled={disabled} onPress={() => onAction('skip')}/>}
       {canSnooze && <Button title={pendingAction === 'snooze' ? 'Saving…' : 'Snooze 1 hour'} tone="plain" disabled={disabled} onPress={() => onAction('snooze')}/>}

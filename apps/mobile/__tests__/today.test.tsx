@@ -54,6 +54,10 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Coursework' }));
     expect(router.push).toHaveBeenCalledWith('/academics');
   });
+  it('opens free focus or preselects an open one-time task', () => {
+    render(<TodayScreen/>); fireEvent.press(screen.getByText('Focus space')); expect(router.push).toHaveBeenCalledWith('/focus');
+    fireEvent.press(screen.getByText('Focus on this')); expect(router.push).toHaveBeenCalledWith({ pathname: '/focus', params: { taskId: task.entityId } });
+  });
   it('uses the query account date for the header when no date is selected', () => {
     jest.mocked(useLocalSearchParams).mockReturnValue({});
     show([], { date: '2026-10-02' });
@@ -121,7 +125,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
       { ...task, key: 'event', kind: 'event', title: 'Campus event', allowedActions: ['open'] },
     ]);
     render(<TodayScreen/>);
-    expect(screen.queryAllByRole('button')).toHaveLength(2);
+    expect(screen.queryAllByRole('button')).toHaveLength(3);
     expect(screen.getByText('Submitted essay')).toBeOnTheScreen();
     expect(screen.getByText('Campus event')).toBeOnTheScreen();
     expect(mutate).not.toHaveBeenCalled();

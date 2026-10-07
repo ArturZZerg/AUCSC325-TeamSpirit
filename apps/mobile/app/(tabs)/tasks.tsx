@@ -66,6 +66,8 @@ export default function Tasks() {
         {task.estimatedMinutes !== null && <Text style={styles.meta}>Estimated duration: {task.estimatedMinutes} min</Text>}
         {task.reminder && <Text style={styles.meta}>Reminder: {taskTimingLabel(task.reminder, timeZone)}{task.reminder.kind === 'date' ? ' · Delivery time needed' : ''}</Text>}
         <View style={styles.actions}>
+          {!task.completedAt && !task.recurrence && <Button title="Focus" tone="plain" disabled={disabled}
+            onPress={() => router.push({ pathname: '/focus', params: { taskId: task.id } })}/>}
           {task.recurrence ? <Text style={styles.meta}>Complete recurring occurrences from Today.</Text> :
             <Button title={task.completedAt ? 'Undo completion' : 'Complete'} tone="plain" disabled={disabled}
               onPress={() => { void run({ path: `/tasks/${task.id}/complete`, body: { completed: !task.completedAt } }); }}/>}
