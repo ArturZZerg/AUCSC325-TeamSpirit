@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { academicItemSchema, campusEventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { academicItemSchema, academicReminderConfigurationSchema, campusEventSchema, courseSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
 import { goalOccurrenceDate } from '@campusflow/domain';
 import { api, ApiError, json } from '@/lib/api';
@@ -11,6 +11,7 @@ import { useTodayClock } from '@/features/today-clock';
 import { composeOfflineToday } from '@/features/offline-today';
 
 const schemas = {
+  courses: courseSchema.array(),
   tasks: personalTaskSchema.array(), academic: academicItemSchema.array(), goals: goalSchema.array(),
   events: campusEventSchema.array(),
   wellness: wellnessEntrySchema.array(), reminders: reminderSchema.array(),
@@ -123,6 +124,12 @@ export function useToday(selectedDate?: string) {
 }
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
 export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items', schemas.academic);
+export const useCourses = () => cachedQuery('courses', '/courses', schemas.courses);
+export function useAcademicReminder(itemId: string) {
+  const schema = useMemo(() => academicReminderConfigurationSchema.refine(value =>
+    value.academicItemId === itemId, 'Reminder belongs to another academic item'), [itemId]);
+  return cachedQuery(`academicReminder:${itemId}`, `/academic-items/${itemId}/reminder`, schema);
+}
 /** One consistent account snapshot supplies the planner's entire visible week. */
 export function usePlanningSnapshot(date: string) {
   const session = useSessionStore(state => state.session);

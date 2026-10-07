@@ -81,8 +81,8 @@ for 24 elapsed hours before the deadline, `{ "leadMinutes": 0 }` at the deadline
 or `{ "leadMinutes": null }` to clear. Lead time is a nonnegative integer within
 PostgreSQL's signed Int range. Missing fields, fractions, negatives, unknown
 fields, and other-account IDs are rejected. The response includes the item UUID
-and current leadMinutes. This is an API configuration surface, not a new mobile
-editor or a default notification for every import.
+and current leadMinutes. The [mobile Coursework editor](mobile-academics.md)
+uses this configuration surface; imports do not enable reminders by default.
 
 The nullable column stores durable **relative intent**, not a delivery time.
 `Reminder.fireAt` alone cannot recover that intent after a deadline disappears.

@@ -49,6 +49,11 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Plan your week' }));
     expect(router.push).toHaveBeenCalledWith('/planner');
   });
+  it('opens the academic workspace from Today', () => {
+    render(<TodayScreen/>);
+    fireEvent.press(screen.getByRole('button', { name: 'Coursework' }));
+    expect(router.push).toHaveBeenCalledWith('/academics');
+  });
   it('uses the query account date for the header when no date is selected', () => {
     jest.mocked(useLocalSearchParams).mockReturnValue({});
     show([], { date: '2026-10-02' });
@@ -116,7 +121,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
       { ...task, key: 'event', kind: 'event', title: 'Campus event', allowedActions: ['open'] },
     ]);
     render(<TodayScreen/>);
-    expect(screen.queryAllByRole('button')).toHaveLength(1);
+    expect(screen.queryAllByRole('button')).toHaveLength(2);
     expect(screen.getByText('Submitted essay')).toBeOnTheScreen();
     expect(screen.getByText('Campus event')).toBeOnTheScreen();
     expect(mutate).not.toHaveBeenCalled();

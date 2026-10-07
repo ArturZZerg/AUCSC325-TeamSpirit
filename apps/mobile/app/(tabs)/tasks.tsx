@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { taskOccursOn } from '@campusflow/domain';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAcademic, useAction, useTasks } from '@/features/queries';
@@ -77,6 +78,7 @@ export default function Tasks() {
         </View>
       </Card>)}
       <Text style={styles.section}>University</Text>
+      <Button title="Browse coursework" tone="plain" onPress={() => router.push('/academics')}/>
       <State loading={academic.isLoading} error={academic.error} empty={academic.data?.length === 0 ? 'Canvas work appears here after a successful sync.' : undefined}/>
       {academic.data?.map(item => <Card key={item.id}>
         {item.mainGoalDate === today && <Text style={styles.mainGoal}>★ MAIN GOAL TODAY</Text>}
