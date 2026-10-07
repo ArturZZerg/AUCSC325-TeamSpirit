@@ -1,5 +1,5 @@
 import { composeToday, type TodayInput } from '@campusflow/domain';
-import { dateSchema, offlineSnapshotSchema, todayResponseSchema, type OfflineSnapshot, type TodayResponse } from '@campusflow/contracts';
+import { dateSchema, manualAcademicSource, offlineSnapshotSchema, todayResponseSchema, type OfflineSnapshot, type TodayResponse } from '@campusflow/contracts';
 
 /** Wire/domain mapping belongs to the consuming app, not either shared package. */
 function domainInput(snapshot: OfflineSnapshot, date: string, now: string): TodayInput {
@@ -13,7 +13,8 @@ function domainInput(snapshot: OfflineSnapshot, date: string, now: string): Toda
       completedOccurrenceKeys: snapshot.taskCompletions.filter(row => row.taskId === task.id).map(row => row.occurrenceKey),
     })),
     academicItems: snapshot.academicItems.map(item => ({ id: item.id, title: item.title, due: item.due ?? undefined,
-      submissionState: item.submissionState ?? undefined, mainGoalDate: item.mainGoalDate ?? undefined })),
+      submissionState: item.source === manualAcademicSource ? undefined : item.submissionState ?? undefined,
+      completed: item.source === manualAcademicSource && item.submissionState === 'submitted', mainGoalDate: item.mainGoalDate ?? undefined })),
     goals: snapshot.goals.map(goal => ({ id: goal.id, title: goal.title, schedule: goal.schedule, timeZone: goal.timeZone,
       pausedAt: goal.pausedAt ?? undefined, snoozedUntil: goal.snoozedUntil ?? undefined })),
     goalCompletions: snapshot.goalCompletions.map(row => ({ ...row, completedAt: row.completedAt ?? undefined })),

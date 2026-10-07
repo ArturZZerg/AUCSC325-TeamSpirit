@@ -90,7 +90,7 @@ IDs are internal identifiers; provider IDs are opaque strings retained separatel
 | --- | --- |
 | `User` | CampusFlow identity and preferred IANA timezone; owns private data. Canvas identity is optional. |
 | `Course` | A user's imported course projection, scoped to their Canvas connection. Course membership sharing is unnecessary for the MVP. |
-| `AcademicItem` | Imported assignment, quiz, discussion, or planner work; belongs to a user, optionally a Course. Holds deadline and external submission/grading state. |
+| `AcademicItem` | Imported or student-owned assignment, quiz, discussion, or planner work; belongs to a user, optionally a Course. Holds deadline and source-dependent completion/submission state, as defined in [ADR 003](../adr/003-manual-coursework.md). |
 | `PersonalTask` | User-owned task with title, notes, optional schedule/deadline, priority/category, and completion state. No Course is required. Recurrence belongs to this feature when implemented. |
 | `Goal` | User-owned recurring activity with schedule or weekly target, timezone, pause and snooze rules. |
 | `GoalCompletion` | A goal occurrence's completion/skip history; unique per user, goal, and occurrence key so retries do not double-count. |

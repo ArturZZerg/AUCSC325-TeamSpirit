@@ -4,6 +4,15 @@ CampusFlow combines coursework, personal tasks, routines, campus events and
 wellness check-ins into a daily student plan. The project uses Expo for iOS and
 Android, NestJS for the API, and PostgreSQL through Prisma.
 
+From Today, open Coursework to add your own academic deadlines or review imported
+work. Plan study time turns a deadline into a manageable preparation task with a
+chosen day and duration. Focus space runs a timed work block, offers a short
+break, and lets you explicitly finish the selected preparation task. Manual
+coursework works without Canvas access; marking it finished records your own
+progress. See [manual coursework](docs/requirements/manual-coursework.md),
+[study planning](docs/requirements/study-planning.md), and
+[focus workspace](docs/requirements/focus-workspace.md) for behavior and limits.
+
 ## Development setup
 
 Use Node.js 22 LTS and npm. All commands below run from the repository root.

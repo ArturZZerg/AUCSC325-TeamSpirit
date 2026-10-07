@@ -1,7 +1,7 @@
 import { Controller, Get, Injectable, Query, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { addCalendarDays, composeToday, localDateAt, type TodayInput } from '@campusflow/domain';
-import { offlineSnapshotSchema, todayQuerySchema, todayResponseSchema, type OfflineSnapshot } from '@campusflow/contracts';
+import { manualAcademicSource, offlineSnapshotSchema, todayQuerySchema, todayResponseSchema, type OfflineSnapshot } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, toIso } from './common';
 import { PrismaService } from './prisma.service';
 
@@ -17,7 +17,8 @@ export function snapshotToDomainInput(snapshot: OfflineSnapshot, date: string, n
       completedOccurrenceKeys: snapshot.taskCompletions.filter(row => row.taskId === task.id).map(row => row.occurrenceKey),
     })),
     academicItems: snapshot.academicItems.map(item => ({ id: item.id, title: item.title, due: item.due ?? undefined,
-      submissionState: item.submissionState ?? undefined, mainGoalDate: item.mainGoalDate ?? undefined })),
+      submissionState: item.source === manualAcademicSource ? undefined : item.submissionState ?? undefined,
+      completed: item.source === manualAcademicSource && item.submissionState === 'submitted', mainGoalDate: item.mainGoalDate ?? undefined })),
     goals: snapshot.goals.map(goal => ({ id: goal.id, title: goal.title, schedule: goal.schedule, timeZone: goal.timeZone,
       pausedAt: goal.pausedAt ?? undefined, snoozedUntil: goal.snoozedUntil ?? undefined })),
     goalCompletions: snapshot.goalCompletions.map(row => ({ ...row, completedAt: row.completedAt ?? undefined })),

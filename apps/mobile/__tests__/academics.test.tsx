@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { RefreshControl } from 'react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
+import { Modal, RefreshControl } from 'react-native';
 import AcademicsScreen from '../app/academics';
 import { useAcademic, useAction, useCourses, usePlanningSnapshot } from '../src/features/queries';
 import { courses, essay, missing, now, quiz, submitted, undated } from './academic-fixture';
@@ -74,8 +74,8 @@ describe('Coursework workspace', () => {
     fireEvent.press(screen.getByText('Reset filters')); expect(screen.getByText('Testing report')).toBeOnTheScreen();
   });
   it('remounts filters and dismisses a private reminder on a new session', () => {
-    show([essay]); const ui = render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Reminder'));
-    fireEvent.changeText(screen.getByLabelText('Search coursework'), 'private search');
+    show([essay]); const ui = render(<AcademicsScreen/>);
+    fireEvent.changeText(screen.getByLabelText('Search coursework'), 'Testing'); fireEvent.press(screen.getByText('Reminder'));
     mockToken = 'new-login'; ui.rerender(<AcademicsScreen/>);
     expect(screen.getByLabelText('Search coursework')).toHaveDisplayValue('');
     expect(screen.queryByText('Reminder for Testing report')).toBeNull();
@@ -107,5 +107,42 @@ describe('Coursework workspace', () => {
   it('does not offer study planning for submitted work', () => {
     show([submitted]); render(<AcademicsScreen/>); fireEvent.press(screen.getByRole('radio', { name: 'Finished' }));
     expect(screen.queryByText('Plan study time')).toBeNull();
+  });
+  it('adds manual coursework without a Canvas connection and clears the editor after confirmation', async () => {
+    show([]); render(<AcademicsScreen/>);
+    fireEvent.changeText(screen.getByLabelText('Search coursework'), 'Old filter'); fireEvent.press(screen.getByRole('radio', { name: 'Finished' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'AUCSC 325' })); fireEvent.press(screen.getByText('Add coursework'));
+    fireEvent.changeText(screen.getByLabelText('Coursework title'), 'Syllabus essay');
+    await act(async () => fireEvent.press(within(screen.UNSAFE_getByType(Modal)).getByRole('button', { name: 'Add coursework' })));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ path: '/academic-items', method: 'POST' }));
+    expect(screen.getByText('Coursework added. You can plan study time from it below.')).toBeOnTheScreen(); expect(screen.queryByLabelText('Coursework title')).toBeNull();
+    expect(screen.getByLabelText('Search coursework')).toHaveDisplayValue('');
+    expect(screen.getByRole('radio', { name: 'To do', checked: true })).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: 'All courses', checked: true })).toBeOnTheScreen();
+  });
+  it('offers edits and personal completion only for manual records', async () => {
+    show([{ ...essay, source: 'manual' }]); render(<AcademicsScreen/>); expect(screen.getByText('ADDED BY YOU')).toBeOnTheScreen();
+    await act(async () => fireEvent.press(screen.getByText('Mark finished')));
+    expect(save).toHaveBeenCalledWith({ path: `/academic-items/${essay.id}`, method: 'PATCH', body: { submissionState: 'submitted' } });
+    fireEvent.press(screen.getByText('Edit')); expect(screen.getByLabelText('Coursework title')).toHaveDisplayValue(essay.title);
+  });
+  it('keeps a failed deletion open and allows a retry after confirmation', async () => {
+    show([{ ...essay, source: 'manual' }]); save.mockRejectedValueOnce(new Error('Offline delete')); render(<AcademicsScreen/>);
+    fireEvent.press(screen.getByText('Delete')); expect(save).not.toHaveBeenCalled();
+    await act(async () => fireEvent.press(screen.getByText('Delete coursework')));
+    expect(screen.getByRole('alert')).toHaveTextContent('Offline delete'); expect(screen.getByText('Keep coursework')).toBeOnTheScreen();
+    await act(async () => fireEvent.press(screen.getByText('Delete coursework')));
+    expect(save).toHaveBeenLastCalledWith({ path: `/academic-items/${essay.id}`, method: 'DELETE' });
+    expect(screen.queryByText('Delete coursework?')).toBeNull(); expect(screen.getByText('Coursework deleted.')).toBeOnTheScreen();
+  });
+  it('discards manual edits and deletion confirmation on a new login', () => {
+    show([{ ...essay, source: 'manual' }]); const ui = render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Edit'));
+    mockToken = 'new-login'; ui.rerender(<AcademicsScreen/>); expect(screen.queryByLabelText('Coursework title')).toBeNull();
+    fireEvent.press(screen.getByText('Delete')); mockToken = 'another-login'; ui.rerender(<AcademicsScreen/>);
+    expect(screen.queryByText('Delete coursework?')).toBeNull(); expect(save).not.toHaveBeenCalled();
+  });
+  it('keeps imported titles and submission state read-only', () => {
+    show([essay]); render(<AcademicsScreen/>);
+    for (const title of ['Edit', 'Delete', 'Mark finished']) expect(screen.queryByRole('button', { name: title })).toBeNull();
   });
 });

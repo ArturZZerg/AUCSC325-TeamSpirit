@@ -11,7 +11,16 @@ overdue. Null submission status is labeled unknown rather than fabricated.
 Date-only deadlines remain actionable through their whole account-local day.
 Shared domain rules handle instants, local dates and daylight-saving boundaries.
 Main Goal changes use the existing owned PATCH endpoint and wait for refreshed
-state; no coursework submission/completion checkbox is introduced.
+state. Imported coursework remains read-only and never offers a Canvas
+submission action.
+
+Student-owned coursework is now defined by [ADR 003](../adr/003-manual-coursework.md).
+Add coursework opens an account-local deadline editor with an optional imported
+course association. Records labeled Added by you can be edited, marked finished,
+reopened or deleted after confirmation. Finished means personal progress here;
+the Today and weekly read models map it to completion without claiming a Canvas
+submission. Imported rows retain their provider state and cannot use these
+write endpoints. See [manual coursework](../requirements/manual-coursework.md).
 
 Validated `/academic-items` and `/courses` reads reuse the account-scoped cache.
 Read failures retain saved information and expose retry. A validated snapshot

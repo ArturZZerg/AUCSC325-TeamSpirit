@@ -61,7 +61,7 @@ export function StudyPlanEditor({ item, course, timeZone, onClose, onSaved }: {
         <Field label="Start time (optional)" value={values.time} onChangeText={value => update('time', value)} placeholder="HH:MM" autoCorrect={false} editable={!saving}/>
         <Text style={styles.meta}>Times follow {timeZone}. Leave the time blank to keep the day flexible.</Text>
         {studyAfterDeadline(item, values.date, timeZone) && <Text style={styles.notice}>This day is after the coursework deadline. Choose an earlier day if you need to finish before it is due.</Text>}
-        <Text style={styles.meta}>Saved as your own task in Tasks and your plan. Completing it tracks your preparation; submit coursework in Canvas.</Text>
+        <Text style={styles.meta}>Saved as your own task in Tasks and your plan. Completing it tracks your preparation; submit coursework in your learning platform.</Text>
         {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         <Button title={saving ? 'Saving…' : 'Add to my plan'} disabled={saving} onPress={() => { void save(); }}/>
       </ScrollView>
