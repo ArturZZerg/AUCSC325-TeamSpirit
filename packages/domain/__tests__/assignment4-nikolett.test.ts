@@ -40,14 +40,12 @@ describe('Assignment 4 - Nikolett Artemieva', () => {
 
     describe('Combinatorial testing', () => {
       it.each([
-        ['instant + 60 + unsubmitted + active', due, 60, 'unsubmitted', true, '2026-10-10T11:00:00Z'],
-        ['instant + 0 + missing + active', due, 0, 'missing', true, '2026-10-10T12:00:00Z'],
-        ['instant + null + unsubmitted + active', due, null, 'unsubmitted', true, null],
-        ['date + 60 + unsubmitted + active', { kind: 'date' as const, date: '2026-10-10' }, 60, 'unsubmitted', true, null],
-        ['no due + 60 + unsubmitted + active', null, 60, 'unsubmitted', true, null],
-        ['instant + 60 + submitted + active', due, 60, 'submitted', true, null],
-        ['instant + 60 + graded + active', due, 60, 'graded', true, null],
-        ['instant + 60 + unsubmitted + inactive', due, 60, 'unsubmitted', false, null],
+        ['instant + 15 + missing state + inactive', due, 15, null, false, null],
+        ['instant + 90 + graded + inactive', due, 90, 'graded', false, null],
+        ['date-only + 0 + submitted + inactive', { kind: 'date' as const, date: '2026-10-10' }, 0, 'submitted', false, null],
+        ['missing due + null lead + graded + active', null, null, 'graded', true, null],
+        ['instant + 120 + missing state + active', due, 120, null, true, '2026-10-10T10:00:00Z'],
+        ['instant + 30 + unsubmitted + active', due, 30, 'unsubmitted', true, '2026-10-10T11:30:00Z'],
       ] as const)('%s', (_name, deadline, leadMinutes, state, active, expected) => {
         expect(academicReminderFireAt(deadline, leadMinutes, state, active)).toBe(expected);
       });
@@ -79,13 +77,12 @@ describe('Assignment 4 - Nikolett Artemieva', () => {
 
     describe('Combinatorial testing', () => {
       it.each([
-        ['Edmonton / Edmonton / current', 'America/Edmonton', 'America/Edmonton', '2026-10-04', '2026-10-04T18:00:00Z', '2026-10-04'],
-        ['Edmonton / Tokyo / current', 'America/Edmonton', 'Asia/Tokyo', '2026-10-04', '2026-10-04T18:00:00Z', '2026-10-05'],
-        ['Tokyo / Edmonton / current', 'Asia/Tokyo', 'America/Edmonton', '2026-10-05', '2026-10-04T18:00:00Z', '2026-10-04'],
-        ['Honolulu / Kiritimati / current', 'Pacific/Honolulu', 'Pacific/Kiritimati', '2026-10-04', '2026-10-04T12:00:00Z', '2026-10-05'],
-        ['Edmonton / Tokyo / historical', 'America/Edmonton', 'Asia/Tokyo', '2026-10-03', '2026-10-04T18:00:00Z', '2026-10-03'],
-        ['Tokyo / New York / spring DST', 'Asia/Tokyo', 'America/New_York', '2025-03-09', '2025-03-09T07:00:00Z', '2025-03-09'],
-        ['Tokyo / New York / fall DST', 'Asia/Tokyo', 'America/New_York', '2025-11-02', '2025-11-02T06:30:00Z', '2025-11-02'],
+        ['Edmonton / Tokyo / previous account day at account midnight', 'America/Edmonton', 'Asia/Tokyo', '2026-10-03', '2026-10-04T06:00:00Z', '2026-10-03'],
+        ['Edmonton / Tokyo / future account day', 'America/Edmonton', 'Asia/Tokyo', '2026-10-06', '2026-10-04T18:00:00Z', '2026-10-06'],
+        ['Tokyo / Edmonton / historical day', 'Asia/Tokyo', 'America/Edmonton', '2026-10-04', '2026-10-05T03:00:00Z', '2026-10-03'],
+        ['Honolulu / Kiritimati / historical day', 'Pacific/Honolulu', 'Pacific/Kiritimati', '2026-10-03', '2026-10-04T12:00:00Z', '2026-10-04'],
+        ['Tokyo / New York / spring DST', 'Asia/Tokyo', 'America/New_York', '2025-03-08', '2025-03-09T07:00:00Z', '2025-03-07'],
+        ['Tokyo / New York / fall DST', 'Asia/Tokyo', 'America/New_York', '2025-11-01', '2025-11-02T06:30:00Z', '2025-10-31'],
       ])('%s', (_name, accountZone, goalZone, accountDate, now, expected) => {
         expect(goalOccurrenceDate(goalZone, accountDate, accountZone, now)).toBe(expected);
       });
@@ -182,10 +179,10 @@ describe('Assignment 4 - Nikolett Artemieva', () => {
       });
 
       it.each([
-        [1, ['2026-10-05'], 1, true],
-        [3, ['2026-10-05', '2026-10-06'], 2, false],
-        [3, ['2026-10-05', '2026-10-06', '2026-10-07'], 3, true],
-        [7, ['2026-10-05', '2026-10-06', '2026-10-07'], 3, false],
+        [2, ['2026-10-05', '2026-10-06', '2026-10-07'], 3, true],
+        [4, ['2026-10-05', '2026-10-06', '2026-10-07'], 3, false],
+        [3, ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08'], 4, true],
+        [7, ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10'], 6, false],
       ] as const)('combines target=%i with history %j', (target, dates, completed, reached) => {
         expect(weeklyGoalProgress(goal(target), dates.map(date => completion(date)), '2026-10-11')).toMatchObject({
           completed, target, reached,
