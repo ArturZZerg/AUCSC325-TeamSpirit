@@ -60,7 +60,8 @@ describe('guided setup (ToR 4, 7, 15, 19)', () => {
     fireEvent.press(screen.getByText('Save task')); await screen.findByText('Network unavailable');
     expect(screen.getByLabelText('Title')).toHaveDisplayValue('Read chapter 4');
     expect(screen.getByText('0 of 3 foundations added', { includeHiddenElements: true })).toBeOnTheScreen();
-    fireEvent.press(screen.getByText('Save task')); await waitFor(() => expect(screen.queryByLabelText('Title')).toBeNull());
+    await act(async () => fireEvent.press(screen.getByText('Save task')));
+    await waitFor(() => expect(screen.queryByLabelText('Title')).toBeNull());
     expect(save).toHaveBeenLastCalledWith({ path: '/tasks', method: 'POST', body: {
       title: 'Read chapter 4', description: null, category: 'personal', priority: 'medium', due: null,
       scheduled: { kind: 'date', date: '2025-03-09' },
@@ -71,7 +72,8 @@ describe('guided setup (ToR 4, 7, 15, 19)', () => {
     render(<GetStartedScreen/>); fireEvent.press(screen.getByText('Add coursework'));
     expect(screen.getByLabelText('Coursework title')).toHaveDisplayValue(''); fireEvent.press(screen.getByText('Cancel'));
     fireEvent.press(screen.getByText('Create a routine')); fireEvent.changeText(screen.getByLabelText('Goal title'), 'Read a little');
-    fireEvent.press(screen.getByText('Save goal')); await waitFor(() => expect(screen.queryByLabelText('Goal title')).toBeNull());
+    await act(async () => fireEvent.press(screen.getByText('Save goal')));
+    await waitFor(() => expect(screen.queryByLabelText('Goal title')).toBeNull());
     expect(save).toHaveBeenCalledWith({ path: '/goals', method: 'POST', body: {
       title: 'Read a little', category: 'health', timeZone: 'America/Edmonton', schedule: { kind: 'daily' },
     } });
