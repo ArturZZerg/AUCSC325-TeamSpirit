@@ -9,12 +9,15 @@ import { useAction } from '@/features/queries';
 import { taskFormDefaults, taskFormRequest, taskFormSchema, taskTimingLabel, type TaskFormValues } from '@/features/task-form';
 import type { PersonalTask } from '@/lib/types';
 
-export function TaskEditor({ task, onClose, timeZone = 'UTC' }: { task: PersonalTask | null; onClose: () => void; timeZone?: string }) {
+export function TaskEditor({ task, onClose, timeZone = 'UTC', initialValues }: {
+  task: PersonalTask | null; onClose: () => void; timeZone?: string; initialValues?: Partial<TaskFormValues>;
+}) {
   const action = useAction();
   const saving = useRef(false);
   const [message, setMessage] = useState<string>();
   const { control, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<TaskFormValues>({
-    resolver: zodResolver(taskFormSchema(task, timeZone)), defaultValues: taskFormDefaults(task, timeZone),
+    resolver: zodResolver(taskFormSchema(task, timeZone)),
+    defaultValues: { ...taskFormDefaults(task, timeZone), ...(!task ? initialValues : undefined) },
   });
   const dueMode = watch('dueMode');
   const scheduledMode = watch('scheduledMode'); const recurrenceMode = watch('recurrenceMode');

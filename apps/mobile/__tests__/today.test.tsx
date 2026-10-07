@@ -44,6 +44,12 @@ beforeEach(() => {
 afterEach(() => { jest.restoreAllMocks(); });
 
 describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
+  it('offers guided setup on an empty day and keeps the guide accessible with existing plans', () => {
+    show([]); const ui = render(<TodayScreen/>);
+    fireEvent.press(screen.getByText('Build my daily plan')); expect(router.push).toHaveBeenCalledWith('/get-started');
+    show([task]); ui.rerender(<TodayScreen/>); expect(screen.queryByText('Build my daily plan')).toBeNull();
+    fireEvent.press(screen.getByText('Get started')); expect(router.push).toHaveBeenLastCalledWith('/get-started');
+  });
   it('opens the weekly planner from Today', () => {
     render(<TodayScreen/>);
     fireEvent.press(screen.getByRole('button', { name: 'Plan your week' }));
@@ -125,7 +131,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
       { ...task, key: 'event', kind: 'event', title: 'Campus event', allowedActions: ['open'] },
     ]);
     render(<TodayScreen/>);
-    expect(screen.queryAllByRole('button')).toHaveLength(3);
+    expect(screen.queryAllByRole('button')).toHaveLength(4);
     expect(screen.getByText('Submitted essay')).toBeOnTheScreen();
     expect(screen.getByText('Campus event')).toBeOnTheScreen();
     expect(mutate).not.toHaveBeenCalled();

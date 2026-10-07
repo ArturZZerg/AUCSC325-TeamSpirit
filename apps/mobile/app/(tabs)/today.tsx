@@ -56,10 +56,14 @@ export default function TodayScreen() {
   return <Screen><ScrollView contentContainerStyle={styles.content}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
     <Text style={styles.kicker}>{new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}</Text>
-    <Text style={styles.title}>Your daily flow</Text>
+    <View style={styles.heading}><Text style={styles.title}>Your daily flow</Text>
+      <Button title="Get started" tone="plain" onPress={() => router.push('/get-started')}/></View>
     <View style={styles.actions}><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/><Button title="Focus space" tone="plain" onPress={() => router.push('/focus')}/></View>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
-    <State loading={query.isLoading} error={query.error} empty={query.data && !query.data.items.length ? 'Nothing is planned yet. Add a task or choose a goal.' : undefined}/>
+    <State loading={query.isLoading} error={query.error}/>
+    {query.data && !query.data.items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>
+      <Text style={styles.meta}>Add a task, keep a deadline in sight, or choose one small routine.</Text>
+      <Button title="Build my daily plan" onPress={() => router.push('/get-started')}/></Card>}
     {query.data?.items.map(item => <PlanCard key={item.key} item={item} timeZone={query.timeZone} isCurrentDay={isCurrentDay} disabled={!!pending || action.isPending}
       pendingAction={pending?.key === item.key ? pending.action : undefined}
       error={failure?.key === item.key ? failure.message : undefined}
@@ -107,7 +111,8 @@ function PlanTiming({ item, timeZone }: { item: PlanItem; timeZone: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12 }, kicker: { color: colors.muted, fontWeight: '700' },
+  content: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' }, kicker: { color: colors.muted, fontWeight: '700' },
+  heading: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   title: { fontSize: 29, color: colors.ink, fontWeight: '800', marginBottom: 6 },
   section: { fontSize: 18, color: colors.ink, fontWeight: '800', marginTop: 10 },
   details: { gap: 4 }, actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
