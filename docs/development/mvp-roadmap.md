@@ -10,6 +10,7 @@ palette and Today-centered product model.
 2. **Academic workspace:** course filters, search, deadline groups, submission
    states, Main Goal selection and configurable deadline reminders. Use the
    existing authenticated academic/course/reminder APIs; no schema change needed.
+   Implemented in the [Coursework slice](mobile-academics.md).
 3. **Study focus:** a timer linked to planned work, with pause/resume and useful
    session history. Design session ownership/persistence before implementing.
 4. **First-use onboarding:** help a student create their first task, choose a
