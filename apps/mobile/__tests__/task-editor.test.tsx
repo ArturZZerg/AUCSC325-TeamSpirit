@@ -123,7 +123,10 @@ describe('task forms and actions (ToR 7)', () => {
     fireEvent.press(screen.getByText('Delete task'));
     await screen.findByText('Delete failed');
     expect(screen.getByText('Delete task?')).toBeOnTheScreen();
-    fireEvent.press(screen.getByText('Delete task'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete task' })).toBeEnabled());
+    expect(save).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Delete task' })); });
+    expect(save).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(screen.queryByText('Delete task?')).toBeNull());
     expect(save).toHaveBeenLastCalledWith({ path: `/tasks/${task.id}`, method: 'DELETE' });
   });

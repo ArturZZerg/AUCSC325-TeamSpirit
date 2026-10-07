@@ -123,6 +123,26 @@ export function useToday(selectedDate?: string) {
 }
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
 export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items', schemas.academic);
+/** One consistent account snapshot supplies the planner's entire visible week. */
+export function usePlanningSnapshot(date: string) {
+  const session = useSessionStore(state => state.session);
+  const timeZone = session?.user.timeZone ?? 'UTC';
+  const schema = useMemo(() => offlineSnapshotSchema.refine(value =>
+    value.accountId === session?.user.id && value.timeZone === timeZone,
+  'Snapshot does not belong to this account calendar'), [session?.user.id, timeZone]);
+  const query = cachedQuery(`snapshot:${date}:${timeZone}`, `/snapshot?date=${date}`, schema, 'snapshot');
+  const data = query.savedData && (!query.data || Date.parse(query.savedData.capturedAt) > Date.parse(query.data.capturedAt))
+    ? query.savedData : query.data;
+  const zones = data?.goals.map(goal => goal.timeZone) ?? [];
+  const { resumeCount } = useTodayClock(timeZone, undefined, zones);
+  const lastResume = useRef(resumeCount);
+  useEffect(() => {
+    if (lastResume.current === resumeCount) return;
+    lastResume.current = resumeCount;
+    if (session) void query.refetch({ cancelRefetch: false });
+  }, [resumeCount, query.refetch, session]);
+  return { ...query, data, timeZone, accountId: session?.user.id };
+}
 export const useGoals = () => cachedQuery<Goal[]>('goals', '/goals', schemas.goals);
 export function useGoalHistory(goalId: string) {
   const schema = useMemo(() => schemas.goalHistory.refine(rows => rows.every(row => row.goalId === goalId), 'History belongs to another goal'), [goalId]);

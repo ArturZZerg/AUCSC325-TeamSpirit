@@ -1,11 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { RefreshControl } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import TodayScreen from '../app/(tabs)/today';
 import { useAction, useToday } from '../src/features/queries';
 import type { PlanItem, Today } from '../src/lib/types';
 
-jest.mock('expo-router', () => ({ useLocalSearchParams: jest.fn() }));
+jest.mock('expo-router', () => ({ useLocalSearchParams: jest.fn(), router: { push: jest.fn() } }));
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useToday: jest.fn() }));
 
 const date = '2026-10-03';
@@ -44,6 +44,11 @@ beforeEach(() => {
 afterEach(() => { jest.restoreAllMocks(); });
 
 describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
+  it('opens the weekly planner from Today', () => {
+    render(<TodayScreen/>);
+    fireEvent.press(screen.getByRole('button', { name: 'Plan your week' }));
+    expect(router.push).toHaveBeenCalledWith('/planner');
+  });
   it('uses the query account date for the header when no date is selected', () => {
     jest.mocked(useLocalSearchParams).mockReturnValue({});
     show([], { date: '2026-10-02' });
@@ -111,7 +116,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
       { ...task, key: 'event', kind: 'event', title: 'Campus event', allowedActions: ['open'] },
     ]);
     render(<TodayScreen/>);
-    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.queryAllByRole('button')).toHaveLength(1);
     expect(screen.getByText('Submitted essay')).toBeOnTheScreen();
     expect(screen.getByText('Campus event')).toBeOnTheScreen();
     expect(mutate).not.toHaveBeenCalled();
