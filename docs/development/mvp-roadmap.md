@@ -11,10 +11,15 @@ palette and Today-centered product model.
    states, Main Goal selection and configurable deadline reminders. Use the
    existing authenticated academic/course/reminder APIs; no schema change needed.
    Implemented in the [Coursework slice](mobile-academics.md).
-3. **Study focus:** a timer linked to planned work, with pause/resume and useful
-   session history. Design session ownership/persistence before implementing.
+3. **Study focus:** a task-linked timer with pause/resume and breaks is implemented
+   in the [Focus workspace](../requirements/focus-workspace.md). Durable history
+   remains a future slice requiring session ownership/persistence design.
 4. **First-use onboarding:** help a student create their first task, choose a
    routine and understand optional academic connections with clear empty states.
+   Implemented in the [guided setup](../requirements/student-onboarding.md), with
+   progress derived from saved account data and direct creation through editors.
+5. **Routine library:** editable study, everyday-life and wellbeing starters that
+   become ordinary account-owned Goals after explicit review and save.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native
