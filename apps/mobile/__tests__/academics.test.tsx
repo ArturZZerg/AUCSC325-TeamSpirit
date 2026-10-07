@@ -90,4 +90,22 @@ describe('Coursework workspace', () => {
     show([essay]); render(<AcademicsScreen/>); expect(screen.getByText('OTHER COURSEWORK')).toBeOnTheScreen();
     expect(screen.getByText(/Course names couldn’t refresh/)).toBeOnTheScreen();
   });
+  it('saves a study task for selected coursework and shows success only after the write', async () => {
+    show([essay]); render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Plan study time'));
+    expect(screen.getByLabelText('Study task')).toHaveDisplayValue('Work on: Testing report');
+    await act(async () => fireEvent.press(screen.getByText('Add to my plan')));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ path: '/tasks', method: 'POST' }));
+    expect(screen.getByText('Study task added to your plan.')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('View my tasks')); expect(mockPush).toHaveBeenCalledWith('/tasks');
+    expect(screen.queryByLabelText('Study task')).toBeNull();
+  });
+  it('discards the private study draft on account/session change', () => {
+    show([essay]); const ui = render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Plan study time'));
+    fireEvent.changeText(screen.getByLabelText('Study task'), 'Private draft'); mockToken = 'new-login'; ui.rerender(<AcademicsScreen/>);
+    expect(screen.queryByLabelText('Study task')).toBeNull(); expect(save).not.toHaveBeenCalled();
+  });
+  it('does not offer study planning for submitted work', () => {
+    show([submitted]); render(<AcademicsScreen/>); fireEvent.press(screen.getByRole('radio', { name: 'Finished' }));
+    expect(screen.queryByText('Plan study time')).toBeNull();
+  });
 });

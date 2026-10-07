@@ -6,6 +6,7 @@ import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
 import { useAcademic, useAction, useCourses, usePlanningSnapshot } from '@/features/queries';
 import { academicAttention, academicFinished, academicOverview, type AcademicView } from '@/features/academic-overview';
 import { AcademicReminderEditor } from '@/features/academic-reminder-editor';
+import { StudyPlanEditor } from '@/features/study-plan-editor';
 import { useTodayClock } from '@/features/today-clock';
 import { taskTimingLabel } from '@/features/task-form';
 import { useSessionStore } from '@/store/session';
@@ -25,6 +26,8 @@ function AcademicsContent() {
   const [courseId, setCourseId] = useState<string>();
   const [view, setView] = useState<AcademicView>('open');
   const [reminding, setReminding] = useState<AcademicItem>();
+  const [planning, setPlanning] = useState<AcademicItem>();
+  const [studySaved, setStudySaved] = useState(false);
   const [pending, setPending] = useState<string>();
   const [failure, setFailure] = useState<{ id: string; message: string }>();
   const busy = useRef(false);
@@ -54,7 +57,8 @@ function AcademicsContent() {
     refreshControl={<RefreshControl refreshing={academic.isRefetching || courses.isRefetching || snapshot.isRefetching} onRefresh={refresh}/> }>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>COURSEWORK</Text></View>
     <Text style={styles.title}>Stay ahead of deadlines.</Text>
-    <Text style={styles.meta}>Find your next assignment, choose today’s priority and set a reminder.</Text>
+    <Text style={styles.meta}>Find your next assignment and make time to work on it.</Text>
+    {studySaved && <Card><Text accessibilityRole="alert" style={styles.item}>Study task added to your plan.</Text><Text style={styles.meta}>You can edit it, set a reminder or check it off in Tasks.</Text><Button title="View my tasks" tone="plain" onPress={() => router.push('/tasks')}/></Card>}
     {fixtureData && <Text style={styles.notice}>Demo coursework is shown. Live Canvas access still needs an approved connection.</Text>}
     {snapshot.data?.sourceStatus.availability === 'notConnected' && !fixtureData && <Card><Text style={styles.item}>Bring your courses together.</Text><Text style={styles.meta}>Canvas coursework appears after a successful connection and sync.</Text><Button title="Canvas settings" tone="plain" onPress={() => router.push('/settings')}/></Card>}
     {snapshot.data && ['stale', 'unavailable'].includes(snapshot.data.sourceStatus.availability) && <Text style={styles.notice}>Coursework may be out of date. Last successful sync: {snapshot.data.sourceStatus.lastSuccessfulSyncAt ? new Date(snapshot.data.sourceStatus.lastSuccessfulSyncAt).toLocaleString(undefined, { timeZone }) : 'not yet available'}.</Text>}
@@ -84,6 +88,8 @@ function AcademicsContent() {
         <Text style={[styles.meta, academicAttention(item, timeZone, now) && styles.attention]}>{item.submissionState === 'missing' ? 'Marked missing' : item.submissionState ?? 'Status not provided'} · {taskTimingLabel(item.due, timeZone)}</Text>
         {byCourse.get(item.courseId ?? '')?.active === false && <Text style={styles.meta}>Inactive course · reminder delivery paused</Text>}
         <View style={styles.chips}>
+          {!academicFinished(item) && <Button title="Plan study time" disabled={disabled}
+            onPress={() => { setStudySaved(false); setPlanning(item); }}/>}
           {(!academicFinished(item) || item.mainGoalDate === today) && <Button title={pending === item.id ? 'Saving…' : item.mainGoalDate === today ? 'Remove Main Goal' : 'Make Main Goal today'}
             disabled={disabled} tone="plain" onPress={() => { void mainGoal(item); }}/>}
           <Button title="Reminder" disabled={disabled} tone="plain" onPress={() => setReminding(item)}/>
@@ -91,7 +97,9 @@ function AcademicsContent() {
         {failure?.id === item.id && <Text accessibilityRole="alert" style={styles.attention}>{failure.message}</Text>}
       </Card>)}
     </View>)}
-  </ScrollView>{reminding && <AcademicReminderEditor key={reminding.id} item={reminding} onClose={() => setReminding(undefined)}/>}</Screen>;
+  </ScrollView>{reminding && <AcademicReminderEditor key={reminding.id} item={reminding} onClose={() => setReminding(undefined)}/>}
+    {planning && <StudyPlanEditor key={planning.id} item={planning} course={byCourse.get(planning.courseId ?? '')?.code ?? byCourse.get(planning.courseId ?? '')?.name}
+      timeZone={timeZone} onClose={() => setPlanning(undefined)} onSaved={() => { setPlanning(undefined); setStudySaved(true); }}/>}</Screen>;
 }
 function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress(): void }) {
   return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} onPress={onPress} style={[styles.choice, selected && styles.selected]}><Text style={[styles.choiceText, selected && styles.selectedText]}>{label}</Text></Pressable>;
