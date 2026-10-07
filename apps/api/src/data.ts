@@ -1,4 +1,6 @@
 import { eventRange, selectEvents } from './integrations/events/event-query';
+import { randomUUID } from 'node:crypto';
+import { createManualAcademicItemSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
 import { campusEventSchema } from '@campusflow/contracts';
 import { BadRequestException, Body, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -196,6 +198,48 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
 
 @Controller() @UseGuards(AuthGuard) export class AcademicController {
  constructor(private readonly prisma:PrismaService, private readonly reminders: ReminderService){}
+ @Post('academic-items') async create(@CurrentUser() u: RequestUser,
+   @Body(new ZodPipe(createManualAcademicItemSchema)) b: z.infer<typeof createManualAcademicItemSchema>) {
+   return this.prisma.$transaction(async tx => {
+     await this.reminders.lockAcademicReminders(u.id, tx);
+     await this.ownedCourse(u.id, b.courseId, tx);
+     const item = await tx.academicItem.create({ data: { userId: u.id, source: manualAcademicSource,
+       externalId: randomUUID(), title: b.title, kind: b.kind, courseId: b.courseId ?? null,
+       due: b.due ? asJson(b.due) : Prisma.JsonNull, submissionState: 'unsubmitted' } });
+     return academicItemSchema.parse({ ...item, updatedAt: toIso(item.updatedAt) });
+   }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+ }
+ @Patch('academic-items/:id') async update(@CurrentUser() u: RequestUser,
+   @Param('id', new ZodPipe(parseUuid)) id: string,
+   @Body(new ZodPipe(updateManualAcademicItemSchema)) b: z.infer<typeof updateManualAcademicItemSchema>) {
+   return this.prisma.$transaction(async tx => {
+     await this.ownedManual(u.id, id, tx);
+     await this.ownedCourse(u.id, b.courseId, tx);
+     const item = await tx.academicItem.update({ where: { id }, data: { ...b,
+       due: b.due === undefined ? undefined : b.due === null ? Prisma.JsonNull : asJson(b.due),
+       ...(b.submissionState === 'submitted' ? { mainGoalDate: null } : {}) } });
+     await this.reminders.reconcileAcademicItem(u.id, id, tx);
+     return academicItemSchema.parse({ ...item, updatedAt: toIso(item.updatedAt) });
+   }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+ }
+ @Delete('academic-items/:id') async remove(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {
+   return this.prisma.$transaction(async tx => {
+     await this.ownedManual(u.id, id, tx);
+     await tx.reminder.deleteMany({ where: { userId: u.id, targetKind: 'academicItem', targetId: id } });
+     await tx.academicItem.delete({ where: { id } });
+     return { deleted: true };
+   }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+ }
+ private async ownedManual(userId: string, id: string, tx: Prisma.TransactionClient) {
+   await this.reminders.lockAcademicReminders(userId, tx);
+   await this.reminders.lockAcademicItem(userId, id, tx);
+   const item = await tx.academicItem.findFirst({ where: { id, userId, source: manualAcademicSource } });
+   if (!item) throw new NotFoundException('Manual coursework not found');
+   return item;
+ }
+ private async ownedCourse(userId: string, courseId: string | null | undefined, tx: Prisma.TransactionClient) {
+   if (courseId && !await tx.course.findFirst({ where: { id: courseId, userId } })) throw new NotFoundException('Course not found');
+ }
  @Get('academic-items/:id/reminder') async reminder(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {
    const item = await this.prisma.academicItem.findFirst({ where: { id, userId: u.id } });
    if (!item) throw new NotFoundException('Academic item not found');

@@ -7,7 +7,7 @@ export type TaskState = 'upcoming' | 'today' | 'completed' | 'overdue' | 'skippe
 export type Recurrence = { frequency: 'daily'; interval?: number } | { frequency: 'weekly'; weekdays: number[]; interval?: number };
 export type GoalSchedule = { kind: 'daily' } | { kind: 'weekly'; weekdays: number[] } | { kind: 'weeklyTarget'; target: number };
 export interface PersonalTask { id: string; title: string; priority: Priority; due?: TimedOrDate; scheduled?: TimedOrDate; recurrence?: Recurrence; completedAt?: string; completedOccurrenceKeys?: DateOnly[]; snoozedUntil?: string; mainGoalDate?: DateOnly; }
-export interface AcademicItem { id: string; title: string; due?: TimedOrDate; submissionState?: 'unsubmitted' | 'submitted' | 'graded' | 'missing'; mainGoalDate?: DateOnly; }
+export interface AcademicItem { id: string; title: string; due?: TimedOrDate; submissionState?: 'unsubmitted' | 'submitted' | 'graded' | 'missing'; completed?: boolean; mainGoalDate?: DateOnly; }
 export interface Goal { id: string; title: string; priority?: Priority; schedule: GoalSchedule; timeZone: string; pausedAt?: string; snoozedUntil?: string; }
 export interface GoalCompletion { goalId: string; occurrenceKey: DateOnly; state: 'completed' | 'skipped'; completedAt?: string; }
 export type EventTiming = { kind: 'timed'; startsAt: string; endsAt?: string } | { kind: 'allDay'; startDate: DateOnly; endDateExclusive: DateOnly };
@@ -163,9 +163,9 @@ export const composeToday = (input: TodayInput): TodayPlan => {
       isMainGoal: task.mainGoalDate === input.date, priority: task.priority }, today);
   }
   for (const academic of input.academicItems) {
-    const terminal = academic.submissionState === 'submitted' || academic.submissionState === 'graded';
+    const terminal = academic.completed || academic.submissionState === 'submitted' || academic.submissionState === 'graded';
     const today = inDay(academic.due, input.date, input.timeZone) || (!terminal && wasOverdueBeforeDay(academic.due, input.date, input.timeZone)) || academic.mainGoalDate === input.date;
-    add({ key: `academic:${academic.id}`, kind: 'academic', entityId: academic.id, title: academic.title, due: academic.due, state: temporalState({ ...academic, now: input.now, date: input.date, timeZone: input.timeZone }), isMainGoal: academic.mainGoalDate === input.date }, today);
+    add({ key: `academic:${academic.id}`, kind: 'academic', entityId: academic.id, title: academic.title, due: academic.due, state: academic.completed ? 'completed' : temporalState({ ...academic, now: input.now, date: input.date, timeZone: input.timeZone }), isMainGoal: academic.mainGoalDate === input.date }, today);
   }
   for (const goal of input.goals) {
     const goalDate = goalOccurrenceDate(goal.timeZone, input.date, input.timeZone, input.now);

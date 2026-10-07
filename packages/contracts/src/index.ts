@@ -43,6 +43,14 @@ export const setMainGoalSchema = z.object({ date: dateSchema.nullable() });
 
 export const courseSchema = z.object({ id: idSchema, externalId: z.string().min(1), name: z.string().min(1), code: z.string().nullable(), active: z.boolean() });
 export const academicItemSchema = z.object({ id: idSchema, courseId: idSchema.nullable(), title: z.string().min(1), kind: z.enum(['assignment', 'quiz', 'discussion', 'planner']), due: dueSchema.nullable(), submissionState: z.enum(['unsubmitted', 'submitted', 'graded', 'missing']).nullable(), source: z.string().min(1), externalId: z.string().min(1), mainGoalDate: dateSchema.nullable(), updatedAt: instantSchema });
+export const manualAcademicSource = 'manual' as const;
+export const createManualAcademicItemSchema = z.object({
+  title: z.string().trim().min(1).max(240), kind: academicItemSchema.shape.kind,
+  courseId: idSchema.nullable().optional(), due: dueSchema.nullable().optional(),
+}).strict();
+export const updateManualAcademicItemSchema = createManualAcademicItemSchema.partial().extend({
+  submissionState: z.enum(['unsubmitted', 'submitted']).optional(),
+}).strict().refine(value => Object.values(value).some(field => field !== undefined), 'Provide at least one change');
 
 export const goalScheduleSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('daily') }), z.object({ kind: z.literal('weekly'), weekdays: z.array(z.number().int().min(1).max(7)).min(1) }), z.object({ kind: z.literal('weeklyTarget'), target: z.number().int().positive().max(7) })]);
 export const goalSchema = z.object({ id: idSchema, title: z.string().min(1).max(240), category: categorySchema, schedule: goalScheduleSchema, timeZone: timeZoneSchema, reminder: scheduleSchema.nullable(), pausedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), createdAt: instantSchema, updatedAt: instantSchema });

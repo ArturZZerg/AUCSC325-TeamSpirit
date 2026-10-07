@@ -4,6 +4,14 @@ import { accountId, goalId, snapshotFixture, taskId } from './snapshot-fixture';
 const zone = 'America/Edmonton';
 const now = '2025-03-09T18:00:00Z';
 describe('snapshot plan composition (ToR 4, 10, 19)', () => {
+  it('shows manual completion without claiming a Canvas submission or allowing a generic Today write', () => {
+    const snapshot = snapshotFixture();
+    const id = '50000000-0000-4000-8000-000000000001';
+    snapshot.academicItems = [{ id, courseId: null, title: 'My essay', kind: 'assignment', source: 'manual', externalId: id,
+      due: { kind: 'date', date: '2025-03-09' }, submissionState: 'submitted', mainGoalDate: null, updatedAt: now }];
+    const plan = composeOfflineToday(snapshot, accountId, zone, '2025-03-09', now)!;
+    expect(plan.items.find(item => item.entityId === id)).toMatchObject({ state: 'completed', allowedActions: ['open'] });
+  });
   it('shifts recurrence wall times across DST and preserves occurrence completion/actions', () => {
     const plan = composeOfflineToday(snapshotFixture(), accountId, zone, '2025-03-09', now)!;
     expect(plan.items.find(item => item.entityId === taskId)).toMatchObject({

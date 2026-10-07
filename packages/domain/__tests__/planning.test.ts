@@ -19,6 +19,16 @@ describe('timezone-aware planning', () => {
   it('does not mark submitted academic work overdue', () => {
     expect(temporalState({ due: { kind: 'date', date: '2026-03-07' }, submissionState: 'submitted', now: base.now, date: base.date, timeZone: base.timeZone })).toBe('submitted');
   });
+  it('keeps student completion distinct from provider submission and excludes finished overdue work', () => {
+    const plan = composeToday({ ...base, personalTasks: [], academicItems: [
+      { id: 'manual', title: 'My essay', due: { kind: 'date', date: base.date }, completed: true },
+      { id: 'imported', title: 'Imported essay', due: { kind: 'date', date: base.date }, submissionState: 'submitted' },
+      { id: 'old', title: 'Finished old work', due: { kind: 'date', date: '2026-03-01' }, completed: true },
+    ] });
+    expect(plan.items.find(item => item.entityId === 'manual')?.state).toBe('completed');
+    expect(plan.items.find(item => item.entityId === 'imported')?.state).toBe('submitted');
+    expect(plan.items.some(item => item.entityId === 'old')).toBe(false);
+  });
 
   it('keeps a source deadline when a task is snoozed', () => {
     const plan = composeToday({ ...base, personalTasks: [{ id: 't', title: 'Pay bill', priority: 'high', due: { kind: 'date', date: '2026-03-07' }, snoozedUntil: '2026-03-09T18:00:00Z' }] });

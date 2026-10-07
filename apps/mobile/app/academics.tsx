@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { manualAcademicSource } from '@campusflow/contracts';
 import { useRouter } from 'expo-router';
 import { localDateAt } from '@campusflow/domain';
 import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
@@ -7,6 +9,7 @@ import { useAcademic, useAction, useCourses, usePlanningSnapshot } from '@/featu
 import { academicAttention, academicFinished, academicOverview, type AcademicView } from '@/features/academic-overview';
 import { AcademicReminderEditor } from '@/features/academic-reminder-editor';
 import { StudyPlanEditor } from '@/features/study-plan-editor';
+import { AcademicItemEditor } from '@/features/academic-item-editor';
 import { useTodayClock } from '@/features/today-clock';
 import { taskTimingLabel } from '@/features/task-form';
 import { useSessionStore } from '@/store/session';
@@ -28,6 +31,9 @@ function AcademicsContent() {
   const [reminding, setReminding] = useState<AcademicItem>();
   const [planning, setPlanning] = useState<AcademicItem>();
   const [studySaved, setStudySaved] = useState(false);
+  const [editing, setEditing] = useState<AcademicItem | null>();
+  const [deleting, setDeleting] = useState<AcademicItem>();
+  const [savedMessage, setSavedMessage] = useState<string>();
   const [pending, setPending] = useState<string>();
   const [failure, setFailure] = useState<{ id: string; message: string }>();
   const busy = useRef(false);
@@ -41,27 +47,32 @@ function AcademicsContent() {
   const overview = academicOverview(academic.data ?? [], { search, courseId, view }, timeZone, now);
   const byCourse = new Map(courses.data?.map(course => [course.id, course]) ?? []);
   const disabled = !!pending || action.isPending;
-  const mainGoal = async (item: AcademicItem) => {
-    if (busy.current || disabled) return;
+  const modalOpen = editing !== undefined || !!deleting || !!planning || !!reminding;
+  const writeItem = async (item: AcademicItem, request: { path: string; method: string; body?: unknown }) => {
+    if (busy.current || disabled) return false;
     busy.current = true; setPending(item.id); setFailure(undefined);
     try {
-      const date = localDateAt(new Date().toISOString(), timeZone);
-      await action.mutateAsync({ path: `/academic-items/${item.id}/main-goal`, method: 'PATCH',
-        body: { date: item.mainGoalDate === date ? null : date } });
-    } catch (error) { setFailure({ id: item.id, message: error instanceof Error ? error.message : 'Could not update your Main Goal. Try again.' }); }
+      await action.mutateAsync(request); return true;
+    } catch (error) { setFailure({ id: item.id, message: error instanceof Error ? error.message : 'Could not update your coursework. Try again.' }); return false; }
     finally { busy.current = false; setPending(undefined); }
+  };
+  const mainGoal = (item: AcademicItem) => {
+    const date = localDateAt(new Date().toISOString(), timeZone);
+    return writeItem(item, { path: `/academic-items/${item.id}/main-goal`, method: 'PATCH', body: { date: item.mainGoalDate === date ? null : date } });
   };
   const refresh = () => { void Promise.all([academic.refetch(), courses.refetch(), snapshot.refetch()]); };
   const fixtureData = academic.data?.some(item => item.source.includes('fixture'));
-  return <Screen><ScrollView contentContainerStyle={styles.content}
+  return <Screen><ScrollView contentContainerStyle={styles.content} aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={academic.isRefetching || courses.isRefetching || snapshot.isRefetching} onRefresh={refresh}/> }>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>COURSEWORK</Text></View>
     <Text style={styles.title}>Stay ahead of deadlines.</Text>
     <Text style={styles.meta}>Find your next assignment and make time to work on it.</Text>
+    <Button title="Add coursework" disabled={disabled} onPress={() => { setSavedMessage(undefined); setEditing(null); }}/>
+    {savedMessage && <Text accessibilityRole="alert" style={styles.notice}>{savedMessage}</Text>}
     {studySaved && <Card><Text accessibilityRole="alert" style={styles.item}>Study task added to your plan.</Text><Text style={styles.meta}>You can edit it, set a reminder or check it off in Tasks.</Text><Button title="View my tasks" tone="plain" onPress={() => router.push('/tasks')}/></Card>}
     {fixtureData && <Text style={styles.notice}>Demo coursework is shown. Live Canvas access still needs an approved connection.</Text>}
-    {snapshot.data?.sourceStatus.availability === 'notConnected' && !fixtureData && <Card><Text style={styles.item}>Bring your courses together.</Text><Text style={styles.meta}>Canvas coursework appears after a successful connection and sync.</Text><Button title="Canvas settings" tone="plain" onPress={() => router.push('/settings')}/></Card>}
-    {snapshot.data && ['stale', 'unavailable'].includes(snapshot.data.sourceStatus.availability) && <Text style={styles.notice}>Coursework may be out of date. Last successful sync: {snapshot.data.sourceStatus.lastSuccessfulSyncAt ? new Date(snapshot.data.sourceStatus.lastSuccessfulSyncAt).toLocaleString(undefined, { timeZone }) : 'not yet available'}.</Text>}
+    {snapshot.data?.sourceStatus.availability === 'notConnected' && !fixtureData && <Card><Text style={styles.item}>Bring your courses together.</Text><Text style={styles.meta}>Add your own coursework now. Canvas imports appear after a successful connection and sync.</Text><Button title="Canvas settings" tone="plain" onPress={() => router.push('/settings')}/></Card>}
+    {snapshot.data && ['stale', 'unavailable'].includes(snapshot.data.sourceStatus.availability) && <Text style={styles.notice}>Canvas coursework may be out of date. Last successful sync: {snapshot.data.sourceStatus.lastSuccessfulSyncAt ? new Date(snapshot.data.sourceStatus.lastSuccessfulSyncAt).toLocaleString(undefined, { timeZone }) : 'not yet available'}.</Text>}
     <State loading={academic.isLoading} error={academic.error}/>
     {courses.error && <Text style={styles.meta}>Course names couldn’t refresh. Saved coursework is still shown when available.</Text>}
     {academic.data && <View style={styles.metrics}><Metric value={overview.attention} label="need attention"/><Metric value={overview.dueSoon} label="due soon"/><Metric value={overview.finished} label="finished"/></View>}
@@ -74,7 +85,7 @@ function AcademicsContent() {
       .map(option => <Choice key={option.value} label={option.label} selected={view === option.value} onPress={() => setView(option.value)}/>)}</View>
     {academic.data && <Text style={styles.meta}>{overview.visibleCount} {overview.visibleCount === 1 ? 'item' : 'items'} shown</Text>}
     {academic.data && !overview.visibleCount && <Card><Text style={styles.item}>{academic.data.length ? 'Nothing matches this view.' : 'Your coursework will appear here.'}</Text>
-      <Text style={styles.meta}>{academic.data.length ? 'Try another course, clear your search or look at finished work.' : 'Connect and sync Canvas in Settings. You can still plan personal study tasks today.'}</Text>
+      <Text style={styles.meta}>{academic.data.length ? 'Try another course, clear your search or look at finished work.' : 'Add your first deadline above, or connect and sync Canvas in Settings.'}</Text>
       <Button title={academic.data.length ? 'Reset filters' : 'Go to Tasks'} tone="plain" onPress={() => {
         if (academic.data?.length) { setSearch(''); setCourseId(undefined); setView('open'); } else router.push('/tasks');
       }}/></Card>}
@@ -83,9 +94,10 @@ function AcademicsContent() {
       <View style={styles.heading}><Text style={styles.section}>{group.title}</Text><Text style={styles.meta}>{group.items.length}</Text></View>
       {group.items.map(item => <Card key={item.id}>
         <View style={styles.heading}><Text style={styles.kicker}>{byCourse.get(item.courseId ?? '')?.code ?? byCourse.get(item.courseId ?? '')?.name ?? 'OTHER COURSEWORK'}</Text><Text style={styles.meta}>{item.kind}</Text></View>
+        {item.source === manualAcademicSource && <Text style={styles.kicker}>ADDED BY YOU</Text>}
         {item.mainGoalDate === today && <Text style={styles.kicker}>★ MAIN GOAL TODAY</Text>}
         <Text style={[styles.item, academicFinished(item) && styles.finished]}>{item.title}</Text>
-        <Text style={[styles.meta, academicAttention(item, timeZone, now) && styles.attention]}>{item.submissionState === 'missing' ? 'Marked missing' : item.submissionState ?? 'Status not provided'} · {taskTimingLabel(item.due, timeZone)}</Text>
+        <Text style={[styles.meta, academicAttention(item, timeZone, now) && styles.attention]}>{item.source === manualAcademicSource ? academicFinished(item) ? 'Finished' : 'To do' : item.submissionState === 'missing' ? 'Marked missing' : item.submissionState ?? 'Status not provided'} · {taskTimingLabel(item.due, timeZone)}</Text>
         {byCourse.get(item.courseId ?? '')?.active === false && <Text style={styles.meta}>Inactive course · reminder delivery paused</Text>}
         <View style={styles.chips}>
           {!academicFinished(item) && <Button title="Plan study time" disabled={disabled}
@@ -94,15 +106,37 @@ function AcademicsContent() {
             disabled={disabled} tone="plain" onPress={() => { void mainGoal(item); }}/>}
           <Button title="Reminder" disabled={disabled} tone="plain" onPress={() => setReminding(item)}/>
         </View>
-        {failure?.id === item.id && <Text accessibilityRole="alert" style={styles.attention}>{failure.message}</Text>}
+        {item.source === manualAcademicSource && <>
+          <View style={styles.chips}>
+            <Button title={academicFinished(item) ? 'Reopen coursework' : 'Mark finished'} disabled={disabled} tone="plain" onPress={() => {
+              void writeItem(item, { path: `/academic-items/${item.id}`, method: 'PATCH', body: { submissionState: academicFinished(item) ? 'unsubmitted' : 'submitted' } });
+            }}/>
+            <Button title="Edit" disabled={disabled} tone="plain" onPress={() => { setSavedMessage(undefined); setEditing(item); }}/>
+            <Button title="Delete" disabled={disabled} tone="plain" onPress={() => { setFailure(undefined); setDeleting(item); }}/>
+          </View>
+          <Text style={styles.meta}>Finished tracks your progress here. Submit work in your learning platform.</Text>
+        </>}
+        {failure?.id === item.id && !deleting && <Text accessibilityRole="alert" style={styles.attention}>{failure.message}</Text>}
       </Card>)}
     </View>)}
   </ScrollView>{reminding && <AcademicReminderEditor key={reminding.id} item={reminding} onClose={() => setReminding(undefined)}/>}
     {planning && <StudyPlanEditor key={planning.id} item={planning} course={byCourse.get(planning.courseId ?? '')?.code ?? byCourse.get(planning.courseId ?? '')?.name}
-      timeZone={timeZone} onClose={() => setPlanning(undefined)} onSaved={() => { setPlanning(undefined); setStudySaved(true); }}/>}</Screen>;
+      timeZone={timeZone} onClose={() => setPlanning(undefined)} onSaved={() => { setPlanning(undefined); setStudySaved(true); }}/>}
+    {editing !== undefined && <AcademicItemEditor key={editing?.id ?? 'new'} item={editing} courses={courses.data ?? []} timeZone={timeZone} onClose={() => setEditing(undefined)} onSaved={() => {
+      if (!editing) { setSearch(''); setCourseId(undefined); setView('open'); }
+      setSavedMessage(editing ? 'Coursework updated.' : 'Coursework added. You can plan study time from it below.'); setEditing(undefined);
+    }}/>}
+    {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!busy.current) setDeleting(undefined); }}>
+      <SafeAreaView style={styles.confirm}><Card><Text style={styles.section}>Delete coursework?</Text><Text style={styles.meta}>Delete “{deleting.title}” and its reminder? Preparation tasks you already planned stay in Tasks.</Text>
+        {failure?.id === deleting.id && <Text accessibilityRole="alert" style={styles.attention}>{failure.message}</Text>}
+        <Button title={disabled ? 'Deleting…' : 'Delete coursework'} tone="danger" disabled={disabled} onPress={() => {
+          void writeItem(deleting, { path: `/academic-items/${deleting.id}`, method: 'DELETE' }).then(saved => { if (saved) { setDeleting(undefined); setSavedMessage('Coursework deleted.'); } });
+        }}/><Button title="Keep coursework" tone="plain" disabled={disabled} onPress={() => setDeleting(undefined)}/>
+      </Card></SafeAreaView>
+    </Modal>}</Screen>;
 }
 function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress(): void }) {
-  return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} onPress={onPress} style={[styles.choice, selected && styles.selected]}><Text style={[styles.choiceText, selected && styles.selectedText]}>{label}</Text></Pressable>;
+  return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} aria-checked={selected} onPress={onPress} style={[styles.choice, selected && styles.selected]}><Text style={[styles.choiceText, selected && styles.selectedText]}>{label}</Text></Pressable>;
 }
 function Metric({ value, label }: { value: number; label: string }) {
   return <View style={styles.metric}><Text style={styles.metricValue}>{value}</Text><Text style={styles.meta}>{label}</Text></View>;
@@ -119,4 +153,5 @@ const styles = StyleSheet.create({
   selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: '#fff' },
   section: { color: colors.ink, fontSize: 19, fontWeight: '800' }, group: { gap: 12 },
   item: { color: colors.ink, fontSize: 17, fontWeight: '700' }, finished: { color: colors.muted, textDecorationLine: 'line-through' }, attention: { color: colors.coral },
+  confirm: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,.25)' },
 });
