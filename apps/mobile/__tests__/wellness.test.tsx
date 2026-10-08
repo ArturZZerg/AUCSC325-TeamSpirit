@@ -3,6 +3,8 @@ import Wellness from '../app/(tabs)/wellness';
 import { useAction, useGoals, useGoalHistory, useWellness } from '../src/features/queries';
 import { useTodayClock } from '../src/features/today-clock';
 import { snapshotFixture } from './snapshot-fixture';
+import { router } from 'expo-router';
+jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useGoals: jest.fn(), useGoalHistory: jest.fn(), useWellness: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: jest.fn() }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { timeZone: 'America/Edmonton' } } }) }));
@@ -17,6 +19,9 @@ beforeEach(() => {
   jest.mocked(useTodayClock).mockImplementation(zone => ({ date: zone === goal.timeZone ? '2025-03-08' : '2025-03-09', resumeCount: 0 }));
 });
 const press = async (name: string) => { await act(async () => { fireEvent.press(screen.getByRole('button', { name })); }); };
+it('opens the routine library from Wellness', async () => {
+  render(<Wellness/>); await press('Browse routine ideas'); expect(router.push).toHaveBeenCalledWith('/routines');
+});
 it('completes and skips using the goal day rather than the account day', async () => {
   render(<Wellness/>); await press('Complete today');
   expect(save).toHaveBeenCalledWith({ path: `/goals/${goal.id}/complete`, body: { occurrenceKey: '2025-03-08', state: 'completed' } });

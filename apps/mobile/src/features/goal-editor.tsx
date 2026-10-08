@@ -10,17 +10,20 @@ import { goalFormDefaults, goalFormRequest, goalFormSchema, type GoalFormValues 
 import type { Goal } from '@/lib/types';
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-export function GoalEditor({ goal, timeZone, onClose }: { goal: Goal | null; timeZone: string; onClose(): void }) {
+export function GoalEditor({ goal, timeZone, onClose, initialValues, onSaved }: {
+  goal: Goal | null; timeZone: string; onClose(): void;
+  initialValues?: Partial<GoalFormValues>; onSaved?(): void;
+}) {
   const action = useAction();
   const saving = useRef(false);
   const [message, setMessage] = useState<string>();
   const { control, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<GoalFormValues>({
-    resolver: zodResolver(goalFormSchema), defaultValues: goalFormDefaults(goal, timeZone),
+    resolver: zodResolver(goalFormSchema), defaultValues: { ...goalFormDefaults(goal, timeZone), ...(!goal ? initialValues : undefined) },
   });
   const close = () => { if (!isSubmitting && !saving.current) onClose(); };
   const save = async (values: GoalFormValues) => {
     setMessage(undefined);
-    try { await action.mutateAsync(goalFormRequest(values, goal)); onClose(); }
+    try { await action.mutateAsync(goalFormRequest(values, goal)); onSaved?.(); onClose(); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the goal. Please try again.'); }
   };
   const submit = async () => {

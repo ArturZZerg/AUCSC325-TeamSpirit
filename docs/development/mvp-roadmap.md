@@ -20,6 +20,10 @@ palette and Today-centered product model.
    progress derived from saved account data and direct creation through editors.
 5. **Routine library:** editable study, everyday-life and wellbeing starters that
    become ordinary account-owned Goals after explicit review and save.
+   Implemented in the [routine library](../requirements/routine-library.md), with
+   12 ideas, searchable areas and configurable cadence.
+6. **Weekly review:** show students meaningful completed work and routine progress
+   from existing account records, with honest date coverage and no new gamification.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native
