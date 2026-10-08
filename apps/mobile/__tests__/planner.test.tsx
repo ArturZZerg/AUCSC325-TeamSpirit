@@ -19,6 +19,10 @@ function show(overrides = {}) {
 beforeEach(() => { jest.clearAllMocks(); mockToken = 'first'; show(); });
 
 describe('Planner interactions', () => {
+  it('opens the weekly review', () => {
+    render(<PlannerScreen/>); fireEvent.press(screen.getByText('Review your week'));
+    expect(mockPush).toHaveBeenCalledWith('/review');
+  });
   it('opens the account-selected day through Today and supports day selection', () => {
     render(<PlannerScreen/>);
     expect(usePlanningSnapshot).toHaveBeenCalledWith('2025-03-03');
