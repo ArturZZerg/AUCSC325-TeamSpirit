@@ -30,6 +30,11 @@ it('preserves goal timezone and edits a weekly target', async () => {
   fireEvent.press(screen.getByText('Save goal')); await waitFor(() => expect(close).toHaveBeenCalled());
   expect(save).toHaveBeenCalledWith({ path: `/goals/${goal.id}`, method: 'PATCH', body: { title: goal.title, category: goal.category, timeZone: goal.timeZone, schedule: { kind: 'weeklyTarget', target: 4 } } });
 });
+it('ignores starter defaults when editing an existing goal', () => {
+  render(<GoalEditor goal={goal} timeZone="UTC" initialValues={{ title: 'Starter', timeZone: 'UTC', frequency: 'weeklyTarget', target: '7' }} onClose={jest.fn()}/>);
+  expect(screen.getByLabelText('Goal title')).toHaveDisplayValue(goal.title);
+  expect(screen.getByLabelText('Goal time zone')).toHaveDisplayValue(goal.timeZone);
+});
 it('keeps a failed draft and supports retry', async () => {
   save.mockRejectedValueOnce(new Error('Offline')); const close = jest.fn(); render(<GoalEditor goal={goal} timeZone="UTC" onClose={close}/>);
   fireEvent.changeText(screen.getByLabelText('Goal title'), 'My draft'); fireEvent.press(screen.getByText('Save goal')); await screen.findByText('Offline');

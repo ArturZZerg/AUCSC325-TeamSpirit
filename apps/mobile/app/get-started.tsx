@@ -57,7 +57,8 @@ function GetStartedContent({ timeZone }: { timeZone: string }) {
       action={progress.coursework === 'added' ? 'View my coursework' : 'Add coursework'} onPress={() => progress.coursework === 'added' ? router.push('/academics') : setEditing('coursework')}/>
     <Step number="03" icon="repeat-outline" title="Find a steady rhythm" status={progress.routine}
       description="Choose one small routine: a weekday study block, a walk, or a weekly activity. Set a pace you can keep."
-      action={progress.routine === 'added' ? 'View my routines' : 'Create a routine'} onPress={() => progress.routine === 'added' ? router.push('/wellness') : setEditing('routine')}/>
+      action={progress.routine === 'added' ? 'View my routines' : 'Create a routine'} onPress={() => progress.routine === 'added' ? router.push('/wellness') : setEditing('routine')}
+      secondaryAction={{ label: 'Browse routine ideas', onPress: () => router.push('/routines') }}/>
     <Text style={styles.section}>Try your daily flow</Text>
     <Text style={styles.copy}>Once you have something planned, pick a Main Goal, make time for the week, and focus on one thing at a time.</Text>
     <View style={styles.links}><Shortcut icon="calendar-outline" title="Plan my week" subtitle="See what’s ahead" onPress={() => router.push('/planner')}/>
@@ -72,13 +73,15 @@ function GetStartedContent({ timeZone }: { timeZone: string }) {
 }
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
-function Step({ number, icon, title, description, status, action, onPress }: {
+function Step({ number, icon, title, description, status, action, onPress, secondaryAction }: {
   number: string; icon: IconName; title: string; description: string; status: SetupStatus; action: string; onPress(): void;
+  secondaryAction?: { label: string; onPress(): void };
 }) {
   return <Card><View style={styles.heading}><View style={styles.stepIcon}><Ionicons name={icon} size={23} color={colors.moss}/></View>
     <Text style={styles.kicker}>{status === 'added' ? 'ADDED' : status === 'unknown' ? 'NOT LOADED' : `STEP ${number}`}</Text></View>
     <Text style={styles.section}>{title}</Text><Text style={styles.copy}>{description}</Text>
-    <Button title={action} tone={status === 'added' ? 'plain' : 'primary'} onPress={onPress}/></Card>;
+    <Button title={action} tone={status === 'added' ? 'plain' : 'primary'} onPress={onPress}/>
+    {secondaryAction && <Button title={secondaryAction.label} tone="plain" onPress={secondaryAction.onPress}/>}</Card>;
 }
 function Shortcut({ icon, title, subtitle, onPress }: { icon: IconName; title: string; subtitle: string; onPress(): void }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={styles.shortcut}>

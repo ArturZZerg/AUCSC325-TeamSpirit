@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { goalOccursOn, weeklyGoalProgress } from '@campusflow/domain';
 import { ZodError } from 'zod';
 import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
@@ -37,7 +38,9 @@ export default function WellnessScreen() {
   return <Screen><ScrollView contentContainerStyle={styles.content}>
     <Text style={styles.title}>Wellness</Text><Text style={styles.sub}>Small routines that support your week.</Text>
     {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
-    <View style={styles.top}><Text style={styles.section}>Your goals</Text><Button title="Add goal" disabled={disabled} onPress={() => setEditing(null)}/></View>
+    <View style={styles.top}><Text style={styles.section}>Your goals</Text><View style={styles.buttons}>
+      <Button title="Browse routine ideas" tone="plain" disabled={disabled} onPress={() => router.push('/routines')}/>
+      <Button title="Add goal" disabled={disabled} onPress={() => setEditing(null)}/></View></View>
     <State loading={goals.isLoading} error={goals.error} empty={goals.data?.length === 0 ? 'Create a daily or weekly goal to begin a gentle routine.' : undefined}/>
     {goals.data?.map(goal => <GoalCard key={goal.id} goal={goal} disabled={disabled} pending={pending === goal.id}
       onAction={request => { void run(goal.id, () => action.mutateAsync(request)); }}
@@ -111,4 +114,4 @@ function GoalHistory({ goal, onClose }: { goal: Goal; onClose(): void }) {
     </ScrollView>
   </SafeAreaView></Modal>;
 }
-const styles = StyleSheet.create({ content: { padding: 16, gap: 12 }, title: { fontSize: 29, fontWeight: '800', color: colors.ink }, sub: { color: colors.muted }, section: { fontSize: 18, fontWeight: '800', color: colors.ink }, item: { color: colors.ink, fontSize: 17, fontWeight: '700' }, meta: { color: colors.muted }, buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, error: { color: colors.coral }, safe: { flex: 1, backgroundColor: colors.canvas }, confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.35)' } });
+const styles = StyleSheet.create({ content: { padding: 16, gap: 12 }, title: { fontSize: 29, fontWeight: '800', color: colors.ink }, sub: { color: colors.muted }, section: { fontSize: 18, fontWeight: '800', color: colors.ink }, item: { color: colors.ink, fontSize: 17, fontWeight: '700' }, meta: { color: colors.muted }, buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, top: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, error: { color: colors.coral }, safe: { flex: 1, backgroundColor: colors.canvas }, confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.35)' } });

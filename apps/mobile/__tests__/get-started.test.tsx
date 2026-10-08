@@ -94,6 +94,7 @@ describe('guided setup (ToR 4, 7, 15, 19)', () => {
     render(<GetStartedScreen/>);
     fireEvent.press(screen.getByRole('button', { name: 'Plan my week' })); expect(mockPush).toHaveBeenCalledWith('/planner');
     fireEvent.press(screen.getByRole('button', { name: 'Try focus space' })); expect(mockPush).toHaveBeenCalledWith('/focus');
+    fireEvent.press(screen.getByRole('button', { name: 'Browse routine ideas' })); expect(mockPush).toHaveBeenCalledWith('/routines');
     fireEvent.press(screen.getByText('Open my daily plan')); expect(mockReplace).toHaveBeenCalledWith('/today');
   });
 });
