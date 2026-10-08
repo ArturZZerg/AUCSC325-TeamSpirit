@@ -34,6 +34,7 @@ function PlannerContent() {
       <Text style={styles.kicker}>PLAN AHEAD</Text></View>
     <Text style={styles.title}>Your week, in view.</Text>
     <Text style={styles.muted}>See busy days before they sneak up.</Text>
+    <Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/>
     <View style={styles.navigation}>
       <Pressable accessibilityRole="button" accessibilityLabel="Previous week" style={styles.arrow} onPress={() => setSelected(addCalendarDays(date, -7))}><Text style={styles.arrowText}>‹</Text></Pressable>
       <Button title="This week" tone="plain" onPress={() => setSelected(undefined)}/>

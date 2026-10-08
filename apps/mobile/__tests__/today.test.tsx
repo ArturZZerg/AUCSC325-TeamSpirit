@@ -55,6 +55,10 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Plan your week' }));
     expect(router.push).toHaveBeenCalledWith('/planner');
   });
+  it('opens the weekly review from Today', () => {
+    render(<TodayScreen/>); fireEvent.press(screen.getByText('Review your week'));
+    expect(router.push).toHaveBeenCalledWith('/review');
+  });
   it('opens the academic workspace from Today', () => {
     render(<TodayScreen/>);
     fireEvent.press(screen.getByRole('button', { name: 'Coursework' }));
@@ -131,7 +135,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
       { ...task, key: 'event', kind: 'event', title: 'Campus event', allowedActions: ['open'] },
     ]);
     render(<TodayScreen/>);
-    expect(screen.queryAllByRole('button')).toHaveLength(4);
+    expect(screen.queryAllByRole('button')).toHaveLength(5);
     expect(screen.getByText('Submitted essay')).toBeOnTheScreen();
     expect(screen.getByText('Campus event')).toBeOnTheScreen();
     expect(mutate).not.toHaveBeenCalled();
