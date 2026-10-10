@@ -27,6 +27,7 @@ afterEach(() => jest.useRealTimers());
 describe('Weekly review interactions', () => {
   it('shows recorded work and routes a covered day into Today', () => {
     render(<ReviewScreen/>); expect(usePlanningSnapshot).toHaveBeenCalledWith('2025-03-03');
+    fireEvent.press(screen.getByText('See my study time')); expect(mockPush).toHaveBeenCalledWith('/study-report');
     expect(screen.getByText('Daily reading')).toBeOnTheScreen(); expect(screen.getByText('Exercise')).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('button', { name: /^Sunday, March 9, 0 tasks finished, 1 routine check-in/ }));
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/today', params: { date: '2025-03-09' } });

@@ -57,6 +57,7 @@ function StudyPlansContent() {
     <Text style={styles.title}>Make steady progress.</Text><Text style={styles.meta}>Your preparation, one session at a time.</Text>
     {plans.data && <View style={styles.summary}><Metric value={active.length} label="active plans"/><Metric value={openCount} label="sessions left"/><Metric value={earlierCount} label="to revisit"/></View>}
     <Button title="Plan from coursework" tone="plain" disabled={disabled} onPress={() => router.push('/academics')}/>
+    <Button title="My study report" tone="plain" disabled={disabled} onPress={() => router.push('/study-report')}/>
     <State loading={plans.isLoading} error={plans.error}/>
     {plans.data && (plans.isCached || plans.error) && <Text style={styles.notice}>Showing saved plans. Refresh to check changes made elsewhere.</Text>}
     {!plans.data && !plans.isLoading && <Card><Text style={styles.section}>Study plans are unavailable.</Text><Text style={styles.meta}>Connect and refresh to load your plans. An unavailable read does not mean you have no plans.</Text><Button title="Retry study plans" onPress={refresh}/></Card>}

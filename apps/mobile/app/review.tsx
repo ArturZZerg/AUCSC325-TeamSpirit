@@ -28,6 +28,7 @@ function ReviewContent({ accountId, timeZone }: { accountId: string; timeZone: s
     <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>WEEKLY REVIEW</Text></View>
     <Text style={styles.title}>{'A little progress\nadds up.'}</Text>
     <Text style={styles.copy}>See the work you’ve recorded, then choose a small step for the week ahead.</Text>
+    <Button title="See my study time" tone="plain" onPress={() => router.push('/study-report')}/>
     <View style={styles.navigation}>
       <Button title="Previous week" tone="plain" onPress={() => setSelected(addCalendarDays(start, -7))}/>
       <Button title="This week" tone="plain" onPress={() => setSelected(undefined)}/>

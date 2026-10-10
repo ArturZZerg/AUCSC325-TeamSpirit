@@ -24,6 +24,7 @@ function HistoryContent({ timeZone }: { timeZone: string }) {
     <Button title="Back to focus" tone="plain" onPress={() => router.replace('/focus')}/>
     <Text style={styles.kicker}>YOUR STUDY TIME</Text><Text style={styles.title}>My focus history</Text>
     <Text style={styles.meta}>A record of the time you chose to save. Task completion stays separate.</Text>
+    <Button title="Weekly study report" tone="plain" onPress={() => router.push('/study-report')}/>
     <View style={styles.navigation}><Button title="Previous week" tone="plain" onPress={() => setOffset(value => value - 1)}/>
       <Button title="Next week" tone="plain" disabled={offset >= 0} onPress={() => setOffset(value => value + 1)}/></View>
     <Text style={styles.section}>{from} – {through}</Text>

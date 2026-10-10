@@ -4,7 +4,7 @@ import { useFocusHistory } from '../src/features/queries';
 jest.mock('../src/features/queries', () => ({ useFocusHistory: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: () => ({ date: '2026-10-10' }) }));
 jest.mock('../src/store/session', () => ({ useSessionStore: jest.requireActual('zustand').create(() => ({ session: { accessToken: 'test', user: { id: 'account', timeZone: 'UTC' } } })) }));
-const mockReplace = jest.fn(); jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }));
+const mockReplace = jest.fn(), mockPush = jest.fn(); jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace, push: mockPush }) }));
 const refetch = jest.fn();
 beforeEach(() => { jest.clearAllMocks(); jest.mocked(useFocusHistory).mockReturnValue({ data: undefined, refetch, isLoading: false } as unknown as ReturnType<typeof useFocusHistory>); });
 it('keeps unavailable history distinct from a successful empty week and offers retry', () => {
@@ -18,4 +18,5 @@ it('shows recorded seconds, outcome and cache freshness and navigates calendar w
   render(<FocusHistoryScreen/>); expect(screen.getByText('1m 5s')).toBeOnTheScreen(); expect(screen.getByText(/Ended early/)).toBeOnTheScreen();
   expect(screen.getByText(/Saved .*UTC/)).toBeOnTheScreen(); expect(screen.getByRole('button', { name: 'Next week' })).toBeDisabled();
   fireEvent.press(screen.getByText('Previous week')); expect(useFocusHistory).toHaveBeenLastCalledWith('2026-09-28', '2026-10-04');
+  fireEvent.press(screen.getByText('Weekly study report')); expect(mockPush).toHaveBeenCalledWith('/study-report');
 });

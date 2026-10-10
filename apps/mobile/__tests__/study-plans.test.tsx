@@ -28,6 +28,7 @@ it('shows progress, earlier sessions and a focus target without writing', () => 
   fireEvent.press(screen.getByText('Focus next session'));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/focus', params: { taskId: preparationFixture().tasks[0].id } }); expect(save).not.toHaveBeenCalled();
   fireEvent.press(screen.getByText('Plan from coursework')); expect(mockPush).toHaveBeenLastCalledWith('/academics');
+  fireEvent.press(screen.getByText('My study report')); expect(mockPush).toHaveBeenLastCalledWith('/study-report');
 });
 it('uses existing completion and editing/reminder flows for the exact session', async () => {
   render(<StudyPlansScreen/>); fireEvent.press(screen.getByText('Show sessions'));
