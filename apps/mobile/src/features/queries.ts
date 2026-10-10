@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { goalOccurrenceDate } from '@campusflow/domain';
 import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
+import { focusHistorySchema } from '@campusflow/contracts';
+import { dayBounds } from '@campusflow/domain';
 import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
 import { useSessionStore } from '@/store/session';
@@ -127,6 +129,17 @@ export function useToday(selectedDate?: string) {
     isLoading: query.isLoading && data === undefined, date, timeZone };
 }
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
+export function useFocusHistory(from: string, through: string) {
+  const session = useSessionStore(state => state.session);
+  const timeZone = session?.user.timeZone ?? 'UTC';
+  const schema = useMemo(() => focusHistorySchema.refine(value => {
+    const start = Date.parse(dayBounds(from, timeZone).start), end = Date.parse(dayBounds(through, timeZone).end);
+    return value.accountId === session?.user.id && value.timeZone === timeZone && value.from === from && value.through === through
+      && new Set(value.sessions.map(row => row.id)).size === value.sessions.length
+      && value.sessions.every(row => Date.parse(row.endedAt) >= start && Date.parse(row.endedAt) < end);
+  }, 'Focus history does not cover this account calendar.'), [session?.user.id, timeZone, from, through]);
+  return cachedQuery(`focus:${from}:${through}:${timeZone}`, `/focus-sessions?from=${from}&through=${through}`, schema);
+}
 export function useStudyPlans() {
   const query = cachedQuery('studyPlans', '/study-plans', schemas.studyPlans);
   const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');

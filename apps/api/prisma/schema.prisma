@@ -15,6 +15,7 @@ model User {
   sessions Session[]
   tasks PersonalTask[]
   studyPlans StudyPlan[]
+  focusSessions FocusSession[]
   taskCompletions TaskCompletion[]
   courses Course[]
   classSchedules ClassSchedule[]
@@ -59,6 +60,7 @@ model PersonalTask {
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   studyPlan StudyPlan? @relation(fields:[studyPlanId], references:[id], onDelete:SetNull)
   completions TaskCompletion[]
+  focusSessions FocusSession[]
   reminders Reminder[]
   @@index([userId, updatedAt])
   @@index([userId, mainGoalDate])
@@ -79,6 +81,24 @@ model StudyPlan {
   tasks PersonalTask[]
   @@unique([userId, requestKey])
   @@index([userId, createdAt])
+}
+model FocusSession {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  taskId String? @db.Uuid
+  title String
+  startedAt DateTime
+  endedAt DateTime
+  plannedMinutes Int
+  focusedSeconds Int
+  outcome String
+  requestKey String
+  requestHash String
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  task PersonalTask? @relation(fields:[taskId], references:[id], onDelete:SetNull)
+  @@unique([userId, requestKey])
+  @@index([userId, endedAt])
 }
 model TaskCompletion {
   id String @id @default(uuid()) @db.Uuid

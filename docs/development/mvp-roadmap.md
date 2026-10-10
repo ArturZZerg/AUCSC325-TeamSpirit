@@ -13,7 +13,7 @@ palette and Today-centered product model.
    Implemented in the [Coursework slice](mobile-academics.md).
 3. **Study focus:** a task-linked timer with pause/resume and breaks is implemented
    in the [Focus workspace](../requirements/focus-workspace.md). Durable history
-   remains a future slice requiring session ownership/persistence design.
+   is implemented with explicit saving and weekly history under ADR 006.
 4. **First-use onboarding:** help a student create their first task, choose a
    routine and understand optional academic connections with clear empty states.
    Implemented in the [guided setup](../requirements/student-onboarding.md), with
@@ -42,6 +42,10 @@ palette and Today-centered product model.
     completion, session editing/reminders and reversible archive/restore.
 11. **Account recovery:** let students safely recover access to their own data;
    choose and verify a production email delivery provider before enabling it.
+12. **Recorded study time:** save finished/early focus blocks, retain retry-safe
+    account history and read it offline. Implemented in the Focus history slice.
+13. **Study report:** connect recorded time with weekly patterns and task estimates
+    so students can choose their next preparation step without invented activity.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native

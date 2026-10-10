@@ -94,6 +94,7 @@ IDs are internal identifiers; provider IDs are opaque strings retained separatel
 | `AcademicItem` | Imported or student-owned assignment, quiz, discussion, or planner work; belongs to a user, optionally a Course. Holds deadline and source-dependent completion/submission state, as defined in [ADR 003](../adr/003-manual-coursework.md). |
 | `PersonalTask` | User-owned task with title, notes, optional schedule/deadline, priority/category, and completion state. No Course is required. Recurrence belongs to this feature when implemented. |
 | `StudyPlan` | Student-owned coursework preparation group of ordinary nonrecurring PersonalTasks, with optional live AcademicItem link and captured context. Creation is atomic and retry-safe; progress is derived. See [ADR 005](../adr/005-coursework-preparation-plans.md). |
+| `FocusSession` | Account-owned recorded timer time, separate from task completion and estimates, with an optional PersonalTask link and retry-safe explicit saving. See [ADR 006](../adr/006-recorded-focus-sessions.md). |
 | `Goal` | User-owned recurring activity with schedule or weekly target, timezone, pause and snooze rules. |
 | `GoalCompletion` | A goal occurrence's completion/skip history; unique per user, goal, and occurrence key so retries do not double-count. |
 | `Event` | Source-normalized event details and occurrence time. Public campus events have a source/feed scope; private Canvas calendar events retain user ownership. |
