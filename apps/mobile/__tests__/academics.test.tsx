@@ -24,6 +24,7 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 describe('Coursework workspace', () => {
+  it('opens saved study plans', () => { render(<AcademicsScreen/>); fireEvent.press(screen.getByText('My study plans')); expect(mockPush).toHaveBeenCalledWith('/study-plans'); });
   it('builds a preparation plan and confirms the saved sessions', async () => {
     show([quiz]); render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Build a study plan'));
     expect(screen.getByRole('radio', { name: 'Exam revision', checked: true })).toBeOnTheScreen();

@@ -70,6 +70,7 @@ function AcademicsContent() {
     <Text style={styles.title}>Stay ahead of deadlines.</Text>
     <Text style={styles.meta}>Find your next assignment and make time to work on it.</Text>
     <Button title="Add coursework" disabled={disabled} onPress={() => { setSavedMessage(undefined); setEditing(null); }}/>
+    <Button title="My study plans" tone="plain" disabled={disabled} onPress={() => router.push('/study-plans')}/>
     {savedMessage && <Text accessibilityRole="alert" style={styles.notice}>{savedMessage}</Text>}
     {studySaved && <Card><Text accessibilityRole="alert" style={styles.item}>Study task added to your plan.</Text><Text style={styles.meta}>You can edit it, set a reminder or check it off in Tasks.</Text><Button title="View my tasks" tone="plain" onPress={() => router.push('/tasks')}/></Card>}
     {fixtureData && <Text style={styles.notice}>Demo coursework is shown. Live Canvas access still needs an approved connection.</Text>}

@@ -52,6 +52,7 @@ export default function Tasks() {
       <View style={styles.top}><Text style={styles.title}>Tasks</Text><Button title="Add task" disabled={disabled} onPress={() => setEditing(null)}/></View>
       {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
       <Text style={styles.section}>My tasks</Text>
+      <Button title="My study plans" tone="plain" onPress={() => router.push('/study-plans')}/>
       <TaskFilterControls filters={filters} onChange={updateFilters} onReset={resetFilters}/>
       {visibleTasks && <Text style={styles.meta}>{visibleTasks.length} personal {visibleTasks.length === 1 ? 'task' : 'tasks'}</Text>}
       <State loading={tasks.isLoading} error={tasks.error}/>

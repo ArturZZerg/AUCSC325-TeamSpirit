@@ -4,6 +4,7 @@ import { academicItemSchema, academicReminderConfigurationSchema, campusEventSch
 import { z } from 'zod';
 import { goalOccurrenceDate } from '@campusflow/domain';
 import { classScheduleSchema } from '@campusflow/contracts';
+import { studyPlanSchema } from '@campusflow/contracts';
 import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
 import { useSessionStore } from '@/store/session';
@@ -18,6 +19,7 @@ const schemas = {
   events: campusEventSchema.array(),
   wellness: wellnessEntrySchema.array(), reminders: reminderSchema.array(),
   goalHistory: goalCompletionSchema.array(),
+  studyPlans: studyPlanSchema.array(),
 };
 
 function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>, cacheKey = key) {
@@ -125,6 +127,18 @@ export function useToday(selectedDate?: string) {
     isLoading: query.isLoading && data === undefined, date, timeZone };
 }
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
+export function useStudyPlans() {
+  const query = cachedQuery('studyPlans', '/study-plans', schemas.studyPlans);
+  const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');
+  const { resumeCount } = useTodayClock(timeZone);
+  const lastResume = useRef(resumeCount);
+  useEffect(() => {
+    if (lastResume.current === resumeCount) return;
+    lastResume.current = resumeCount;
+    void query.refetch({ cancelRefetch: false });
+  }, [resumeCount, query.refetch]);
+  return query;
+}
 export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items', schemas.academic);
 export const useCourses = () => cachedQuery('courses', '/courses', schemas.courses);
 export function useClasses() {

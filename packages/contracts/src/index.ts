@@ -56,8 +56,14 @@ export const createStudyPlanSchema = z.object({
 export const studyPlanSchema = z.object({
   id: idSchema, title: z.string().min(1).max(240), academicItemId: idSchema.nullable(),
   academicItem: academicItemSchema.nullable(), deadlineWhenPlanned: dueSchema.nullable(),
-  createdAt: instantSchema, tasks: personalTaskSchema.array(),
+  createdAt: instantSchema, archivedAt: instantSchema.nullable().optional(), tasks: personalTaskSchema.array(),
+}).superRefine((plan, context) => {
+  if ((plan.academicItem?.id ?? null) !== plan.academicItemId) context.addIssue({ code: 'custom', path: ['academicItem'], message: 'Coursework identity does not match this plan.' });
+  if (plan.tasks.some(task => task.studyPlanId !== plan.id || task.recurrence)) context.addIssue({ code: 'custom', path: ['tasks'], message: 'Sessions must belong to this plan and must not repeat.' });
+  if (new Set(plan.tasks.map(task => task.id)).size !== plan.tasks.length) context.addIssue({ code: 'custom', path: ['tasks'], message: 'Session identities must be unique.' });
 });
+export const updateStudyPlanSchema = z.object({ title: z.string().trim().min(1).max(240).optional(), archived: z.boolean().optional() })
+  .strict().refine(value => value.title !== undefined || value.archived !== undefined, 'Provide a name or archive change.');
 export type CreateStudyPlan = z.infer<typeof createStudyPlanSchema>;
 export type StudyPlan = z.infer<typeof studyPlanSchema>;
 export const createManualAcademicItemSchema = z.object({

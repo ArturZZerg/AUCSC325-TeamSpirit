@@ -65,6 +65,11 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Coursework' }));
     expect(router.push).toHaveBeenCalledWith('/academics');
   });
+  it('opens preparation progress from Today', () => {
+    render(<TodayScreen/>);
+    fireEvent.press(screen.getByRole('button', { name: 'My study plans' }));
+    expect(router.push).toHaveBeenCalledWith('/study-plans');
+  });
   it('opens free focus or preselects an open one-time task', () => {
     render(<TodayScreen/>); fireEvent.press(screen.getByText('Focus space')); expect(router.push).toHaveBeenCalledWith('/focus');
     fireEvent.press(screen.getByText('Focus on this')); expect(router.push).toHaveBeenCalledWith({ pathname: '/focus', params: { taskId: task.entityId } });
@@ -136,7 +141,9 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
       { ...task, key: 'event', kind: 'event', title: 'Campus event', allowedActions: ['open'] },
     ]);
     render(<TodayScreen/>);
-    expect(screen.queryAllByRole('button')).toHaveLength(5);
+    for (const name of ['Complete', 'Undo completion', 'Skip today', 'Snooze 1 hour']) {
+      expect(screen.queryByRole('button', { name })).toBeNull();
+    }
     expect(screen.getByText('Submitted essay')).toBeOnTheScreen();
     expect(screen.getByText('Campus event')).toBeOnTheScreen();
     expect(mutate).not.toHaveBeenCalled();
