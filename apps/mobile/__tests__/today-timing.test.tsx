@@ -3,6 +3,7 @@ import TodayScreen from '../app/(tabs)/today';
 import { useAction, useToday } from '../src/features/queries';
 import type { PlanItem, Today } from '../src/lib/types';
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({}) }));
+jest.mock('../src/features/day-agenda', () => ({ DayAgenda: () => null }));
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useToday: jest.fn() }));
 const item: PlanItem = { key: 'personalTask:1', kind: 'personalTask', entityId: '1', occurrenceKey: null, title: 'Read', schedule: null, due: null, state: 'today', isMainGoal: false, priority: 'medium', allowedActions: ['complete'] };
 const show = (items: PlanItem[], upcoming: PlanItem[] = [], timeZone = 'America/Edmonton', extra = {}) => {

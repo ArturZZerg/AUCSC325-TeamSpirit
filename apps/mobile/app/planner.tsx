@@ -8,6 +8,9 @@ import { useTodayClock } from '@/features/today-clock';
 import { buildPlannerWeek, calendarLabel, isFinished, weekStart } from '@/features/weekly-planner';
 import { taskTimingLabel } from '@/features/task-form';
 import { useSessionStore } from '@/store/session';
+import { DayAgenda } from '@/features/day-agenda';
+import { TaskEditor } from '@/features/task-editor';
+import type { TaskFormValues } from '@/features/task-form';
 
 export default function PlannerScreen() {
   const session = useSessionStore(state => state.session);
@@ -20,6 +23,7 @@ function PlannerContent() {
   const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');
   const { date: today } = useTodayClock(timeZone);
   const [selected, setSelected] = useState<string>();
+  const [studyDraft, setStudyDraft] = useState<Partial<TaskFormValues>>();
   const date = selected ?? today;
   const start = weekStart(date);
   const query = usePlanningSnapshot(start);
@@ -29,6 +33,7 @@ function PlannerContent() {
   const maxOpen = Math.max(1, ...week.days.map(value => value.open ?? 0));
 
   return <Screen><ScrollView contentContainerStyle={styles.content}
+    aria-hidden={!!studyDraft} accessibilityElementsHidden={!!studyDraft} importantForAccessibility={studyDraft ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
     <View style={styles.top}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/>
       <Text style={styles.kicker}>PLAN AHEAD</Text></View>
@@ -48,7 +53,7 @@ function PlannerContent() {
       {query.data.sourceStatus.availability === 'notConnected' ? 'Connect Canvas in Settings to include your coursework.' : 'Canvas information may be out of date. Your saved plans are still available.'}
     </Text>}
     {week.coveredDays > 0 && <View style={styles.summary}>
-      <Metric value={week.planned} label="planned items"/>
+      <Metric value={week.planned} label="daily list items"/>
       <Metric value={week.deadlines} label="open deadlines"/>
       <Metric value={week.finished} label="done / skipped"/>
     </View>}
@@ -67,18 +72,19 @@ function PlannerContent() {
     </View></ScrollView>
     <View style={styles.heading}><Text style={styles.section}>{calendarLabel(date, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
       <Text style={styles.muted}>{day.open === undefined ? 'Unavailable' : `${day.open} open`}</Text></View>
+    <DayAgenda date={date} timeZone={timeZone} onPlan={setStudyDraft}/>
     {day.plan ? <>
       <Button title="Open this day’s plan" onPress={() => router.push({ pathname: '/today', params: { date } })}/>
-      {!items.length && <Card><Text style={styles.item}>A little breathing room.</Text><Text style={styles.muted}>No saved commitments for this day. Add a personal task to plan something.</Text><Button title="Go to Tasks" tone="plain" onPress={() => router.push('/tasks')}/></Card>}
+      {!items.length && <Card><Text style={styles.item}>A little breathing room.</Text><Text style={styles.muted}>No saved tasks or deadlines for this day. Add a task or book study time above.</Text><Button title="Go to Tasks" tone="plain" onPress={() => router.push('/tasks')}/></Card>}
       {items.map(item => <Card key={item.key}>
-        <View style={styles.heading}><Text style={styles.kind}>{item.isMainGoal ? '★ MAIN GOAL' : { academic: 'COURSEWORK', personalTask: 'PERSONAL', goal: 'ROUTINE', event: 'EVENT' }[item.kind]}</Text>
+        <View style={styles.heading}><Text style={styles.kind}>{item.isMainGoal ? '★ MAIN GOAL' : { academic: 'COURSEWORK', personalTask: 'TASK', goal: 'ROUTINE', event: 'EVENT' }[item.kind]}</Text>
           <Text style={[styles.badge, item.state === 'overdue' && styles.overdue]}>{item.state}</Text></View>
         <Text style={[styles.item, isFinished(item) && styles.finished]}>{item.title}</Text>
         {item.due && <Text style={styles.muted}>Due: {taskTimingLabel(item.due, timeZone)}</Text>}
         {item.schedule && <Text style={styles.muted}>{item.kind === 'event' ? 'Starts' : 'Scheduled'}: {taskTimingLabel(item.schedule, timeZone)}</Text>}
       </Card>)}
     </> : !query.isLoading && <Card><Text style={styles.item}>This day hasn’t been loaded.</Text><Text style={styles.muted}>Connect and refresh to see your plan for this date.</Text><Button title="Retry" onPress={() => { void query.refetch(); }}/></Card>}
-  </ScrollView></Screen>;
+  </ScrollView>{studyDraft && <TaskEditor task={null} timeZone={timeZone} initialValues={studyDraft} onClose={() => setStudyDraft(undefined)}/>}</Screen>;
 }
 
 function Metric({ value, label }: { value: number; label: string }) {
