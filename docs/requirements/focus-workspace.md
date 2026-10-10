@@ -47,6 +47,8 @@ My focus history shows one Monday–Sunday window at a time, recorded seconds an
 finished/early outcomes. Reads validate account, timezone, exact window, unique
 record identities and half-open local end-date membership before caching. Offline
 history displays freshness; absent history is unavailable rather than empty.
+The [weekly study report](study-report.md) turns these records into daily totals
+and task comparisons, with links back to open preparation work.
 
 Evidence: real PostgreSQL `focus-db.spec.ts` (concurrent retries, ownership, input
 boundaries, DST, deleted task history), plus `focus-history-query.test.tsx`,
