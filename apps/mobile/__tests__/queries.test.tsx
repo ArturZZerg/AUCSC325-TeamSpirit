@@ -4,7 +4,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { api, ApiError } from '../src/lib/api';
 import { queryClient } from '../src/lib/query-client';
-import { useAction, useClasses, useEvents, useGoalHistory, useTasks } from '../src/features/queries';
+import { useAction, useClasses, useEvents, useGoalHistory, useStudyPlans, useTasks } from '../src/features/queries';
+import { preparationFixture } from './preparation-fixture';
 import { classFixture } from './class-fixture';
 import { eventFixture } from './event-fixture';
 import { snapshotFixture } from './snapshot-fixture';
@@ -45,6 +46,25 @@ beforeEach(() => {
 afterEach(() => { queryClient.clear(); });
 
 describe('account-scoped cached query lifecycle (ToR 10, 19)', () => {
+  it('reads validated saved study plans offline without leaking them across accounts', async () => {
+    const plans = [preparationFixture()];
+    jest.mocked(api).mockRejectedValue(new Error('Offline')); jest.mocked(readCache).mockImplementation(accountId => Promise.resolve(accountId === first.user.id ? plans : []));
+    const { result } = renderHook(() => useStudyPlans(), { wrapper: Wrapper }); await waitFor(() => expect(result.current.data).toEqual(plans));
+    await waitFor(() => expect(result.current.isFetching).toBe(false)); expect(api).toHaveBeenCalledWith('/study-plans', expect.anything());
+    await act(async () => { await useSessionStore.getState().setSession(second); }); expect(result.current.data).not.toEqual(plans);
+    await waitFor(() => expect(result.current.data).toEqual([])); expect(readCache).toHaveBeenCalledWith(second.user.id, 'studyPlans');
+  });
+  it('rejects mismatched study-plan membership while retaining a validated saved plan', async () => {
+    const plan = preparationFixture(); jest.mocked(readCache).mockResolvedValue([plan]);
+    jest.mocked(api).mockResolvedValue([{ ...plan, tasks: [{ ...plan.tasks[0], studyPlanId: null }] }]);
+    const { result } = renderHook(() => useStudyPlans(), { wrapper: Wrapper }); await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.data).toEqual([plan]); expect(writeCache).not.toHaveBeenCalled();
+  });
+  it('writes fresh study-plan data under the current account and reflects confirmation', async () => {
+    const plan = preparationFixture(); jest.mocked(api).mockResolvedValue([plan]);
+    const { result } = renderHook(() => useStudyPlans(), { wrapper: Wrapper }); await waitFor(() => expect(result.current.data).toEqual([plan]));
+    expect(writeCache).toHaveBeenCalledWith(first.user.id, 'studyPlans', [plan]); expect(result.current.isCached).toBe(false);
+  });
   it('retains validated saved reminder configuration offline and isolates it across accounts', async () => {
     const events = [{ ...eventFixture(), savedReminder: { kind: 'instant' as const, at: '2030-03-08T18:00:00Z' } }];
     jest.mocked(api).mockRejectedValue(new Error('Offline')); jest.mocked(readCache).mockImplementation(accountId => Promise.resolve(accountId === first.user.id ? events : []));

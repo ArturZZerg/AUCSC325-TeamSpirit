@@ -86,6 +86,21 @@ databaseSuite('Study plan persistence, atomicity and ownership', () => {
     await client().delete(`/tasks/${created.body.tasks[0].id}`).set('Authorization', token).expect(200);
     expect(await db.personalTask.count({ where: { studyPlanId: id } })).toBe(1);
   });
+  it('archives/restores an owned plan while retaining its tasks, reminders and retry identity', async () => {
+    const input = body(), created = await client().post('/study-plans').set('Authorization', token).send(input).expect(201);
+    const id = created.body.id, taskId = created.body.tasks[0].id;
+    await client().patch(`/tasks/${taskId}`).set('Authorization', token).send({ reminder: { kind: 'instant', at: '2030-03-09T17:00:00Z' } }).expect(200);
+    const reminder = await db.reminder.findFirstOrThrow({ where: { userId, targetId: taskId } });
+    await client().patch(`/study-plans/${id}`).set('Authorization', otherToken).send({ archived: true }).expect(404);
+    const archived = await client().patch(`/study-plans/${id}`).set('Authorization', token).send({ title: 'My midterm plan', archived: true }).expect(200);
+    expect(archived.body.archivedAt).toBeTruthy(); expect(archived.body.tasks).toHaveLength(2);
+    expect(await db.reminder.findUnique({ where: { id: reminder.id } })).not.toBeNull();
+    await client().post('/study-plans').set('Authorization', token).send(input).expect(409);
+    expect(await db.personalTask.count({ where: { studyPlanId: id } })).toBe(2);
+    await client().patch(`/study-plans/${id}`).set('Authorization', token).send({ archived: false }).expect(200);
+    const replay = await client().post('/study-plans').set('Authorization', token).send(input).expect(201);
+    expect(replay.body).toMatchObject({ id, title: 'My midterm plan', archivedAt: null });
+  });
   it('cascades plan data when the account is deleted', async () => {
     const created = await client().post('/study-plans').set('Authorization', token).send(body()).expect(201);
     await db.user.delete({ where: { id: userId } });

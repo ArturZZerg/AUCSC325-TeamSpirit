@@ -37,7 +37,9 @@ palette and Today-centered product model.
    distributed study sessions and atomically save a retry-safe plan. Implemented
    in [preparation plans](../requirements/preparation-plans.md) under ADR 005.
 10. **Preparation progress:** bring linked sessions, remaining estimates and
-    catch-up scheduling together with focus and task completion.
+    catch-up scheduling together with focus and task completion. Implemented in
+    [My study plans](../requirements/preparation-progress.md), with search,
+    completion, session editing/reminders and reversible archive/restore.
 11. **Account recovery:** let students safely recover access to their own data;
    choose and verify a production email delivery provider before enabling it.
 

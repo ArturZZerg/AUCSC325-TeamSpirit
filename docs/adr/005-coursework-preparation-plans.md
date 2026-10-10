@@ -27,10 +27,13 @@ Inferring a group from task titles or descriptions would lose identity after edi
   free time; existing task editors, completion, focus, Today and reminders apply.
 - Progress is derived from the current member tasks, never a persisted counter.
   Estimates describe planned work, not measured focus time or academic achievement.
+- Archive/restore changes metadata only and preserves member tasks and the creation
+  request key. A stale retry of an archived plan conflicts rather than recreating it.
 
 ## Consequences
 
-One additive migration introduces the grouping entity and nullable task membership.
+Additive migrations introduce the grouping entity, nullable task membership and
+archive metadata.
 Existing task/Today DTOs remain compatible with old caches. Session recurrence is
 blocked while attached to a plan so a finite preparation step has one completion.
 Plan creation is explicit and atomic; canceling the preview creates nothing.

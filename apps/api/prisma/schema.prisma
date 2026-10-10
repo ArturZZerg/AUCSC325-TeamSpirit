@@ -72,6 +72,7 @@ model StudyPlan {
   deadlineWhenPlanned Json?
   requestKey String
   requestHash String
+  archivedAt DateTime?
   createdAt DateTime @default(now())
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   academicItem AcademicItem? @relation(fields:[academicItemId], references:[id], onDelete:SetNull)
