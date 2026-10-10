@@ -131,6 +131,7 @@ Primary entities include:
 * AcademicItem
 * PersonalTask
 * StudyPlan (coursework preparation grouping; ADR 005)
+* FocusSession (recorded study time; ADR 006)
 * Goal
 * GoalCompletion
 * Event

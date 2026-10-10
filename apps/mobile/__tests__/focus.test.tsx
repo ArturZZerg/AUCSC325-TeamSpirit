@@ -7,10 +7,11 @@ import { useSessionStore } from '../src/store/session';
 import { useFocusStore } from '../src/store/focus';
 import { snapshotFixture } from './snapshot-fixture';
 import type { PersonalTask, Session } from '../src/lib/types';
+import { ApiError } from '../src/lib/api';
 jest.mock('../src/store/session', () => ({ useSessionStore: jest.requireActual('zustand').create(() => ({ session: null })) }));
 jest.mock('../src/features/queries', () => ({ useTasks: jest.fn(), useAction: jest.fn() }));
-const mockReplace = jest.fn();
-jest.mock('expo-router', () => ({ useLocalSearchParams: jest.fn(), useRouter: () => ({ replace: mockReplace }) }));
+const mockReplace = jest.fn(), mockPush = jest.fn();
+jest.mock('expo-router', () => ({ useLocalSearchParams: jest.fn(), useRouter: () => ({ replace: mockReplace, push: mockPush }) }));
 const session: Session = { accessToken: 'first', expiresAt: '2099-01-01T00:00:00Z', user: {
   id: '10000000-0000-4000-8000-000000000001', email: 'first@example.test', displayName: 'First', timeZone: 'UTC', createdAt: '2026-10-07T00:00:00Z',
 } };
@@ -75,14 +76,42 @@ it.each(['unknown', 'recurring', 'completed'])('does not select %s tasks from ro
   render(<FocusScreen/>); expect(screen.getByRole('alert')).toHaveTextContent(/unavailable for a focus block/);
   expect(useFocusStore.getState().target).toBeNull();
 });
-it('confirms reset without changing the task and can take a short break', () => {
+it('confirms discard without changing the task and can take a short break after saving', async () => {
   render(<FocusScreen/>); start(); fireEvent.press(screen.getByText('End session')); fireEvent.press(screen.getByText('Keep going'));
   expect(screen.getByText('Focus in progress')).toBeOnTheScreen();
-  fireEvent.press(screen.getByText('End session')); fireEvent.press(screen.getByText('End and reset'));
+  fireEvent.press(screen.getByText('End session')); fireEvent.press(screen.getByText('Discard and reset'));
   expect(screen.getByText('Ready when you are')).toBeOnTheScreen(); expect(save).not.toHaveBeenCalled();
-  start(); finish(); fireEvent.press(screen.getByText('Take a 5 min break')); expect(screen.getByText('05:00')).toBeOnTheScreen();
+  save.mockImplementation(({ body }) => ({ ...body, id: task.id, createdAt: body.endedAt }));
+  start(); finish(); expect(screen.getByRole('button', { name: 'Take a 5 min break' })).toBeDisabled();
+  await act(async () => fireEvent.press(screen.getByText('Save focus block')));
+  fireEvent.press(screen.getByText('Take a 5 min break')); expect(screen.getByText('05:00')).toBeOnTheScreen();
   act(() => jest.advanceTimersByTime(5 * 60_000)); expect(screen.getByText('Break finished. Ready for another block?')).toBeOnTheScreen();
   fireEvent.press(screen.getByText('Another focus block')); expect(screen.getByText('25:00')).toBeOnTheScreen();
+});
+it('retains an early finish across remounts, retries the same payload and does not complete the task', async () => {
+  save.mockRejectedValueOnce(new Error('Offline write')).mockImplementation(({ body }) => ({ ...body, id: task.id, createdAt: body.endedAt }));
+  const ui = render(<FocusScreen/>); start(); act(() => jest.advanceTimersByTime(10_000));
+  fireEvent.press(screen.getByText('End session')); await act(async () => fireEvent.press(screen.getByText('Save time and end')));
+  expect(screen.getByRole('alert')).toHaveTextContent('Offline write'); const first = save.mock.calls[0][0];
+  ui.unmount(); render(<FocusScreen/>); expect(screen.getByRole('button', { name: 'Resume' })).toBeDisabled();
+  act(() => jest.advanceTimersByTime(20_000)); await act(async () => fireEvent.press(screen.getByText('Save focus block')));
+  expect(save).toHaveBeenLastCalledWith(first); expect(first).toMatchObject({ path: '/focus-sessions', body: { focusedSeconds: 10, outcome: 'interrupted' } });
+  expect(screen.getByText('Ready when you are')).toBeOnTheScreen(); expect(useFocusStore.getState().taskCompleted).toBe(false);
+});
+it('guards rapid time-save taps and rejects malformed acknowledgements', async () => {
+  let resolve!: (value: unknown) => void; save.mockReturnValueOnce(new Promise(done => { resolve = done; }));
+  render(<FocusScreen/>); start(); finish();
+  act(() => { const button = screen.getByText('Save focus block'); fireEvent.press(button); fireEvent.press(button); });
+  expect(save).toHaveBeenCalledTimes(1); expect(screen.getByRole('button', { name: 'Back to Today' })).toBeDisabled();
+  await act(async () => resolve({})); expect(useFocusStore.getState().recorded).toBe(false); expect(screen.getByRole('alert')).toBeOnTheScreen();
+});
+it('can explicitly detach a deleted task after a definite rejection while preserving counted time', async () => {
+  save.mockRejectedValueOnce(new ApiError(400, 'The linked task is unavailable. Your timer has been kept.'))
+    .mockImplementation(({ body }) => ({ ...body, id: task.id, createdAt: body.endedAt }));
+  render(<FocusScreen/>); start(); finish(); await act(async () => fireEvent.press(screen.getByText('Save focus block')));
+  const first = save.mock.calls[0][0]; await act(async () => fireEvent.press(screen.getByText('Save without linked task')));
+  expect(save.mock.calls[1][0].body).toMatchObject({ taskId: null, title: task.title, focusedSeconds: first.body.focusedSeconds });
+  expect(save.mock.calls[1][0].body.requestKey).not.toBe(first.body.requestKey); expect(screen.getByText('Focus time saved.')).toBeOnTheScreen();
 });
 it('discards private focus state on renewed login and does not carry over a pending success', async () => {
   let resolve!: () => void; save.mockReturnValueOnce(new Promise<void>(done => { resolve = done; }));
