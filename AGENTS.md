@@ -127,6 +127,7 @@ Primary entities include:
 
 * User
 * Course
+* ClassSchedule (student-owned timetable; ADR 004)
 * AcademicItem
 * PersonalTask
 * Goal

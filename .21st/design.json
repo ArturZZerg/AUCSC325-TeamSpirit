@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "project": {
+    "name": "campusflow",
+    "productType": "student productivity app",
+    "stack": [
+      "React Native",
+      "Expo Router",
+      "TypeScript"
+    ]
+  },
+  "sources": {
+    "tokens": [
+      "apps/mobile/src/components/ui.tsx"
+    ],
+    "components": [
+      "apps/mobile/src/components/ui.tsx"
+    ],
+    "assets": [],
+    "instructions": [
+      "AGENTS.md"
+    ]
+  },
+  "design": {
+    "colorMode": "light",
+    "colors": {
+      "moss": "#42745A",
+      "blue": "#3C6488",
+      "coral": "#C76750",
+      "plum": "#765580",
+      "line": "#DCE4DD",
+      "ink": "#20302A",
+      "canvas": "#F6F8F4",
+      "card": "#FFFFFF",
+      "muted": "#63746C",
+      "sage": "#DDECE2"
+    },
+    "typography": {},
+    "spacing": {},
+    "radius": {},
+    "shadows": {},
+    "motion": {},
+    "density": "comfortable"
+  },
+  "components": {
+    "installed": [
+      "Screen",
+      "Card",
+      "Button",
+      "Field",
+      "State",
+      "Ionicons"
+    ],
+    "preferredPrimitives": [
+      "React Native",
+      "existing CampusFlow UI"
+    ],
+    "patterns": []
+  },
+  "constraints": {
+    "must": [
+      "Preserve five-tab navigation",
+      "Show loading, unavailable, empty and stale states",
+      "Use account-scoped cached reads",
+      "Use existing moss and sage tokens",
+      "Minimum 46px interactive targets"
+    ],
+    "avoid": [
+      "Canvas JSON in mobile",
+      "Decorative gradients",
+      "New UI dependencies",
+      "Color as the only status signal"
+    ]
+  },
+  "decisions": [],
+  "evidence": [
+    {
+      "fact": "project.instructions",
+      "source": "AGENTS.md"
+    }
+  ],
+  "generatedAt": "2026-10-10T01:31:33.994Z"
+}

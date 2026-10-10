@@ -1,5 +1,7 @@
 import { Temporal } from '@js-temporal/polyfill';
 
+export * from './classes';
+
 export type DateOnly = string;
 export type TimedOrDate = { kind: 'instant'; at: string } | { kind: 'date'; date: DateOnly };
 export type Priority = 'low' | 'medium' | 'high';

@@ -120,3 +120,5 @@ export const eventQuerySchema = z.object({
 // Explicit relative intent; null clears configuration. Bounded by PostgreSQL Int.
 export const configureAcademicReminderSchema = z.object({ leadMinutes: z.number().int().min(0).max(2147483647).nullable() }).strict();
 export const academicReminderConfigurationSchema = configureAcademicReminderSchema.extend({ academicItemId: idSchema });
+
+export * from './classes';
