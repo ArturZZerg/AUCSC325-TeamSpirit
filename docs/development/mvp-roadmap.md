@@ -26,7 +26,12 @@ palette and Today-centered product model.
    from existing account records, with honest date coverage and no new gamification.
    Implemented in the [weekly review](../requirements/weekly-review.md), using
    recorded completion times and saved coursework status grouped by deadline.
-7. **Account recovery:** let students safely recover access to their own data;
+7. **Class timetable:** student-owned weekly class schedules with term dates,
+   rooms, instructors, overlap warnings and cached reading. Implemented in the
+   [class timetable](../requirements/class-timetable.md) under ADR 004.
+8. **Day capacity:** bring classes into Today/planner and suggest study windows
+   around saved timed commitments, without inventing unavailable data.
+9. **Account recovery:** let students safely recover access to their own data;
    choose and verify a production email delivery provider before enabling it.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,

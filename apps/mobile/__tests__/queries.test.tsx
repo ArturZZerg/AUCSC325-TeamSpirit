@@ -4,7 +4,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { api, ApiError } from '../src/lib/api';
 import { queryClient } from '../src/lib/query-client';
-import { useAction, useEvents, useGoalHistory, useTasks } from '../src/features/queries';
+import { useAction, useClasses, useEvents, useGoalHistory, useTasks } from '../src/features/queries';
+import { classFixture } from './class-fixture';
 import { eventFixture } from './event-fixture';
 import { snapshotFixture } from './snapshot-fixture';
 import { readCache, writeCache, clearAccountCache } from '../src/services/cache';
@@ -57,6 +58,22 @@ describe('account-scoped cached query lifecycle (ToR 10, 19)', () => {
     jest.mocked(api).mockRejectedValue(new Error('Offline')); jest.mocked(readCache).mockResolvedValue([legacy]);
     const { result } = renderHook(() => useEvents(), { wrapper: Wrapper }); await waitFor(() => expect(result.current.data).toEqual([legacy]));
     await waitFor(() => expect(result.current.isFetching).toBe(false)); expect(result.current.data?.[0].savedReminder).toBeUndefined();
+  });
+  it('reads the timetable offline and discards it immediately on account switch', async () => {
+    const rows = [classFixture()]; jest.mocked(api).mockRejectedValue(new Error('Offline'));
+    jest.mocked(readCache).mockImplementation(accountId => Promise.resolve(accountId === first.user.id ? rows : []));
+    const { result } = renderHook(() => useClasses(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual(rows));
+    await act(async () => { await useSessionStore.getState().setSession(second); });
+    expect(result.current.data).not.toEqual(rows);
+    await waitFor(() => expect(result.current.data).toEqual([]));
+    expect(readCache).toHaveBeenCalledWith(second.user.id, 'classes');
+  });
+  it('rejects invalid timetable patterns from both the server and SQLite', async () => {
+    const rows = [classFixture({ endTime: '08:00' })]; jest.mocked(api).mockResolvedValue(rows); jest.mocked(readCache).mockResolvedValue(rows);
+    const { result } = renderHook(() => useClasses(), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.data).toBeUndefined(); expect(writeCache).not.toHaveBeenCalled();
   });
   it('rejects malformed event reminder metadata from the server and SQLite', async () => {
     const invalid = [{ ...eventFixture(), savedReminder: { kind: 'instant', at: 'not-a-time' } }];

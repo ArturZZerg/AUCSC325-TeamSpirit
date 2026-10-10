@@ -3,6 +3,7 @@ import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack
 import { academicItemSchema, academicReminderConfigurationSchema, campusEventSchema, courseSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
 import { goalOccurrenceDate } from '@campusflow/domain';
+import { classScheduleSchema } from '@campusflow/contracts';
 import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
 import { useSessionStore } from '@/store/session';
@@ -12,6 +13,7 @@ import { composeOfflineToday } from '@/features/offline-today';
 
 const schemas = {
   courses: courseSchema.array(),
+  classes: classScheduleSchema.array(),
   tasks: personalTaskSchema.array(), academic: academicItemSchema.array(), goals: goalSchema.array(),
   events: campusEventSchema.array(),
   wellness: wellnessEntrySchema.array(), reminders: reminderSchema.array(),
@@ -125,6 +127,18 @@ export function useToday(selectedDate?: string) {
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
 export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items', schemas.academic);
 export const useCourses = () => cachedQuery('courses', '/courses', schemas.courses);
+export function useClasses() {
+  const query = cachedQuery('classes', '/classes', schemas.classes);
+  const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');
+  const { resumeCount } = useTodayClock(timeZone);
+  const lastResume = useRef(resumeCount);
+  useEffect(() => {
+    if (lastResume.current === resumeCount) return;
+    lastResume.current = resumeCount;
+    void query.refetch({ cancelRefetch: false });
+  }, [resumeCount, query.refetch]);
+  return query;
+}
 export function useAcademicReminder(itemId: string) {
   const schema = useMemo(() => academicReminderConfigurationSchema.refine(value =>
     value.academicItemId === itemId, 'Reminder belongs to another academic item'), [itemId]);

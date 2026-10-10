@@ -1,7 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import type { TextInputProps } from 'react-native';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-export const colors = { ink: '#20302A', muted: '#63746C', canvas: '#F6F8F4', card: '#FFFFFF', moss: '#42745A', sage: '#DDECE2', coral: '#C76750', line: '#DCE4DD' };
+export const colors = { ink: '#20302A', muted: '#63746C', canvas: '#F6F8F4', card: '#FFFFFF', moss: '#42745A', sage: '#DDECE2', coral: '#C76750', line: '#DCE4DD', blue: '#3C6488', plum: '#765580' };
 export function Screen({ children }: PropsWithChildren) { return <View style={styles.screen}>{children}</View>; }
 export function Card({ children }: PropsWithChildren) { return <View style={styles.card}>{children}</View>; }
 export function Button({ title, onPress, tone = 'primary', disabled }: { title: string; onPress: () => void; tone?: 'primary' | 'plain' | 'danger'; disabled?: boolean }) { return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={[styles.button, tone === 'plain' && styles.plain, tone === 'danger' && styles.danger, disabled && styles.disabled]}><Text style={[styles.buttonText, tone === 'plain' && styles.plainText]}>{title}</Text></Pressable>; }
