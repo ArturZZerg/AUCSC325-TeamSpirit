@@ -24,6 +24,20 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 describe('Coursework workspace', () => {
+  it('builds a preparation plan and confirms the saved sessions', async () => {
+    show([quiz]); render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Build a study plan'));
+    expect(screen.getByRole('radio', { name: 'Exam revision', checked: true })).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('Preview my sessions'));
+    await act(async () => fireEvent.press(screen.getByText('Save study plan')));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ path: '/study-plans' }));
+    expect(screen.getByText('Study plan saved. Your sessions are ready in Tasks and your daily plan.')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('Session 1 title')).toBeNull();
+  });
+  it('discards a private preparation preview on session change', () => {
+    show([quiz]); const ui = render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Build a study plan')); fireEvent.press(screen.getByText('Preview my sessions'));
+    fireEvent.changeText(screen.getByLabelText('Session 1 title'), 'Private prep'); mockToken = 'new-login'; ui.rerender(<AcademicsScreen/>);
+    expect(screen.queryByLabelText('Session 1 title')).toBeNull(); expect(save).not.toHaveBeenCalled();
+  });
   it('filters by course, search and submission view without rewriting imported data', () => {
     render(<AcademicsScreen/>);
     expect(screen.getByText('Demo coursework is shown. Live Canvas access still needs an approved connection.')).toBeOnTheScreen();

@@ -93,6 +93,7 @@ IDs are internal identifiers; provider IDs are opaque strings retained separatel
 | `ClassSchedule` | A student's weekly class meeting pattern with term bounds, local times, timezone and room; separate from imported Courses and completable tasks. See [ADR 004](../adr/004-class-timetable.md). |
 | `AcademicItem` | Imported or student-owned assignment, quiz, discussion, or planner work; belongs to a user, optionally a Course. Holds deadline and source-dependent completion/submission state, as defined in [ADR 003](../adr/003-manual-coursework.md). |
 | `PersonalTask` | User-owned task with title, notes, optional schedule/deadline, priority/category, and completion state. No Course is required. Recurrence belongs to this feature when implemented. |
+| `StudyPlan` | Student-owned coursework preparation group of ordinary nonrecurring PersonalTasks, with optional live AcademicItem link and captured context. Creation is atomic and retry-safe; progress is derived. See [ADR 005](../adr/005-coursework-preparation-plans.md). |
 | `Goal` | User-owned recurring activity with schedule or weekly target, timezone, pause and snooze rules. |
 | `GoalCompletion` | A goal occurrence's completion/skip history; unique per user, goal, and occurrence key so retries do not double-count. |
 | `Event` | Source-normalized event details and occurrence time. Public campus events have a source/feed scope; private Canvas calendar events retain user ownership. |

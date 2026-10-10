@@ -60,7 +60,8 @@ export function TaskEditor({ task, onClose, timeZone = 'UTC', initialValues }: {
           <Text style={styles.meta}>Scheduling chooses when to work; a deadline stays separate.</Text>
           {needsUndo && <Text style={styles.meta}>Cancel and undo completion before adding a repeat rule.</Text>}
           <Controller name="recurrenceMode" control={control} render={({ field }) => <Choices label="Repeat" value={field.value} onChange={field.onChange} disabled={isSubmitting || needsUndo}
-            options={[{ value: 'none', label: 'Does not repeat' }, { value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }]}/>}/>
+            options={task?.studyPlanId ? [{ value: 'none', label: 'Does not repeat' }] : [{ value: 'none', label: 'Does not repeat' }, { value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }]}/>}/>
+          {task?.studyPlanId && <Text style={styles.meta}>This is one session in a study plan. Create a separate task for recurring study.</Text>}
           {recurrenceMode !== 'none' && <><Controller name="interval" control={control} render={({ field }) => <Field label={`Repeat every (${recurrenceMode === 'weekly' ? 'weeks' : 'days'})`} value={field.value} onChangeText={field.onChange} keyboardType="number-pad" editable={!isSubmitting}/>}/>
             <Text style={styles.meta}>Repeats start from the scheduled date, or the deadline when no schedule is set.</Text></>}
           {recurrenceMode === 'weekly' && <Controller name="weekdays" control={control} render={({ field }) => <View style={styles.choices}>

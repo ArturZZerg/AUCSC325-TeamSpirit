@@ -1,5 +1,6 @@
 import { EventSyncService } from './integrations/events/event-sync.service';
 import { ClassesController } from './classes';
+import { StudyPlansController } from './study-plans';
 import { Module } from '@nestjs/common';
 import { AuthController, AuthService, MeController } from './auth';
 import { AcademicController, EventsController, GoalsController, PreferencesController, ReminderService, TasksController, WellnessController } from './data';
@@ -9,7 +10,7 @@ import { CanvasController, CanvasService } from './canvas';
 import { CanvasProvider, FixtureCanvasProvider } from './integrations/canvas/canvas-provider';
 
 @Module({
-  controllers: [AuthController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController, ClassesController],
+  controllers: [AuthController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController, ClassesController, StudyPlansController],
   providers: [EventSyncService, PrismaService, AuthService, ReminderService, TodayService, CanvasService,
     { provide: CanvasProvider, useClass: FixtureCanvasProvider }],
 })

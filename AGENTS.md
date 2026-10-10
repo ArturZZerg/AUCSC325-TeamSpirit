@@ -130,6 +130,7 @@ Primary entities include:
 * ClassSchedule (student-owned timetable; ADR 004)
 * AcademicItem
 * PersonalTask
+* StudyPlan (coursework preparation grouping; ADR 005)
 * Goal
 * GoalCompletion
 * Event

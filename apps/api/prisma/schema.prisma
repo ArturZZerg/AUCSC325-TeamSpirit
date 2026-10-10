@@ -14,6 +14,7 @@ model User {
   createdAt DateTime @default(now())
   sessions Session[]
   tasks PersonalTask[]
+  studyPlans StudyPlan[]
   taskCompletions TaskCompletion[]
   courses Course[]
   classSchedules ClassSchedule[]
@@ -39,6 +40,8 @@ model Session {
 model PersonalTask {
   id String @id @default(uuid()) @db.Uuid
   userId String @db.Uuid
+  studyPlanId String? @db.Uuid
+  studyPlanOrder Int?
   title String
   description String?
   priority String @default("medium")
@@ -54,10 +57,27 @@ model PersonalTask {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  studyPlan StudyPlan? @relation(fields:[studyPlanId], references:[id], onDelete:SetNull)
   completions TaskCompletion[]
   reminders Reminder[]
   @@index([userId, updatedAt])
   @@index([userId, mainGoalDate])
+  @@index([studyPlanId, studyPlanOrder])
+}
+model StudyPlan {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  academicItemId String? @db.Uuid
+  title String
+  deadlineWhenPlanned Json?
+  requestKey String
+  requestHash String
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  academicItem AcademicItem? @relation(fields:[academicItemId], references:[id], onDelete:SetNull)
+  tasks PersonalTask[]
+  @@unique([userId, requestKey])
+  @@index([userId, createdAt])
 }
 model TaskCompletion {
   id String @id @default(uuid()) @db.Uuid
@@ -116,6 +136,7 @@ model AcademicItem {
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   course Course? @relation(fields:[courseId], references:[id], onDelete:SetNull)
   reminders Reminder[]
+  studyPlans StudyPlan[]
   @@unique([userId, source, externalId])
   @@index([userId, updatedAt])
 }

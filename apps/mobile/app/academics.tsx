@@ -9,6 +9,7 @@ import { useAcademic, useAction, useCourses, usePlanningSnapshot } from '@/featu
 import { academicAttention, academicFinished, academicOverview, type AcademicView } from '@/features/academic-overview';
 import { AcademicReminderEditor } from '@/features/academic-reminder-editor';
 import { StudyPlanEditor } from '@/features/study-plan-editor';
+import { PreparationPlanEditor } from '@/features/preparation-plan-editor';
 import { AcademicItemEditor } from '@/features/academic-item-editor';
 import { useTodayClock } from '@/features/today-clock';
 import { taskTimingLabel } from '@/features/task-form';
@@ -30,6 +31,7 @@ function AcademicsContent() {
   const [view, setView] = useState<AcademicView>('open');
   const [reminding, setReminding] = useState<AcademicItem>();
   const [planning, setPlanning] = useState<AcademicItem>();
+  const [preparing, setPreparing] = useState<AcademicItem>();
   const [studySaved, setStudySaved] = useState(false);
   const [editing, setEditing] = useState<AcademicItem | null>();
   const [deleting, setDeleting] = useState<AcademicItem>();
@@ -47,7 +49,7 @@ function AcademicsContent() {
   const overview = academicOverview(academic.data ?? [], { search, courseId, view }, timeZone, now);
   const byCourse = new Map(courses.data?.map(course => [course.id, course]) ?? []);
   const disabled = !!pending || action.isPending;
-  const modalOpen = editing !== undefined || !!deleting || !!planning || !!reminding;
+  const modalOpen = editing !== undefined || !!deleting || !!planning || !!reminding || !!preparing;
   const writeItem = async (item: AcademicItem, request: { path: string; method: string; body?: unknown }) => {
     if (busy.current || disabled) return false;
     busy.current = true; setPending(item.id); setFailure(undefined);
@@ -100,6 +102,7 @@ function AcademicsContent() {
         <Text style={[styles.meta, academicAttention(item, timeZone, now) && styles.attention]}>{item.source === manualAcademicSource ? academicFinished(item) ? 'Finished' : 'To do' : item.submissionState === 'missing' ? 'Marked missing' : item.submissionState ?? 'Status not provided'} · {taskTimingLabel(item.due, timeZone)}</Text>
         {byCourse.get(item.courseId ?? '')?.active === false && <Text style={styles.meta}>Inactive course · reminder delivery paused</Text>}
         <View style={styles.chips}>
+          {!academicFinished(item) && <Button title="Build a study plan" disabled={disabled} tone="plain" onPress={() => { setSavedMessage(undefined); setPreparing(item); }}/>}
           {!academicFinished(item) && <Button title="Plan study time" disabled={disabled}
             onPress={() => { setStudySaved(false); setPlanning(item); }}/>}
           {(!academicFinished(item) || item.mainGoalDate === today) && <Button title={pending === item.id ? 'Saving…' : item.mainGoalDate === today ? 'Remove Main Goal' : 'Make Main Goal today'}
@@ -119,7 +122,9 @@ function AcademicsContent() {
         {failure?.id === item.id && !deleting && <Text accessibilityRole="alert" style={styles.attention}>{failure.message}</Text>}
       </Card>)}
     </View>)}
-  </ScrollView>{reminding && <AcademicReminderEditor key={reminding.id} item={reminding} onClose={() => setReminding(undefined)}/>}
+  </ScrollView>{preparing && <PreparationPlanEditor key={preparing.id} item={preparing} timeZone={timeZone} onClose={() => setPreparing(undefined)} onSaved={() => {
+    setPreparing(undefined); setSavedMessage('Study plan saved. Your sessions are ready in Tasks and your daily plan.');
+  }}/>}{reminding && <AcademicReminderEditor key={reminding.id} item={reminding} onClose={() => setReminding(undefined)}/>}
     {planning && <StudyPlanEditor key={planning.id} item={planning} course={byCourse.get(planning.courseId ?? '')?.code ?? byCourse.get(planning.courseId ?? '')?.name}
       timeZone={timeZone} onClose={() => setPlanning(undefined)} onSaved={() => { setPlanning(undefined); setStudySaved(true); }}/>}
     {editing !== undefined && <AcademicItemEditor key={editing?.id ?? 'new'} item={editing} courses={courses.data ?? []} timeZone={timeZone} onClose={() => setEditing(undefined)} onSaved={() => {

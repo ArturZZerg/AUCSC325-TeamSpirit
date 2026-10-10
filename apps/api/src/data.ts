@@ -116,6 +116,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
     return this.prisma.$transaction(async tx => {
       await this.lockTask(tx, u.id, id);
       const existing = await this.owned(tx, u.id, id);
+      if (existing.studyPlanId && b.recurrence) throw new BadRequestException('Study plan sessions cannot repeat. Create a separate recurring task.');
       const recurrence = b.recurrence === undefined ? existing.recurrence : b.recurrence;
       if (existing.completedAt && !existing.recurrence && recurrence) throw new BadRequestException('Undo completion before making this task repeat');
       validateTaskAnchor({ recurrence,

@@ -33,7 +33,12 @@ palette and Today-centered product model.
    around saved timed commitments, without inventing unavailable data. Implemented
    in [daily study planning](../requirements/day-study-windows.md), with editable
    30/60-minute task bookings and minute-level next-class status.
-9. **Account recovery:** let students safely recover access to their own data;
+9. **Coursework preparation plans:** break an assignment or exam into editable,
+   distributed study sessions and atomically save a retry-safe plan. Implemented
+   in [preparation plans](../requirements/preparation-plans.md) under ADR 005.
+10. **Preparation progress:** bring linked sessions, remaining estimates and
+    catch-up scheduling together with focus and task completion.
+11. **Account recovery:** let students safely recover access to their own data;
    choose and verify a production email delivery provider before enabling it.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
