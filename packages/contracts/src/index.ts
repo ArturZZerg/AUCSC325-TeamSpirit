@@ -29,7 +29,7 @@ export const registerRequestSchema = z.object({ email: z.string().email(), passw
 export const loginRequestSchema = z.object({ email: z.string().email(), password: z.string().min(1).max(128) });
 export const sessionSchema = z.object({ accessToken: z.string().min(1), expiresAt: instantSchema, user: userSchema });
 
-export const personalTaskSchema = z.object({ id: idSchema, title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), createdAt: instantSchema, updatedAt: instantSchema });
+export const personalTaskSchema = z.object({ id: idSchema, studyPlanId: idSchema.nullable().optional(), title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), createdAt: instantSchema, updatedAt: instantSchema });
 export const createPersonalTaskSchema = personalTaskSchema.pick({ title: true, description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true }).partial({ description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true });
 export const updatePersonalTaskSchema = createPersonalTaskSchema.partial().strict();
 export const taskQuerySchema = z.object({
@@ -44,6 +44,22 @@ export const setMainGoalSchema = z.object({ date: dateSchema.nullable() });
 export const courseSchema = z.object({ id: idSchema, externalId: z.string().min(1), name: z.string().min(1), code: z.string().nullable(), active: z.boolean() });
 export const academicItemSchema = z.object({ id: idSchema, courseId: idSchema.nullable(), title: z.string().min(1), kind: z.enum(['assignment', 'quiz', 'discussion', 'planner']), due: dueSchema.nullable(), submissionState: z.enum(['unsubmitted', 'submitted', 'graded', 'missing']).nullable(), source: z.string().min(1), externalId: z.string().min(1), mainGoalDate: dateSchema.nullable(), updatedAt: instantSchema });
 export const manualAcademicSource = 'manual' as const;
+export const studySessionDraftSchema = z.object({
+  title: z.string().trim().min(1).max(240), scheduled: scheduleSchema,
+  estimatedMinutes: z.number().int().min(1).max(180),
+}).strict();
+export const createStudyPlanSchema = z.object({
+  requestKey: z.string().min(16).max(120).regex(/^[A-Za-z0-9-]+$/),
+  academicItemId: idSchema, title: z.string().trim().min(1).max(240),
+  sessions: studySessionDraftSchema.array().min(1).max(12),
+}).strict();
+export const studyPlanSchema = z.object({
+  id: idSchema, title: z.string().min(1).max(240), academicItemId: idSchema.nullable(),
+  academicItem: academicItemSchema.nullable(), deadlineWhenPlanned: dueSchema.nullable(),
+  createdAt: instantSchema, tasks: personalTaskSchema.array(),
+});
+export type CreateStudyPlan = z.infer<typeof createStudyPlanSchema>;
+export type StudyPlan = z.infer<typeof studyPlanSchema>;
 export const createManualAcademicItemSchema = z.object({
   title: z.string().trim().min(1).max(240), kind: academicItemSchema.shape.kind,
   courseId: idSchema.nullable().optional(), due: dueSchema.nullable().optional(),

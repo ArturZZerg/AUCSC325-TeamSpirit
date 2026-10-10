@@ -2,6 +2,7 @@ import { Temporal } from '@js-temporal/polyfill';
 
 export * from './classes';
 export * from './study-windows';
+export * from './study-distribution';
 
 export type DateOnly = string;
 export type TimedOrDate = { kind: 'instant'; at: string } | { kind: 'date'; date: DateOnly };
