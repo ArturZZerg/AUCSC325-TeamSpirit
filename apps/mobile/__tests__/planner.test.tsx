@@ -5,6 +5,7 @@ import { usePlanningSnapshot } from '../src/features/queries';
 import { accountId, snapshotFixture } from './snapshot-fixture';
 
 const mockPush = jest.fn();
+jest.mock('../src/features/day-agenda', () => ({ DayAgenda: () => null }));
 const mockReplace = jest.fn();
 let mockToken = 'first';
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }));
@@ -52,7 +53,7 @@ describe('Planner interactions', () => {
     show({ data: undefined }); render(<PlannerScreen/>);
     expect(screen.getByText('This day hasn’t been loaded.')).toBeOnTheScreen();
     expect(screen.queryByText('A little breathing room.')).toBeNull();
-    expect(screen.queryByText('planned items')).toBeNull();
+    expect(screen.queryByText('daily list items')).toBeNull();
     fireEvent.press(screen.getByText('Retry')); expect(refetch).toHaveBeenCalledTimes(1);
   });
   it('discards a selected week on session change', () => {

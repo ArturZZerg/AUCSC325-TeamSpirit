@@ -82,7 +82,7 @@ export function TaskEditor({ task, onClose, timeZone = 'UTC', initialValues }: {
 
 function Choices({ label, value, options, onChange, disabled }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void; disabled: boolean }) {
   return <View style={styles.group}><Text style={styles.label}>{label}</Text><View style={styles.choices}>
-    {options.map(option => <Pressable key={option.value} accessibilityRole="radio" accessibilityLabel={option.label} accessibilityState={{ checked: value === option.value, disabled }}
+    {options.map(option => <Pressable key={option.value} accessibilityRole="radio" accessibilityLabel={option.label} aria-checked={value === option.value} accessibilityState={{ checked: value === option.value, disabled }}
       disabled={disabled} onPress={() => onChange(option.value)} style={[styles.choice, value === option.value && styles.selected]}>
       <Text style={styles.label}>{option.label}</Text>
     </Pressable>)}

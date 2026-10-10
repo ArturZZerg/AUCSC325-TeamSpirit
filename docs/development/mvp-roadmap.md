@@ -30,7 +30,9 @@ palette and Today-centered product model.
    rooms, instructors, overlap warnings and cached reading. Implemented in the
    [class timetable](../requirements/class-timetable.md) under ADR 004.
 8. **Day capacity:** bring classes into Today/planner and suggest study windows
-   around saved timed commitments, without inventing unavailable data.
+   around saved timed commitments, without inventing unavailable data. Implemented
+   in [daily study planning](../requirements/day-study-windows.md), with editable
+   30/60-minute task bookings and minute-level next-class status.
 9. **Account recovery:** let students safely recover access to their own data;
    choose and verify a production email delivery provider before enabling it.
 

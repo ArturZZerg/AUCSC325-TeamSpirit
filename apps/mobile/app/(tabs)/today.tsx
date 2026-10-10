@@ -6,6 +6,9 @@ import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAction, useToday } from '@/features/queries';
 import { taskTimingLabel } from '@/features/task-form';
 import type { PlanItem } from '@/lib/types';
+import { DayAgenda } from '@/features/day-agenda';
+import { TaskEditor } from '@/features/task-editor';
+import type { TaskFormValues } from '@/features/task-form';
 
 type PlanAction = 'complete' | 'uncomplete' | 'skip' | 'snooze';
 
@@ -18,6 +21,7 @@ export default function TodayScreen() {
   const busy = useRef(false);
   const [pending, setPending] = useState<{ key: string; action: PlanAction }>();
   const [failure, setFailure] = useState<{ key: string; message: string }>();
+  const [studyDraft, setStudyDraft] = useState<Partial<TaskFormValues>>();
 
   const run = async (item: PlanItem, selected: PlanAction) => {
     if (busy.current || action.isPending || !item.allowedActions.includes(selected)) return;
@@ -54,6 +58,7 @@ export default function TodayScreen() {
   };
 
   return <Screen><ScrollView contentContainerStyle={styles.content}
+    aria-hidden={!!studyDraft} accessibilityElementsHidden={!!studyDraft} importantForAccessibility={studyDraft ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
     <Text style={styles.kicker}>{new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}</Text>
     <View style={styles.heading}><Text style={styles.title}>Your daily flow</Text>
@@ -61,6 +66,7 @@ export default function TodayScreen() {
     <View style={styles.actions}><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/><Button title="Focus space" tone="plain" onPress={() => router.push('/focus')}/></View>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <State loading={query.isLoading} error={query.error}/>
+    <DayAgenda compact date={date} timeZone={query.timeZone} onPlan={setStudyDraft}/>
     {query.data && !query.data.items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>
       <Text style={styles.meta}>Add a task, keep a deadline in sight, or choose one small routine.</Text>
       <Button title="Build my daily plan" onPress={() => router.push('/get-started')}/></Card>}
@@ -74,7 +80,7 @@ export default function TodayScreen() {
     {query.data?.upcoming.length ? <><Text style={styles.section}>Coming up</Text>
       {query.data.upcoming.map(item => <Card key={item.key}><Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.state}</Text><PlanTiming item={item} timeZone={query.timeZone}/></Card>)}
     </> : null}
-  </ScrollView></Screen>;
+  </ScrollView>{studyDraft && <TaskEditor task={null} timeZone={query.timeZone} initialValues={studyDraft} onClose={() => setStudyDraft(undefined)}/>}</Screen>;
 }
 
 function PlanCard({ item, timeZone, isCurrentDay, disabled, pendingAction, error, onAction }: {
@@ -86,7 +92,7 @@ function PlanCard({ item, timeZone, isCurrentDay, disabled, pendingAction, error
   const canSnooze = isCurrentDay && (item.kind === 'personalTask' || item.kind === 'goal') && item.allowedActions.includes('snooze');
   return <Card>
     <View style={styles.details}>
-      <Text style={styles.kind}>{item.isMainGoal ? '★ MAIN GOAL' : item.kind === 'academic' ? 'UNIVERSITY' : item.kind.toUpperCase()}</Text>
+      <Text style={styles.kind}>{item.isMainGoal ? '★ MAIN GOAL' : item.kind === 'academic' ? 'UNIVERSITY' : item.kind === 'personalTask' ? 'TASK' : item.kind.toUpperCase()}</Text>
       <Text style={[styles.item, (item.state === 'completed' || item.state === 'submitted') && styles.done]}>{item.title}</Text>
       <Text style={styles.meta}>{item.state}</Text>
       <PlanTiming item={item} timeZone={timeZone}/>

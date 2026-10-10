@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import TabsLayout from '../app/(tabs)/_layout';
-import { useAction, useAcademic, useGoalHistory, useGoals, usePreferences, useReminders, useTasks, useToday, useWellness } from '../src/features/queries';
+import { useAction, useAcademic, useClasses, usePlanningSnapshot, useGoalHistory, useGoals, usePreferences, useReminders, useTasks, useToday, useWellness } from '../src/features/queries';
 import { useSessionStore } from '../src/store/session';
 import { composeOfflineToday } from '../src/features/offline-today';
 import type { Session } from '../src/lib/types';
@@ -17,9 +17,10 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }));
 jest.mock('@expo/vector-icons/Ionicons', () => () => null);
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useAcademic: jest.fn(), useGoalHistory: jest.fn(), useGoals: jest.fn(),
+jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useAcademic: jest.fn(), useClasses: jest.fn(), usePlanningSnapshot: jest.fn(), useGoalHistory: jest.fn(), useGoals: jest.fn(),
   usePreferences: jest.fn(), useReminders: jest.fn(), useTasks: jest.fn(), useToday: jest.fn(), useWellness: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: () => ({ date: '2025-03-09', resumeCount: 0 }) }));
+jest.mock('../src/features/use-agenda-clock', () => ({ useAgendaClock: () => '2025-03-09T12:00:00Z' }));
 jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn(), ensureNotificationPermission: jest.fn(), reconcileReminders: jest.fn() }));
 jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn() }));
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
@@ -44,11 +45,19 @@ beforeEach(() => {
   jest.mocked(useWellness).mockReturnValue({ data: [], isLoading: false } as unknown as ReturnType<typeof useWellness>);
   jest.mocked(usePreferences).mockReturnValue({ data: preferences, isLoading: false } as unknown as ReturnType<typeof usePreferences>);
   jest.mocked(useReminders).mockReturnValue({ data: [] } as unknown as ReturnType<typeof useReminders>);
+  jest.mocked(useClasses).mockReturnValue({ data: [], refetch: jest.fn() } as unknown as ReturnType<typeof useClasses>);
+  jest.mocked(usePlanningSnapshot).mockReturnValue({ data: { ...snapshot, personalTasks: [] }, refetch: jest.fn() } as unknown as ReturnType<typeof usePlanningSnapshot>);
   const plan = composeOfflineToday({ ...snapshot, goals: [], taskCompletions: [] }, snapshot.accountId, snapshot.timeZone, '2025-03-09', '2025-03-09T18:00:00Z')!;
   jest.mocked(useToday).mockReturnValue({ date: plan.date, timeZone: plan.timeZone, data: plan, isLoading: false, isRefetching: false } as unknown as ReturnType<typeof useToday>);
 });
 
 describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
+  it.each(['switch', 'relogin'])('discards a private study-window draft on %s', transition => {
+    mockRoute = 'today'; render(<TabsLayout/>); fireEvent.press(screen.getByText('Find study time'));
+    fireEvent.press(screen.getByText('Plan 30 min at 8:00 AM')); fireEvent.changeText(screen.getByLabelText('Title'), 'Private study draft');
+    session(transition === 'switch' ? second : { ...first, accessToken: 'new-login' });
+    expect(screen.queryByLabelText('Title')).toBeNull(); expect(save).not.toHaveBeenCalled();
+  });
   it.each(['switch', 'sign-out', 'relogin'])('discards a task draft on %s', transition => {
     render(<TabsLayout/>);
     fireEvent.press(screen.getByText('Edit'));
