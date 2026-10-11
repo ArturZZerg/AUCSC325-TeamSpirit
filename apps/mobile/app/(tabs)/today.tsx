@@ -9,6 +9,7 @@ import type { PlanItem } from '@/lib/types';
 import { DayAgenda } from '@/features/day-agenda';
 import { TaskEditor } from '@/features/task-editor';
 import type { TaskFormValues } from '@/features/task-form';
+import { FocusRecoveryCard } from '@/features/focus-recovery-card';
 
 type PlanAction = 'complete' | 'uncomplete' | 'skip' | 'snooze';
 
@@ -65,6 +66,7 @@ export default function TodayScreen() {
       <Button title="Get started" tone="plain" onPress={() => router.push('/get-started')}/></View>
     <View style={styles.actions}><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/><Button title="My study plans" tone="plain" onPress={() => router.push('/study-plans')}/><Button title="Focus space" tone="plain" onPress={() => router.push('/focus')}/></View>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
+    <FocusRecoveryCard/>
     <State loading={query.isLoading} error={query.error}/>
     <DayAgenda compact date={date} timeZone={query.timeZone} onPlan={setStudyDraft}/>
     {query.data && !query.data.items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>

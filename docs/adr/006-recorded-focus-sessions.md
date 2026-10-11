@@ -2,6 +2,8 @@
 
 Status: Accepted
 
+App termination and transient draft policy superseded by [ADR 007](007-focus-device-recovery.md).
+
 Date: 2026-10-10
 
 ## Context

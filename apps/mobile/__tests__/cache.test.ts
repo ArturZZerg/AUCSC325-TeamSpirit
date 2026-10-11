@@ -1,11 +1,12 @@
 import * as SQLite from 'expo-sqlite';
-import { clearAccountCache, readCache, writeCache } from '../src/services/cache';
+import { clearAccountCache, deleteCache, readCache, writeCache } from '../src/services/cache';
 
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
 
 const rows = new Map<string, string>();
 const run = jest.fn(async (sql: string, values: string[]) => {
   if (sql.startsWith('INSERT')) rows.set(`${values[0]}:${values[1]}`, values[2]);
+  else if (values.length === 2) rows.delete(`${values[0]}:${values[1]}`);
   else for (const key of rows.keys()) if (key.startsWith(`${values[0]}:`)) rows.delete(key);
 });
 const db = { execAsync: jest.fn().mockResolvedValue(undefined), runAsync: run,
@@ -31,6 +32,20 @@ describe('disposable account cache (ToR 19)', () => {
   it('treats corrupt JSON as missing cache data', async () => {
     rows.set('first:tasks', 'invalid JSON');
     expect(await readCache('first', 'tasks')).toBeUndefined();
+  });
+  it('deletes a draft without erasing other cached account data', async () => {
+    await writeCache('first', 'focus-draft:v1', { title: 'Draft' });
+    await writeCache('first', 'tasks', ['Task']);
+    await deleteCache('first', 'focus-draft:v1');
+    expect(await readCache('first', 'focus-draft:v1')).toBeUndefined();
+    expect(await readCache('first', 'tasks')).toEqual(['Task']);
+  });
+  it('rejects a delayed draft write after its login has ended', async () => {
+    let current = true;
+    const writing = writeCache('first', 'focus-draft:v1', { title: 'Late private draft' }, () => current);
+    current = false;
+    await writing;
+    expect(await readCache('first', 'focus-draft:v1')).toBeUndefined();
   });
 
   it('finishes an already-started cache save before logout clears account rows', async () => {

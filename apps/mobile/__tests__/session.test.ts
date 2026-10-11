@@ -1,12 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
 import { useSessionStore } from '../src/store/session';
 import { queryClient } from '../src/lib/query-client';
-import { clearAccountCache } from '../src/services/cache';
+import { clearAccountCache, deleteCache } from '../src/services/cache';
 import { clearScheduledReminders } from '../src/services/reminders';
 import type { Session } from '../src/lib/types';
 
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
-jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn().mockResolvedValue(undefined), deleteCache: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn().mockResolvedValue(undefined) }));
 
 const first: Session = { accessToken: 'first-token', expiresAt: '2099-01-01T00:00:00Z', user: {
@@ -32,6 +32,13 @@ describe('local account lifecycle (ToR 19)', () => {
     jest.mocked(SecureStore.getItemAsync).mockResolvedValue(JSON.stringify(first));
     await useSessionStore.getState().restore();
     expect(useSessionStore.getState()).toMatchObject({ session: first, ready: true });
+    expect(deleteCache).not.toHaveBeenCalled();
+  });
+  it('purges an earlier focus draft on every fresh login, including the same account', async () => {
+    useSessionStore.setState({ session: first, ready: true });
+    await useSessionStore.getState().setSession({ ...first, accessToken: 'renewed-token' });
+    expect(deleteCache).toHaveBeenCalledWith(first.user.id, 'focus-draft:v1');
+    expect(jest.mocked(deleteCache).mock.invocationCallOrder[0]).toBeLessThan(jest.mocked(SecureStore.setItemAsync).mock.invocationCallOrder[0]);
   });
 
   it('clears local state without waiting for an offline logout request', async () => {

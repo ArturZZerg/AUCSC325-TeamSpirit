@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { sessionSchema } from '@campusflow/contracts';
 import type { Session } from '@/lib/types';
 import { queryClient } from '@/lib/query-client';
-import { clearAccountCache } from '@/services/cache';
+import { clearAccountCache, deleteCache } from '@/services/cache';
 import { clearScheduledReminders } from '@/services/reminders';
 
 const key = 'campusflow.session.v1';
@@ -44,13 +44,18 @@ export const useSessionStore = create<State>((set, get) => ({
     const session = sessionSchema.parse(value);
     const previous = get().session;
     const settingRevision = ++revision;
-    if (previous && previous.user.id !== session.user.id) { set({ session: null }); queryClient.clear(); }
+    if (previous && (previous.user.id !== session.user.id || previous.accessToken !== session.accessToken)) {
+      set({ session: null }); queryClient.clear();
+    }
     await serialize(async () => {
       if (previous && previous.user.id !== session.user.id) {
         await clearAccountCache(previous.user.id);
         await clearScheduledReminders();
         void revokeSession(previous);
       }
+      if (settingRevision !== revision) return;
+      // A fresh login must never recover a private draft from an earlier login.
+      await deleteCache(session.user.id, 'focus-draft:v1');
       if (settingRevision !== revision) return;
       await SecureStore.setItemAsync(key, JSON.stringify(session));
       if (settingRevision === revision) set({ session, ready: true });

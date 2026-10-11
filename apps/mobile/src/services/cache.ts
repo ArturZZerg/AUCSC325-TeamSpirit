@@ -14,8 +14,19 @@ export async function readCache<T>(accountId: string, key: string): Promise<T | 
   try { return JSON.parse(row.payload) as T; }
   catch { return undefined; } // A corrupt disposable cache must not prevent a server refresh.
 }
-export function writeCache(accountId: string, key: string, value: unknown) {
-  return accountWrite(accountId, async () => { await (await database()).runAsync('INSERT OR REPLACE INTO snapshots (account_id, cache_key, payload, saved_at) VALUES (?, ?, ?, ?)', [accountId, key, JSON.stringify(value), new Date().toISOString()]); });
+export function writeCache(accountId: string, key: string, value: unknown, isCurrent = () => true) {
+  return accountWrite(accountId, async () => {
+    if (!isCurrent()) return;
+    const db = await database();
+    if (isCurrent()) await db.runAsync('INSERT OR REPLACE INTO snapshots (account_id, cache_key, payload, saved_at) VALUES (?, ?, ?, ?)', [accountId, key, JSON.stringify(value), new Date().toISOString()]);
+  });
+}
+export function deleteCache(accountId: string, key: string, isCurrent = () => true) {
+  return accountWrite(accountId, async () => {
+    if (!isCurrent()) return;
+    const db = await database();
+    if (isCurrent()) await db.runAsync('DELETE FROM snapshots WHERE account_id = ? AND cache_key = ?', [accountId, key]);
+  });
 }
 export function clearAccountCache(accountId: string) {
   // A read that was already saving cannot recreate rows after sign-out clears them.
