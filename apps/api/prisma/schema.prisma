@@ -206,6 +206,15 @@ model Event {
   @@unique([source, sourceScope, externalId])
   @@index([sortAt])
 }
+model CampusFeedState {
+  source String @id
+  lastAttemptAt DateTime
+  lastSuccessfulAt DateTime?
+  lastStatus String
+  coveredFrom String?
+  coveredThrough String?
+  timeZone String?
+}
 model SavedEvent {
   userId String @db.Uuid
   eventId String @db.Uuid

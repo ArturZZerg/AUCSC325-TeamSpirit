@@ -15,6 +15,11 @@ Completed:
 - Focus device recovery: validated account-scoped checkpoints, explicit paused
   recovery, identical failed-save retries, Today recovery card and guarded cleanup
   on sign-out/fresh login. ADR 007 replaces the transient termination policy.
+- Live campus discovery: verified public Augustana recreation and Thursday Night
+  Breakout calendars, hourly backend imports, persisted successful coverage,
+  replica-safe refresh throttling and failed-import preservation under ADR 008.
+  Campus has 7/30-day and saved views, local date groups, location search,
+  organiser details/links and source freshness that ages while open.
 
 Validation: root lint/typecheck/test/build with disposable PostgreSQL; dedicated
 API, timer, cache, report and interaction tests; production web export; real-API
@@ -28,9 +33,17 @@ paused progress, Today linked to the exact block, resume excluded time away, and
 a server-success/lost-response restart retry produced exactly one 44-second
 history record. ADB listed no attached device; native process-kill is unverified.
 
+Campus validation: 408 API, 751 mobile, 94 contract, 173 domain and 3 Android
+build-script tests; root lint/typecheck/build and production web export passed.
+Live source requests returned complete batches. PostgreSQL/API/SQLite browser QA
+at 320/390/1100px verified real event save, plan inclusion, chosen reminder,
+source provenance, search/range controls and preservation after API failure.
+Focus recovery preview APK built and its signature verified; no ADB device attached.
+
 Next recommended feature: a student workload inbox that surfaces unplanned,
 overdue and preparation work with direct scheduling and focus actions.
 
-Release gates: apply the FocusSession migration to the deployment database;
-verify new native lifecycle/touch flows; retain live Canvas, campus-feed,
+Release gates: apply FocusSession and CampusFeedState migrations to deployment,
+enable reviewed campus calendars for the intended campus;
+verify new native lifecycle/touch flows; retain live Canvas,
 hosting/TLS and production account-recovery gates from the MVP roadmap.

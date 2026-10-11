@@ -4,7 +4,7 @@ import { eventReminderDefaults, eventReminderRequest } from '../src/features/eve
 import { useAction, useEvents } from '../src/features/queries';
 import Campus from '../app/(tabs)/campus';
 import { eventFixture } from './event-fixture';
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useEvents: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useEvents: jest.fn(), useCampusSources: () => ({ data: { sources: [] }, refetch: jest.fn() }) }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { timeZone: 'America/Edmonton' } } }) }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
 const event = eventFixture(); const zone = 'America/Edmonton'; const save = jest.fn(); const refresh = jest.fn();

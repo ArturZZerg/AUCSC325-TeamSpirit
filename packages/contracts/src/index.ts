@@ -93,6 +93,20 @@ export const campusEventSchema = eventSchema.extend({ saved: z.boolean().optiona
 export const saveEventSchema = z.object({ includedInPlan: z.boolean().default(false), reminder: scheduleSchema.nullable().optional() });
 export const updateSavedEventSchema = saveEventSchema.partial();
 export type CampusEvent = z.infer<typeof campusEventSchema>;
+export const campusSourceSchema = z.object({
+  source: z.string().regex(/^campus:[a-zA-Z0-9._-]{1,100}$/), name: z.string().min(1).max(240),
+  website: z.string().url().refine(value => value.startsWith('https://')),
+  availability: z.enum(['available', 'stale', 'unavailable']), lastSuccessfulAt: instantSchema.nullable(),
+  coverage: z.object({ from: dateSchema, through: dateSchema, timeZone: timeZoneSchema }).strict()
+    .refine(value => value.from < value.through).nullable(),
+}).strict().superRefine((source, context) => {
+  if ((source.lastSuccessfulAt === null) !== (source.coverage === null)
+    || (source.availability !== 'unavailable' && !source.lastSuccessfulAt))
+    context.addIssue({ code: 'custom', message: 'Source freshness needs successful coverage.' });
+});
+export const campusSourcesSchema = z.object({ generatedAt: instantSchema, sources: campusSourceSchema.array() }).strict()
+  .refine(value => new Set(value.sources.map(source => source.source)).size === value.sources.length, 'Source identities must be unique.');
+export type CampusSourceStatus = z.infer<typeof campusSourceSchema>;
 
 export const wellnessEntrySchema = z.object({ id: idSchema, date: dateSchema, mood: z.number().int().min(1).max(5).nullable(), energy: z.number().int().min(1).max(5).nullable(), stress: z.number().int().min(1).max(5).nullable(), note: z.string().max(2_000).nullable(), createdAt: instantSchema });
 export const createWellnessEntrySchema = wellnessEntrySchema.pick({ date: true, mood: true, energy: true, stress: true, note: true });
