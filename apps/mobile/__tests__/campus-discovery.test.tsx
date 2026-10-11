@@ -32,9 +32,9 @@ describe('campus discovery calendar rules', () => {
     expect(campusGroups([old, upper, event], { ...options, saved: true })).toEqual([{ date: '2026-09-01', events: [old] }]);
   });
   it('uses calendar bounds over 25-hour DST days and finds title, category or place', () => {
-    const lastHour = { ...event, location: 'Climbing Wall', timing: { kind: 'timed' as const, startsAt: '2026-11-02T06:30:00Z', endsAt: null } };
-    const result = campusGroups([lastHour], { ...options, date: '2026-11-01', search: ' CLIMBING ' });
-    expect(result[0].date).toBe('2026-11-01'); expect(result[0].events).toEqual([lastHour]);
+    const lastHour = { ...event, location: 'Climbing Wall', timing: { kind: 'timed' as const, startsAt: '2025-11-03T06:30:00Z', endsAt: null } };
+    const result = campusGroups([lastHour], { ...options, date: '2025-11-02', search: ' CLIMBING ' });
+    expect(result[0].date).toBe('2025-11-02'); expect(result[0].events).toEqual([lastHour]);
     expect(campusGroups([event], { ...options, search: 'club' })[0].events).toEqual([event]);
   });
   it('ages saved freshness and checks the complete requested range', () => {

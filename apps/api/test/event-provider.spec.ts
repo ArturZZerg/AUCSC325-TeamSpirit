@@ -69,10 +69,10 @@ describe('bounded campus ICS provider', () => {
     if (batch.status !== 'failed') expect(batch.events.map(e => e.timing.kind === 'timed' && e.timing.startsAt.slice(0, 10))).toEqual(dates);
   });
   it('expands Sunday week starts across the fall DST change with inclusive UNTIL', async () => {
-    const batch = await parse(calendar(vevent('DTSTART;TZID=America/Edmonton:20261025T190000\r\nRRULE:FREQ=WEEKLY;WKST=SU;BYDAY=SU;UNTIL=20261109T020000Z')), undefined,
-      { from: '2026-10-24', through: '2026-11-10', timeZone: 'America/Edmonton' });
+    const batch = await parse(calendar(vevent('DTSTART;TZID=America/Edmonton:20251026T190000\r\nRRULE:FREQ=WEEKLY;WKST=SU;BYDAY=SU;UNTIL=20251110T020000Z')), undefined,
+      { from: '2025-10-25', through: '2025-11-11', timeZone: 'America/Edmonton' });
     expect(batch).toMatchObject({ status: 'complete' });
-    if (batch.status !== 'failed') expect(batch.events.map(e => e.timing.kind === 'timed' && e.timing.startsAt)).toEqual(['2026-10-26T01:00:00Z', '2026-11-02T02:00:00Z', '2026-11-09T02:00:00Z']);
+    if (batch.status !== 'failed') expect(batch.events.map(e => e.timing.kind === 'timed' && e.timing.startsAt)).toEqual(['2025-10-27T01:00:00Z', '2025-11-03T02:00:00Z', '2025-11-10T02:00:00Z']);
   });
   it.each(['XX', '0', '8', ''])('rejects malformed WKST=%s rather than silently defaulting', async value => {
     expect(await parse(calendar(vevent(`${timed}\r\nRRULE:FREQ=WEEKLY;WKST=${value}`)))).toMatchObject({ status: 'incomplete', events: [] });
