@@ -82,10 +82,10 @@ covered concurrent task/routine/saved-event reminder edits during deletion.
 Destructive-button text now has 5.70:1 contrast on the existing shared primitive.
 Fresh web/Android bundles exclude synthetic QA credentials and loopback QA origins.
 
-Next recommended task: verified account recovery with the chosen transactional
-email service, followed by production deployment and device acceptance. While
-deployment details are pending, prepare an executable release smoke-check and
-restore-rehearsal workflow from the production-readiness matrix.
+Next recommended task: verified account recovery with production delivery
+disabled until the owner configures the chosen transactional email service,
+followed by hosted deployment and device acceptance. Keep each release gate
+separate from local app, preview and CI evidence.
 
 Release operations implemented: bounded read-only liveness/schema/migration
 readiness, explicit production database/CORS/fixture configuration, graceful
@@ -104,6 +104,18 @@ tests/config changes also run through exact-commit CI before merge. These checks
 do not establish hosted production backup policy/RPO/RTO, delivery, capacity,
 native acceptance or signing. Next: implement account recovery with delivery
 disabled until the owner chooses and verifies the production mail provider.
+
+Dependency release repair: compatible Nest/Multer, shell-quote, source-map-js and
+Handlebars patches, plus scoped Prisma configuration deepmerge/effect fixes.
+The unchanged Prisma 6.19 CLI moves to root dev tooling so npm workspace links
+cannot discard its overrides; schema/client/database modules remain in the API.
+Clean installation, explicit generation/migration, 1,551 tests and complete root
+checks passed. Fresh web/API smoke, 19-table/163-record source-preserving restore
+and signed Android preview verification passed; no Android device is attached.
+Full audit affected entries: 69 → 60; omit-dev: 64 → 56; both zero critical.
+Five unresolved leaf advisories remain tracked with actual usage in
+`docs/development/dependency-safety.md`; no forced SDK downgrade or suppression.
+Exact-head Linux CI/review/merge is the next gate for this branch.
 
 Release gates: apply FocusSession and CampusFeedState migrations to deployment,
 enable reviewed campus calendars for the intended campus;
