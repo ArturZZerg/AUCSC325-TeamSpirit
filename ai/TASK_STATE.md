@@ -40,8 +40,25 @@ at 320/390/1100px verified real event save, plan inclusion, chosen reminder,
 source provenance, search/range controls and preservation after API failure.
 Focus recovery preview APK built and its signature verified; no ADB device attached.
 
-Next recommended feature: a student workload inbox that surfaces unplanned,
-overdue and preparation work with direct scheduling and focus actions.
+Workload inbox: Today/planner entry points, actionable attention/unscheduled/
+coursework/today/later groups, search, exact task focus/edit and targeted study
+plans. Known archived/finished plans stay linked; uncertain reads withhold new
+preparation creation. Existing editors retain pending/failure/retry behavior.
+No new schema, service or dependency. See the workload requirements for tests.
+Existing focus blocks retain their current task when another is requested; the
+requested task stays visible and becomes an explicit choice after saving.
+
+Workload validation: 408 API, 781 mobile, 94 contract, 173 domain and 3 Android
+build-script tests passed with root lint/typecheck/build and production web export.
+Real PostgreSQL/API/SQLite browser QA confirmed selected task rescheduling without
+deadline changes, one reviewed plan with exactly three linked sessions, targeted
+plan expansion and an explicit focus handoff preserving the previous block.
+Saved workload survived API failure and refreshed after recovery. Responsive
+checks at 320/390/1100px found no overflowing controls. Native acceptance is pending.
+
+Next recommended feature: an account/privacy centre with personal data export
+and authenticated whole-account deletion, followed by verified account recovery
+once the production email service and deployment target are provided.
 
 Release gates: apply FocusSession and CampusFeedState migrations to deployment,
 enable reviewed campus calendars for the intended campus;

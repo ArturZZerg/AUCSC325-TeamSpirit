@@ -64,7 +64,7 @@ export default function TodayScreen() {
     <Text style={styles.kicker}>{new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}</Text>
     <View style={styles.heading}><Text style={styles.title}>Your daily flow</Text>
       <Button title="Get started" tone="plain" onPress={() => router.push('/get-started')}/></View>
-    <View style={styles.actions}><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/><Button title="My study plans" tone="plain" onPress={() => router.push('/study-plans')}/><Button title="Focus space" tone="plain" onPress={() => router.push('/focus')}/></View>
+    <View style={styles.actions}><Button title="Organise my workload" tone="plain" onPress={() => router.push('/workload')}/><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/><Button title="My study plans" tone="plain" onPress={() => router.push('/study-plans')}/><Button title="Focus space" tone="plain" onPress={() => router.push('/focus')}/></View>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <FocusRecoveryCard/>
     <State loading={query.isLoading} error={query.error}/>

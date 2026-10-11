@@ -4,8 +4,8 @@ import StudyPlansScreen from '../app/study-plans';
 import { useAction, useStudyPlans } from '../src/features/queries';
 import { preparationFixture, planId } from './preparation-fixture';
 import type { StudyPlan } from '@campusflow/contracts';
-const mockPush = jest.fn(), mockReplace = jest.fn(); let mockToken = 'first';
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }));
+const mockPush = jest.fn(), mockReplace = jest.fn(); let mockToken = 'first'; let mockParams: { planId?: string | string[] } = {};
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }), useLocalSearchParams: () => mockParams }));
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useStudyPlans: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: () => ({ date: '2025-03-09' }) }));
 jest.mock('../src/features/use-agenda-clock', () => ({ useAgendaClock: () => '2025-03-09T18:00:00Z' }));
@@ -20,7 +20,7 @@ const save = jest.fn(), refetch = jest.fn();
 function show(data: StudyPlan[] | undefined = [preparationFixture()], overrides = {}) {
   jest.mocked(useStudyPlans).mockReturnValue({ data, isLoading: false, isRefetching: false, isCached: false, refetch, ...overrides } as unknown as ReturnType<typeof useStudyPlans>);
 }
-beforeEach(() => { jest.clearAllMocks(); mockToken = 'first'; save.mockReset().mockResolvedValue({});
+beforeEach(() => { jest.clearAllMocks(); mockToken = 'first'; mockParams = {}; save.mockReset().mockResolvedValue({});
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>); show(); });
 it('shows progress, earlier sessions and a focus target without writing', () => {
   render(<StudyPlansScreen/>); expect(screen.getByText('0 of 2 sessions completed · 100 min estimated left')).toBeOnTheScreen();
@@ -104,4 +104,22 @@ it('discards private filters, expanded state and rename drafts on a session chan
   mockToken = 'next-session'; ui.rerender(<StudyPlansScreen/>);
   expect(screen.getByLabelText('Search study plans')).toHaveDisplayValue(''); expect(screen.queryByLabelText('Plan name')).toBeNull();
   expect(screen.queryByText('Hide sessions')).toBeNull(); expect(save).not.toHaveBeenCalled();
+});
+it.each(['archived', 'finished'] as const)('opens the exact %s linked plan with sessions expanded', view => {
+  const target = preparationFixture({ archivedAt: view === 'archived' ? '2025-03-09T18:00:00Z' : null });
+  if (view === 'finished') target.tasks = target.tasks.map(task => ({ ...task, completedAt: '2025-03-09T18:00:00Z' }));
+  mockParams = { planId }; show([preparationFixture({ id: '60000000-0000-4000-8000-000000000002', title: 'Unrelated plan', tasks: [] }), target]);
+  render(<StudyPlansScreen/>); expect(screen.getByText('Your selected preparation plan')).toBeOnTheScreen();
+  expect(screen.getByText('Recall key topics')).toBeOnTheScreen(); expect(screen.queryByText('Unrelated plan')).toBeNull();
+  fireEvent.press(screen.getByText('Browse all study plans'));
+  fireEvent.press(screen.getByRole('radio', { name: view === 'archived' ? 'Archived' : 'Finished' }));
+  fireEvent.changeText(screen.getByLabelText('Search study plans'), 'missing');
+  expect(screen.queryByText('Your selected preparation plan')).toBeNull(); expect(screen.getByText('No plans in this view.')).toBeOnTheScreen();
+});
+it('keeps missing or malformed targeted links honest and retryable', () => {
+  mockParams = { planId }; show([], { isCached: true }); const ui = render(<StudyPlansScreen/>);
+  expect(screen.getByText(/not in the available information/)).toBeOnTheScreen(); expect(screen.queryByText('Give your next deadline a plan.')).toBeNull();
+  fireEvent.press(screen.getByText('Refresh selected plan')); expect(refetch).toHaveBeenCalledTimes(1);
+  mockParams = { planId: [planId, planId] }; ui.rerender(<StudyPlansScreen/>);
+  expect(screen.getByText('This plan link is invalid. Choose a plan below.')).toBeOnTheScreen();
 });

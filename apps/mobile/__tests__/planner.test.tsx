@@ -20,6 +20,10 @@ function show(overrides = {}) {
 beforeEach(() => { jest.clearAllMocks(); mockToken = 'first'; show(); });
 
 describe('Planner interactions', () => {
+  it('opens the workload inbox for scheduling loose work', () => {
+    render(<PlannerScreen/>); fireEvent.press(screen.getByText('Organise my workload'));
+    expect(mockPush).toHaveBeenCalledWith('/workload');
+  });
   it('opens the weekly review', () => {
     render(<PlannerScreen/>); fireEvent.press(screen.getByText('Review your week'));
     expect(mockPush).toHaveBeenCalledWith('/review');

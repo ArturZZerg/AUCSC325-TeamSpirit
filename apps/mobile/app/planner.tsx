@@ -39,6 +39,7 @@ function PlannerContent() {
       <Text style={styles.kicker}>PLAN AHEAD</Text></View>
     <Text style={styles.title}>Your week, in view.</Text>
     <Text style={styles.muted}>See busy days before they sneak up.</Text>
+    <Button title="Organise my workload" tone="plain" onPress={() => router.push('/workload')}/>
     <Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/>
     <Button title="Class timetable" tone="plain" onPress={() => router.push('/timetable')}/>
     <View style={styles.navigation}>

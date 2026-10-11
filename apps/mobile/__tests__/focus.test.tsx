@@ -143,6 +143,26 @@ it('blocks new focus and deep-link selection while reading recovery data', () =>
   expect(screen.getByRole('button', { name: 'Start focus' })).toBeDisabled();
   expect(useFocusStore.getState().target).toBeNull();
 });
+it('preserves a recovered block and offers the requested task explicitly after a verified save', async () => {
+  const owner = focusOwner(session)!;
+  const store = useFocusStore.getState(); store.configure(owner, 25, { id: task.id, title: task.title }); store.start(owner);
+  jest.setSystemTime(10_000); const draft = makeFocusDraft(useFocusStore.getState(), session.user.id, Date.now())!;
+  jest.setSystemTime(60_000); store.recover(owner, draft);
+  const requested = { ...task, id: '20000000-0000-4000-8000-000000000002', title: 'Read research sources', estimatedMinutes: 50 };
+  showTasks([task, requested]); jest.mocked(useLocalSearchParams).mockReturnValue({ taskId: requested.id });
+  save.mockRejectedValueOnce(new Error('Offline'));
+  render(<FocusScreen/>); expect(screen.getByText(`Next: ${requested.title}`)).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Focus requested task' })).toBeDisabled(); expect(useFocusStore.getState().target?.id).toBe(task.id);
+  await act(async () => fireEvent.press(screen.getByText('Save recovered time')));
+  expect(screen.getByRole('alert')).toHaveTextContent('Offline'); expect(screen.getByRole('button', { name: 'Focus requested task' })).toBeDisabled();
+  save.mockImplementation(({ body }) => ({ ...body, id: task.id, createdAt: body.endedAt }));
+  await act(async () => fireEvent.press(screen.getByText('Save focus block')));
+  expect(save.mock.calls[1][0]).toEqual(save.mock.calls[0][0]); expect(useFocusStore.getState().target?.id).toBe(task.id);
+  expect(screen.getByRole('button', { name: 'Focus requested task' })).toBeEnabled();
+  fireEvent.press(screen.getByText('Focus requested task')); expect(useFocusStore.getState().target?.id).toBe(requested.id);
+  expect(screen.getByText('50:00')).toBeOnTheScreen(); expect(screen.getByText('Ready when you are')).toBeOnTheScreen();
+  expect(screen.queryByText(`Next: ${requested.title}`)).toBeNull(); expect(save).toHaveBeenCalledTimes(2);
+});
 it('does not send an uncertain save unless its identical payload is kept on the device first', async () => {
   jest.mocked(persistFocusDraft).mockRejectedValueOnce(new Error('Storage unavailable'));
   render(<FocusScreen/>); start(); finish(); await act(async () => fireEvent.press(screen.getByText('Save focus block')));
