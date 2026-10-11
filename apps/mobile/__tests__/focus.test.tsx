@@ -8,8 +8,12 @@ import { useFocusStore } from '../src/store/focus';
 import { snapshotFixture } from './snapshot-fixture';
 import type { PersonalTask, Session } from '../src/lib/types';
 import { ApiError } from '../src/lib/api';
+import { persistFocusDraft } from '../src/features/focus-recovery-sync';
+import { makeFocusDraft } from '../src/features/focus-recovery';
+import { focusOwner } from '../src/store/focus';
 jest.mock('../src/store/session', () => ({ useSessionStore: jest.requireActual('zustand').create(() => ({ session: null })) }));
 jest.mock('../src/features/queries', () => ({ useTasks: jest.fn(), useAction: jest.fn() }));
+jest.mock('../src/features/focus-recovery-sync', () => ({ persistFocusDraft: jest.fn().mockResolvedValue(true), restoreFocusDraft: jest.fn() }));
 const mockReplace = jest.fn(), mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useLocalSearchParams: jest.fn(), useRouter: () => ({ replace: mockReplace, push: mockPush }) }));
 const session: Session = { accessToken: 'first', expiresAt: '2099-01-01T00:00:00Z', user: {
@@ -24,6 +28,7 @@ beforeEach(() => {
   jest.useFakeTimers(); jest.setSystemTime(0); jest.clearAllMocks(); useSessionStore.setState({ session }); useFocusStore.getState().clear();
   jest.mocked(useLocalSearchParams).mockReturnValue({ taskId: task.id }); showTasks();
   save.mockReset().mockResolvedValue({}); jest.mocked(useAction).mockReturnValue({ mutateAsync: save } as unknown as ReturnType<typeof useAction>);
+  jest.mocked(persistFocusDraft).mockReset().mockResolvedValue(true);
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => { appState = listener as typeof appState; return { remove: jest.fn() }; });
 });
 afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
@@ -102,6 +107,7 @@ it('guards rapid time-save taps and rejects malformed acknowledgements', async (
   let resolve!: (value: unknown) => void; save.mockReturnValueOnce(new Promise(done => { resolve = done; }));
   render(<FocusScreen/>); start(); finish();
   act(() => { const button = screen.getByText('Save focus block'); fireEvent.press(button); fireEvent.press(button); });
+  await act(async () => {});
   expect(save).toHaveBeenCalledTimes(1); expect(screen.getByRole('button', { name: 'Back to Today' })).toBeDisabled();
   await act(async () => resolve({})); expect(useFocusStore.getState().recorded).toBe(false); expect(screen.getByRole('alert')).toBeOnTheScreen();
 });
@@ -120,4 +126,29 @@ it('discards private focus state on renewed login and does not carry over a pend
   act(() => useSessionStore.setState({ session: { ...session, accessToken: 'new-login' } }));
   expect(useFocusStore.getState().target).toBeNull(); expect(screen.queryByText('Outline my report')).toBeNull();
   await act(async () => resolve()); expect(screen.queryByText('Task completed.')).toBeNull();
+});
+it('shows recovered progress, retains its target over a deep link and requires explicit resume', () => {
+  const owner = focusOwner(session)!;
+  const store = useFocusStore.getState(); store.configure(owner, 25, { id: task.id, title: 'Recovered outline' }); store.start(owner);
+  jest.setSystemTime(10_000); const draft = makeFocusDraft(useFocusStore.getState(), session.user.id, Date.now())!;
+  jest.setSystemTime(7_200_000); store.recover(owner, draft); render(<FocusScreen/>);
+  expect(screen.getByText('Welcome back to your block.')).toBeOnTheScreen();
+  expect(screen.getByText('Recovered outline')).toBeOnTheScreen(); expect(screen.getByText('24:50')).toBeOnTheScreen();
+  expect(save).not.toHaveBeenCalled(); fireEvent.press(screen.getByText('Resume'));
+  expect(screen.getByText('Focus in progress')).toBeOnTheScreen(); expect(screen.queryByText('Welcome back to your block.')).toBeNull();
+});
+it('blocks new focus and deep-link selection while reading recovery data', () => {
+  useFocusStore.setState({ recoveryReady: false }); render(<FocusScreen/>);
+  expect(screen.getByText('Recovering your focus space…')).toBeOnTheScreen();
+  expect(screen.getByRole('button', { name: 'Start focus' })).toBeDisabled();
+  expect(useFocusStore.getState().target).toBeNull();
+});
+it('does not send an uncertain save unless its identical payload is kept on the device first', async () => {
+  jest.mocked(persistFocusDraft).mockRejectedValueOnce(new Error('Storage unavailable'));
+  render(<FocusScreen/>); start(); finish(); await act(async () => fireEvent.press(screen.getByText('Save focus block')));
+  expect(screen.getByRole('alert')).toHaveTextContent('Storage unavailable'); expect(save).not.toHaveBeenCalled();
+  const body = useFocusStore.getState().recording;
+  save.mockImplementation(({ body }) => ({ ...body, id: task.id, createdAt: body.endedAt }));
+  await act(async () => fireEvent.press(screen.getByText('Save focus block')));
+  expect(save).toHaveBeenCalledWith({ path: '/focus-sessions', body });
 });

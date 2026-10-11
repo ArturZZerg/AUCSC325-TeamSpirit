@@ -11,6 +11,7 @@ import { focusOwner } from '@/store/focus';
 import { useSessionStore } from '@/store/session';
 import type { PersonalTask } from '@/lib/types';
 import { ApiError } from '@/lib/api';
+import { persistFocusDraft, restoreFocusDraft } from '@/features/focus-recovery-sync';
 
 export default function FocusScreen() {
   const session = useSessionStore(state => state.session);
@@ -42,23 +43,25 @@ function FocusContent() {
     setError(undefined);
   };
   useEffect(() => {
-    if (owner && focus.storedOwner !== owner) focus.configure(owner, 25, null);
-  }, [owner, focus.storedOwner, focus.configure]);
+    if (owner && focus.recoveryReady && focus.storedOwner !== owner) focus.configure(owner, 25, null);
+  }, [owner, focus.recoveryReady, focus.storedOwner, focus.configure]);
   useEffect(() => {
-    if (!owner || !tasks.data || !params.taskId || applied.current === params.taskId) return;
+    if (!owner || !focus.recoveryReady || !tasks.data || !params.taskId || applied.current === params.taskId) return;
     applied.current = params.taskId;
     if (active || unsaved) return; // Reopening never replaces work already in progress.
     const id = idSchema.safeParse(params.taskId);
     const task = id.success ? tasks.data.find(value => value.id === id.data && eligible(value)) : undefined;
     if (task) focus.configure(owner, task.estimatedMinutes ? Math.min(90, task.estimatedMinutes) : 25, { id: task.id, title: task.title });
     else setError('That task is unavailable for a focus block. Choose another task or study freely.');
-  }, [params.taskId, tasks.data, owner, active, unsaved, focus.configure]);
+  }, [params.taskId, tasks.data, owner, active, unsaved, focus.recoveryReady, focus.configure]);
   const saveTime = async () => {
     if (!owner || savingRef.current) return;
     const body = focus.prepareRecord(owner);
     if (!body) { setError('Focus for at least one second before saving. Check your device clock if time cannot be recorded.'); return; }
     savingRef.current = true; setSaving(true); setError(undefined); setUnavailableTask(false);
     try {
+      const session = useSessionStore.getState().session;
+      if (!session || !await persistFocusDraft(owner, session.user.id)) return;
       const response = focusSessionSchema.parse(await action.mutateAsync({ path: '/focus-sessions', body }));
       if (response.startedAt !== body.startedAt || response.endedAt !== body.endedAt || response.focusedSeconds !== body.focusedSeconds
         || response.title !== body.title || response.outcome !== body.outcome || response.plannedMinutes !== body.plannedMinutes) throw new Error('The saved block could not be verified. Retry saving.');
@@ -87,6 +90,20 @@ function FocusContent() {
     <Text style={styles.title}>One thing at a time.</Text>
     <Text style={styles.meta}>Give yourself a little space to make progress.</Text>
     <Button title="My focus history" tone="plain" disabled={saving} onPress={() => router.push('/focus-history')}/>
+    {!focus.recoveryReady && <Card><Text accessibilityLiveRegion="polite" style={styles.section}>Recovering your focus space…</Text>
+      {focus.storageError && <><Text accessibilityRole="alert" style={styles.error}>{focus.storageError}</Text>
+        <Button title="Retry recovery" onPress={() => { const session = useSessionStore.getState().session; if (session && owner) void restoreFocusDraft(owner, session.user.id); }}/></>}
+    </Card>}
+    {focus.recoveredAt !== null && <Card><Text style={styles.section}>{frozen ? 'Your unsaved time is safe.' : 'Welcome back to your block.'}</Text>
+      <Text style={styles.target}>{target?.title ?? 'Free study'} · {focusClockLabel(focus.remainingMs)} left</Text>
+      <Text style={styles.meta}>{frozen ? 'Retry saving this same block when connected. It stays paused until you save or discard it.'
+        : finished ? 'This block finished before the app closed. Save it to your history or discard it.'
+          : 'We paused at your last saved progress. Time while the app was closed is excluded. Pick up your block or save the time you spent.'}</Text>
+      {!frozen && !finished && <Button title="Resume focus block" disabled={saving} onPress={() => { if (owner) focus.start(owner); }}/>}
+      {!frozen && !finished && <Button title={saving ? 'Saving time…' : 'Save recovered time'} tone="plain" disabled={saving} onPress={() => { void saveTime(); }}/>}
+      {!frozen && !finished && <Button title="Discard recovered block" tone="plain" disabled={saving} onPress={() => setConfirmEnd(true)}/>}
+    </Card>}
+    {focus.recoveryReady && focus.storageError && <Text accessibilityRole="alert" style={styles.error}>{focus.storageError}</Text>}
     <View style={styles.timerCard}>
       <Text style={styles.kicker}>{timer.phase === 'focus' ? 'YOUR FOCUS BLOCK' : 'TIME TO RECHARGE'}</Text>
       <Text style={styles.target}>{target?.title ?? 'A little uninterrupted study'}</Text>
@@ -95,7 +112,7 @@ function FocusContent() {
         : timer.status === 'paused' ? 'Paused · take your time' : timer.status === 'running' ? `${phase} in progress` : 'Ready when you are'}</Text>
       <View accessibilityRole="progressbar" accessibilityLabel="Session progress" accessibilityValue={{ min: 0, max: 100, now: progress }}
         aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} style={styles.track}><View style={[styles.fill, { width: `${progress}%` }]}/></View>
-      {timer.status === 'ready' && <Button title="Start focus" disabled={!owner || saving}
+      {timer.status === 'ready' && <Button title="Start focus" disabled={!owner || saving || !focus.recoveryReady}
         onPress={() => { if (owner) focus.start(owner); }}/>}
       {timer.status === 'running' && <Button title="Pause" disabled={saving}
         onPress={() => { if (owner) focus.pause(owner); }}/>}
@@ -120,7 +137,7 @@ function FocusContent() {
       {!targetTask && <Text style={styles.meta}>Refresh Tasks to check whether this task is still available.</Text>}
     </Card>}
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    {!active && !unsaved && <>
+    {focus.recoveryReady && !active && !unsaved && <>
       <Text style={styles.section}>Make it manageable</Text>
       <View style={styles.choices}>{[15, 25, 50].map(minutes => <Choice key={minutes} label={`${minutes} min`} selected={timer.phase === 'focus' && timer.durationMs === minutes * 60_000} disabled={saving}
         onPress={() => { if (owner) focus.configure(owner, minutes); }}/>)}</View>
@@ -133,7 +150,7 @@ function FocusContent() {
       {visible.length > 6 && <Text style={styles.meta}>Search to find more of your {available.length} open tasks.</Text>}
       {tasks.data && !visible.length && <Text style={styles.meta}>{search.trim() ? 'No tasks match. Try another search.' : 'Add a task or plan study time from Coursework when you need a specific goal.'}</Text>}
     </>}
-    <Text style={styles.meta}>The timer keeps counting when you switch screens or apps. Save with a connection to keep your history. Closing the app loses unsaved time.</Text>
+    <Text style={styles.meta}>The timer keeps counting when you switch screens or apps. Progress is kept on this device every few seconds. If the app closes, resume from your last saved progress. Save with a connection to keep your history. Signing out clears device drafts.</Text>
   </ScrollView>{confirmEnd && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!saving) setConfirmEnd(false); }}>
     <SafeAreaView style={styles.confirm}><Card><Text style={styles.section}>End this session?</Text><Text style={styles.meta}>{timer.phase === 'focus'
       ? 'Save the time you spent, or discard this block. Your task stays as it is.' : 'Reset the break and return to focus.'}</Text>

@@ -7,7 +7,7 @@ const save = jest.fn();
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({}), router: { push: jest.fn() } }));
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useClasses: jest.fn(), usePlanningSnapshot: jest.fn(), useToday: jest.fn() }));
 jest.mock('../src/features/use-agenda-clock', () => ({ useAgendaClock: () => '2025-03-10T14:00:00Z' }));
-jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { id: '10000000-0000-4000-8000-000000000001' } } }) }));
+jest.mock('../src/store/session', () => ({ useSessionStore: jest.requireActual('zustand').create(() => ({ session: { user: { id: '10000000-0000-4000-8000-000000000001' } } })) }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
 beforeEach(() => {
   jest.clearAllMocks(); save.mockReset().mockResolvedValue({});

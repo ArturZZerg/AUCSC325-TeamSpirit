@@ -47,6 +47,9 @@ palette and Today-centered product model.
 13. **Study report:** connect recorded time with weekly patterns and task estimates
     so students can choose their next preparation step without invented activity.
     Implemented in the [weekly study report](../requirements/study-report.md).
+14. **Focus recovery:** recover unsaved blocks after app termination, excluding
+    uncertain closed-app time and preserving exact failed-save requests. Implemented
+    in [focus recovery](../requirements/focus-recovery.md) under ADR 007.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native

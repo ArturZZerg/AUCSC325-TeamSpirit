@@ -270,6 +270,12 @@ Changed server deadlines reach local scheduling on the next successful refresh;
 delivery while the app cannot refresh is not guaranteed by this local scheduling
 design. Reliable remote updates would require a later push-delivery decision.
 
+Unsaved focus blocks also use account-scoped device checkpoints as UI recovery
+state under [ADR 007](../adr/007-focus-device-recovery.md). Restart recovery pauses
+at the last checkpoint and excludes later time. Frozen save requests retain their
+exact identity and payload; sending requires an explicit tap. Logout/fresh login
+purges drafts. Saved history remains authoritative in PostgreSQL.
+
 ## Validation and next gates
 
 The initial MVP has workspace boundary checks, linting, TypeScript checks,

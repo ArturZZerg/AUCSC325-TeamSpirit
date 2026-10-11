@@ -6,14 +6,16 @@ Choose a task or study freely; select 15/25/50 minutes or use a task's estimate
 (capped at 90 minutes per block). Pause/resume, explicitly end/reset, take a
 five-minute break, or start another block. Completion is a separate API action.
 
-The timer and selected task are transient mobile UI state in Zustand. They
+The timer and selected task are mobile UI state in Zustand with account-scoped
+device checkpoints under [ADR 007](../adr/007-focus-device-recovery.md). They
 survive navigation and backgrounding within the running app. Explicitly saved
 blocks use the account-owned FocusSession entity in [ADR 006](../adr/006-recorded-focus-sessions.md).
 An absolute end instant avoids
 interval drift: background time counts, paused time does not, and returning
 after expiry shows completion once. The UI interval is suspended in background.
-App termination discards unsaved time; this is stated on screen. No notification
-delivery is promised. Logout, account switch and renewed login clear the timer
+App termination offers [focus recovery](focus-recovery.md) paused at the last
+checkpoint, excluding time after that checkpoint. No notification delivery is
+promised. Logout, account switch and renewed login clear the timer
 and private target immediately; stale-session callbacks cannot configure it.
 
 Task selection uses account-scoped validated task reads. Completed, recurring,
@@ -36,9 +38,10 @@ whole elapsed seconds (at least one), exclude pauses and breaks, and cap at actu
 expiry even after a late app return. No timer action completes a task.
 
 Failed saves freeze time and keep the identical request payload/key across screen
-navigation for retry. Duplicate taps are guarded; controls/dismissal are disabled
-while saving. Unsaved data is not a durable offline outbox. Closing the app or
-signing out loses it. Task completion remains independently retryable.
+navigation and app restart for retry. The identical payload is kept on the device
+before sending. Duplicate taps are guarded; controls/dismissal are disabled
+while saving. Unsaved data is not an automatic offline outbox. Signing out clears
+the draft. Task completion remains independently retryable.
 If the server definitely rejects a task link because that task was deleted, the
 student can explicitly save the captured title/time without the link using a new
 save key. Uncertain network responses never offer this replacement request.
