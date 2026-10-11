@@ -57,6 +57,12 @@ palette and Today-centered product model.
     to reviewed scheduling, preparation and exact focus/plan actions. Implemented
     in [workload inbox](../requirements/workload-inbox.md), with honest partial
     reads, occurrence boundaries and account-isolated drafts.
+17. **Account & privacy:** server-saved data export, usable JSON download/share,
+    confirmed account deletion and local cleanup retry. Implemented in
+    [account privacy](../requirements/account-privacy.md); ordinary web sign-in
+    supports a self-service resource without persistent browser credentials.
+    Native acceptance and hosted release evidence remain in the
+    [production readiness record](production-readiness.md).
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native

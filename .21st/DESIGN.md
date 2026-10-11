@@ -9,6 +9,8 @@ Use the existing warm canvas, ink, muted, moss and sage tokens. Blue and plum
 distinguish student-selected classes alongside moss and coral. Keep comfortable
 spacing, 46px touch targets, clear type hierarchy and restrained borders/radii.
 Color supplements text labels, never replaces them.
+Destructive buttons use the separate danger token (#A64B36) for 5.70:1 white-text
+contrast. Coral remains an accent; it is not the destructive-button background.
 
 Preserve five-tab navigation. New workspaces open from Today/planner. Support
 narrow screens with wrapping controls and horizontal day strips. Editors isolate
