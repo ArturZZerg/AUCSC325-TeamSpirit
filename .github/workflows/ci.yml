@@ -16,12 +16,12 @@ jobs:
           POSTGRES_PASSWORD: campusflow_ci
           POSTGRES_DB: campusflow_test
         ports:
-          - 5432:5432
+          - 55435:5432
         options: >-
           --health-cmd "pg_isready -U campusflow -d campusflow_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      DATABASE_URL: postgresql://campusflow:campusflow_ci@127.0.0.1:5432/campusflow_test
+      DATABASE_URL: postgresql://campusflow:campusflow_ci@127.0.0.1:55435/campusflow_test
       CI: 'true'
     steps:
       - uses: actions/checkout@v4
@@ -34,3 +34,7 @@ jobs:
       - run: npm run db:migrate
       - run: npm run check
       - run: npm run build:web -w @campusflow/mobile
+      - run: npm run release:restore-rehearsal
+        env:
+          REHEARSAL_DATABASE_URL: ${{ env.DATABASE_URL }}
+          PG_DOCKER_CONTAINER: ${{ job.services.postgres.id }}

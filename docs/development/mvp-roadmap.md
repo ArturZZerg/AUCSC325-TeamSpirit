@@ -69,6 +69,11 @@ responsive visual checks, self-review, hosted CI and a reviewed merge. Native
 acceptance remains a separate gate for new interactions. Temporary browser
 fixtures and preview entry points never ship in the production application.
 
+Release readiness now includes bounded PostgreSQL schema/migration health,
+explicit production configuration, read-only release smoke and a guarded local
+snapshot/restore rehearsal. See [release operations](release-operations.md);
+CI restores its disposable test database as a required release verification step.
+
 Commercial-release gates remain: institution-approved live Canvas OAuth and
 an authorized integration test, deployed campus feeds, production hosting/TLS,
 account recovery, and iOS/Android acceptance. Feature development can continue
