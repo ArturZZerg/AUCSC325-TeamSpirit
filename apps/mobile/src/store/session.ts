@@ -1,4 +1,5 @@
-import * as SecureStore from 'expo-secure-store';
+import { sessionStorage } from '@/services/session-storage';
+import { clearAccountExports } from '@/services/account-export';
 import { create } from 'zustand';
 import { sessionSchema } from '@campusflow/contracts';
 import type { Session } from '@/lib/types';
@@ -6,9 +7,9 @@ import { queryClient } from '@/lib/query-client';
 import { clearAccountCache, deleteCache } from '@/services/cache';
 import { clearScheduledReminders } from '@/services/reminders';
 
-const key = 'campusflow.session.v1';
 let revision = 0;
 let transition = Promise.resolve();
+const cleanupAccounts = new Set<string>();
 function serialize(operation: () => Promise<void>) {
   transition = transition.catch(() => undefined).then(operation);
   return transition;
@@ -25,14 +26,21 @@ async function revokeSession(session: Session) {
   finally { clearTimeout(timeout); }
 }
 
-type State = { session: Session | null; ready: boolean; restore(): Promise<void>; setSession(session: Session): Promise<void>; signOut(): Promise<void> };
+async function cleanup() {
+  const results = await Promise.allSettled([sessionStorage.clear(), clearScheduledReminders(),
+    ...[...cleanupAccounts].flatMap(id => [clearAccountCache(id), clearAccountExports(id)])]);
+  if (results.some(result => result.status === 'rejected')) throw new Error('Some private data could not be cleared from this device. Retry cleanup before signing in.');
+  cleanupAccounts.clear();
+}
+type State = { session: Session | null; ready: boolean; cleanupError: string | null; accountDeleted: boolean;
+  restore(): Promise<void>; setSession(session: Session): Promise<void>; signOut(options?: { deleted?: boolean }): Promise<void>; retryCleanup(): Promise<void> };
 export const useSessionStore = create<State>((set, get) => ({
-  session: null, ready: false,
+  session: null, ready: false, cleanupError: null, accountDeleted: false,
   async restore() {
     const restoringRevision = revision;
     let session: Session | null = null;
     try {
-      const raw = await SecureStore.getItemAsync(key);
+      const raw = await sessionStorage.read();
       if (raw) {
         const result = sessionSchema.safeParse(JSON.parse(raw));
         if (result.success) session = result.data;
@@ -48,32 +56,39 @@ export const useSessionStore = create<State>((set, get) => ({
       set({ session: null }); queryClient.clear();
     }
     await serialize(async () => {
+      if (cleanupAccounts.size) await cleanup();
       if (previous && previous.user.id !== session.user.id) {
-        await clearAccountCache(previous.user.id);
-        await clearScheduledReminders();
+        cleanupAccounts.add(previous.user.id);
+        await cleanup();
         void revokeSession(previous);
       }
       if (settingRevision !== revision) return;
       // A fresh login must never recover a private draft from an earlier login.
       await deleteCache(session.user.id, 'focus-draft:v1');
       if (settingRevision !== revision) return;
-      await SecureStore.setItemAsync(key, JSON.stringify(session));
-      if (settingRevision === revision) set({ session, ready: true });
+      await sessionStorage.write(JSON.stringify(session));
+      if (settingRevision === revision) set({ session, ready: true, cleanupError: null, accountDeleted: false });
     });
   },
-  async signOut() {
+  async signOut(options) {
     const session = get().session;
     if (!session) return transition;
     ++revision;
     // Hide account data and cancel reads immediately, before any network or
     // storage waits. A subsequent sign-in waits for the serialized cleanup.
-    set({ session: null });
+    set({ session: null, accountDeleted: options?.deleted === true });
     queryClient.clear();
-    void revokeSession(session);
+    if (!options?.deleted) void revokeSession(session);
+    cleanupAccounts.add(session.user.id);
     await serialize(async () => {
-      await SecureStore.deleteItemAsync(key);
-      await clearAccountCache(session.user.id);
-      await clearScheduledReminders();
+      try { await cleanup(); set({ cleanupError: null }); }
+      catch (error) { set({ cleanupError: (error as Error).message }); }
+    });
+  },
+  async retryCleanup() {
+    await serialize(async () => {
+      try { await cleanup(); set({ cleanupError: null }); }
+      catch (error) { set({ cleanupError: (error as Error).message }); }
     });
   },
 }));

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, json } from '@/lib/api';
@@ -10,9 +11,10 @@ import { Button, Field, colors } from '@/components/ui';
 import { authFormSchema, type AuthFormValues } from '@/features/auth-form';
 
 export default function Auth() {
+  const { next } = useLocalSearchParams<{ next?: string }>();
   const [registering, setRegistering] = useState(false);
   const [message, setMessage] = useState<string>();
-  const { setSession } = useSessionStore();
+  const { setSession, accountDeleted, cleanupError, retryCleanup } = useSessionStore();
   const { control, handleSubmit, clearErrors, formState: { errors, isSubmitting } } = useForm<AuthFormValues>({
     resolver: zodResolver(authFormSchema(registering)),
     defaultValues: { email: '', displayName: '', password: '', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
@@ -31,7 +33,9 @@ export default function Auth() {
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <View style={styles.brand}><Text style={styles.logo}>CampusFlow</Text><Text style={styles.subtitle}>Your student day, in one calm place.</Text></View>
         <View style={styles.form}>
-          <Text style={styles.title}>{registering ? 'Create your account' : 'Welcome back'}</Text>
+          <Text style={styles.title}>{registering ? 'Create your account' : next === 'account' ? 'Sign in to manage your account' : 'Welcome back'}</Text>
+          {accountDeleted && <Text accessibilityRole="alert">Your account was deleted. All sessions have lost server access.</Text>}
+          {cleanupError && <><Text accessibilityRole="alert" style={styles.error}>{cleanupError}</Text><Button title="Retry device cleanup" tone="plain" onPress={() => void retryCleanup()}/></>}
           <Controller control={control} name="email" render={({ field }) => <Field label="Email" value={field.value} onChangeText={field.onChange} placeholder="you@ualberta.ca" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />}/>
           {registering && <Controller control={control} name="displayName" render={({ field }) => <Field label="Name" value={field.value} onChangeText={field.onChange} placeholder="Your name"/>}/>}
           <Controller control={control} name="password" render={({ field }) => <Field label="Password" value={field.value} onChangeText={field.onChange} placeholder={registering ? 'At least 12 characters' : 'Your password'} secureTextEntry autoCapitalize="none" autoCorrect={false}/>}/>

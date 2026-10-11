@@ -15,6 +15,7 @@ jest.mock('expo-router', () => ({
     return <Component/>;
   }, { Screen: () => null }),
   useLocalSearchParams: () => ({}),
+  useRouter: () => ({ push: jest.fn() }),
 }));
 jest.mock('@expo/vector-icons/Ionicons', () => () => null);
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useAcademic: jest.fn(), useClasses: jest.fn(), usePlanningSnapshot: jest.fn(), useGoalHistory: jest.fn(), useGoals: jest.fn(),

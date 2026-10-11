@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppState, Text } from 'react-native';
+import { AppState, Platform, Text } from 'react-native';
 import { usePreferences, useReminders } from '@/features/queries';
 import { reconcileReminders } from '@/services/reminders';
 import { useSessionStore } from '@/store/session';
@@ -15,7 +15,7 @@ export function DeviceReminderSync() {
   useEffect(() => {
     let active = true;
     const isCurrent = () => active && !!session && useSessionStore.getState().session?.accessToken === session.accessToken;
-    if (session && reminders.data && preferences.data) {
+    if (Platform.OS !== 'web' && session && reminders.data && preferences.data) {
       void reconcileReminders(reminders.data, { accountId: session.user.id, timeZone: session.user.timeZone,
         preferences: preferences.data, isCurrent }).catch(() => { /* The service exposes account-scoped retry status. */ });
     }

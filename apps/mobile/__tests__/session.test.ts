@@ -3,17 +3,19 @@ import { useSessionStore } from '../src/store/session';
 import { queryClient } from '../src/lib/query-client';
 import { clearAccountCache, deleteCache } from '../src/services/cache';
 import { clearScheduledReminders } from '../src/services/reminders';
+import { clearAccountExports } from '../src/services/account-export';
 import type { Session } from '../src/lib/types';
 
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
 jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn().mockResolvedValue(undefined), deleteCache: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/services/account-export', () => ({ clearAccountExports: jest.fn().mockResolvedValue(undefined) }));
 
 const first: Session = { accessToken: 'first-token', expiresAt: '2099-01-01T00:00:00Z', user: {
   id: '10000000-0000-4000-8000-000000000001', email: 'first@example.test', displayName: 'First', timeZone: 'America/Edmonton', createdAt: '2026-10-03T00:00:00Z',
 } };
 const second = { ...first, accessToken: 'second-token', user: { ...first.user, id: '10000000-0000-4000-8000-000000000002' } };
-beforeEach(() => { jest.clearAllMocks(); queryClient.clear(); useSessionStore.setState({ session: null, ready: false });
+beforeEach(() => { jest.clearAllMocks(); queryClient.clear(); useSessionStore.setState({ session: null, ready: false, cleanupError: null, accountDeleted: false });
   queryClient.setDefaultOptions({ queries: { gcTime: Infinity }, mutations: { gcTime: Infinity } });
   jest.mocked(SecureStore.getItemAsync).mockReset().mockResolvedValue(null);
   jest.mocked(SecureStore.setItemAsync).mockResolvedValue(undefined);
@@ -78,5 +80,15 @@ describe('local account lifecycle (ToR 19)', () => {
     await useSessionStore.getState().setSession(second);
     finish(JSON.stringify(first)); await restore;
     expect(useSessionStore.getState().session).toEqual(second);
+  });
+  it('attempts every device cleanup after confirmed deletion, reports failure and retries before a new login', async () => {
+    useSessionStore.setState({ session: first, ready: true });
+    jest.mocked(SecureStore.deleteItemAsync).mockRejectedValueOnce(new Error('secure storage busy'));
+    await useSessionStore.getState().signOut({ deleted: true });
+    expect(useSessionStore.getState()).toMatchObject({ session: null, accountDeleted: true, cleanupError: expect.any(String) });
+    expect(clearAccountCache).toHaveBeenCalledWith(first.user.id); expect(clearAccountExports).toHaveBeenCalledWith(first.user.id); expect(clearScheduledReminders).toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    await useSessionStore.getState().retryCleanup(); expect(useSessionStore.getState().cleanupError).toBeNull();
+    await useSessionStore.getState().setSession(second); expect(useSessionStore.getState()).toMatchObject({ session: second, accountDeleted: false });
   });
 });

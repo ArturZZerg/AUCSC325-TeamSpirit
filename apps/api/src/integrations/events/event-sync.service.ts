@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma.service';
@@ -18,6 +18,13 @@ export class EventSyncService {
     // Lock before fetching: a slow old fetch must not overwrite a newer import.
     return this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${source.source}), hashtext(${source.sourceScope}))::text`;
+      if (source.sourceScope !== 'public') {
+        // Account deletion waits for existing imports, then removes their rows.
+        // An import starting after deletion cannot recreate private string-scoped events.
+        const ownerId = source.sourceScope.slice(5);
+        const owner = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${ownerId}::uuid FOR KEY SHARE`;
+        if (!owner.length) throw new NotFoundException('Private event owner is unavailable.');
+      }
       if (refresh) {
         const state = await tx.campusFeedState.findUnique({ where: { source: source.source } });
         const interval = state?.lastStatus === 'complete' ? refresh.successIntervalMs : refresh.failureIntervalMs;

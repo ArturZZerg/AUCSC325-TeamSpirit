@@ -2,6 +2,14 @@ import { ArgumentMetadata, BadRequestException, CanActivate, ExecutionContext, I
 import { createHash } from 'node:crypto';
 import { z, ZodType } from 'zod';
 import { PrismaService } from './prisma.service';
+import type { Prisma } from '@prisma/client';
+
+// Acquire before locking a child that may create another User foreign key
+// (a reminder/completion). Otherwise account deletion can wait on the child
+// while that writer waits on the User, producing a circular lock dependency.
+export async function lockAccountRecords(tx: Prisma.TransactionClient, userId: string) {
+  await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId}::uuid FOR KEY SHARE`;
+}
 
 export class ZodPipe<T> implements PipeTransform<unknown, T> {
   constructor(private readonly schema: ZodType<T>) {}
