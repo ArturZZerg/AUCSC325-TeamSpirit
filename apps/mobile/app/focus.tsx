@@ -24,12 +24,14 @@ function FocusContent() {
   const [search, setSearch] = useState(''); const [confirmEnd, setConfirmEnd] = useState(false);
   const [saving, setSaving] = useState(false); const [error, setError] = useState<string>();
   const [unavailableTask, setUnavailableTask] = useState(false);
+  const [deferredTaskId, setDeferredTaskId] = useState<string>();
   const savingRef = useRef(false); const applied = useRef<string | undefined>(undefined);
   const owner = focus.owner;
   const { timer, target } = focus;
   const eligible = (task: PersonalTask) => !task.completedAt && !task.recurrence;
   const targetTask = tasks.data?.find(task => task.id === target?.id);
   const available = tasks.data?.filter(eligible) ?? [];
+  const deferredTask = deferredTaskId === params.taskId ? available.find(task => task.id === deferredTaskId) : undefined;
   const visible = available.filter(task => task.title.toLowerCase().includes(search.trim().toLowerCase()));
   const active = timer.status === 'running' || timer.status === 'paused';
   const finished = timer.status === 'finished';
@@ -40,6 +42,7 @@ function FocusContent() {
   const selectTask = (task: PersonalTask | null) => {
     if (!owner || active || saving || unsaved) return;
     focus.configure(owner, task?.estimatedMinutes ? Math.min(90, task.estimatedMinutes) : 25, task ? { id: task.id, title: task.title } : null);
+    setDeferredTaskId(undefined);
     setError(undefined);
   };
   useEffect(() => {
@@ -48,12 +51,17 @@ function FocusContent() {
   useEffect(() => {
     if (!owner || !focus.recoveryReady || !tasks.data || !params.taskId || applied.current === params.taskId) return;
     applied.current = params.taskId;
-    if (active || unsaved) return; // Reopening never replaces work already in progress.
     const id = idSchema.safeParse(params.taskId);
     const task = id.success ? tasks.data.find(value => value.id === id.data && eligible(value)) : undefined;
+    if (task && (active || unsaved)) {
+      // Preserve current work and offer the requested task explicitly after the
+      // block is settled; don't silently lose the student's navigation intent.
+      setDeferredTaskId(task.id === target?.id ? undefined : task.id); return;
+    }
+    setDeferredTaskId(undefined);
     if (task) focus.configure(owner, task.estimatedMinutes ? Math.min(90, task.estimatedMinutes) : 25, { id: task.id, title: task.title });
     else setError('That task is unavailable for a focus block. Choose another task or study freely.');
-  }, [params.taskId, tasks.data, owner, active, unsaved, focus.recoveryReady, focus.configure]);
+  }, [params.taskId, tasks.data, owner, active, unsaved, target?.id, focus.recoveryReady, focus.configure]);
   const saveTime = async () => {
     if (!owner || savingRef.current) return;
     const body = focus.prepareRecord(owner);
@@ -90,6 +98,10 @@ function FocusContent() {
     <Text style={styles.title}>One thing at a time.</Text>
     <Text style={styles.meta}>Give yourself a little space to make progress.</Text>
     <Button title="My focus history" tone="plain" disabled={saving} onPress={() => router.push('/focus-history')}/>
+    {deferredTask && <Card><Text style={styles.section}>Next: {deferredTask.title}</Text>
+      <Text style={styles.meta}>{active || unsaved ? 'Your current block stays in place. Finish and save it, or discard it, before switching tasks.' : 'Your previous block is settled. Start the task you opened when you are ready.'}</Text>
+      <Button title="Focus requested task" disabled={active || unsaved || saving} onPress={() => selectTask(deferredTask)}/>
+    </Card>}
     {!focus.recoveryReady && <Card><Text accessibilityLiveRegion="polite" style={styles.section}>Recovering your focus space…</Text>
       {focus.storageError && <><Text accessibilityRole="alert" style={styles.error}>{focus.storageError}</Text>
         <Button title="Retry recovery" onPress={() => { const session = useSessionStore.getState().session; if (session && owner) void restoreFocusDraft(owner, session.user.id); }}/></>}

@@ -45,6 +45,10 @@ beforeEach(() => {
 afterEach(() => { jest.restoreAllMocks(); });
 
 describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
+  it('opens the workload inbox from Today', () => {
+    render(<TodayScreen/>); fireEvent.press(screen.getByText('Organise my workload'));
+    expect(router.push).toHaveBeenCalledWith('/workload');
+  });
   it('offers guided setup on an empty day and keeps the guide accessible with existing plans', () => {
     show([]); const ui = render(<TodayScreen/>);
     fireEvent.press(screen.getByText('Build my daily plan')); expect(router.push).toHaveBeenCalledWith('/get-started');

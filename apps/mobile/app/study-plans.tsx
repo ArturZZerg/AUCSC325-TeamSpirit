@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { updateStudyPlanSchema, type StudyPlan } from '@campusflow/contracts';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { idSchema, updateStudyPlanSchema, type StudyPlan } from '@campusflow/contracts';
 import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
 import { useAction, useStudyPlans } from '@/features/queries';
 import { filterStudyPlans, sessionNeedsMoving, studyPlanProgress, type StudyPlanView } from '@/features/preparation-progress';
@@ -20,6 +20,10 @@ export default function StudyPlansScreen() {
 }
 function StudyPlansContent() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ planId?: string | string[] }>();
+  const parsedTarget = idSchema.safeParse(params.planId);
+  const [dismissedTarget, setDismissedTarget] = useState<string>();
+  const target = parsedTarget.success && parsedTarget.data !== dismissedTarget ? parsedTarget.data : undefined;
   const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');
   const { date } = useTodayClock(timeZone); const now = useAgendaClock(date, timeZone);
   const plans = useStudyPlans(), action = useAction();
@@ -31,7 +35,10 @@ function StudyPlansContent() {
   const busy = useRef(false);
   const disabled = !!pending || action.isPending;
   const modalOpen = !!editing || !!reminding || !!renaming;
-  const visible = filterStudyPlans(plans.data ?? [], search, view, timeZone, now);
+  const visible = target ? (plans.data ?? []).filter(plan => plan.id === target)
+    : filterStudyPlans(plans.data ?? [], search, view, timeZone, now);
+  const leaveTarget = () => setDismissedTarget(parsedTarget.success ? parsedTarget.data : undefined);
+  const browse = () => { leaveTarget(); setSearch(''); setView('active'); };
   const active = (plans.data ?? []).filter(plan => !plan.archivedAt && !studyPlanProgress(plan, timeZone, now).finished);
   const openCount = active.reduce((sum, plan) => sum + studyPlanProgress(plan, timeZone, now).open.length, 0);
   const earlierCount = active.reduce((sum, plan) => sum + studyPlanProgress(plan, timeZone, now).needsMoving.length, 0);
@@ -61,15 +68,18 @@ function StudyPlansContent() {
     <State loading={plans.isLoading} error={plans.error}/>
     {plans.data && (plans.isCached || plans.error) && <Text style={styles.notice}>Showing saved plans. Refresh to check changes made elsewhere.</Text>}
     {!plans.data && !plans.isLoading && <Card><Text style={styles.section}>Study plans are unavailable.</Text><Text style={styles.meta}>Connect and refresh to load your plans. An unavailable read does not mean you have no plans.</Text><Button title="Retry study plans" onPress={refresh}/></Card>}
-    <Field label="Search study plans" value={search} onChangeText={setSearch} placeholder="Plan, coursework or session" autoCorrect={false}/>
-    <View style={styles.choices}>{(['active', 'finished', 'archived'] as const).map(value => <Choice key={value} label={value === 'active' ? 'Active' : value === 'finished' ? 'Finished' : 'Archived'} selected={view === value} onPress={() => setView(value)}/>)}</View>
+    {target && <Card><Text style={styles.item}>Your selected preparation plan</Text><Text style={styles.meta}>{visible.length ? 'The linked plan and its sessions are shown below.' : 'This plan is not in the available information. Refresh to check it, or browse your plans.'}</Text>
+      <Button title="Browse all study plans" tone="plain" onPress={browse}/>{!visible.length && <Button title="Refresh selected plan" onPress={refresh}/>}</Card>}
+    {params.planId !== undefined && !parsedTarget.success && <Text style={styles.notice}>This plan link is invalid. Choose a plan below.</Text>}
+    <Field label="Search study plans" value={search} onChangeText={value => { leaveTarget(); setSearch(value); }} placeholder="Plan, coursework or session" autoCorrect={false}/>
+    <View style={styles.choices}>{(['active', 'finished', 'archived'] as const).map(value => <Choice key={value} label={value === 'active' ? 'Active' : value === 'finished' ? 'Finished' : 'Archived'} selected={!target && view === value} onPress={() => { leaveTarget(); setView(value); }}/>)}</View>
     {view === 'archived' && <Text style={styles.meta}>Archived plans keep their tasks and reminders in your daily plan.</Text>}
     {error && !renaming && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    {plans.data && !visible.length && <Card><Text style={styles.section}>{!plans.data.length ? 'Give your next deadline a plan.' : 'No plans in this view.'}</Text>
+    {plans.data && !target && !visible.length && <Card><Text style={styles.section}>{!plans.data.length ? 'Give your next deadline a plan.' : 'No plans in this view.'}</Text>
       <Text style={styles.meta}>{!plans.data.length ? 'Open coursework and build a few manageable study sessions.' : 'Try another view or clear your search.'}</Text>
       {!!plans.data.length && <Button title="Reset plan filters" tone="plain" onPress={() => { setSearch(''); setView('active'); }}/>}</Card>}
     {visible.map(plan => {
-      const progress = studyPlanProgress(plan, timeZone, now), showing = expanded.includes(plan.id);
+      const progress = studyPlanProgress(plan, timeZone, now), showing = expanded.includes(plan.id) || target === plan.id;
       return <Card key={plan.id}>
         <View style={styles.heading}><Text style={styles.kicker}>{plan.archivedAt ? 'ARCHIVED PLAN' : progress.finished ? 'PREPARATION FINISHED' : 'YOUR NEXT STEPS'}</Text><Text style={styles.meta}>{progress.completed}/{progress.total} sessions</Text></View>
         <Text style={styles.planTitle}>{plan.title}</Text>
@@ -87,7 +97,10 @@ function StudyPlansContent() {
           <Button title="Focus next session" disabled={disabled} onPress={() => focus(progress.next!)}/>
         </View>}
         <View style={styles.choices}>
-          <Button title={showing ? 'Hide sessions' : 'Show sessions'} tone="plain" disabled={disabled} onPress={() => setExpanded(values => showing ? values.filter(id => id !== plan.id) : [...values, plan.id])}/>
+          <Button title={showing ? 'Hide sessions' : 'Show sessions'} tone="plain" disabled={disabled} onPress={() => {
+            if (target === plan.id) { browse(); setView(plan.archivedAt ? 'archived' : progress.finished ? 'finished' : 'active'); }
+            setExpanded(values => showing ? values.filter(id => id !== plan.id) : [...values, plan.id]);
+          }}/>
           <Button title="Rename plan" tone="plain" disabled={disabled} onPress={() => { setName(plan.title); setError(undefined); setRenaming(plan); }}/>
           <Button title={plan.archivedAt ? 'Restore plan' : 'Archive plan'} tone="plain" disabled={disabled} onPress={() => {
             void run(`plan:${plan.id}`, { path: `/study-plans/${plan.id}`, method: 'PATCH', body: { archived: !plan.archivedAt } });

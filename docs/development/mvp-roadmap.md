@@ -53,6 +53,10 @@ palette and Today-centered product model.
 15. **Live campus discovery:** verified public Augustana calendars, hourly imports,
     persistent freshness and useful upcoming/saved browsing. Implemented in
     [campus discovery](../requirements/campus-discovery.md) under ADR 008.
+16. **Workload inbox:** connect missed sessions, unscheduled tasks and coursework
+    to reviewed scheduling, preparation and exact focus/plan actions. Implemented
+    in [workload inbox](../requirements/workload-inbox.md), with honest partial
+    reads, occurrence boundaries and account-isolated drafts.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native
