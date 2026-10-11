@@ -1,9 +1,21 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useGlobalSearchParams, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { useSessionStore } from '@/store/session';
 import { DeviceReminderSync } from '@/features/device-reminders';
 import { queryClient } from '@/lib/query-client';
 import { FocusRecoverySync } from '@/features/focus-recovery-sync';
-function Gate() { const router = useRouter(); const segments = useSegments(); const { session, ready, restore } = useSessionStore(); useEffect(() => { void restore(); }, [restore]); useEffect(() => { if (!ready) return; const atAuth = segments[0] === 'auth'; if (!session && !atAuth) router.replace('/auth'); if (session && atAuth) router.replace('/today'); }, [ready, session, segments, router]); return <Stack screenOptions={{ headerShown: false, statusBarStyle: 'dark' }}><Stack.Screen name="auth"/><Stack.Screen name="(tabs)"/></Stack>; }
+function Gate() {
+  const router = useRouter(), segments = useSegments();
+  const { next } = useGlobalSearchParams<{ next?: string }>();
+  const { session, ready, restore } = useSessionStore();
+  useEffect(() => { void restore(); }, [restore]);
+  useEffect(() => {
+    if (!ready) return;
+    const atAuth = segments[0] === 'auth';
+    if (!session && !atAuth) router.replace(segments[0] === 'account' ? '/auth?next=account' : '/auth');
+    if (session && atAuth) router.replace(next === 'account' ? '/account' : '/today');
+  }, [ready, session, segments, router, next]);
+  return <Stack screenOptions={{ headerShown: false, statusBarStyle: 'dark' }}><Stack.Screen name="auth"/><Stack.Screen name="(tabs)"/></Stack>;
+}
 export default function RootLayout() { return <QueryClientProvider client={queryClient}><FocusRecoverySync /><DeviceReminderSync /><Gate /></QueryClientProvider>; }

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAction, usePreferences, useReminders } from '@/features/queries';
@@ -12,6 +13,7 @@ const categories = [
 ] as const;
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const session = useSessionStore(state => state.session);
   const signOut = useSessionStore(state => state.signOut);
   const preferences = usePreferences();
@@ -43,7 +45,7 @@ export default function SettingsScreen() {
   return <Screen><ScrollView contentContainerStyle={styles.content}>
     <Text style={styles.title}>Settings</Text>
     <Card><Text style={styles.label}>Account</Text><Text style={styles.muted}>{session?.user.email}</Text>
-      <Text style={styles.muted}>Time zone: {session?.user.timeZone}</Text><Button title="Sign out" tone="danger" onPress={() => void signOut()}/></Card>
+      <Text style={styles.muted}>Time zone: {session?.user.timeZone}</Text><Button title="Account & privacy" tone="plain" onPress={() => router.push('/account')}/><Button title="Sign out" tone="danger" onPress={() => void signOut()}/></Card>
     <Card><Text style={styles.label}>Canvas</Text><Text style={styles.muted}>Canvas authorization will appear here after the university approves a developer key, scopes, and HTTPS callback. This build does not ask for or store a personal Canvas token.</Text></Card>
     <Card><Text style={styles.label}>Notifications</Text><State loading={preferences.isLoading} error={preferences.error}/>
       {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}

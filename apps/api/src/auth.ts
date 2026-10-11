@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, Get, Injectable, Patch, Post, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, ForbiddenException, Get, HttpException, Injectable, Patch, Post, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash, randomBytes, scrypt as nodeScrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -14,6 +14,7 @@ const updateMeSchema = z.object({ displayName: z.string().min(1).max(100).option
 @Injectable()
 export class AuthService {
   private readonly failures = new Map<string,{count:number;resetAt:number}>();
+  private readonly passwordChallenges = new Map<string, { count: number; resetAt: number }>();
   constructor(private readonly prisma: PrismaService) {}
   private async hashPassword(password: string): Promise<string> { const salt = randomBytes(16); const key = await scrypt(password, salt, 64) as Buffer; return `scrypt:${salt.toString('base64')}:${key.toString('base64')}`; }
   private async verify(password: string, encoded: string): Promise<boolean> { const [algorithm, salt64, key64] = encoded.split(':'); if (algorithm !== 'scrypt' || !salt64 || !key64) return false; const expected = Buffer.from(key64, 'base64'); const actual = await scrypt(password, Buffer.from(salt64, 'base64'), expected.length) as Buffer; return expected.length === actual.length && timingSafeEqual(expected, actual); }
@@ -21,6 +22,15 @@ export class AuthService {
   async register(input: z.infer<typeof registerRequestSchema>) { try { const user = await this.prisma.user.create({ data:{ email:input.email.trim().toLowerCase(), passwordHash:await this.hashPassword(input.password), displayName:input.displayName, timeZone:input.timeZone, notificationPreference:{create:{}} } }); return this.issue(user); } catch(error) { if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('Email already registered'); throw error; } }
   async login(input: z.infer<typeof loginRequestSchema>) { const email=input.email.trim().toLowerCase(); const bound=this.failures.get(email); if(bound&&bound.resetAt>Date.now()&&bound.count>=8)throw new UnauthorizedException('Too many attempts; try again later'); const user = await this.prisma.user.findUnique({where:{email}}); if (!user || !await this.verify(input.password,user.passwordHash)){const current=bound&&bound.resetAt>Date.now()?bound:{count:0,resetAt:Date.now()+15*60_000};this.failures.set(email,{...current,count:current.count+1});throw new UnauthorizedException('Invalid email or password');} this.failures.delete(email);return this.issue(user); }
   async logout(token: string): Promise<void> { await this.prisma.session.updateMany({where:{tokenHash:createHash('sha256').update(token).digest('hex'),revokedAt:null},data:{revokedAt:new Date()}}); }
+  async confirmCurrentPassword(userId: string, password: string, encoded: string) {
+    const now = Date.now();
+    for (const [id, challenge] of this.passwordChallenges) if (challenge.resetAt <= now) this.passwordChallenges.delete(id);
+    const challenge = this.passwordChallenges.get(userId) ?? { count: 0, resetAt: now + 15 * 60_000 };
+    if (challenge.count >= 8 || (!this.passwordChallenges.has(userId) && this.passwordChallenges.size >= 10_000))
+      throw new HttpException('Too many password attempts. Try again in 15 minutes.', 429);
+    this.passwordChallenges.set(userId, { ...challenge, count: challenge.count + 1 });
+    if (!await this.verify(password, encoded)) throw new ForbiddenException('Current password is incorrect. Your account has been kept.');
+  }
 }
 
 @Controller('auth') export class AuthController {

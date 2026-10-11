@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import type { Reminder } from '@campusflow/contracts';
 import { reminderAfterQuietHours } from '@campusflow/domain';
 import type { NotificationPreferences } from '@/lib/types';
@@ -24,6 +25,7 @@ export function clearScheduledReminders(): Promise<void> {
   // Invalidate already-queued reconciliation immediately, then wait for any
   // native scheduling call already in progress before clearing its result.
   ++revision;
+  if (Platform.OS === 'web') return Promise.resolve();
   return serialize(async () => {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     for (const item of scheduled.filter(ownedNotification)) await Notifications.cancelScheduledNotificationAsync(item.identifier);

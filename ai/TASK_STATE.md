@@ -1,6 +1,6 @@
 # Current development state
 
-Updated: 2026-10-10
+Updated: 2026-10-11
 
 Goal: extend the MVP with complete student workflows, preserving the accepted
 architecture and five-tab navigation, through validated PR/review/merge cycles.
@@ -61,9 +61,31 @@ Web builds now clear Metro's cache: artifact inspection reproduced a stale QA
 API origin after an environment change. A fresh export and the final Android
 bundle were checked for the selected preview origin and absence of QA credentials.
 
-Next recommended feature: an account/privacy centre with personal data export
-and authenticated whole-account deletion, followed by verified account recovery
-once the production email service and deployment target are provided.
+Account & privacy: Settings workspace with full server-saved export review and
+JSON download/native file sharing, password-confirmed atomic account deletion,
+all-session revocation, private-import owner locks and attempt-all local cleanup
+with retry. Web sign-in uses memory-only storage and returns directly to the
+account resource after real sign-in. Neither lost replies nor expired sessions
+are treated as deletion confirmation. No schema migration or service was added;
+Expo file/share modules satisfy the native JSON file requirement.
+
+Account validation: full disposable-user graph export/deletion, another-user and
+public-event preservation, wrong-password bounds, rollback and both private-import
+race orders; mobile pending/failure/late-owner behavior, platform adapters and
+cleanup retry. Real PostgreSQL/API/browser QA verified ordinary sign-in, safe
+continuation, reload sign-out, an actual validated JSON download and deletion
+review/cancel at 320/390/1100px. Permanent deletion was executed only by disposable
+API tests. Native file/share and production-hosted self-service remain gates.
+Final reviewed gates: 417 API, 802 mobile, 97 contract, 173 domain and 3 Android
+build-script tests (1,492 total), lint/boundaries/types and builds. The review also
+covered concurrent task/routine/saved-event reminder edits during deletion.
+Destructive-button text now has 5.70:1 contrast on the existing shared primitive.
+Fresh web/Android bundles exclude synthetic QA credentials and loopback QA origins.
+
+Next recommended task: verified account recovery with the chosen transactional
+email service, followed by production deployment and device acceptance. While
+deployment details are pending, prepare an executable release smoke-check and
+restore-rehearsal workflow from the production-readiness matrix.
 
 Release gates: apply FocusSession and CampusFeedState migrations to deployment,
 enable reviewed campus calendars for the intended campus;

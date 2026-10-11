@@ -6,7 +6,7 @@ import { BadRequestException, Body, Controller, Delete, Get, Injectable, NotFoun
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { configureAcademicReminderSchema, academicReminderConfigurationSchema, dueSchema, eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, createWellnessEntrySchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema, wellnessEntrySchema } from '@campusflow/contracts';
-import { AuthGuard, CurrentUser, RequestUser, ZodPipe, parseUuid, toIso } from './common';
+import { AuthGuard, CurrentUser, RequestUser, ZodPipe, lockAccountRecords, parseUuid, toIso } from './common';
 import { PrismaService } from './prisma.service';
 import { academicReminderFireAt, goalOccursOn, reminderAfterSnooze, taskOccursOn } from '@campusflow/domain';
 
@@ -188,6 +188,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
   }
 
   private async lockTask(tx: Prisma.TransactionClient, userId: string, id: string): Promise<void> {
+    await lockAccountRecords(tx, userId);
     await tx.$queryRaw`SELECT "id" FROM "PersonalTask" WHERE "id" = ${id}::uuid AND "userId" = ${userId}::uuid FOR UPDATE`;
   }
   private async owned(db: Prisma.TransactionClient, userId: string, id: string) {
@@ -337,6 +338,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  }
  @Get(':id/history') async history(@CurrentUser() u:RequestUser,@Param('id',new ZodPipe(parseUuid)) id:string){await this.owned(u.id,id);return (await this.prisma.goalCompletion.findMany({where:{userId:u.id,goalId:id},orderBy:{occurrenceKey:'desc'}})).map(r=>goalCompletionSchema.parse({...r,completedAt:r.completedAt?.toISOString()??null,createdAt:toIso(r.createdAt)}));}
  private async lockGoal(tx: Prisma.TransactionClient, userId: string, id: string): Promise<void> {
+   await lockAccountRecords(tx, userId);
    await tx.$queryRaw`SELECT "id" FROM "Goal" WHERE "id" = ${id}::uuid AND "userId" = ${userId}::uuid FOR UPDATE`;
  }
  private async owned(userId: string, id: string, db: Prisma.TransactionClient = this.prisma) {
@@ -358,7 +360,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  }
  @Put(':id/saved') async save(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(saveEventSchema)) b: z.infer<typeof saveEventSchema>) {
    return this.prisma.$transaction(async tx => {
-     await this.lockEvent(tx, id); await this.event(id, u.id, tx);
+     await lockAccountRecords(tx, u.id); await this.lockEvent(tx, id); await this.event(id, u.id, tx);
      const row = await tx.savedEvent.upsert({ where: { userId_eventId: { userId: u.id, eventId: id } },
        create: { userId: u.id, eventId: id, includedInPlan: b.includedInPlan, reminder: b.reminder ? asJson(b.reminder) : Prisma.JsonNull },
        update: { includedInPlan: b.includedInPlan, reminder: b.reminder === undefined ? undefined : b.reminder === null ? Prisma.JsonNull : asJson(b.reminder) } });
@@ -368,7 +370,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  }
  @Patch(':id/saved') async patch(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(updateSavedEventSchema)) b: z.infer<typeof updateSavedEventSchema>) {
    return this.prisma.$transaction(async tx => {
-     await this.lockEvent(tx, id);
+     await lockAccountRecords(tx, u.id); await this.lockEvent(tx, id);
      const key = { userId: u.id, eventId: id }; const existing = await tx.savedEvent.findUnique({ where: { userId_eventId: key } });
      if (!existing) throw new NotFoundException('Saved event not found');
      const row = await tx.savedEvent.update({ where: { userId_eventId: key }, data: { includedInPlan: b.includedInPlan, reminder: b.reminder === undefined ? undefined : b.reminder === null ? Prisma.JsonNull : asJson(b.reminder) } });
@@ -378,7 +380,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  }
  @Delete(':id/saved') async unsave(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {
    return this.prisma.$transaction(async tx => {
-     await this.lockEvent(tx, id); await tx.savedEvent.deleteMany({ where: { userId: u.id, eventId: id } });
+     await lockAccountRecords(tx, u.id); await this.lockEvent(tx, id); await tx.savedEvent.deleteMany({ where: { userId: u.id, eventId: id } });
      // Also clean legacy intent that predates the SavedEvent foreign key.
      await this.reminders.replace(u.id, 'savedEvent', id, null, tx); return { deleted: true };
    });
