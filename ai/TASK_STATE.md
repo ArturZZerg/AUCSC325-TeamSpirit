@@ -48,13 +48,15 @@ No new schema, service or dependency. See the workload requirements for tests.
 Existing focus blocks retain their current task when another is requested; the
 requested task stays visible and becomes an explicit choice after saving.
 
-Workload validation: 408 API, 781 mobile, 94 contract, 173 domain and 3 Android
+Workload validation: 408 API, 782 mobile, 94 contract, 173 domain and 3 Android
 build-script tests passed with root lint/typecheck/build and production web export.
 Real PostgreSQL/API/SQLite browser QA confirmed selected task rescheduling without
 deadline changes, one reviewed plan with exactly three linked sessions, targeted
 plan expansion and an explicit focus handoff preserving the previous block.
 Saved workload survived API failure and refreshed after recovery. Responsive
 checks at 320/390/1100px found no overflowing controls. Native acceptance is pending.
+An account-switch regression also verifies that a delayed preparation save cannot
+navigate the newly signed-in account after its private editor has unmounted.
 
 Next recommended feature: an account/privacy centre with personal data export
 and authenticated whole-account deletion, followed by verified account recovery

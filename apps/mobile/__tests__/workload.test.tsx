@@ -11,7 +11,11 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: m
 jest.mock('../src/features/queries', () => ({ useTasks: jest.fn(), useAcademic: jest.fn(), useStudyPlans: jest.fn(), useAction: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: () => ({ date: '2025-03-09', resumeCount: mockResume }) }));
 jest.mock('../src/features/use-agenda-clock', () => ({ useAgendaClock: () => '2025-03-09T18:00:00Z' }));
-jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { accessToken: mockToken, user: { id: '10000000-0000-4000-8000-000000000001', timeZone: 'America/Edmonton' } } }) }));
+jest.mock('../src/store/session', () => {
+  const read = () => ({ session: { accessToken: mockToken, user: { id: '10000000-0000-4000-8000-000000000001', timeZone: 'America/Edmonton' } } });
+  const hook = (select: (state: unknown) => unknown) => select(read()); hook.getState = read;
+  return { useSessionStore: hook };
+});
 const save = jest.fn(), refreshTasks = jest.fn(), refreshAcademic = jest.fn(), refreshPlans = jest.fn();
 const looseTask = (): PersonalTask => ({ ...preparationFixture().tasks[0], studyPlanId: null, title: 'Read chapter notes', scheduled: null });
 function show(tasks: PersonalTask[] | undefined, academic: AcademicItem[] | undefined, plans: StudyPlan[] | undefined, overrides = {}) {
@@ -52,6 +56,13 @@ it('previews and explicitly saves coursework preparation using the existing retr
   await act(async () => fireEvent.press(screen.getByText('Save study plan')));
   expect(save).toHaveBeenCalledWith(expect.objectContaining({ path: '/study-plans', method: 'POST', body: expect.objectContaining({ academicItemId: quiz.id }) }));
   expect(save.mock.calls[0][0].body.sessions[0].title).toBe('Review lecture notes'); expect(mockPush).toHaveBeenLastCalledWith('/study-plans');
+});
+it('does not navigate a new account when an earlier preparation save finishes late', async () => {
+  let resolve!: () => void; save.mockReturnValueOnce(new Promise<void>(done => { resolve = done; }));
+  const ui = render(<WorkloadScreen/>); fireEvent.press(screen.getByText('Build preparation plan')); fireEvent.press(screen.getByText('Preview my sessions'));
+  await act(async () => fireEvent.press(screen.getByText('Save study plan')));
+  mockToken = 'new-account'; ui.rerender(<WorkloadScreen/>); expect(screen.queryByText('Save study plan')).toBeNull();
+  await act(async () => resolve()); expect(mockPush).not.toHaveBeenCalled(); expect(save).toHaveBeenCalledTimes(1);
 });
 it.each([{ isCached: true }, { error: new Error('Offline') }, { isRefetching: true }])('withholds creation when plan absence cannot be confirmed: %p', overrides => {
   show([looseTask()], [quiz], [], overrides); render(<WorkloadScreen/>); expect(screen.queryByText('Build preparation plan')).toBeNull();

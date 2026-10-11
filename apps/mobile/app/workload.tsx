@@ -25,7 +25,8 @@ export default function WorkloadScreen() {
 }
 function WorkloadContent() {
   const router = useRouter();
-  const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');
+  const session = useSessionStore(state => state.session);
+  const timeZone = session?.user.timeZone ?? 'UTC';
   const { date, resumeCount } = useTodayClock(timeZone), now = useAgendaClock(date, timeZone);
   const tasks = useTasks(), academic = useAcademic(), plans = useStudyPlans();
   const [search, setSearch] = useState(''), [view, setView] = useState<WorkloadView>('queue');
@@ -83,7 +84,10 @@ function WorkloadContent() {
   </ScrollView>
     {editing && <TaskEditor key={editing.id} task={editing} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}
     {preparing && <PreparationPlanEditor key={preparing.id} item={preparing} timeZone={timeZone} onClose={() => setPreparing(undefined)}
-      onSaved={() => { setPreparing(undefined); router.push('/study-plans'); }}/>}
+      onSaved={() => {
+        if (!session || useSessionStore.getState().session?.accessToken !== session.accessToken) return;
+        setPreparing(undefined); router.push('/study-plans');
+      }}/>}
   </Screen>;
 }
 function WorkloadCard({ row, timeZone, onEdit, onFocus, onPrepare, onPlan, onRefresh }: {
