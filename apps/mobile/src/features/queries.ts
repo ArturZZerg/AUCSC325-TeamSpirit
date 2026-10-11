@@ -6,6 +6,7 @@ import { goalOccurrenceDate } from '@campusflow/domain';
 import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
 import { focusHistorySchema } from '@campusflow/contracts';
+import { campusSourcesSchema } from '@campusflow/contracts';
 import { dayBounds } from '@campusflow/domain';
 import { api, ApiError, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
@@ -197,6 +198,7 @@ export function useGoalHistory(goalId: string) {
   return cachedQuery(`goalHistory:${goalId}`, `/goals/${goalId}/history`, schema);
 }
 export const useEvents = () => cachedQuery<CampusEvent[]>('events', '/events', schemas.events);
+export const useCampusSources = () => cachedQuery('campusSources', '/events/sources', campusSourcesSchema);
 export const useWellness = () => cachedQuery<WellnessEntry[]>('wellness', '/wellness', schemas.wellness);
 export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences', notificationPreferencesSchema);
 export const useReminders = () => cachedQuery<Reminder[]>('reminders', '/reminders', schemas.reminders);

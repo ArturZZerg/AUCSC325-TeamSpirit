@@ -59,6 +59,24 @@ describe('bounded campus ICS provider', () => {
     expect(batch.status).toBe('complete');
     if (batch.status !== 'failed') expect(batch.events.map(e => e.timing.kind === 'timed' && e.timing.startsAt.slice(0, 10))).toEqual(['2026-03-02', '2026-03-04', '2026-03-16', '2026-03-18']);
   });
+  it.each([
+    ['SU', ['2026-03-04', '2026-03-15', '2026-03-18', '2026-03-29']],
+    ['MO', ['2026-03-04', '2026-03-08', '2026-03-18', '2026-03-22']],
+    ['WE', ['2026-03-04', '2026-03-08', '2026-03-18', '2026-03-22']],
+  ])('anchors every-other-week BYDAY to WKST=%s', async (weekStart, dates) => {
+    const batch = await parse(calendar(vevent(`DTSTART:20260304T160000Z\r\nRRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=4;BYDAY=SU,WE;WKST=${weekStart}`)));
+    expect(batch.status).toBe('complete');
+    if (batch.status !== 'failed') expect(batch.events.map(e => e.timing.kind === 'timed' && e.timing.startsAt.slice(0, 10))).toEqual(dates);
+  });
+  it('expands Sunday week starts across the fall DST change with inclusive UNTIL', async () => {
+    const batch = await parse(calendar(vevent('DTSTART;TZID=America/Edmonton:20251026T190000\r\nRRULE:FREQ=WEEKLY;WKST=SU;BYDAY=SU;UNTIL=20251110T020000Z')), undefined,
+      { from: '2025-10-25', through: '2025-11-11', timeZone: 'America/Edmonton' });
+    expect(batch).toMatchObject({ status: 'complete' });
+    if (batch.status !== 'failed') expect(batch.events.map(e => e.timing.kind === 'timed' && e.timing.startsAt)).toEqual(['2025-10-27T01:00:00Z', '2025-11-03T02:00:00Z', '2025-11-10T02:00:00Z']);
+  });
+  it.each(['XX', '0', '8', ''])('rejects malformed WKST=%s rather than silently defaulting', async value => {
+    expect(await parse(calendar(vevent(`${timed}\r\nRRULE:FREQ=WEEKLY;WKST=${value}`)))).toMatchObject({ status: 'incomplete', events: [] });
+  });
   it('preserves original identity for moved instances and excludes EXDATE/cancelled instances', async () => {
     const batch = await parse(calendar(
       vevent('DTSTART:20260308T160000Z\r\nDTEND:20260308T170000Z\r\nRRULE:FREQ=DAILY;COUNT=4\r\nEXDATE:20260309T160000Z'),

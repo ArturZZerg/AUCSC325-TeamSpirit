@@ -50,6 +50,9 @@ palette and Today-centered product model.
 14. **Focus recovery:** recover unsaved blocks after app termination, excluding
     uncertain closed-app time and preserving exact failed-save requests. Implemented
     in [focus recovery](../requirements/focus-recovery.md) under ADR 007.
+15. **Live campus discovery:** verified public Augustana calendars, hourly imports,
+    persistent freshness and useful upcoming/saved browsing. Implemented in
+    [campus discovery](../requirements/campus-discovery.md) under ADR 008.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native
@@ -57,6 +60,6 @@ acceptance remains a separate gate for new interactions. Temporary browser
 fixtures and preview entry points never ship in the production application.
 
 Commercial-release gates remain: institution-approved live Canvas OAuth and
-an authorized integration test, a verified campus feed, production hosting/TLS,
+an authorized integration test, deployed campus feeds, production hosting/TLS,
 account recovery, and iOS/Android acceptance. Feature development can continue
 against existing provider boundaries while these external gates are pending.

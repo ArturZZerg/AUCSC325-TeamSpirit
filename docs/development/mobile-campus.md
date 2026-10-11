@@ -42,8 +42,9 @@ precision, time input, retry/pending guards, refreshed cards, legacy metadata,
 filtering and saved actions. `queries.test.tsx` covers cached metadata, malformed
 input and account switches. Contract cases distinguish missing metadata from
 explicit null. `saved-event-reminders.spec.ts` verifies reader-specific API values.
-Run root checks and Expo web export. Native delivery acceptance and a verified
-live campus feed remain external gates; fixtures are not live campus data.
+Run root checks and Expo web export. Live public feed discovery is implemented in
+[campus discovery](../requirements/campus-discovery.md). Native delivery and
+production deployment remain gates; fixtures are not live campus data.
 
 Task/goal snooze now postpones active explicit reminder intent while preserving
 configuration and leaving completed/paused targets inactive. Weekly goal progress

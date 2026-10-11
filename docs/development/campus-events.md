@@ -1,11 +1,10 @@
 # Campus event ingestion (Task 2)
 
-LIVE CAMPUS EVENT SOURCE: BLOCKED — verified usable feed required.
-
-No verified campus feed or feed configuration was found in the repository.
-The deterministic fixtures exercise ingestion; they are not live campus data.
-No schema migration is needed. Event UUIDs, the unique
-`(source, sourceScope, externalId)` key, SavedEvent and wire DTOs are unchanged.
+LIVE CAMPUS EVENT SOURCE: verified public Augustana recreation exports, 2026-10-10.
+Production activation requires the CampusFeedState migration and explicit
+configuration described below. Event UUIDs, the unique
+`(source, sourceScope, externalId)` key and SavedEvent remain unchanged.
+Deterministic fixtures exercise ingestion; they are not live campus data.
 
 ## Internal entry point
 
@@ -22,8 +21,8 @@ const result = await app.get(EventSyncService).sync(
 
 Import `EventSyncService` and `IcsEventProvider` from
 `apps/api/src/integrations/events/`. This is a service entry point, not a public
-URL import endpoint, cron job or automatic startup import. No environment
-variables were added. Once a feed is verified, an operator can construct
+URL import endpoint. The reviewed public feed lifecycle below adds startup and
+periodic imports through this same boundary. Operators can construct
 `httpsCalendarLoader(approvedUrl)` instead of the fixture loader. Never pass an
 untrusted client URL or source/scope into this internal entry point. Each stable
 `campus:` source key must identify exactly one authoritative feed. Private feeds
@@ -46,7 +45,7 @@ unsupported; recognized IANA TZIDs use the runtime IANA timezone rules.
 
 Supported: DATE/DATE-TIME DTSTART and DTEND; UTC and IANA TZID values; all-day
 (default one day) and multi-day exclusive ends; missing timed DTEND as a point;
-DAILY/WEEKLY RRULE, INTERVAL, COUNT or UNTIL, weekly BYDAY, Monday WKST;
+DAILY/WEEKLY RRULE, INTERVAL, COUNT or UNTIL, weekly BYDAY, valid weekday WKST;
 RDATE, EXDATE, detached RECURRENCE-ID overrides and cancellations. Whole-series
 cancellation is supported. Recurrence values use original recurrence identity,
 not the moved actual start. JSON tuples encode UID alone for single events and
@@ -75,9 +74,10 @@ fetch proxy or a complete DNS/network egress policy.
 Sync acquires a PostgreSQL transaction-scoped advisory lock per source/scope
 before fetching, preventing overlapping imports from committing stale fetched
 snapshots out of order. Upserts and reconciliation share the transaction. Database
-failures roll it back and propagate. Failed/incomplete results make no writes,
+failures roll it back and propagate. Failed/incomplete results make no Event writes,
 including otherwise valid partial events. Results report status, issue codes,
-counts and successful coverage. No persistent sync freshness is claimed.
+counts and successful coverage. Internal imports without refresh tracking do
+not record persistent freshness; reviewed public sources do, as described below.
 
 Complete imports update existing UUIDs and all normalized metadata. Newly seen
 out-of-window records are not inserted; already known identities moved outside
@@ -125,6 +125,38 @@ the normalized Event and snapshot entity contracts remain separate. Mobile now
 validates/caches this configuration and offers explicit reminder controls in
 [mobile-campus.md](mobile-campus.md). Older cached reads lacking metadata remain
 readable with reminder editing unavailable until refresh.
+
+## Live Augustana sources and freshness
+
+[ADR 008](../adr/008-public-campus-calendar-refresh.md) enables two public calendars
+linked by the [university recreation programming page](https://www.ualberta.ca/en/augustana/student-life/campus-recreation/campus-rec-programming.html).
+Exports and complete normalized batches were verified on 2026-10-10. The fixed
+catalog is in `campus-feeds.ts`; clients cannot submit URLs. Apply migration
+`20261011000000_campus_feed_state`, then set `CAMPUS_CALENDARS=augustana` and restart
+the API. Leave `disabled` when this campus source is not appropriate.
+
+Startup checks sources asynchronously; Today/events/snapshot reads never wait
+for a feed. The process checks each minute and uses PostgreSQL state/source locks
+to fetch hourly after success or every 15 minutes after failure. Complete coverage
+is campus-local yesterday through 61 days ahead, exclusive. Freshness commits
+with events; failed imports keep successful coverage/listings. Persistence errors
+roll back the attempt. Source locks protect multiple replicas and restarts.
+
+Authenticated `GET /events/sources` exposes reviewed names, official websites,
+successful times, coverage and availability; no loader URLs, provider payloads
+or credentials. Canvas sourceStatus remains separate. Available ages to stale
+at 90 minutes, after a failed refresh or expired coverage; no success is unavailable.
+Mobile also checks requested coverage and ages cached success on the device clock.
+
+The provider supports valid WKST weekdays with interval-week anchoring, defaulting
+to Monday under RFC 5545. Feed timezones, including America/Regina versus
+America/Edmonton across fall DST, are preserved. Other unsupported semantics still
+invalidate the batch. Automated tests do not request the live network.
+
+Internal callers without refresh tracking keep their old behavior; earlier
+statements about no persistent freshness apply to those calls. Reviewed public
+sources use CampusFeedState. The saved-event disappearance policy is retained
+and explained in discovery copy.
 
 ## Verification
 

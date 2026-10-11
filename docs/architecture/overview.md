@@ -98,6 +98,7 @@ IDs are internal identifiers; provider IDs are opaque strings retained separatel
 | `Goal` | User-owned recurring activity with schedule or weekly target, timezone, pause and snooze rules. |
 | `GoalCompletion` | A goal occurrence's completion/skip history; unique per user, goal, and occurrence key so retries do not double-count. |
 | `Event` | Source-normalized event details and occurrence time. Public campus events have a source/feed scope; private Canvas calendar events retain user ownership. |
+| `CampusFeedState` | Public integration attempt/success and complete coverage bookkeeping, committed atomically with imports. See [ADR 008](../adr/008-public-campus-calendar-refresh.md). |
 | `SavedEvent` | User-to-Event association, unique per pair, with explicit inclusion in the daily plan. Saving never changes the source Event. |
 | `WellnessEntry` | Private, dated mood/energy/stress check-in. Wellness activities use Goals; check-in history is not a task. |
 | `Reminder` | User-owned reminder intent targeting an eligible entity/occurrence, with a fire time and stable identity. Target ownership/existence must be validated. |

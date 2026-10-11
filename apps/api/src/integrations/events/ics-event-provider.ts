@@ -74,7 +74,7 @@ function rule(c: Component) {
   const r = z.object({
     freq: z.enum(['DAILY', 'WEEKLY']), interval: z.number().int().min(1).max(366).optional(),
     count: z.number().int().positive().optional(), until: z.string().optional(),
-    byday: z.union([z.string(), z.array(z.string())]).optional(), wkst: z.literal(2).optional(),
+    byday: z.union([z.string(), z.array(z.string())]).optional(), wkst: z.number().int().min(1).max(7).optional(),
   }).strict().parse(property.toJSON()[3]);
   if (r.count && r.until) fail('unsupported-recurrence');
   const days = (typeof r.byday === 'string' ? [r.byday] : r.byday)?.map(d => ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(d) + 1);
@@ -84,7 +84,9 @@ function rule(c: Component) {
     else if (r.until.endsWith('Z')) Temporal.Instant.from(r.until);
     else fail('invalid-until');
   }
-  return { frequency: r.freq, interval: r.interval ?? 1, count: r.count ?? Infinity, days, until: r.until };
+  // ICAL uses Sunday=1; Temporal uses Monday=1. WKST anchors interval weeks.
+  const weekStart = r.wkst === undefined ? 1 : ((r.wkst + 5) % 7) + 1;
+  return { frequency: r.freq, interval: r.interval ?? 1, count: r.count ?? Infinity, days, until: r.until, weekStart };
 
 }
 
@@ -121,7 +123,8 @@ export class IcsEventProvider implements EventProvider {
         const entries = line.slice(line.indexOf(':') + 1).split(';').map(part => part.split('='));
         if (entries.some(entry => entry.length !== 2) || new Set(entries.map(([key]) => key.toUpperCase())).size !== entries.length
           || entries.some(([key, value]) => /^(INTERVAL|COUNT)$/i.test(key)
-            && (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1)))
+            && (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1))
+          || entries.some(([key, value]) => key.toUpperCase() === 'WKST' && !/^(MO|TU|WE|TH|FR|SA|SU)$/.test(value)))
           return { status: 'incomplete', coverage, events: [], issues: ['invalid-recurrence'] };
       }
       const calendar = new ICAL.Component(ICAL.parse(payload));
@@ -177,7 +180,7 @@ export class IcsEventProvider implements EventProvider {
               // One extra local day covers zones west/east of the coverage zone.
               if (Temporal.PlainDate.compare(date, Temporal.PlainDate.from(coverage.through).add({ days: 1 })) > 0) break;
               const matches = recurrence.frequency === 'DAILY' ? offset % recurrence.interval === 0
-                : Math.floor((offset + anchor.dayOfWeek - 1) / 7) % recurrence.interval === 0 && (recurrence.days ?? [anchor.dayOfWeek]).includes(date.dayOfWeek);
+                : Math.floor((offset + (anchor.dayOfWeek - recurrence.weekStart + 7) % 7) / 7) % recurrence.interval === 0 && (recurrence.days ?? [anchor.dayOfWeek]).includes(date.dayOfWeek);
               if (!matches) continue;
               const s = shift(start, offset);
               if (until) {

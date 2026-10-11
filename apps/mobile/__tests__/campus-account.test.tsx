@@ -4,7 +4,7 @@ import { useAction, useEvents } from '../src/features/queries';
 import { useSessionStore } from '../src/store/session';
 import { eventFixture } from './event-fixture';
 
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useEvents: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useEvents: jest.fn(), useCampusSources: () => ({ data: { sources: [] }, refetch: jest.fn() }) }));
 jest.mock('../src/store/session', () => ({ useSessionStore: jest.fn() }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
 const first = { accessToken: 'first', user: { id: 'one', timeZone: 'America/Edmonton' } };
@@ -14,10 +14,12 @@ function session(value: typeof first | null) {
   jest.mocked(useSessionStore).mockImplementation(select => select({ session: value } as ReturnType<typeof useSessionStore.getState>));
 }
 beforeEach(() => {
+  jest.useFakeTimers(); jest.setSystemTime(new Date('2025-03-08T18:00:00Z'));
   jest.clearAllMocks(); session(first); save.mockReset().mockResolvedValue({});
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>);
   jest.mocked(useEvents).mockReturnValue({ data: [eventFixture()], isLoading: false, refetch: jest.fn() } as unknown as ReturnType<typeof useEvents>);
 });
+afterEach(() => jest.useRealTimers());
 
 describe('Campus session boundaries (ToR 11, 19)', () => {
   it('clears search on account switch, sign-out, and returning to an earlier account', () => {

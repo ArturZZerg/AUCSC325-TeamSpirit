@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { api, ApiError } from '../src/lib/api';
 import { queryClient } from '../src/lib/query-client';
-import { useAction, useClasses, useEvents, useGoalHistory, useStudyPlans, useTasks } from '../src/features/queries';
+import { useAction, useCampusSources, useClasses, useEvents, useGoalHistory, useStudyPlans, useTasks } from '../src/features/queries';
 import { preparationFixture } from './preparation-fixture';
 import { classFixture } from './class-fixture';
 import { eventFixture } from './event-fixture';
@@ -46,6 +46,15 @@ beforeEach(() => {
 afterEach(() => { queryClient.clear(); });
 
 describe('account-scoped cached query lifecycle (ToR 10, 19)', () => {
+  it('retains validated campus freshness offline and rejects invalid source coverage', async () => {
+    const status = { generatedAt: '2026-10-10T18:00:00Z', sources: [{ source: 'campus:recreation', name: 'Recreation', website: 'https://example.org/campus', availability: 'available', lastSuccessfulAt: '2026-10-10T18:00:00Z', coverage: { from: '2026-10-09', through: '2026-12-10', timeZone: 'America/Edmonton' } }] };
+    jest.mocked(api).mockRejectedValue(new Error('Offline')); jest.mocked(readCache).mockResolvedValue(status);
+    const { result } = renderHook(() => useCampusSources(), { wrapper: Wrapper }); await waitFor(() => expect(result.current.data).toEqual(status));
+    expect(api).toHaveBeenCalledWith('/events/sources', expect.anything()); expect(readCache).toHaveBeenCalledWith(first.user.id, 'campusSources');
+    jest.mocked(api).mockResolvedValue({ ...status, sources: [{ ...status.sources[0], coverage: null }] });
+    await act(async () => { await result.current.refetch(); });
+    expect(result.current.error).toBeTruthy(); expect(result.current.data).toEqual(status); expect(writeCache).not.toHaveBeenCalled();
+  });
   it('reads validated saved study plans offline without leaking them across accounts', async () => {
     const plans = [preparationFixture()];
     jest.mocked(api).mockRejectedValue(new Error('Offline')); jest.mocked(readCache).mockImplementation(accountId => Promise.resolve(accountId === first.user.id ? plans : []));

@@ -11,15 +11,32 @@ export type CampusSource = z.infer<typeof sourceSchema>;
 @Injectable()
 export class EventSyncService {
   constructor(private readonly prisma: PrismaService) {}
-  async sync(sourceInput: CampusSource, provider: EventProvider, coverageInput: EventCoverage) {
+  async sync(sourceInput: CampusSource, provider: EventProvider, coverageInput: EventCoverage, refresh?: { now: Date; successIntervalMs: number; failureIntervalMs: number }) {
     const source = sourceSchema.parse(sourceInput), coverage = coverageSchema.parse(coverageInput);
+    if (refresh && (source.sourceScope !== 'public' || !Number.isFinite(refresh.now.getTime())
+      || ![refresh.successIntervalMs, refresh.failureIntervalMs].every(value => Number.isInteger(value) && value >= 60000))) throw new Error('Invalid public feed refresh');
     // Lock before fetching: a slow old fetch must not overwrite a newer import.
     return this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${source.source}), hashtext(${source.sourceScope}))::text`;
+      if (refresh) {
+        const state = await tx.campusFeedState.findUnique({ where: { source: source.source } });
+        const interval = state?.lastStatus === 'complete' ? refresh.successIntervalMs : refresh.failureIntervalMs;
+        if (state && refresh.now.getTime() - state.lastAttemptAt.getTime() < interval)
+          return { status: 'skipped' as const, issues: [], upserted: 0, removed: 0, retainedSaved: 0 };
+      }
+      const recordAttempt = async (status: 'failed' | 'incomplete' | 'complete') => {
+        if (!refresh) return;
+        const success = status === 'complete' ? { lastSuccessfulAt: refresh.now, coveredFrom: coverage.from, coveredThrough: coverage.through, timeZone: coverage.timeZone } : {};
+        await tx.campusFeedState.upsert({ where: { source: source.source },
+          create: { source: source.source, lastAttemptAt: refresh.now, lastStatus: status, ...success },
+          update: { lastAttemptAt: refresh.now, lastStatus: status, ...success } });
+      };
       let batch;
       try { batch = await provider.fetchEvents(coverage); }
-      catch { return { status: 'failed' as const, issues: ['provider-failure'], upserted: 0, removed: 0, retainedSaved: 0 }; }
-      const unchanged = (status: 'failed' | 'incomplete', issues: string[]) => ({ status, issues, upserted: 0, removed: 0, retainedSaved: 0 });
+      catch { await recordAttempt('failed'); return { status: 'failed' as const, issues: ['provider-failure'], upserted: 0, removed: 0, retainedSaved: 0 }; }
+      const unchanged = async (status: 'failed' | 'incomplete', issues: string[]) => {
+        await recordAttempt(status); return { status, issues, upserted: 0, removed: 0, retainedSaved: 0 };
+      };
       if (batch.status !== 'complete') return unchanged(batch.status, batch.issues);
       if (batch.issues.length || batch.coverage.from !== coverage.from || batch.coverage.through !== coverage.through || batch.coverage.timeZone !== coverage.timeZone || batch.events.length > 2000)
         return unchanged('incomplete', ['invalid-coverage-or-batch']);
@@ -50,6 +67,7 @@ export class EventSyncService {
         if (await tx.savedEvent.count({ where: { eventId: row.id } })) { retainedSaved++; continue; }
         await tx.event.delete({ where: { id: row.id } }); removed++;
       }
+      await recordAttempt('complete');
       return { status: 'complete' as const, coverage, issues: [], upserted, removed, retainedSaved };
     }, { timeout: 30000, maxWait: 10000, isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
   }
