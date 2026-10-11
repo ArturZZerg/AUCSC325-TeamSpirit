@@ -50,3 +50,9 @@ task focus/edit, failed/pending schedule saves, explicit preparation save,
 targeted plan links, partial/error states, refresh and account isolation. Validate
 root checks, production web export, real API/cache flows and responsive layout.
 Native interaction remains a separate device acceptance gate.
+
+The web build clears Metro's cache before export. Artifact inspection reproduced
+a cached QA API origin after an environment change; clearing rebuilds the actual
+entry with the selected production/preview origin. Do not ship stale output
+directories or temporary QA entry points. Verify the referenced entry and all
+packaged bundles for the intended API origin and absence of QA credentials.

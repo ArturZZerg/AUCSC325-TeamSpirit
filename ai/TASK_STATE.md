@@ -57,6 +57,9 @@ Saved workload survived API failure and refreshed after recovery. Responsive
 checks at 320/390/1100px found no overflowing controls. Native acceptance is pending.
 An account-switch regression also verifies that a delayed preparation save cannot
 navigate the newly signed-in account after its private editor has unmounted.
+Web builds now clear Metro's cache: artifact inspection reproduced a stale QA
+API origin after an environment change. A fresh export and the final Android
+bundle were checked for the selected preview origin and absence of QA credentials.
 
 Next recommended feature: an account/privacy centre with personal data export
 and authenticated whole-account deletion, followed by verified account recovery
