@@ -87,6 +87,24 @@ email service, followed by production deployment and device acceptance. While
 deployment details are pending, prepare an executable release smoke-check and
 restore-rehearsal workflow from the production-readiness matrix.
 
+Release operations implemented: bounded read-only liveness/schema/migration
+readiness, explicit production database/CORS/fixture configuration, graceful
+shutdown, generated schema-manifest freshness gate, and GET-only release smoke
+that validates identity/daily data and actual Expo entry/worker/WASM assets.
+Guarded snapshot-consistent pg_dump/pg_restore compares every application table,
+migration record, constraints and indexes; cleanup targets only its generated
+disposable database. Source test database remains intact. CI restores its own
+isolated service database using clients inside that same service container.
+
+Local PostgreSQL 18.4 + official 18.6 clients verified 19 tables/163 records with
+identical restored content/relationships and readiness; fresh loopback web smoke
+passed health/CORS, synthetic identity/data and three actual referenced assets.
+Root lint/boundaries/types/tests/build and fresh web export passed; final reviewed
+tests/config changes also run through exact-commit CI before merge. These checks
+do not establish hosted production backup policy/RPO/RTO, delivery, capacity,
+native acceptance or signing. Next: implement account recovery with delivery
+disabled until the owner chooses and verifies the production mail provider.
+
 Release gates: apply FocusSession and CampusFeedState migrations to deployment,
 enable reviewed campus calendars for the intended campus;
 verify new native lifecycle/touch flows; retain live Canvas,

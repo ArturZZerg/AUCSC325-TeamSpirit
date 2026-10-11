@@ -127,6 +127,11 @@ PostgreSQL service, checks workspace boundaries, lints, type-checks, runs tests,
 builds the API and exports the web preview. Device-level acceptance remains a
 separate release gate.
 
+API liveness/readiness, production startup requirements, the read-only
+`release:smoke` command and guarded `release:restore-rehearsal` are documented in
+[release operations](docs/development/release-operations.md). CI restores its
+isolated test database and verifies records/relationships and dependency readiness.
+
 ## Project layout
 
 | Directory | Responsibility |

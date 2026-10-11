@@ -1,5 +1,6 @@
 import { EventSyncService } from './integrations/events/event-sync.service';
 import { AccountController, AccountService } from './account';
+import { HealthController, HealthService } from './health';
 import { CAMPUS_FEEDS, configuredCampusFeeds } from './integrations/events/campus-feeds';
 import { CampusFeedsService, CampusSourcesController } from './integrations/events/campus-feeds.service';
 import { ClassesController } from './classes';
@@ -14,8 +15,8 @@ import { CanvasController, CanvasService } from './canvas';
 import { CanvasProvider, FixtureCanvasProvider } from './integrations/canvas/canvas-provider';
 
 @Module({
-  controllers: [AccountController, AuthController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController, ClassesController, StudyPlansController, FocusController, CampusSourcesController],
-  providers: [AccountService, EventSyncService, CampusFeedsService, { provide: CAMPUS_FEEDS, useFactory: configuredCampusFeeds }, PrismaService, AuthService, ReminderService, TodayService, CanvasService,
+  controllers: [HealthController, AccountController, AuthController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController, ClassesController, StudyPlansController, FocusController, CampusSourcesController],
+  providers: [HealthService, AccountService, EventSyncService, CampusFeedsService, { provide: CAMPUS_FEEDS, useFactory: configuredCampusFeeds }, PrismaService, AuthService, ReminderService, TodayService, CanvasService,
     { provide: CanvasProvider, useClass: FixtureCanvasProvider }],
 })
 export class AppModule {}
