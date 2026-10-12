@@ -4,6 +4,9 @@ Updated: 2026-10-11
 
 Goal: extend the MVP with complete student workflows, preserving the accepted
 architecture and five-tab navigation, through validated PR/review/merge cycles.
+Release priority remains native Android/iOS first, confirmed by the user after
+considering PWA delivery. Retain web for verification; PWA installation can follow
+without changing the native release priority.
 
 Completed:
 
@@ -115,7 +118,29 @@ and signed Android preview verification passed; no Android device is attached.
 Full audit affected entries: 69 → 60; omit-dev: 64 → 56; both zero critical.
 Five unresolved leaf advisories remain tracked with actual usage in
 `docs/development/dependency-safety.md`; no forced SDK downgrade or suppression.
-Exact-head Linux CI/review/merge is the next gate for this branch.
+PR #62 merged after author self-review and both exact-head Linux CI checks passed.
+
+Account recovery is the active next feature on `codex/account-recovery` under
+ADR 009. Build the real request/reset UI and transactional credential/session
+lifecycle, with private encrypted PostgreSQL mail envelopes and shared rate
+buckets in the existing API. Delivery stays disabled until the approved provider
+is configured; real sender delivery and registration email verification remain
+public-onboarding gates. No recovery UI/provider acceptance is claimed yet.
+
+Recovery foundation verified: shared strict input/acknowledgment contracts;
+120-bit grouped codes and AES-GCM envelopes with message-ID binding; explicit
+disabled/SMTP/TLS configuration; three private tables in migration 9 and updated
+readiness manifest; atomic source/global/recipient quotas across instances; and
+account-export exclusion plus linked/unbound mail/recipient quota erasure.
+Full `npm run check` passes 1,614 tests (507 API, 802 mobile, 109 contracts,
+173 domain, 3 Android script, 20 release/dependency). Real restore matches
+22 tables/164 records, preserves the source and removes only its disposable target.
+The delivery worker, transactional reset/sign-in serialization, controller
+capabilities and native/web recovery screen are not implemented yet. Complete
+those and end-to-end acceptance before creating the recovery feature PR.
+Nodemailer registry 10.1.0 supports Node >=20 and includes its own TypeScript
+declarations; it is not installed yet. Use certificate-verified SMTP, a captured
+test delivery port and no real recipients during development.
 
 Release gates: apply FocusSession and CampusFeedState migrations to deployment,
 enable reviewed campus calendars for the intended campus;

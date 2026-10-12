@@ -27,6 +27,16 @@ export const dueSchema = z.discriminatedUnion('kind', [
 export const userSchema = z.object({ id: idSchema, email: z.string().email(), displayName: z.string().min(1).max(100), timeZone: timeZoneSchema, createdAt: instantSchema });
 export const registerRequestSchema = z.object({ email: z.string().email(), password: z.string().min(12).max(128), displayName: z.string().min(1).max(100), timeZone: timeZoneSchema });
 export const loginRequestSchema = z.object({ email: z.string().email(), password: z.string().min(1).max(128) });
+const recoveryEmailSchema = z.string().max(320).trim().toLowerCase().email().max(254);
+export const passwordRecoveryRequestSchema = z.object({ email: recoveryEmailSchema }).strict();
+export const passwordResetRequestSchema = z.object({
+  email: recoveryEmailSchema,
+  code: z.string().max(80).trim().transform(value => value.replace(/[ \t\r\n-]/g, '').toUpperCase()).pipe(z.string().regex(/^[0-9A-F]{30}$/, 'Enter the full code from your email.')),
+  newPassword: z.string().min(12).max(128),
+}).strict();
+export const passwordRecoveryCapabilitySchema = z.object({ available: z.boolean(), expiresInMinutes: z.literal(15) }).strict();
+export const passwordRecoveryAcceptedSchema = z.object({ accepted: z.literal(true) }).strict();
+export const passwordResetResultSchema = z.object({ reset: z.literal(true) }).strict();
 export const sessionSchema = z.object({ accessToken: z.string().min(1), expiresAt: instantSchema, user: userSchema });
 
 export const personalTaskSchema = z.object({ id: idSchema, studyPlanId: idSchema.nullable().optional(), title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), createdAt: instantSchema, updatedAt: instantSchema });
