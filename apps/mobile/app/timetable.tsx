@@ -37,7 +37,7 @@ function TimetableContent({ timeZone }: { timeZone: string }) {
     finally { busy.current = false; setRemoving(undefined); }
   };
   const clock = (instant: string) => new Date(instant).toLocaleTimeString([], { timeZone, hour: 'numeric', minute: '2-digit' });
-  return <Screen><ScrollView contentContainerStyle={styles.content}
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
     aria-hidden={editing !== undefined} accessibilityElementsHidden={editing !== undefined} importantForAccessibility={editing !== undefined ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>CLASS TIMETABLE</Text></View>

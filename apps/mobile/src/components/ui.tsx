@@ -1,8 +1,12 @@
 import type { PropsWithChildren } from 'react';
 import type { TextInputProps } from 'react-native';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 export const colors = { ink: '#20302A', muted: '#63746C', canvas: '#F6F8F4', card: '#FFFFFF', moss: '#42745A', sage: '#DDECE2', coral: '#C76750', danger: '#A64B36', line: '#DCE4DD', blue: '#3C6488', plum: '#765580' };
-export function Screen({ children }: PropsWithChildren) { return <View style={styles.screen}>{children}</View>; }
+export function Screen({ children, safeArea = false }: PropsWithChildren<{ safeArea?: boolean }>) {
+  const Container = safeArea ? SafeAreaView : View;
+  return <Container style={styles.screen}>{children}</Container>;
+}
 export function Card({ children }: PropsWithChildren) { return <View style={styles.card}>{children}</View>; }
 export function Button({ title, onPress, tone = 'primary', disabled }: { title: string; onPress: () => void; tone?: 'primary' | 'plain' | 'danger'; disabled?: boolean }) { return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={[styles.button, tone === 'plain' && styles.plain, tone === 'danger' && styles.danger, disabled && styles.disabled]}><Text style={[styles.buttonText, tone === 'plain' && styles.plainText]}>{title}</Text></Pressable>; }
 export function Field({ label, value, onChangeText, placeholder, multiline = false, ...inputProps }: { label: string; value: string; onChangeText: (value: string) => void; placeholder?: string; multiline?: boolean } & Pick<TextInputProps, 'secureTextEntry' | 'keyboardType' | 'autoCapitalize' | 'autoCorrect' | 'editable'>) { return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput {...inputProps} accessibilityLabel={label} style={[styles.input, multiline && styles.multiline]} value={value} onChangeText={onChangeText} placeholder={placeholder} multiline={multiline} /></View>; }

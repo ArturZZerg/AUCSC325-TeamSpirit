@@ -48,7 +48,7 @@ function WorkloadContent() {
   const modalOpen = !!editing || !!preparing;
   const refresh = () => { void Promise.all([tasks.refetch(), academic.refetch(), plans.refetch()]); };
   const openPlan = (id: string) => router.push({ pathname: '/study-plans', params: { planId: id } });
-  return <Screen><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={tasks.isRefetching || academic.isRefetching || plans.isRefetching} onRefresh={refresh}/> }>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>WORKLOAD INBOX</Text></View>

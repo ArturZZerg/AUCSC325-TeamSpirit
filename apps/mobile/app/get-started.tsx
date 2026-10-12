@@ -33,7 +33,7 @@ function GetStartedContent({ timeZone }: { timeZone: string }) {
     void goals.refetch({ cancelRefetch: false }); void courses.refetch({ cancelRefetch: false });
   }, [resumeCount, tasks.refetch, academic.refetch, goals.refetch, courses.refetch]);
   const failed = tasks.error || academic.error || goals.error;
-  return <Screen><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={!!editing} accessibilityElementsHidden={!!editing} importantForAccessibility={editing ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={!!refreshing} onRefresh={refresh}/>}>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>GET STARTED</Text></View>

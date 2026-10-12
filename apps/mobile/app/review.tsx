@@ -23,7 +23,7 @@ function ReviewContent({ accountId, timeZone }: { accountId: string; timeZone: s
   const hasData = !!review?.coveredDays;
   const max = Math.max(1, ...review?.days.map(day => day.tasks + day.routines) ?? []);
   const finished = expandedWeek === start ? review?.taskCompletions : review?.taskCompletions.slice(0, 6);
-  return <Screen><ScrollView contentContainerStyle={styles.content}
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/>}>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>WEEKLY REVIEW</Text></View>
     <Text style={styles.title}>{'A little progress\nadds up.'}</Text>

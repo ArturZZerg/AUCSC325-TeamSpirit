@@ -30,8 +30,11 @@ source preservation. The unlocked Pixel accepts the signed preview; current
 device testing found a stale API bundle, addressed by regenerating the bundle
 and partitioning Metro transforms by API. Actual native login/Today, task creation
 and revisioned journal editing reach the local production container/PostgreSQL.
-Offline/lifecycle acceptance is continuing; standalone journal content overlaps
-the Android status bar and needs the next inset fix. Hosted deployment, backup
+Disconnected cold Today/journal reads restore with saved/stale messaging. The
+standalone inset fix builds and its hardware regression detects the old journal's
+bar overlap, but new-build geometry awaits device reconnection. See the
+[native acceptance report](../requirements/android-native-acceptance-2026-10-12.md).
+Hosted deployment, backup
 policy and monitoring remain gates. No email
 provider is approved yet; public signup remains closed and mail disabled until
 real delivery is verified. Eventual Supabase hosting remains the accepted baseline.

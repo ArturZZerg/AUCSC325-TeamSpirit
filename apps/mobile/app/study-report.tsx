@@ -21,7 +21,7 @@ function ReportContent({ accountId, timeZone }: { accountId: string; timeZone: s
   const report = buildStudyReport(history.data, accountId, timeZone, from, new Date().toISOString());
   const max = Math.max(1, ...(report?.days.map(day => day.seconds) ?? []));
   const refresh = () => { void history.refetch(); void tasks.refetch(); };
-  return <Screen><ScrollView contentContainerStyle={styles.content}
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
     refreshControl={<RefreshControl refreshing={history.isRefetching || tasks.isRefetching} onRefresh={refresh}/>}>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>STUDY REPORT</Text></View>
     <Text style={styles.title}>See where your time goes.</Text>

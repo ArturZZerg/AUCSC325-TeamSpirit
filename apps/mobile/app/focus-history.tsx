@@ -20,7 +20,7 @@ function HistoryContent({ timeZone }: { timeZone: string }) {
   const history = useFocusHistory(from, through);
   const rows = history.data?.sessions;
   const format = (instant: string) => new Intl.DateTimeFormat(undefined, { timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(instant));
-  return <Screen><ScrollView contentContainerStyle={styles.content}>
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content}>
     <Button title="Back to focus" tone="plain" onPress={() => router.replace('/focus')}/>
     <Text style={styles.kicker}>YOUR STUDY TIME</Text><Text style={styles.title}>My focus history</Text>
     <Text style={styles.meta}>A record of the time you chose to save. Task completion stays separate.</Text>

@@ -64,7 +64,7 @@ function AcademicsContent() {
   };
   const refresh = () => { void Promise.all([academic.refetch(), courses.refetch(), snapshot.refetch()]); };
   const fixtureData = academic.data?.some(item => item.source.includes('fixture'));
-  return <Screen><ScrollView contentContainerStyle={styles.content} aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content} aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={academic.isRefetching || courses.isRefetching || snapshot.isRefetching} onRefresh={refresh}/> }>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>COURSEWORK</Text></View>
     <Text style={styles.title}>Stay ahead of deadlines.</Text>
