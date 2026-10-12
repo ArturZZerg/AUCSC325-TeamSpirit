@@ -17,6 +17,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   recoveryMail RecoveryMail[]
+  authRateBuckets RecoveryRateBucket[]
   tasks PersonalTask[]
   studyPlans StudyPlan[]
   focusSessions FocusSession[]
@@ -81,10 +82,13 @@ model RecoveryMail {
 model RecoveryRateBucket {
   key String @id
   recipientHash String?
+  userId String? @db.Uuid
   count Int
   expiresAt DateTime
+  user User? @relation(fields:[userId], references:[id], onDelete:Cascade)
   @@index([expiresAt])
   @@index([recipientHash])
+  @@index([userId])
 }
 model PersonalTask {
   id String @id @default(uuid()) @db.Uuid

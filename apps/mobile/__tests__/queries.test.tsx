@@ -204,10 +204,12 @@ describe('account-scoped cached query lifecycle (ToR 10, 19)', () => {
   });
 
   it('signs out on an authenticated read returning 401', async () => {
-    jest.mocked(api).mockRejectedValue(new ApiError(401, 'Expired session'));
+    jest.mocked(api).mockImplementation(jest.requireActual('../src/lib/api').api);
+    global.fetch = jest.fn().mockResolvedValue({ status: 401, ok: false, json: async () => ({ message: 'Expired session' }) });
     renderHook(() => useTasks(), { wrapper: Wrapper });
     await waitFor(() => expect(useSessionStore.getState().session).toBeNull());
     await waitFor(() => expect(clearAccountCache).toHaveBeenCalledWith(first.user.id));
+    expect(useSessionStore.getState().sessionUnavailable).toBe(true);
   });
 
   it('refuses a write if account ownership changes during read cancellation', async () => {

@@ -26,7 +26,6 @@ export class EmailVerificationService {
   async admit(source: string, email: string) {
     this.enabled(); return this.rates.record('verification-request', source, email);
   }
-  async checkLogin(source: string, email: string) { await this.rates.record('verification-login', source, email); }
   // Call inside the User transaction, never after releasing its credential lock.
   async enqueue(tx: Prisma.TransactionClient, user: VerificationUser) {
     const config = this.enabled(), id = randomUUID();

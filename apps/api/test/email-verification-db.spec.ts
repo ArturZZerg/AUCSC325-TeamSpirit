@@ -6,6 +6,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AuthService } from '../src/auth';
+import { AuthRateService } from '../src/auth-rate';
 import { REGISTRATION_CONFIG, type RegistrationConfig } from '../src/auth-config';
 import { RECOVERY_CONFIG, type RecoveryConfig } from '../src/auth-recovery/recovery-config';
 import { RECOVERY_MAILER } from '../src/auth-recovery/recovery-mail';
@@ -194,7 +195,7 @@ import { PrismaService } from '../src/prisma.service';
   it('keeps verified login working while public signup and delivery are closed', async () => {
     const user = await seed(true), unverified = await seed(), closed: RegistrationConfig = { mode: 'closed' };
     const disabledVerification = new EmailVerificationService(db, rates, { mode: 'disabled' }, closed);
-    const closedAuth = new AuthService(db, disabledVerification, closed);
+    const closedAuth = new AuthService(db, disabledVerification, closed, new AuthRateService(db, { mode: 'local' }));
     await expect(closedAuth.register({ email: email(), password, displayName: 'Student', timeZone: 'UTC' })).rejects.toMatchObject({ status: 503 });
     const session = sessionSchema.parse(await closedAuth.login({ email: user.email, password }));
     await client().get('/me').set('Authorization', `Bearer ${session.accessToken}`).expect(200);
@@ -206,7 +207,7 @@ import { PrismaService } from '../src/prisma.service';
     const single = new PrismaService({ datasources: { db: { url: url.toString() } } });
     const singleRates = new RecoveryRateService(single, mail, namespace), service = new EmailVerificationService(single, singleRates, mail, registration);
     try {
-      const result = await new AuthService(single, service, registration).login({ email: user.email, password }, randomUUID());
+      const result = await new AuthService(single, service, registration, new AuthRateService(single, { mode: 'local' })).login({ email: user.email, password }, randomUUID());
       expect(result).toEqual({ verificationRequired: true, codeRequested: true, expiresInMinutes: 15 });
       expect(await single.session.count({ where: { userId: user.id } })).toBe(0);
       expect(await single.recoveryMail.count({ where: { userId: user.id, kind: 'verify' } })).toBe(1);

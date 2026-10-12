@@ -194,12 +194,49 @@ Browser geometry/empty validation/account continuation passes at 320/390/1100px,
 with 46px controls. Browser screenshot capture is unavailable; no visual image or
 browser verification submission is claimed. ADB has no attached device. Real SMTP,
 hosted production, native phone/iOS and store acceptance remain unverified.
-PR/self-review/exact-head CI/merge are pending; production mail stays off.
+PR #64 is merged after author self-review and both exact-head CI runs succeeded
+(`38203462253`, `38203458166`, head `d2ab66ee9a6c8795b7155d0843fb5703eed1b05f`).
+Main is `fa38abc1d484fe92c90be68dbc9d981819b76ee0`; production mail stays off.
+Post-merge main CI `38203755144` also succeeds for that exact commit.
 
-Next concrete feature: account access lifecycle, with automatic native recovery
-from expired/revoked sessions and shared sign-in/password-challenge quotas that
-work when mail delivery is disabled. Define the additive architecture decision
-and preserve offline reads, account cleanup and late-owner guards before coding.
+Account access lifecycle is implemented on `codex/account-access-lifecycle`
+under ADR 011. Startup/foreground private access checks and still-current 401
+handling return to ordinary sign-in through attempt-all cleanup/retry. Offline,
+timeout, unavailable/malformed reads and obsolete owner/token replies preserve
+the appropriate session/cache. Production requires independent stable
+`AUTH_RATE_KEY`; shared source/recipient/global login and owned password quotas
+remain active with mail disabled. Admission commits before password/mutation
+transactions; User-first locks, fresh credential checks and cascade erasure avoid
+late owned metadata and nested transactions. Migration 11 is additive.
+
+Full root lint/types/tests/build passes: 613 API, 880 mobile, 120 contracts,
+173 domain, 3 Android-script and 20 release/dependency tests (1,809 total).
+Author review reproduced a cancelled cached-query 401 clearing an active session.
+The regression fails before the fix and passes after removing duplicate query
+read/mutation sign-out handling; the shared API owner/token/abort boundary now
+owns rejection cleanup and preserves the reauthentication notice. Targeted
+query/access checks pass 53 tests, followed by the full root check.
+Two actual mail-disabled loopback API processes share quotas, reject revoked/
+expired tokens and retain the synthetic owner's saved task after ordinary login.
+Actual restore preserves 23 tables/202 synthetic records, including live owned
+quota data, matches constraints/indexes/readiness and removes its disposable DB.
+Fresh Android/web artifacts, native ASCII/UTF16 and private-QA scans, v2 signature
+and real web entry/worker/WASM/API/SQLite-isolation smoke pass. Preview APK SHA-256:
+`C35C02A05BAF40EBEDE0AA9D65CE6D263CCABF7358C434B87B846CD2BA7635C7`.
+The reviewed rebuild uses the short Windows Gradle cache. Changing cache roots
+also required refreshing only ignored app/Expo/screens CMake state containing
+old long header paths; the final native release build succeeds.
+Browser verifies the actual account continuation and closed-signup state at
+1280px without overflow and with 46px controls; its temporary tab is closed.
+No browser credential submission or device session acceptance is claimed.
+ADB has no attached device. Screenshot capability remains unavailable.
+PR #65 is open. Author review and final native/web artifact acceptance pass;
+the reviewed fix still needs exact-head CI and merge before delivery is complete.
+
+Next substantial product candidate: complete the Wellness check-in journal with
+saved-today editing, clear mood/energy/stress choices and useful bounded history
+and reflection, preserving private notes, partial/offline coverage and account
+guards. Inspect the existing Wellness entities/queries before choosing scope.
 
 Release gates: apply FocusSession and CampusFeedState migrations to deployment,
 enable reviewed campus calendars for the intended campus;
