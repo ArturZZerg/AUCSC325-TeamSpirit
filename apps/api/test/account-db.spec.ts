@@ -7,6 +7,7 @@ import { accountExportSchema } from '@campusflow/contracts';
 import { AppModule } from '../src/app.module';
 import { AccountService } from '../src/account';
 import { AuthService } from '../src/auth';
+import { createRecoveryCode, recoveryCodeHash, recoveryRecipientHash } from '../src/auth-recovery/recovery-secrets';
 import { TasksController, GoalsController, EventsController } from '../src/data';
 import { PrismaService } from '../src/prisma.service';
 import { EventSyncService } from '../src/integrations/events/event-sync.service';
@@ -72,6 +73,36 @@ databaseSuite('Account export and erasure with disposable PostgreSQL accounts', 
     const user = await register(); const data = await account.export(user.user.id);
     expect(data).toMatchObject({ coverage: 'server-saved', personalTasks: [], privateEvents: [], canvasConnection: null });
     expect(JSON.stringify(data)).not.toContain('focusDraft');
+  });
+  it('withholds recovery material from export and erases linked and unbound recovery records for only the deleted owner', async () => {
+    const user = await register(), other = await register(), code = createRecoveryCode();
+    const recipientHash = recoveryRecipientHash(user.user.email), otherHash = recoveryRecipientHash(other.user.email);
+    const ids = [randomUUID(), randomUUID(), randomUUID()], keys = [`${marker}:recovery:owner`, `${marker}:recovery:other`, `${marker}:recovery:aggregate`];
+    const expiresAt = new Date(Date.now() + 15 * 60_000);
+    try {
+      await db.passwordResetToken.create({ data: { userId: user.user.id, tokenHash: recoveryCodeHash(code), expiresAt } });
+      await db.recoveryMail.createMany({ data: [
+        { id: ids[0], userId: user.user.id, recipientHash, kind: 'code', sealed: 'hidden-recovery-linked', expiresAt },
+        { id: ids[1], recipientHash, kind: 'code', sealed: 'hidden-recovery-unbound', expiresAt },
+        { id: ids[2], recipientHash: otherHash, kind: 'code', sealed: 'hidden-recovery-other', expiresAt },
+      ] });
+      await db.recoveryRateBucket.createMany({ data: [
+        { key: keys[0], recipientHash, count: 1, expiresAt }, { key: keys[1], recipientHash: otherHash, count: 1, expiresAt },
+        { key: keys[2], count: 1, expiresAt },
+      ] });
+      const exported = await client().get('/me/export').set('Authorization', bearer(user)).expect(200);
+      for (const secret of ['hidden-recovery-', 'passwordResetTokens', 'recoveryMail', 'tokenHash', recipientHash, code]) expect(JSON.stringify(exported.body)).not.toContain(secret);
+      await remove(user).expect(200);
+      expect(await db.passwordResetToken.count({ where: { userId: user.user.id } })).toBe(0);
+      expect(await db.recoveryMail.count({ where: { recipientHash } })).toBe(0);
+      expect(await db.recoveryRateBucket.count({ where: { recipientHash } })).toBe(0);
+      expect(await db.recoveryMail.findUnique({ where: { id: ids[2] } })).not.toBeNull();
+      expect(await db.recoveryRateBucket.count({ where: { key: { in: keys.slice(1) } } })).toBe(2);
+      await client().get('/me').set('Authorization', bearer(other)).expect(200);
+    } finally {
+      await db.recoveryMail.deleteMany({ where: { id: { in: ids } } });
+      await db.recoveryRateBucket.deleteMany({ where: { key: { in: keys } } });
+    }
   });
   it('requires authentication and rejects forged ownership or missing confirmation', async () => {
     const user = await register(); await client().get('/me/export').expect(401); await client().delete('/me').send({ currentPassword: password, confirmation: 'DELETE' }).expect(401);

@@ -1,7 +1,7 @@
 # Production dependency release safety
 
-Status: implemented and locally verified after release-readiness PR #61, on
-`codex/dependency-release-safety`; exact-head CI/review/merge remains required.
+Status: PR #62 merged after author self-review, local validation and both
+exact-head Linux CI checks passed, following release-readiness PR #61.
 
 The 2026-10-11 installed-lockfile npm audit (`--omit=dev`) reports 64 affected
 package entries: 1 critical, 48 high and 15 moderate. These totals include parent

@@ -4,6 +4,9 @@ Updated: 2026-10-11
 
 Goal: extend the MVP with complete student workflows, preserving the accepted
 architecture and five-tab navigation, through validated PR/review/merge cycles.
+Release priority remains native Android/iOS first, confirmed by the user after
+considering PWA delivery. Retain web for verification; PWA installation can follow
+without changing the native release priority.
 
 Completed:
 
@@ -82,8 +85,8 @@ covered concurrent task/routine/saved-event reminder edits during deletion.
 Destructive-button text now has 5.70:1 contrast on the existing shared primitive.
 Fresh web/Android bundles exclude synthetic QA credentials and loopback QA origins.
 
-Next recommended task: verified account recovery with production delivery
-disabled until the owner configures the chosen transactional email service,
+Next recommended task: registration email verification for public onboarding,
+with production mail disabled until the approved service is configured,
 followed by hosted deployment and device acceptance. Keep each release gate
 separate from local app, preview and CI evidence.
 
@@ -115,7 +118,56 @@ and signed Android preview verification passed; no Android device is attached.
 Full audit affected entries: 69 → 60; omit-dev: 64 → 56; both zero critical.
 Five unresolved leaf advisories remain tracked with actual usage in
 `docs/development/dependency-safety.md`; no forced SDK downgrade or suppression.
-Exact-head Linux CI/review/merge is the next gate for this branch.
+PR #62 merged after author self-review and both exact-head Linux CI checks passed.
+
+Account recovery is implemented on `codex/account-recovery` under ADR 009.
+Request/reset UI and transactional credential/session lifecycle use private
+encrypted PostgreSQL mail envelopes and shared rate buckets in the existing API.
+Delivery stays disabled until the approved provider is configured; real sender
+delivery and registration email verification remain public-onboarding gates.
+
+Recovery foundation verified: shared strict input/acknowledgment contracts;
+120-bit grouped codes and AES-GCM envelopes with message-ID binding; explicit
+disabled/SMTP/TLS configuration; three private tables in migration 9 and updated
+readiness manifest; atomic source/global/recipient quotas across instances; and
+account-export exclusion plus linked/unbound mail/recipient quota erasure.
+Full `npm run check` passes 1,614 tests (507 API, 802 mobile, 109 contracts,
+173 domain, 3 Android script, 20 release/dependency). Real restore matches
+22 tables/164 records, preserves the source and removes only its disposable target.
+Recovery completion: private capability/request/reset endpoints, durable worker
+with bounded encrypted retries and fenced leases, certificate-verified SMTP,
+atomic salted password update/all-session revocation/code invalidation/notice,
+and sign-in serialization on the User lock. Explicit UTC SQL fixes non-UTC
+PostgreSQL session comparisons; Auckland/Denver evidence covers the regression.
+Nodemailer 10.1.0 is the only new API dependency and supplies its own types.
+Audit counts remain 60 full / 56 omit-dev affected entries with no critical
+entries; no Nodemailer advisory was reported. Five prior leaf risks remain.
+
+The native recovery screen reuses Field/Button and moss/sage tokens, preserves
+only the supported account return, validates pasted codes and confirmed passwords,
+retains failed drafts, blocks duplicate submissions/dismissal, uses a resend
+cooldown and discards late replies after unmount/sign-in. Drafts stay in memory.
+The retained sign-in screen clears its password before opening recovery.
+Full root checks pass 1,676 tests (547 API, 824 mobile, 109 contracts, 173 domain,
+3 Android script, 20 release/dependency). Browser request/acknowledgment and code
+layout/validation pass at 320/390/1100px with 46px targets and no overflow.
+Password-change completion is verified separately by disposable API/native
+component tests; browser credential-change submission is not claimed.
+21st catalog search requires authentication; automatic approval review rejected
+21st review because of possible private source egress. Local review/checks and
+browser evidence provide the UI verification instead. See the recovery runbook.
+
+Final recovery acceptance: fresh web and Android exports passed, preview APK v2
+signature verified, and native bundle origin/privacy scan passed. APK SHA-256 is
+`26C72795DCEA2058CDF27A328A7B7DEAF4608C4473BEC14FA9B108D93CF263E6`.
+ADB lists no attached device. Real loopback API/web smoke verifies health/CORS,
+authorized daily reads and actual entry/worker/WASM assets with SQLite isolation.
+The running API also completes a captured-delivery request/reset, rejects the old
+token/password and reused code, and retains the synthetic owner's task. This
+does not prove real SMTP or browser/native password-change submission.
+Final PostgreSQL restore matches 22 tables/201 synthetic records, preserves the
+source and removes only the generated disposable restore. Review fixes also
+prove nonblocking cleanup and real Nest worker-drain-before-Prisma shutdown.
 
 Release gates: apply FocusSession and CampusFeedState migrations to deployment,
 enable reviewed campus calendars for the intended campus;

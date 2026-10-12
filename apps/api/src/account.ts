@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { AuthService } from './auth';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe } from './common';
 import { PrismaService } from './prisma.service';
+import { recoveryRecipientHash } from './auth-recovery/recovery-secrets';
 
 const eventFields = { id: true, title: true, description: true, category: true, source: true, externalId: true, timing: true, location: true, url: true } as const;
 // Database whitelists: adding a credential column cannot add it to an export.
@@ -53,9 +54,12 @@ export class AccountService {
   }
   async delete(userId: string, currentPassword: string) {
     return this.prisma.$transaction(async tx => {
-      const [record] = await tx.$queryRaw<{ id: string; passwordHash: string }[]>`SELECT "id", "passwordHash" FROM "User" WHERE "id" = ${userId}::uuid FOR UPDATE`;
+      const [record] = await tx.$queryRaw<{ id: string; email: string; passwordHash: string }[]>`SELECT "id", "email", "passwordHash" FROM "User" WHERE "id" = ${userId}::uuid FOR UPDATE`;
       if (!record) throw new UnauthorizedException('Account is unavailable.');
       await this.auth.confirmCurrentPassword(userId, currentPassword, record.passwordHash);
+      const recipientHash = recoveryRecipientHash(record.email);
+      await tx.recoveryMail.deleteMany({ where: { recipientHash } });
+      await tx.recoveryRateBucket.deleteMany({ where: { recipientHash } });
       await tx.event.deleteMany({ where: { sourceScope: `user:${userId}` } });
       await tx.user.delete({ where: { id: userId } });
       return { deleted: true as const };

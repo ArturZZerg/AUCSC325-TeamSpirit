@@ -13,6 +13,8 @@ model User {
   timeZone String
   createdAt DateTime @default(now())
   sessions Session[]
+  passwordResetTokens PasswordResetToken[]
+  recoveryMail RecoveryMail[]
   tasks PersonalTask[]
   studyPlans StudyPlan[]
   focusSessions FocusSession[]
@@ -37,6 +39,40 @@ model Session {
   createdAt DateTime @default(now())
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   @@index([userId, expiresAt])
+}
+model PasswordResetToken {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  tokenHash String @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@index([userId, expiresAt])
+}
+model RecoveryMail {
+  id String @id @default(uuid()) @db.Uuid
+  userId String? @db.Uuid
+  recipientHash String
+  kind String
+  sealed String
+  expiresAt DateTime
+  nextAttemptAt DateTime @default(now())
+  attempts Int @default(0)
+  leaseToken String? @db.Uuid
+  leaseUntil DateTime?
+  createdAt DateTime @default(now())
+  user User? @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@index([nextAttemptAt, leaseUntil])
+  @@index([expiresAt])
+  @@index([recipientHash])
+}
+model RecoveryRateBucket {
+  key String @id
+  recipientHash String?
+  count Int
+  expiresAt DateTime
+  @@index([expiresAt])
+  @@index([recipientHash])
 }
 model PersonalTask {
   id String @id @default(uuid()) @db.Uuid
