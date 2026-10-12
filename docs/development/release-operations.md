@@ -4,6 +4,8 @@ The current release tools provide repeatable local evidence. Hosted production
 targets, mail, native signing/devices and store declarations still require the
 owner's deployment details and acceptance evidence. See
 [production readiness](production-readiness.md).
+The owner's initial existing-server authorization is recorded in the
+[server beta runbook](server-beta.md); verify its observed gates separately.
 
 ## API deployment configuration
 
@@ -21,6 +23,14 @@ Missing/invalid configuration stops startup with setting-name-only errors. Local
 test/preview without this key keeps bounded process-local protections. Key rotation
 changes quota identity and requires a reviewed rollout/abuse plan; never put it in
 an `EXPO_PUBLIC_*` value or print the generated secret.
+
+Account admission sources default to the socket peer. `AUTH_SOURCE_MODE=loopback`
+requires explicit `HOST=127.0.0.1` or `::1`; it accepts one valid forwarded IP
+only from the actual loopback peer. The authorized Nginx proxy must replace
+`X-Forwarded-For` with `$remote_addr`, never append caller data. Other peers and
+malformed/repeated/chained values retain socket identity. Keep the API loopback
+binding and ordinary Express proxy trust disabled. See ADR 013 and the runbook
+before using this deployment-specific setting.
 
 Use `CANVAS_MODE=disabled` (or leave it unset) until institutional authorization
 is implemented and verified. Production refuses fixture mode. Existing Canvas

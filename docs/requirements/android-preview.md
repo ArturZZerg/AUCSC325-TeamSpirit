@@ -30,6 +30,19 @@ Windows Gradle caches use `%USERPROFILE%\.gradle\campusflow` to avoid Ninja's
 to `artifacts/android/campusflow-preview.apk`. This output supports ARM64 phones,
 not x86 Android emulators or older 32-bit-only phones.
 
+The workflow reruns `:app:createBundleReleaseJsAndAssets` with the task-specific
+`--rerun` option before assembly. The selected API environment value is not a
+Gradle bundle input: changing only that value previously produced an APK with
+the old API even though prebuild selected the new network policy. Expo suppresses
+the bundle task's Metro reset in CI mode, so Metro's cache version also includes
+a hash of the selected API. Native compile caches remain reusable. The script
+refuses to copy a preview whose actual Hermes output lacks the selected URL.
+This presence gate does not prove every network call's destination. Validate a
+changed-origin build by inspecting `assets/index.android.bundle` inside the APK
+(Hermes has ASCII and UTF-16 string pools), verifying the selected origin and
+absence of the previous origin, then installing and signing in against the
+actual API. A successful Gradle build alone is insufficient evidence.
+
 ## Connect the phone through USB
 
 Start PostgreSQL, apply migrations, and start the API using the README workflow.

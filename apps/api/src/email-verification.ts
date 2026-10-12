@@ -8,6 +8,7 @@ import { RECOVERY_CONFIG, type RecoveryConfig } from './auth-recovery/recovery-c
 import { RecoveryRateService } from './auth-recovery/recovery-rate';
 import { createRecoveryCode, recoveryCodeHash, recoveryRecipientHash, sealRecoveryEnvelope, verificationCredentialHash } from './auth-recovery/recovery-secrets';
 import { ZodPipe } from './common';
+import { requestSource, type SourceRequest } from './request-source';
 import { verifyPassword } from './password';
 import { PrismaService } from './prisma.service';
 
@@ -64,16 +65,15 @@ export class EmailVerificationService {
   }
 }
 
-type VerificationRequest = { socket: { remoteAddress?: string } };
 @Controller('auth/verification')
 export class EmailVerificationController {
   constructor(private readonly verification: EmailVerificationService) {}
   @Post('request') @HttpCode(202) @Header('Cache-Control', 'private, no-store')
-  request(@Body(new ZodPipe(emailVerificationRequestSchema)) input: z.infer<typeof emailVerificationRequestSchema>, @Req() request: VerificationRequest) {
-    return this.verification.request(input, request.socket.remoteAddress ?? 'unknown');
+  request(@Body(new ZodPipe(emailVerificationRequestSchema)) input: z.infer<typeof emailVerificationRequestSchema>, @Req() request: SourceRequest) {
+    return this.verification.request(input, requestSource(request));
   }
   @Post('confirm') @HttpCode(200) @Header('Cache-Control', 'private, no-store')
-  confirm(@Body(new ZodPipe(emailVerificationConfirmSchema)) input: z.infer<typeof emailVerificationConfirmSchema>, @Req() request: VerificationRequest) {
-    return this.verification.confirm(input, request.socket.remoteAddress ?? 'unknown');
+  confirm(@Body(new ZodPipe(emailVerificationConfirmSchema)) input: z.infer<typeof emailVerificationConfirmSchema>, @Req() request: SourceRequest) {
+    return this.verification.confirm(input, requestSource(request));
   }
 }

@@ -6,6 +6,7 @@ import { AuthService } from './auth';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe } from './common';
 import { PrismaService } from './prisma.service';
 import { recoveryRecipientHash } from './auth-recovery/recovery-secrets';
+import { requestSource, type SourceRequest } from './request-source';
 
 const eventFields = { id: true, title: true, description: true, category: true, source: true, externalId: true, timing: true, location: true, url: true } as const;
 // Database whitelists: adding a credential column cannot add it to an export.
@@ -74,7 +75,7 @@ export class AccountController {
   @Get('export') @Header('Cache-Control', 'private, no-store')
   export(@CurrentUser() user: RequestUser) { return this.account.export(user.id); }
   @Delete() @Header('Cache-Control', 'private, no-store')
-  delete(@CurrentUser() user: RequestUser, @Body(new ZodPipe(deleteAccountSchema)) body: z.infer<typeof deleteAccountSchema>, @Req() request: { socket: { remoteAddress?: string } }) {
-    return this.account.delete(user.id, body.currentPassword, request.socket.remoteAddress ?? 'unknown');
+  delete(@CurrentUser() user: RequestUser, @Body(new ZodPipe(deleteAccountSchema)) body: z.infer<typeof deleteAccountSchema>, @Req() request: SourceRequest) {
+    return this.account.delete(user.id, body.currentPassword, requestSource(request));
   }
 }

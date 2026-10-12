@@ -44,7 +44,10 @@ run(process.execPath, [path.join(root, 'node_modules/expo/bin/cli'), 'prebuild',
 // Keep this in the workflow because Expo regenerates the native wrapper.
 const wrapper = path.join(mobile, 'android/gradle/wrapper/gradle-wrapper.properties');
 writeFileSync(wrapper, readFileSync(wrapper, 'utf8').replace(/gradle-9\.0\.0-bin\.zip/, 'gradle-9.1.0-bin.zip'));
-const gradleArgs = [':app:assembleRelease', '-PreactNativeArchitectures=arm64-v8a', '--console=plain', '--no-daemon', '--max-workers=2', '--no-watch-fs', '-Dorg.gradle.parallel=false'];
+// The environment-selected API is not a Gradle bundle input. Regenerate only
+// the bundle task, retaining native compile caches. Metro also partitions its
+// transforms by API URL because Expo suppresses reset-cache when CI is enabled.
+const gradleArgs = [':app:createBundleReleaseJsAndAssets', '--rerun', ':app:assembleRelease', '-PreactNativeArchitectures=arm64-v8a', '--console=plain', '--no-daemon', '--max-workers=2', '--no-watch-fs', '-Dorg.gradle.parallel=false'];
 if (windows) {
   // Use the Windows certificate store; retain normal TLS verification.
   const trust = '-Djavax.net.ssl.trustStoreType=Windows-ROOT -Djavax.net.ssl.trustStore=NONE';
@@ -53,6 +56,12 @@ if (windows) {
 } else {
   run('./gradlew', gradleArgs, path.join(mobile, 'android'));
 }
+// Inspect the actual Hermes output before publishing the preview artifact.
+// Hermes string pools use UTF-8/ASCII or UTF-16; this is an origin presence gate,
+// not a proof that every bundled network call uses that origin.
+const bundle = readFileSync(path.join(mobile, 'android/app/build/generated/assets/react/release/index.android.bundle'));
+if (!bundle.includes(Buffer.from(apiUrl)) && !bundle.includes(Buffer.from(apiUrl, 'utf16le')))
+  fail('Native bundle does not contain the selected API URL; inspect Gradle and Metro caches.');
 const output = path.join(root, 'artifacts/android/campusflow-preview.apk');
 mkdirSync(path.dirname(output), { recursive: true });
 copyFileSync(path.join(mobile, 'android/app/build/outputs/apk/release/app-release.apk'), output);
