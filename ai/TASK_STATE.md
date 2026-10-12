@@ -270,8 +270,33 @@ exclude private credentials and public fixture data, and pass native ASCII/UTF16
 and HTML-referenced entry scans. Native v2 signature and real API/web entry/three
 asset/SQLite isolation smoke pass. Preview APK SHA-256:
 `3BAC903B4416FEED6C46D9F07382A00619DAFF3291AAB8F1D0569790BB83F838`.
-ADB has no attached device. Author review is complete; PR/exact-head hosted CI
-and merge are the remaining delivery steps. Production is not claimed ready.
+At journal delivery ADB had no attached device. PR #66 is merged after author
+self-review and both exact-head CI runs succeed (`38213528662`, `38213523241`,
+head `929380a7351efc82c337bfcc23f2d13837bd1b88`). Main is
+`90da612a57445a50f991f31e567993dca74a1f87`; post-merge CI `38213916245`
+succeeds for that exact commit. Production is not claimed ready.
+
+The next release slice is `codex/router-release-checks`: eight installed SDK 55
+Router parser/serializer acceptance checks with a throwing old-decoder canary.
+Actual account/focus links retain task identity and Unicode query data; bounded
+malformed encodings and an unknown segment round-trip without reaching that
+decoder, and prototype-shaped query data does not change object prototypes.
+The targeted suite passes. No runtime/dependency/native-build change is made.
+Router 55.0.18 is the latest SDK 55 patch checked on 2026-10-12. The decoder's
+patched ESM package and current CommonJS parent are incompatible; no forced
+override is used. Full/omit-dev audits remain 0/45/15/60 and 0/41/15/56
+(critical/high/moderate/affected entries). These checks do not patch the bundle,
+prove every link safe or establish native acceptance. Full root lint, boundaries,
+schema, types, tests and build pass: 621 API, 930 mobile, 135 contracts, 173 domain,
+3 Android-script and 20 release/dependency tests (1,882 total). The final canary
+also explicitly rejects invocation even if a caller catches its thrown error.
+The targeted final suite and lint are rerun after that assertion. PR/CI gates remain.
+
+The owner authorized existing-server hosting and offered a connected Android
+device on 2026-10-12. Read-only discovery verifies the existing server at
+95.217.239.38 runs Nginx/PostgreSQL and other live applications. An isolated
+CampusFlow HTTPS deployment and actual device acceptance are the next delivery
+work; SMTP/provider approval is still absent, so public signup stays closed.
 
 Release gates: apply all required migrations to the approved deployment,
 enable reviewed campus calendars for the intended campus;

@@ -18,14 +18,15 @@ for store submission.
 | Web artifacts | Reproduced Metro environment-cache issue; build now clears cache; fresh referenced entry and packaged bundles inspected | Fresh deployment output with authorized HTTPS API/domain; validate actual hosted assets and avoid publishing old generated bundles |
 | Privacy/support/store | Technical data ownership and lifecycle are documented | Owner-approved public privacy/support URLs, real backup/log retention and accurate Apple/Google data declarations; store metadata/review account |
 
-The deployment information question remains pending: which Supabase project,
-app domain and transactional email service should be used. Development can
-continue on privacy, recovery interfaces, release scripts and acceptance coverage
-without choosing an unauthorized production target or inventing credentials.
+On 2026-10-12 the owner authorized the existing server for initial hosting and
+offered an Android device. The server identity, isolated deployment, HTTPS route,
+backup policy and actual device connection still require verification. No email
+provider is approved yet; public signup remains closed and mail disabled until
+real delivery is verified. Eventual Supabase hosting remains the accepted baseline.
 
 See the [release operations runbook](release-operations.md) for health, read-only
-smoke and guarded restore commands. The latest account-access restore covers 23 tables
-and 202 synthetic records, including live owned authentication quotas, with matching
+smoke and guarded restore commands. The latest wellness-journal restore covers 23 tables
+and 199 synthetic records, including a revision-2 journal entry and owned authentication quotas, with matching
 content, constraints/indexes and readiness. The earlier verification restore also
 covered a live private verification token. The latest rehearsal
 preserves the source and removes only its generated disposable database. This
@@ -35,6 +36,9 @@ The [dependency safety record](dependency-safety.md) distinguishes tool-only
 consumers from the bundled Router decoder and records remaining upstream risks.
 Audit totals include affected parent packages; zero critical entries does not
 mean the remaining dependency graph is clean or that the release is accepted.
+Eight installed-Router parser/serializer regressions cover ordinary and bounded
+malformed links with a decoder invocation canary. They do not remove the bundled
+decoder or establish mounted-app/hardware incoming-link acceptance.
 
 Account privacy tests cover a disposable user's full record graph,
 another user's unchanged records, public event preservation, all-token revocation,

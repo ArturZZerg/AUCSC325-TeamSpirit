@@ -3,7 +3,7 @@
 Status: PR #62 merged after author self-review, local validation and both
 exact-head Linux CI checks passed, following release-readiness PR #61.
 
-The 2026-10-11 installed-lockfile npm audit (`--omit=dev`) reports 64 affected
+The pre-repair 2026-10-11 installed-lockfile npm audit (`--omit=dev`) reported 64 affected
 package entries: 1 critical, 48 high and 15 moderate. These totals include parent
 packages and toolchain dependencies brought in by Expo/React Native; they are not
 64 independent exploitable application paths. Assess actual dependency paths and
@@ -35,4 +35,12 @@ See the [repair/exposure record](../development/dependency-safety.md) for precis
 dependency paths, narrowly scoped Prisma CLI overrides, unresolved upstream
 advisories and clean-install/app/build/smoke/restore evidence. Full audit affected
 entries fell from 69 to 60; `--omit=dev` from 64 to 56. Both now report zero
-critical entries. This does not make the remaining audit or production gates clean.
+critical entries. A 2026-10-12 refresh of the unchanged repaired lockfile confirms
+these counts. This does not make the remaining audit or production gates clean.
+
+Retain installed-Router regression coverage for ordinary account/focus links,
+bounded malformed URI data, serialization and object-prototype preservation.
+Make these checks fail if the older bundled decoder is invoked by an exercised
+path. Parser coverage does not replace signed-device incoming-link acceptance
+or resolve the advisory. Upgrade the decoder through a supported Router/SDK
+dependency path rather than an incompatible ESM override.
