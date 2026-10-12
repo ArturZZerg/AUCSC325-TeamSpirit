@@ -70,6 +70,10 @@ palette and Today-centered product model.
     ordinary sign-in after confirmed rejection, offline preservation and shared
     auth limits independent of SMTP. Implemented in
     [account access](../requirements/account-access-lifecycle.md) under ADR 011.
+20. **Wellness journal:** tap-based optional check-ins, reviewed saved-day editing
+    and deletion, bounded offline history, note search and sparse 7/30-day
+    reflection. Implemented under ADR 012; see
+    [journal requirements](../requirements/wellness-journal.md).
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native

@@ -1,11 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { localDateAt } from '@campusflow/domain';
 import Wellness from '../app/(tabs)/wellness';
-import { useAction, useGoals, useGoalHistory, useWellness } from '../src/features/queries';
+import { useAction, useGoals, useGoalHistory, useWellnessJournal } from '../src/features/queries';
 import { composeOfflineToday } from '../src/features/offline-today';
 import { accountId, snapshotFixture } from './snapshot-fixture';
 
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useGoals: jest.fn(), useGoalHistory: jest.fn(), useWellness: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useGoals: jest.fn(), useGoalHistory: jest.fn(), useWellnessJournal: jest.fn() }));
 let mockAccountZone = 'America/Edmonton';
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { timeZone: mockAccountZone } } }) }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
@@ -13,7 +13,7 @@ const save = jest.fn();
 beforeEach(() => {
   jest.useFakeTimers(); jest.setSystemTime(new Date('2026-10-04T18:00:00Z')); jest.clearAllMocks(); save.mockResolvedValue({});
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>);
-  jest.mocked(useWellness).mockReturnValue({ data: [], isLoading: false } as unknown as ReturnType<typeof useWellness>);
+  jest.mocked(useWellnessJournal).mockReturnValue({ data: { entries: [] }, isLoading: false } as unknown as ReturnType<typeof useWellnessJournal>);
 });
 afterEach(() => { jest.useRealTimers(); });
 it.each([

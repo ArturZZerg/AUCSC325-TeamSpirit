@@ -5,7 +5,7 @@ import { campusEventSchema } from '@campusflow/contracts';
 import { BadRequestException, Body, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { configureAcademicReminderSchema, academicReminderConfigurationSchema, dueSchema, eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, createWellnessEntrySchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { configureAcademicReminderSchema, academicReminderConfigurationSchema, dueSchema, eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, lockAccountRecords, parseUuid, toIso } from './common';
 import { PrismaService } from './prisma.service';
 import { academicReminderFireAt, goalOccursOn, reminderAfterSnooze, taskOccursOn } from '@campusflow/domain';
@@ -346,7 +346,6 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  }
 }
 
-@Controller('wellness') @UseGuards(AuthGuard) export class WellnessController {constructor(private readonly prisma:PrismaService){} @Get() async list(@CurrentUser()u:RequestUser){return(await this.prisma.wellnessEntry.findMany({where:{userId:u.id},orderBy:{date:'desc'}})).map(r=>wellnessEntrySchema.parse({...r,createdAt:toIso(r.createdAt)}));} @Post() async save(@CurrentUser()u:RequestUser,@Body(new ZodPipe(createWellnessEntrySchema))b:z.infer<typeof createWellnessEntrySchema>){const r=await this.prisma.wellnessEntry.upsert({where:{userId_date:{userId:u.id,date:b.date}},create:{userId:u.id,...b},update:b});return wellnessEntrySchema.parse({...r,createdAt:toIso(r.createdAt)});}}
 
 @Controller('events') @UseGuards(AuthGuard) export class EventsController {
  constructor(private readonly prisma: PrismaService, private readonly reminders: ReminderService) {}

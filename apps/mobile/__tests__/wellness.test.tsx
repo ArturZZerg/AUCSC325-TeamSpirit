@@ -1,11 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import Wellness from '../app/(tabs)/wellness';
-import { useAction, useGoals, useGoalHistory, useWellness } from '../src/features/queries';
+import { useAction, useGoals, useGoalHistory, useWellnessJournal } from '../src/features/queries';
 import { useTodayClock } from '../src/features/today-clock';
 import { snapshotFixture } from './snapshot-fixture';
 import { router } from 'expo-router';
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useGoals: jest.fn(), useGoalHistory: jest.fn(), useWellness: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useGoals: jest.fn(), useGoalHistory: jest.fn(), useWellnessJournal: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: jest.fn() }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { timeZone: 'America/Edmonton' } } }) }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
@@ -15,7 +15,7 @@ beforeEach(() => {
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>);
   jest.mocked(useGoals).mockReturnValue({ data: [goal], isLoading: false } as ReturnType<typeof useGoals>);
   jest.mocked(useGoalHistory).mockReturnValue({ data: [], isLoading: false, refetch: refresh } as unknown as ReturnType<typeof useGoalHistory>);
-  jest.mocked(useWellness).mockReturnValue({ data: [], isLoading: false } as unknown as ReturnType<typeof useWellness>);
+  jest.mocked(useWellnessJournal).mockReturnValue({ data: { entries: [] }, isLoading: false } as unknown as ReturnType<typeof useWellnessJournal>);
   jest.mocked(useTodayClock).mockImplementation(zone => ({ date: zone === goal.timeZone ? '2025-03-08' : '2025-03-09', resumeCount: 0 }));
 });
 const press = async (name: string) => { await act(async () => { fireEvent.press(screen.getByRole('button', { name })); }); };
@@ -67,11 +67,9 @@ it('blocks repeated writes while completion is pending', async () => {
   expect(save).toHaveBeenCalledTimes(1); expect(screen.getByRole('button', { name: 'Add goal' })).toBeDisabled();
   await act(async () => { resolve(); }); expect(screen.getByRole('button', { name: 'Add goal' })).toBeEnabled();
 });
-it('validates check-ins, preserves failed notes and submits the account day', async () => {
-  render(<Wellness/>); fireEvent.changeText(screen.getByLabelText('Mood (1–5)'), '6'); await press('Save check-in'); expect(save).not.toHaveBeenCalled();
-  expect(screen.getByRole('alert')).toHaveTextContent(/Use a whole number/);
-  fireEvent.changeText(screen.getByLabelText('Mood (1–5)'), '4'); fireEvent.changeText(screen.getByLabelText('A short note'), 'Keep my note');
-  save.mockRejectedValueOnce(new Error('Offline')); await press('Save check-in'); expect(screen.getByLabelText('A short note')).toHaveDisplayValue('Keep my note');
-  await press('Save check-in'); expect(save).toHaveBeenLastCalledWith({ path: '/wellness', body: { date: '2025-03-09', mood: 4, energy: null, stress: null, note: 'Keep my note' } });
-  expect(screen.getByLabelText('A short note')).toHaveDisplayValue('');
+it('opens the focused journal and shows actual saved check-in ratings above routines', async () => {
+  jest.mocked(useWellnessJournal).mockReturnValue({ data: { entries: [{ id: 'fixture', date: '2025-03-09', mood: null, energy: 4, stress: 2, note: 'Private saved note', createdAt: '2025-03-09T20:00:00Z' }] }, isLoading: false } as unknown as ReturnType<typeof useWellnessJournal>);
+  render(<Wellness/>); expect(screen.getByText(/Mood: Not recorded · Energy: Energized · Stress: Low/)).toBeOnTheScreen();
+  await press('Open check-in journal'); expect(router.push).toHaveBeenCalledWith('/journal'); expect(save).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText('Mood (1–5)')).toBeNull();
 });

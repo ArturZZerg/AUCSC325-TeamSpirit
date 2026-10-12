@@ -11,7 +11,9 @@ import { dayBounds } from '@campusflow/domain';
 import { api, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
 import { useSessionStore } from '@/store/session';
-import { readCache, writeCache } from '@/services/cache';
+import { readCache, writeCache, clearWellnessCache } from '@/services/cache';
+import { wellnessJournalSchema } from '@campusflow/contracts';
+import type { Session } from '@/lib/types';
 import { useTodayClock } from '@/features/today-clock';
 import { composeOfflineToday } from '@/features/offline-today';
 
@@ -193,11 +195,18 @@ export function useGoalHistory(goalId: string) {
 export const useEvents = () => cachedQuery<CampusEvent[]>('events', '/events', schemas.events);
 export const useCampusSources = () => cachedQuery('campusSources', '/events/sources', campusSourcesSchema);
 export const useWellness = () => cachedQuery<WellnessEntry[]>('wellness', '/wellness', schemas.wellness);
+export function useWellnessJournal(from: string, through: string) {
+  const session = useSessionStore(state => state.session);
+  const schema = useMemo(() => wellnessJournalSchema.refine(value => value.accountId === session?.user.id
+    && value.timeZone === session.user.timeZone && value.from === from && value.through === through,
+  'Journal belongs to another account or calendar range'), [session?.user.id, session?.user.timeZone, from, through]);
+  return cachedQuery(`wellnessJournal:${from}:${through}:${session?.user.timeZone}`, `/wellness/journal?from=${from}&through=${through}`, schema);
+}
 export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences', notificationPreferencesSchema);
 export const useReminders = () => cachedQuery<Reminder[]>('reminders', '/reminders', schemas.reminders);
 
 type ActionRequest = { path: string; method?: string; body?: unknown };
-export function useAction<T = unknown>() {
+export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) => Promise<void>) {
   const client = useQueryClient();
   const session = useSessionStore(state => state.session);
   const mutation = useMutation({
@@ -211,9 +220,13 @@ export function useAction<T = unknown>() {
       if (!owner || useSessionStore.getState().session?.accessToken !== owner.accessToken) throw new Error('Your session has ended.');
       return api<T>(path, json(method, body));
     },
-    onSuccess: async (_data, { owner }) => {
+    onSuccess: async (data: T, { owner }) => {
       if (owner && useSessionStore.getState().session?.accessToken === owner.accessToken) {
-        await client.invalidateQueries({ queryKey: ['account', owner.user.id] });
+        // Derived local cleanup runs before refresh; it cannot undo a confirmed
+        // server write. Feature callbacks report their own cleanup retry state.
+        await afterCommit?.(data, owner).catch(() => undefined);
+        if (useSessionStore.getState().session?.accessToken === owner.accessToken)
+          await client.invalidateQueries({ queryKey: ['account', owner.user.id] });
       }
     },
   });
@@ -223,5 +236,26 @@ export function useAction<T = unknown>() {
     mutate: (request: ActionRequest) => mutation.mutate({ request, owner: session }),
     mutateAsync: (request: ActionRequest) => mutation.mutateAsync({ request, owner: session }),
   };
+}
+export function useWellnessJournalAction() {
+  const [cacheWarning, setCacheWarning] = useState<string>();
+  const session = useSessionStore(state => state.session);
+  const client = useQueryClient();
+  const cleanup = async (owner: Session) => {
+    const current = () => useSessionStore.getState().session?.user.id === owner.user.id
+      && useSessionStore.getState().session?.accessToken === owner.accessToken;
+    try { await clearWellnessCache(owner.user.id, current); if (current()) setCacheWarning(undefined); }
+    catch { if (current()) setCacheWarning('Your change is saved on the server. Cached check-ins on this device could not be cleared. Retry device cleanup.'); }
+  };
+  const action = useAction(async (_data, owner) => { await cleanup(owner); });
+  const confirmSaved = async () => {
+    if (!session) return;
+    await client.cancelQueries({ queryKey: ['account', session.user.id] });
+    if (useSessionStore.getState().session?.accessToken !== session.accessToken) return;
+    await cleanup(session);
+    if (useSessionStore.getState().session?.accessToken === session.accessToken)
+      await client.invalidateQueries({ queryKey: ['account', session.user.id] });
+  };
+  return { ...action, cacheWarning, confirmSaved, retryCleanup: confirmSaved };
 }
 export function useTaskMutation() { return useAction<PersonalTask>(); }

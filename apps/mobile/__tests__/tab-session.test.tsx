@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import TabsLayout from '../app/(tabs)/_layout';
-import { useAction, useAcademic, useClasses, usePlanningSnapshot, useGoalHistory, useGoals, usePreferences, useReminders, useTasks, useToday, useWellness } from '../src/features/queries';
+import { useAction, useAcademic, useClasses, usePlanningSnapshot, useGoalHistory, useGoals, usePreferences, useReminders, useTasks, useToday, useWellnessJournal } from '../src/features/queries';
 import { useSessionStore } from '../src/store/session';
 import { composeOfflineToday } from '../src/features/offline-today';
 import type { Session } from '../src/lib/types';
@@ -19,7 +19,7 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@expo/vector-icons/Ionicons', () => () => null);
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useAcademic: jest.fn(), useClasses: jest.fn(), usePlanningSnapshot: jest.fn(), useGoalHistory: jest.fn(), useGoals: jest.fn(),
-  usePreferences: jest.fn(), useReminders: jest.fn(), useTasks: jest.fn(), useToday: jest.fn(), useWellness: jest.fn() }));
+  usePreferences: jest.fn(), useReminders: jest.fn(), useTasks: jest.fn(), useToday: jest.fn(), useWellnessJournal: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: () => ({ date: '2025-03-09', resumeCount: 0 }) }));
 jest.mock('../src/features/use-agenda-clock', () => ({ useAgendaClock: () => '2025-03-09T12:00:00Z' }));
 jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn(), ensureNotificationPermission: jest.fn(), reconcileReminders: jest.fn() }));
@@ -43,7 +43,7 @@ beforeEach(() => {
   jest.mocked(useAcademic).mockReturnValue({ data: [], isLoading: false } as unknown as ReturnType<typeof useAcademic>);
   jest.mocked(useGoals).mockReturnValue({ data: snapshot.goals, isLoading: false } as ReturnType<typeof useGoals>);
   jest.mocked(useGoalHistory).mockReturnValue({ data: [], isLoading: false } as unknown as ReturnType<typeof useGoalHistory>);
-  jest.mocked(useWellness).mockReturnValue({ data: [], isLoading: false } as unknown as ReturnType<typeof useWellness>);
+  jest.mocked(useWellnessJournal).mockReturnValue({ data: { entries: [] }, isLoading: false } as unknown as ReturnType<typeof useWellnessJournal>);
   jest.mocked(usePreferences).mockReturnValue({ data: preferences, isLoading: false } as unknown as ReturnType<typeof usePreferences>);
   jest.mocked(useReminders).mockReturnValue({ data: [] } as unknown as ReturnType<typeof useReminders>);
   jest.mocked(useClasses).mockReturnValue({ data: [], refetch: jest.fn() } as unknown as ReturnType<typeof useClasses>);
@@ -80,17 +80,16 @@ describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it('preserves an active wellness draft during rerenders but clears it for another account', () => {
+  it('preserves an active goal draft during rerenders but clears it for a new login of the same account', () => {
     mockRoute = 'wellness'; const view = render(<TabsLayout/>);
-    fireEvent.changeText(screen.getByLabelText('A short note'), 'Private check-in');
-    fireEvent.changeText(screen.getByLabelText('Mood (1–5)'), '5');
+    fireEvent.press(screen.getByText('Edit goal'));
+    fireEvent.changeText(screen.getByLabelText('Goal title'), 'Private goal draft');
     view.rerender(<TabsLayout/>);
-    expect(screen.getByLabelText('A short note')).toHaveDisplayValue('Private check-in');
-    session(second);
-    expect(screen.getByLabelText('A short note')).toHaveDisplayValue('');
-    expect(screen.getByLabelText('Mood (1–5)')).toHaveDisplayValue('3');
+    expect(screen.getByLabelText('Goal title')).toHaveDisplayValue('Private goal draft');
+    session({ ...first, accessToken: 'new-login' });
+    expect(screen.queryByLabelText('Goal title')).toBeNull();
     session(first);
-    expect(screen.getByLabelText('A short note')).toHaveDisplayValue('');
+    expect(screen.queryByLabelText('Goal title')).toBeNull(); expect(save).not.toHaveBeenCalled();
   });
 
   it('dismisses goal editor drafts when the account changes', () => {

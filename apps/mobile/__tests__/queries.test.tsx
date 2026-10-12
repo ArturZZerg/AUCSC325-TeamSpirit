@@ -4,17 +4,18 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import * as SecureStore from 'expo-secure-store';
 import { api, ApiError } from '../src/lib/api';
 import { queryClient } from '../src/lib/query-client';
-import { useAction, useCampusSources, useClasses, useEvents, useGoalHistory, useStudyPlans, useTasks } from '../src/features/queries';
+import { useAction, useCampusSources, useClasses, useEvents, useGoalHistory, useStudyPlans, useTasks, useWellnessJournal, useWellnessJournalAction } from '../src/features/queries';
+import { journalFixture } from './journal-fixture';
 import { preparationFixture } from './preparation-fixture';
 import { classFixture } from './class-fixture';
 import { eventFixture } from './event-fixture';
 import { snapshotFixture } from './snapshot-fixture';
-import { readCache, writeCache, clearAccountCache } from '../src/services/cache';
+import { readCache, writeCache, clearAccountCache, clearWellnessCache } from '../src/services/cache';
 import { useSessionStore } from '../src/store/session';
 import type { Session } from '../src/lib/types';
 
 jest.mock('../src/lib/api', () => ({ ...jest.requireActual('../src/lib/api'), api: jest.fn() }));
-jest.mock('../src/services/cache', () => ({ readCache: jest.fn(), writeCache: jest.fn(), clearAccountCache: jest.fn(), deleteCache: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/services/cache', () => ({ readCache: jest.fn(), writeCache: jest.fn(), clearAccountCache: jest.fn(), clearWellnessCache: jest.fn(), deleteCache: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
 
@@ -39,6 +40,7 @@ beforeEach(() => {
   jest.mocked(readCache).mockReset().mockResolvedValue(undefined);
   jest.mocked(writeCache).mockReset().mockResolvedValue(undefined);
   jest.mocked(clearAccountCache).mockResolvedValue(undefined);
+  jest.mocked(clearWellnessCache).mockReset().mockResolvedValue(undefined);
   jest.mocked(SecureStore.setItemAsync).mockResolvedValue(undefined);
   jest.mocked(SecureStore.deleteItemAsync).mockResolvedValue(undefined);
   global.fetch = jest.fn().mockResolvedValue({ ok: true });
@@ -46,6 +48,43 @@ beforeEach(() => {
 afterEach(() => { queryClient.clear(); });
 
 describe('account-scoped cached query lifecycle (ToR 10, 19)', () => {
+  it('retains complete validated journal coverage offline using a separate account/range/zone cache', async () => {
+    const value = { ...journalFixture(), accountId: first.user.id };
+    jest.mocked(api).mockRejectedValue(new Error('Offline')); jest.mocked(readCache).mockResolvedValue(value);
+    const { result } = renderHook(() => useWellnessJournal(value.from, value.through), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual(value)); await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(readCache).toHaveBeenCalledWith(first.user.id, `wellnessJournal:${value.from}:${value.through}:${first.user.timeZone}`);
+  });
+  it.each([{ accountId: second.user.id }, { timeZone: 'Asia/Tokyo' }, { from: '2025-03-09' }])('withholds cached journal from a different owner/zone/range %j', extra => {
+    const value = { ...journalFixture(), accountId: first.user.id }; jest.mocked(readCache).mockResolvedValue({ ...value, ...extra }); jest.mocked(api).mockRejectedValue(new Error('Offline'));
+    const { result } = renderHook(() => useWellnessJournal(value.from, value.through), { wrapper: Wrapper });
+    return waitFor(() => { expect(result.current.isError).toBe(true); expect(result.current.data).toBeUndefined(); });
+  });
+  it('clears private check-in ranges before refresh after a confirmed write', async () => {
+    const order: string[] = [];
+    jest.mocked(api).mockImplementation(async () => { order.push('saved'); return { deleted: true } as never; });
+    jest.mocked(clearWellnessCache).mockImplementation(async () => { order.push('cleanup'); });
+    const invalidate = jest.spyOn(queryClient, 'invalidateQueries').mockImplementation(async () => { order.push('refresh'); });
+    try {
+      const { result } = renderHook(() => useWellnessJournalAction(), { wrapper: Wrapper });
+      await act(async () => { await result.current.mutateAsync({ path: '/wellness/journal/2025-03-09', method: 'DELETE', body: {} }); });
+      expect(order).toEqual(['saved', 'cleanup', 'refresh']); expect(clearWellnessCache).toHaveBeenCalledWith(first.user.id, expect.any(Function));
+    } finally { invalidate.mockRestore(); }
+  });
+  it('reports failed device cleanup without changing confirmed server success, and retries cleanup without another write', async () => {
+    jest.mocked(api).mockResolvedValue({ deleted: true }); jest.mocked(clearWellnessCache).mockRejectedValueOnce(new Error('Local cache failed'));
+    const { result } = renderHook(() => useWellnessJournalAction(), { wrapper: Wrapper });
+    await act(async () => { await expect(result.current.mutateAsync({ path: '/wellness/journal/2025-03-09', method: 'DELETE' })).resolves.toEqual({ deleted: true }); });
+    expect(result.current.cacheWarning).toMatch(/saved on the server/);
+    await act(async () => { await result.current.retryCleanup(); }); expect(result.current.cacheWarning).toBeUndefined(); expect(api).toHaveBeenCalledTimes(1);
+  });
+  it('does not apply late confirmed cleanup or refresh to a new owner session', async () => {
+    const pending = deferred<unknown>(); jest.mocked(api).mockReturnValueOnce(pending.promise);
+    const { result } = renderHook(() => useWellnessJournalAction(), { wrapper: Wrapper }); let mutation!: Promise<unknown>;
+    await act(async () => { mutation = result.current.mutateAsync({ path: '/wellness/journal/2025-03-09', method: 'DELETE' }); });
+    await waitFor(() => expect(api).toHaveBeenCalled()); act(() => useSessionStore.setState({ session: second }));
+    await act(async () => { pending.resolve({ deleted: true }); await mutation; }); expect(clearWellnessCache).not.toHaveBeenCalled(); expect(result.current.cacheWarning).toBeUndefined();
+  });
   it('retains validated campus freshness offline and rejects invalid source coverage', async () => {
     const status = { generatedAt: '2026-10-10T18:00:00Z', sources: [{ source: 'campus:recreation', name: 'Recreation', website: 'https://example.org/campus', availability: 'available', lastSuccessfulAt: '2026-10-10T18:00:00Z', coverage: { from: '2026-10-09', through: '2026-12-10', timeZone: 'America/Edmonton' } }] };
     jest.mocked(api).mockRejectedValue(new Error('Offline')); jest.mocked(readCache).mockResolvedValue(status);

@@ -1,11 +1,14 @@
 import * as SQLite from 'expo-sqlite';
-import { clearAccountCache, deleteCache, readCache, writeCache } from '../src/services/cache';
+import { clearAccountCache, clearWellnessCache, deleteCache, readCache, writeCache } from '../src/services/cache';
 
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
 
 const rows = new Map<string, string>();
 const run = jest.fn(async (sql: string, values: string[]) => {
   if (sql.startsWith('INSERT')) rows.set(`${values[0]}:${values[1]}`, values[2]);
+  else if (sql.includes('wellnessJournal:')) {
+    for (const key of rows.keys()) if (key === `${values[0]}:wellness` || key.startsWith(`${values[0]}:wellnessJournal:`)) rows.delete(key);
+  }
   else if (values.length === 2) rows.delete(`${values[0]}:${values[1]}`);
   else for (const key of rows.keys()) if (key.startsWith(`${values[0]}:`)) rows.delete(key);
 });
@@ -21,6 +24,17 @@ beforeEach(() => {
 });
 
 describe('disposable account cache (ToR 19)', () => {
+  it('clears all owned journal ranges and legacy check-ins while retaining tasks and another account', async () => {
+    for (const key of ['wellness', 'wellnessJournal:old-range', 'wellnessJournal:recent-range']) await writeCache('first', key, ['Private old note']);
+    await writeCache('first', 'tasks', ['Saved task']); await writeCache('second', 'wellness', ['Other note']);
+    await clearWellnessCache('first');
+    for (const key of ['wellness', 'wellnessJournal:old-range', 'wellnessJournal:recent-range']) expect(await readCache('first', key)).toBeUndefined();
+    expect(await readCache('first', 'tasks')).toEqual(['Saved task']); expect(await readCache('second', 'wellness')).toEqual(['Other note']);
+  });
+  it('does not clear cached notes on behalf of a superseded owner session', async () => {
+    await writeCache('first', 'wellness', ['Keep saved note']); await clearWellnessCache('first', () => false);
+    expect(await readCache('first', 'wellness')).toEqual(['Keep saved note']);
+  });
   it('keeps account records separate and clears only the signed-out account', async () => {
     await writeCache('first', 'tasks', [{ title: 'First task' }]);
     await writeCache('second', 'tasks', [{ title: 'Second task' }]);
