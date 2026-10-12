@@ -92,7 +92,7 @@ function FocusContent() {
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not complete the task. Try again.'); }
     finally { savingRef.current = false; setSaving(false); }
   };
-  return <Screen><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     accessibilityElementsHidden={confirmEnd} importantForAccessibility={confirmEnd ? 'no-hide-descendants' : 'auto'} aria-hidden={confirmEnd}>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" disabled={saving} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>FOCUS SPACE</Text></View>
     <Text style={styles.title}>One thing at a time.</Text>

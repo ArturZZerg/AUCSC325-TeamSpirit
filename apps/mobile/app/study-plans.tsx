@@ -57,7 +57,7 @@ function StudyPlansContent() {
   };
   const focus = (task: PersonalTask) => router.push({ pathname: '/focus', params: { taskId: task.id } });
   const refresh = () => { void plans.refetch(); };
-  return <Screen><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={plans.isRefetching} onRefresh={refresh}/>}>
     <View style={styles.heading}><Button title="Back to Today" tone="plain" disabled={disabled} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>MY STUDY PLANS</Text></View>

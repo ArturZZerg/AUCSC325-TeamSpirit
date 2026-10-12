@@ -37,7 +37,7 @@ function RoutinesContent({ timeZone }: { timeZone: string }) {
     if (editing) setAdded(previous => [...previous, editing.id]);
     setSaved(true); setEditing(undefined);
   };
-  return <Screen><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={editing !== undefined} accessibilityElementsHidden={editing !== undefined} importantForAccessibility={editing !== undefined ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={!!goals.isRefetching} onRefresh={() => { void goals.refetch(); }}/>}>
     <View style={styles.heading}><Button title="Back to Wellness" tone="plain" onPress={() => router.replace('/wellness')}/><Text style={styles.kicker}>ROUTINE LIBRARY</Text></View>

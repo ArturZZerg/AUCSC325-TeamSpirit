@@ -337,6 +337,27 @@ progress. Device inspection finds the standalone journal header under Android's
 status bar; standalone screen insets are the next separate slice. No new native
 notification delivery, independent hosting, SMTP, iOS or store acceptance is claimed.
 
+PR #68 is merged after author self-review and both exact-head CI runs succeed
+(`38298183175`, `38298176635`, head `8e73ebecd2e51f82f1bf781d3658f0696f8a913d`).
+Main is `87b4757b43e6abe0e1159ad42d325e79fa31e696`; post-merge CI
+`38298828460` succeeds for that exact commit. Disconnected cold Today and journal
+reads are now observed with explicit saved/stale messaging and the edited entry.
+
+The next slice, `codex/native-screen-insets`, adds an explicit safe-area opt-in
+for twelve standalone workspaces using the installed library. Tabs retain their
+navigation chrome and existing account/auth/modal safe areas remain separate.
+The physical geometry regression detects the old journal viewport crossing both
+system bars. The fresh inset APK builds, includes the selected local API and
+passes v2 signing (SHA-256
+`4723EE77F9D31AC8977F4B558BD07CE5892EA989CF4D0287DDD7AEDAA636BD73`).
+Full root checks pass all 1,907 tests with the established isolated database.
+An initial run against the live Docker acceptance database has twelve mail-fixture
+failures; all 930 mobile tests pass and isolated-database mail tests pass.
+No mail-worker change or delivery claim follows from that run.
+The Pixel disconnects before the corrected APK can be installed. Reconnection
+is requested for twelve-screen geometry/reminder acceptance and restoration of
+its temporary keep-awake preference. See the 2026-10-12 native acceptance report.
+
 Release gates: apply all required migrations to the approved deployment,
 enable reviewed campus calendars for the intended campus;
 verify new native lifecycle/touch flows; retain live Canvas,

@@ -32,7 +32,7 @@ function PlannerContent() {
   const items = day.plan?.items ?? [];
   const maxOpen = Math.max(1, ...week.days.map(value => value.open ?? 0));
 
-  return <Screen><ScrollView contentContainerStyle={styles.content}
+  return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
     aria-hidden={!!studyDraft} accessibilityElementsHidden={!!studyDraft} importantForAccessibility={studyDraft ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
     <View style={styles.top}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/>

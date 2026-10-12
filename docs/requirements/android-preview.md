@@ -122,6 +122,13 @@ real account-calendar rollover, background resume and cold SQLite restoration.
 The [foreground/session report](android-native-lifecycle-2026-10-04.md) adds
 foreground midnight, invalid-session modal disposal, goal snooze and offline
 notification permission denial/restoration.
+The [2026-10-12 report](android-native-acceptance-2026-10-12.md) records corrected
+native API bundling, actual task/journal writes and disconnected cold reads.
+For standalone system-bar geometry, run `scripts/android-screen-acceptance.ps1`
+after installing the reviewed preview and signing in on exactly one authorized
+device. It validates twelve native workspaces against observed bar boundaries;
+private accessibility snapshots stay in ignored `.local`. New-build geometry
+remains pending device reconnection in that report.
 
 Official workflow references: [Expo local builds](https://docs.expo.dev/guides/local-app-development/)
 and [installable Android APKs](https://docs.expo.dev/build-reference/apk/).

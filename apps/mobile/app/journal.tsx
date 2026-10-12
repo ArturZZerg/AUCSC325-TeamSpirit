@@ -34,7 +34,7 @@ function JournalContent({ accountId, timeZone }: { accountId: string; timeZone: 
   const term = search.trim().toLocaleLowerCase();
   const rows = reflection?.entries.filter(row => !term || `${row.date} ${row.note ?? ''}`.toLocaleLowerCase().includes(term)) ?? [];
   const window = (end?: string) => { setAnchor(end); setSelected(undefined); setSearch(''); setMessage(undefined); setConfirmed(undefined); };
-  return <Screen><View style={styles.fill} aria-hidden={!!editing} accessibilityElementsHidden={!!editing} importantForAccessibility={editing ? 'no-hide-descendants' : 'auto'}>
+  return <Screen safeArea><View style={styles.fill} aria-hidden={!!editing} accessibilityElementsHidden={!!editing} importantForAccessibility={editing ? 'no-hide-descendants' : 'auto'}>
     <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/>}>
       <View style={styles.heading}><Button title="Back to Wellness" tone="plain" disabled={action.isPending} onPress={() => router.replace('/wellness')}/><Text style={styles.kicker}>CHECK-IN JOURNAL</Text></View>
       <Text style={styles.title}>A moment for yourself.</Text><Text style={styles.copy}>Keep a short record of how your days feel. Choose what to record and leave the rest blank.</Text>
