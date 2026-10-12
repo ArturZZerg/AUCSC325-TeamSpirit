@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
+import { inspectAndroidPermissions } from './android-permissions.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mobile = path.join(root, 'apps/mobile');
@@ -63,7 +64,19 @@ const bundle = readFileSync(path.join(mobile, 'android/app/build/generated/asset
 if (!bundle.includes(Buffer.from(apiUrl)) && !bundle.includes(Buffer.from(apiUrl, 'utf16le')))
   fail('Native bundle does not contain the selected API URL; inspect Gradle and Metro caches.');
 const output = path.join(root, 'artifacts/android/campusflow-preview.apk');
+const apk = path.join(mobile, 'android/app/build/outputs/apk/release/app-release.apk');
+const aaptName = windows ? 'aapt2.exe' : 'aapt2';
+const tools = path.join(sdk, 'build-tools');
+const versions = existsSync(tools) ? readdirSync(tools, { withFileTypes: true })
+  .filter(entry => entry.isDirectory() && /^\d+\.\d+\.\d+$/.test(entry.name)).map(entry => entry.name)
+  .sort((a, b) => b.localeCompare(a, undefined, { numeric: true })) : [];
+const aapt = versions.map(version => path.join(tools, version, aaptName)).find(candidate => existsSync(candidate));
+if (!aapt) fail('Install Android SDK build-tools with aapt2 to check the actual preview permissions.');
+try {
+  const inventory = inspectAndroidPermissions(apk, aapt);
+  console.log(`Android APK permission gate passed: ${inventory.permissions.length} reviewed permissions.`);
+} catch (error) { fail(error.message); }
 mkdirSync(path.dirname(output), { recursive: true });
-copyFileSync(path.join(mobile, 'android/app/build/outputs/apk/release/app-release.apk'), output);
+copyFileSync(apk, output);
 console.log(`Android preview APK: ${output}`);
 console.log('Locally signed preview for testing; not a Play Store release.');

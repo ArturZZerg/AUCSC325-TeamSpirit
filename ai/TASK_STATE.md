@@ -419,6 +419,38 @@ known private-fixture scans (SHA-256
 `4B0DDA46D02E3BDC7DA0B21FE87FBCB7842983AE8860B623980A01154D72B198`).
 The native geometry script now includes Help; syntax passes, hardware execution
 is pending. The Pixel remains disconnected, including keep-awake restoration.
-Exact-head PR/main CI is required before accepting the slice. Source remains
-local; hosting/mail, iOS and store gates persist. The next concrete local task
-is reviewing and constraining the actual Android artifact's unused permissions.
+PR #71 is merged after author self-review and both exact-head CI runs succeed
+(`38308188618`, `38308183619`, head `79236dcb08fb7492a8c6217ce9e790ca5743d1fe`).
+Main `984da187f0e16072cbf88f8b71a710f80d3a942a` has successful post-merge CI
+`38308824253`. Source remains local; hosting/mail, iOS and store gates persist.
+
+### Android permission policy, 2026-10-12
+
+The `codex/android-permission-policy` slice removes unused overlay, legacy
+shared-storage and biometric/fingerprint permissions through Expo's supported
+configuration. Session storage remains encrypted without biometric authentication;
+SQLite/exports use app storage and sharing keeps its SDK FileProvider/URI flow.
+Required network/local-reminder capabilities and existing SDK support remain.
+No dependency, schema, API or architecture change is made.
+
+The native build inspects the actual assembled APK with installed SDK aapt2
+before copying the preview. A bounded package/permission inventory rejects
+unknown capabilities/declarations, malformed output, incomplete inspection and
+missing/restricted core permissions. Eleven new behavior/installed-Expo-mod
+checks pass. The preserved previous APK fails specifically for all five unused
+permissions. The fresh APK passes with 25 rather than 30 permissions: precisely
+those five removals and no additions. Build and v2 signature verification pass
+(SHA-256 `7940AC915A07D7CABC13281368A338157816FDB0E8A0FAD0EE98ACF616963260`),
+with the selected local API/current Help and known private-fixture exclusion.
+The unchanged root lockfile and complete root checks pass 1,959 tests: 646 API,
+966 mobile, 135 contracts, 173 domain, 14 Android-script and 25 release/dependency.
+
+The Pixel is visible only through Windows Bluetooth, with no USB/ADB device;
+new-build share/session/cache/reminder and older Android acceptance are pending.
+Its prior keep-awake value still needs restoration on reconnection. Existing
+SDK 36 x86_64 image/emulator and usable WHPX are detected without starting or
+altering the user's Medium_Phone AVD. The next concrete local task is a separate
+project-owned emulator acceptance run, preserving that AVD and phone data.
+Exact-head PR/main CI remains required. Permission names do not establish SDK
+data collection, component safety, iOS acceptance or store approval. Source
+remains local; hosting/mail/policy/store and mobile advisory gates persist.

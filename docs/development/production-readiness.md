@@ -14,7 +14,7 @@ for store submission.
 | Canvas | Normalized fixture integration and idempotency tests; production OAuth is disabled | Institution-approved key/scopes/callback, protected token storage and authorized live sync/revocation test |
 | Public campus events | Reviewed Augustana calendars, persisted feed coverage, replica-safe imports and failure preservation | Intended campus approval/configuration and observed successful imports on the deployed API |
 | Notifications | Server intent, local reconciliation and behavioral tests | Device permission, edit/delete/reschedule, quiet hours and duplicate-prevention acceptance; offline/other-device limitations accurately disclosed |
-| Mobile builds | Locally signed Android preview, signature checks; no synthetic QA credentials in package | Production signing/identifiers, store builds, installation/backend connectivity and signed-device acceptance; iOS build/signing on supported host |
+| Mobile builds | Locally signed Android preview, signature checks; no synthetic QA credentials in package; reviewed permission removal and actual APK inventory gate | Production signing/identifiers, store builds, installation/backend connectivity and signed-device acceptance of session/cache/share/reminders after permission removal; older Android and iOS build/signing on supported host |
 | Web artifacts | Reproduced Metro environment-cache issue; build now clears cache; fresh referenced entry and packaged bundles inspected | Fresh deployment output with authorized HTTPS API/domain; validate actual hosted assets and avoid publishing old generated bundles |
 | Privacy/support/store | Technical data ownership/lifecycle and public offline Help are documented; searchable workflow/data answers, protected account continuation and configurable validated policy/support links | Owner-approved public privacy/support URLs, real backup/log retention and accurate Apple/Google data declarations; native Help/browser acceptance, store metadata/review account |
 
@@ -60,6 +60,13 @@ operating-system packages and production-host acceptance remain separate gates.
 Eight installed-Router parser/serializer regressions cover ordinary and bounded
 malformed links with a decoder invocation canary. They do not remove the bundled
 decoder or establish mounted-app/hardware incoming-link acceptance.
+
+The [Android permission policy](../requirements/android-permissions.md) removes
+unused overlay, legacy shared-storage and biometric capabilities through Expo
+configuration and checks the actual assembled APK before publishing a preview.
+It retains current network/reminder/SDK support and rejects unreviewed additions
+or lost core capabilities. Permission names alone do not establish SDK data
+collection, native compatibility or accurate store disclosures.
 
 Account privacy tests cover a disposable user's full record graph,
 another user's unchanged records, public event preservation, all-token revocation,
