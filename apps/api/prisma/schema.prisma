@@ -9,11 +9,13 @@ model User {
   id String @id @default(uuid()) @db.Uuid
   email String @unique
   passwordHash String
+  emailVerifiedAt DateTime?
   displayName String
   timeZone String
   createdAt DateTime @default(now())
   sessions Session[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
   recoveryMail RecoveryMail[]
   tasks PersonalTask[]
   studyPlans StudyPlan[]
@@ -44,6 +46,16 @@ model PasswordResetToken {
   id String @id @default(uuid()) @db.Uuid
   userId String @db.Uuid
   tokenHash String @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@index([userId, expiresAt])
+}
+model EmailVerificationToken {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  tokenHash String @unique
+  credentialHash String
   expiresAt DateTime
   createdAt DateTime @default(now())
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)

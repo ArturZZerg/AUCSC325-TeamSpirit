@@ -39,6 +39,7 @@ export class RecoveryService {
       await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
       await tx.session.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
       await tx.passwordResetToken.deleteMany({ where: { userId: user.id } });
+      await tx.emailVerificationToken.deleteMany({ where: { userId: user.id } });
       const recipientHash = recoveryRecipientHash(input.email);
       await tx.recoveryMail.deleteMany({ where: { recipientHash } });
       const id = randomUUID();

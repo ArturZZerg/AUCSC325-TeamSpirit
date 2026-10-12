@@ -121,6 +121,29 @@ This local result cannot establish any of those policies.
 
 ## Verified local evidence
 
+Public signup uses `REGISTRATION_MODE=verified` only after the approved SMTP
+configuration has passed real delivery acceptance. Production defaults to
+`closed`; `preview` is rejected in production. Closed mode preserves ordinary
+login for verified users. Local/test mode defaults to preview, preserving current
+development accounts without inventing verified timestamps. Remove the example's
+explicit preview value when preparing production configuration.
+
+Apply migration `20261011020000_email_verification` before the new API build.
+It adds a nullable verification timestamp and private token table, with no legacy
+backfill or student data loss. Deploy the API and native client contract update
+together: unverified public registration/login returns `verificationRequired`
+instead of an access session. Old preview sessions fail public access and are
+revoked on verification. Verification returns only `verified`, then requires
+ordinary sign-in. Existing encrypted recovery jobs retain their original
+associated-data/version format and can survive this additive deployment.
+
+The `/auth/capability` response reports global mode and mail availability.
+`/auth/verification/request` requires account email/password; confirmation also
+requires the full email code. Real SMTP does not prove source/proxy policy or
+native acceptance. On a disabled-mail replicated deployment, shared login and
+password-challenge limits remain a release gate; local in-memory login limits
+alone are not sufficient evidence.
+
 On 2026-10-11, the existing PostgreSQL 18.4 isolated test database was dumped with
 the official 18.6 client and restored: **19 tables / 163 records**, identical
 content, constraints/indexes and readiness; source preserved and restore removed.
@@ -129,3 +152,14 @@ was created. Fresh Expo output served on loopback passed API health/CORS,
 synthetic identity/daily data and its actual entry, worker and SQLite WASM checks.
 These are local preview results. Hosted production and signed-device gates remain
 unverified.
+
+The ADR 010 verification build passes 1,759 tests and actual captured-delivery
+signup/code-and-password confirmation/ordinary login on the running loopback API.
+Its fresh preview artifacts pass health/CORS/private reads, referenced web entry/
+worker/WASM isolation and native origin/privacy checks. The Android preview v2
+signature verifies; no physical ADB device is attached. A further actual restore
+matches **23 tables / 194 synthetic records**, including a live private verification
+token, while preserving the source and removing the disposable restore database.
+Responsive browser geometry and empty-form/account-return behavior pass at
+320/390/1100px with 46px controls. Screenshot capture and actual browser verification
+submission remain unverified; native component/API evidence covers completion.

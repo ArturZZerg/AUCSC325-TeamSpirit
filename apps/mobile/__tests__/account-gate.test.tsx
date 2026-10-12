@@ -17,7 +17,7 @@ it('routes signed-out account visitors to sign-in with a safe continuation', () 
 it('never follows a client-supplied arbitrary redirect', () => {
   mockNext = 'https://example.test'; render(<RootLayout/>); expect(mockRouter.replace).toHaveBeenCalledWith('/today');
 });
-it('allows signed-out recovery and returns an already signed-in visitor to their app', () => {
-  mockSegments = ['recover']; mockSession = null; const ui = render(<RootLayout/>); expect(mockRouter.replace).not.toHaveBeenCalled();
+it.each(['recover', 'verify'])('allows signed-out %s and returns an already signed-in visitor to their app', route => {
+  mockSegments = [route]; mockSession = null; const ui = render(<RootLayout/>); expect(mockRouter.replace).not.toHaveBeenCalled();
   mockSession = {}; mockNext = 'account'; ui.rerender(<RootLayout/>); expect(mockRouter.replace).toHaveBeenCalledWith('/account');
 });

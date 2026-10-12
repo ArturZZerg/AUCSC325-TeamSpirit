@@ -20,7 +20,9 @@ export class SmtpRecoveryMailer implements RecoveryMailer {
       connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000,
       logger: false, debug: false, disableFileAccess: true, disableUrlAccess: true,
     });
-    const text = envelope.kind === 'code'
+    const text = envelope.kind === 'verify'
+      ? `Verify your CampusFlow email:\n\n${formatRecoveryCode(envelope.code)}\n\nThe code expires at ${expiresAt.toISOString()} (UTC), 15 minutes after your request. Open Verify email in CampusFlow and enter it with your account password. You must then sign in normally.\n\nYou can also open ${config.webOrigin}/verify . This link contains no code.\n\nIf you did not create this account, do not verify it. Never enter a password supplied by someone else. To take control of your email's account, use Forgot password first, then request a new verification code. Never share this code.`
+      : envelope.kind === 'code'
       ? `Use this code to reset your CampusFlow password:\n\n${formatRecoveryCode(envelope.code)}\n\nThe code expires at ${expiresAt.toISOString()} (UTC), 15 minutes after your request. Open Forgot password in CampusFlow and enter it with a new password.\n\nYou can also open ${config.webOrigin}/recover . This link contains no code.\n\nIf you did not request this, you can ignore this email. Your password has not changed. Never share this code.`
       : `Your CampusFlow password was changed. Previous sessions have been signed out.\n\nIf you did not make this change, open Forgot password in CampusFlow to secure your account. You can also open ${config.webOrigin}/recover .`;
     let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -28,7 +30,7 @@ export class SmtpRecoveryMailer implements RecoveryMailer {
       await Promise.race([
         transport.sendMail({ from: smtp.from, to: envelope.email,
           messageId: `<${id}@${smtp.from.split('@')[1]}>`,
-          subject: envelope.kind === 'code' ? 'Reset your CampusFlow password' : 'Your CampusFlow password changed', text }),
+          subject: envelope.kind === 'verify' ? 'Verify your CampusFlow email' : envelope.kind === 'code' ? 'Reset your CampusFlow password' : 'Your CampusFlow password changed', text }),
         new Promise<never>((_, reject) => { deadline = setTimeout(() => { transport.close(); reject(new Error('Recovery delivery is unavailable')); }, 45_000); }),
       ]);
     } catch { throw new Error('Recovery delivery is unavailable'); }

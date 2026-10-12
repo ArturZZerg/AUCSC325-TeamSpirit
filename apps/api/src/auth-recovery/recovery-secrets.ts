@@ -5,8 +5,13 @@ import { z } from 'zod';
 const envelopeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('code'), email: passwordRecoveryRequestSchema.shape.email, code: passwordResetRequestSchema.shape.code }).strict(),
   z.object({ kind: z.literal('changed'), email: passwordRecoveryRequestSchema.shape.email }).strict(),
+  z.object({ kind: z.literal('verify'), email: passwordRecoveryRequestSchema.shape.email, code: passwordResetRequestSchema.shape.code,
+    credentialHash: z.string().regex(/^[0-9a-f]{64}$/) }).strict(),
 ]);
 export type RecoveryEnvelope = z.infer<typeof envelopeSchema>;
+export function verificationCredentialHash(encodedPassword: string): string {
+  return createHash('sha256').update(encodedPassword).digest('hex');
+}
 function checkKey(key: Buffer) { if (key.length !== 32) throw new Error('Recovery message is unavailable'); }
 function associatedData(id: string) {
   if (!z.string().uuid().safeParse(id).success) throw new Error('Recovery message is unavailable');

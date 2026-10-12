@@ -1,8 +1,18 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { createRecoveryCode, formatRecoveryCode, openRecoveryEnvelope, recoveryCodeHash, recoveryPrivateId, recoveryRecipientHash, sealRecoveryEnvelope } from '../src/auth-recovery/recovery-secrets';
+import { createRecoveryCode, formatRecoveryCode, openRecoveryEnvelope, recoveryCodeHash, recoveryPrivateId, recoveryRecipientHash, sealRecoveryEnvelope, verificationCredentialHash } from '../src/auth-recovery/recovery-secrets';
 
 describe('private recovery credentials and durable mail envelopes', () => {
   const email = 'student@example.test', code = '123456ABCDEF123456ABCDEF123456';
+  it('encrypts verification purpose and credential binding without storing readable code/email/digest', () => {
+    const key = randomBytes(32), id = randomUUID(), credentialHash = verificationCredentialHash('synthetic-salted-password-hash');
+    const envelope = { kind: 'verify' as const, email, code, credentialHash }, sealed = sealRecoveryEnvelope(key, id, envelope);
+    expect(openRecoveryEnvelope(key, id, sealed)).toEqual(envelope);
+    for (const secret of [email, code, credentialHash]) expect(sealed).not.toContain(secret);
+    expect(verificationCredentialHash('changed-salted-password-hash')).not.toBe(credentialHash);
+  });
+  it.each(['', 'not-a-digest', 'a'.repeat(65)])('rejects malformed verification credential binding: %s', credentialHash => {
+    expect(() => sealRecoveryEnvelope(randomBytes(32), randomUUID(), { kind: 'verify', email, code, credentialHash })).toThrow('Recovery message is unavailable');
+  });
   it('generates full random grouped codes and hashes safe paste forms identically', () => {
     const first = createRecoveryCode(), second = createRecoveryCode();
     expect(first).toMatch(/^[0-9A-F]{6}(?:-[0-9A-F]{6}){4}$/); expect(first).not.toBe(second);

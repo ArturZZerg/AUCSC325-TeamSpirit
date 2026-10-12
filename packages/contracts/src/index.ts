@@ -25,9 +25,9 @@ export const dueSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('instant'), at: instantSchema }),
 ]);
 export const userSchema = z.object({ id: idSchema, email: z.string().email(), displayName: z.string().min(1).max(100), timeZone: timeZoneSchema, createdAt: instantSchema });
-export const registerRequestSchema = z.object({ email: z.string().email(), password: z.string().min(12).max(128), displayName: z.string().min(1).max(100), timeZone: timeZoneSchema });
-export const loginRequestSchema = z.object({ email: z.string().email(), password: z.string().min(1).max(128) });
 const recoveryEmailSchema = z.string().max(320).trim().toLowerCase().email().max(254);
+export const registerRequestSchema = z.object({ email: recoveryEmailSchema, password: z.string().min(12).max(128), displayName: z.string().min(1).max(100), timeZone: timeZoneSchema }).strict();
+export const loginRequestSchema = z.object({ email: recoveryEmailSchema, password: z.string().min(1).max(128) }).strict();
 export const passwordRecoveryRequestSchema = z.object({ email: recoveryEmailSchema }).strict();
 export const passwordResetRequestSchema = z.object({
   email: recoveryEmailSchema,
@@ -38,6 +38,12 @@ export const passwordRecoveryCapabilitySchema = z.object({ available: z.boolean(
 export const passwordRecoveryAcceptedSchema = z.object({ accepted: z.literal(true) }).strict();
 export const passwordResetResultSchema = z.object({ reset: z.literal(true) }).strict();
 export const sessionSchema = z.object({ accessToken: z.string().min(1), expiresAt: instantSchema, user: userSchema });
+export const verificationRequiredSchema = z.object({ verificationRequired: z.literal(true), codeRequested: z.boolean(), expiresInMinutes: z.literal(15) }).strict();
+export const authResultSchema = z.union([sessionSchema.strict(), verificationRequiredSchema]);
+export const authCapabilitySchema = z.object({ registration: z.enum(['preview', 'verified', 'closed']), verificationAvailable: z.boolean() }).strict();
+export const emailVerificationRequestSchema = loginRequestSchema;
+export const emailVerificationConfirmSchema = emailVerificationRequestSchema.extend({ code: passwordResetRequestSchema.shape.code }).strict();
+export const emailVerificationResultSchema = z.object({ verified: z.literal(true) }).strict();
 
 export const personalTaskSchema = z.object({ id: idSchema, studyPlanId: idSchema.nullable().optional(), title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), createdAt: instantSchema, updatedAt: instantSchema });
 export const createPersonalTaskSchema = personalTaskSchema.pick({ title: true, description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true }).partial({ description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true });

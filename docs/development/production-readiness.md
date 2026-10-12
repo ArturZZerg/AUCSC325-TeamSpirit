@@ -7,7 +7,8 @@ for store submission.
 | --- | --- | --- |
 | Daily workflow | Tasks, Today, planner, classes, preparation, focus/history/report, routines, wellness, campus discovery and workload inbox; automated behavior tests and real API/cache browser checks | Full acceptance script on authorized Android and iOS devices, including keyboard, accessibility, lifecycle and offline cold start |
 | Account privacy | Password-confirmed whole-account deletion, complete versioned export, private-import race protection, attempt-all cleanup/retry, ordinary web sign-in and actual JSON download verified | Authorized native share/cleanup acceptance, hosted HTTPS `/account` resource and declared backup/log retention; shared password-challenge rate limits if replicated |
-| Account recovery | Request/reset, encrypted durable mail, shared quotas, single-use/expiry/rollback and sign-in/reset session races verified with disposable PostgreSQL; native recovery UI states and narrow/wide browser request layout verified under ADR 009 | Approved SMTP sender/provider and real delivery, deployed trusted proxy/source policy, signed-device acceptance; registration email verification before public onboarding |
+| Account recovery | Request/reset, encrypted durable mail, shared quotas, single-use/expiry/rollback and sign-in/reset session races verified with disposable PostgreSQL; native recovery UI states and narrow/wide browser request layout verified under ADR 009 | Approved SMTP sender/provider and real delivery, deployed trusted proxy/source policy, signed-device acceptance |
+| Public signup | ADR 010 adds password-and-code mailbox verification, private purpose/credential-bound tokens, public session gating, explicit preview/verified/closed modes and native verification forms; root checks and running captured-delivery signup/verification/login acceptance pass | Approved real mail delivery and signup configuration, signed-device acceptance and deployed abuse monitoring; shared login/password-challenge quotas when SMTP is disabled and the API is replicated |
 | Backend hosting | NestJS/PostgreSQL, bounded read-only schema/migration readiness, production configuration validation, actual local smoke and snapshot-consistent restore rehearsal; CI also restores its disposable DB | Authorized production project/secrets, real migration/backup/restore policy and host rehearsal, TLS, health monitoring, capacity and availability checks |
 | Dependencies | Reviewed compatible patches, effective scoped Prisma CLI overrides, clean install and real CLI/app/build/smoke/restore verification; both audit reports have zero critical entries | Five unresolved leaf advisories and their actual runtime/bundle paths need supported upstream fixes or explicit reviewed release disposition; see the dependency evidence record |
 | Canvas | Normalized fixture integration and idempotency tests; production OAuth is disabled | Institution-approved key/scopes/callback, protected token storage and authorized live sync/revocation test |
@@ -23,8 +24,9 @@ continue on privacy, recovery interfaces, release scripts and acceptance coverag
 without choosing an unauthorized production target or inventing credentials.
 
 See the [release operations runbook](release-operations.md) for health, read-only
-smoke and guarded restore commands. The final recovery restore covers 22 tables
-and 201 synthetic records with matching content, constraints/indexes and readiness. It
+smoke and guarded restore commands. The final verification restore covers 23 tables
+and 194 synthetic records, including a live private verification token, with matching
+content, constraints/indexes and readiness. It
 preserves the source and removes only its generated disposable database. This
 does not establish production backup retention, RPO/RTO or availability.
 
