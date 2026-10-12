@@ -362,3 +362,27 @@ Release gates: apply all required migrations to the approved deployment,
 enable reviewed campus calendars for the intended campus;
 verify new native lifecycle/touch flows; retain live Canvas,
 hosting/TLS and production account-recovery gates from the MVP roadmap.
+
+### Production API runtime dependencies, 2026-10-12
+
+PR #69 is merged after author self-review and both exact-head CI checks succeed;
+main `60fecc6e1075dfc030a7cd5b1c0bf957fbf74158` has successful post-merge CI
+`38300447789`. The Pixel remains disconnected; new-build inset, reminder and
+keep-awake restoration acceptance is still pending. Source remains local.
+
+The next slice, `codex/api-runtime-dependencies`, addresses actual production
+packaging: workspace-filtered pruning retained 438 packages, including Jest,
+Prisma CLI, braces and sprintf-js. Restricting only the disposable stage's
+workspaces and applying unfiltered dev/optional/peer pruning reduces this to
+106 packages and cuts image size about 33%. The migration build target and
+generated query engine remain available; committed workspace/version/lockfile
+contracts are unchanged. CI inventories actual runtime files without network,
+checks compiled/dependency entries and rejects reviewed tools/source leakage.
+Five regression tests pass; the old image fails 45 policy checks and the new
+image passes. Sixteen real HTTP checks pass with a separate synthetic owner;
+23-table/30-record restore preserves the source and original Pixel owner.
+Full root lint/boundary/schema/type/test/build checks pass all 1,912 tests.
+Both image targets build, the migrator retains Prisma 6.19.0, and every installed
+runtime version matches the unchanged root lockfile. Exact-head PR/main CI is
+required before merge. Remaining mobile/build advisories, physical device,
+hosting/mail/iOS/store gates persist.

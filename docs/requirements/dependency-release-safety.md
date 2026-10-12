@@ -44,3 +44,14 @@ Make these checks fail if the older bundled decoder is invoked by an exercised
 path. Parser coverage does not replace signed-device incoming-link acceptance
 or resolve the advisory. Upgrade the decoder through a supported Router/SDK
 dependency path rather than an incompatible ESM override.
+
+The production-container gate must inspect the actual installed files, not infer
+their absence from npm dev flags. The final API image must resolve the declared
+API/shared runtime dependencies and compiled/generated Prisma entries, without
+shipping source/tests/migration tooling/mobile files or the reviewed build/test
+package families. Inventory nested packages and bounded workspace links without
+executing dependency code; reject links outside the application. Exercise the
+unprivileged read-only image against real PostgreSQL after any pruning change.
+Retain migration tooling in its separate build target. See the dependency record
+for the observed old-image regression and current runtime/restore evidence;
+this does not resolve mobile/build advisories or establish hosted acceptance.

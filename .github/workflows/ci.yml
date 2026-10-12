@@ -37,6 +37,10 @@ jobs:
         shell: bash
         run: |
           docker build -f ops/vps/Dockerfile --target runtime -t campusflow-api:ci .
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges:true --entrypoint node \
+            --mount type=bind,source="$PWD/scripts/runtime-dependencies.mjs",target=/check.mjs,readonly \
+            campusflow-api:ci /check.mjs
           export AUTH_RATE_KEY="$(node -p "require('node:crypto').randomBytes(32).toString('base64')")"
           echo "::add-mask::$AUTH_RATE_KEY"
           trap 'docker rm -f campusflow-ci-api >/dev/null 2>&1 || true' EXIT

@@ -128,3 +128,53 @@ ESM exports, so substituting it beneath Router's current CommonJS import is not
 a supported repair. No speculative native redirect hook is added: the exercised
 links did not reproduce a crash. The existing signed preview remains the same
 artifact; fresh device and HTTPS-host acceptance are separate release gates.
+
+## Actual production-container dependency gate
+
+On 2026-10-12 inspection of the built API runtime found that selected-workspace
+`npm prune --omit=dev` had retained test tools and optional CLI peers. The same
+filesystem inventory counts 438 installed packages in that image, including
+Jest, Prisma CLI, `braces` 3.0.3 and `sprintf-js` 1.0.3. A production flag or an
+API-only install command was insufficient evidence that these files were absent.
+
+The disposable `production-dependencies` stage now restricts its workspace list
+to API/contracts/domain and runs unfiltered pruning with dev, optional and peer
+dependencies omitted. Required Nest peers are direct API dependencies. The
+generated Prisma client and native query engine survive pruning; migration tools
+remain available in the separate `build` image. The committed root manifest's
+workspaces, package versions and single root lockfile are unchanged.
+This uses npm's [documented dependency omission options](https://docs.npmjs.com/cli/v10/commands/npm-prune/),
+without manually deleting transitive package directories or forcing upgrades.
+
+The rebuilt runtime contains 106 inventoried packages, and none of the five
+currently tracked leaf packages. Image size falls from 184,612,563 to 123,957,347
+bytes (about 33%). This removes the observed toolchain paths from this API image.
+All 106 inventoried versions match the committed root lockfile.
+The mobile/build lockfile advisories and their release gates still apply. The
+inventory is not a vulnerability scan, standardized SBOM, operating-system
+package assessment or a claim that all future advisories are absent.
+
+CI runs `scripts/runtime-dependencies.mjs` inside the final image as its unprivileged
+user, with no network and a read-only script mount. It inspects root/nested/workspace
+package directories, checks declared runtime dependencies without executing them,
+requires compiled entries and the generated Prisma entry, rejects application
+source/test/migration/mobile directories, and fails on the reviewed build/test
+tool package families. Links must remain within the application; cycles and linked
+workspaces are visited once. `--json` provides a local version/location inventory;
+no application credentials or private records are read. The original image fails
+with 45 policy violations; the rebuilt image passes.
+
+Five fixture regressions cover a valid runtime, nested test/CLI/source leakage,
+missing runtime dependency, linked/cyclic workspaces and an external package link.
+Sixteen real HTTP requests to the read-only production container verify ordinary
+login, closed signup, anonymous rejection, owned tasks/Today, revisioned journal
+and private export using a separate synthetic owner. Generated Prisma queries
+work without the CLI. The associated isolated database restore matches 23 tables/
+30 synthetic records, preserves its source and removes only the disposable restore.
+The Pixel's original owner and records are preserved. Native APK/runtime source
+and remote deployment are unchanged by this packaging repair.
+Full root lint/boundary/schema/type/test/build checks pass all 1,912 tests
+(646 API, 930 mobile, 135 contracts, 173 domain, 3 Android-script and 25 release/
+dependency tests). The separate migration image still loads Prisma 6.19.0 with
+the expected Debian OpenSSL 3 engine target. Exact-head Linux CI remains the
+merge gate; an unchanged native dependency graph does not require another APK.
