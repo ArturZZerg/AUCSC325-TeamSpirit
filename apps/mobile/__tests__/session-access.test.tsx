@@ -1,8 +1,11 @@
-import { act, render } from '@testing-library/react-native';
+import { act, render, renderHook, waitFor } from '@testing-library/react-native';
+import type { PropsWithChildren } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { AppState, type AppStateStatus } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { api, ApiError } from '../src/lib/api';
 import { SessionAccessSync } from '../src/features/session-access-sync';
+import { useAction, useTasks } from '../src/features/queries';
 import { useSessionStore } from '../src/store/session';
 import { queryClient } from '../src/lib/query-client';
 import { clearAccountCache } from '../src/services/cache';
@@ -11,7 +14,8 @@ import { clearAccountExports } from '../src/services/account-export';
 import type { Session } from '../src/lib/types';
 
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
-jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn().mockResolvedValue(undefined), deleteCache: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn().mockResolvedValue(undefined), deleteCache: jest.fn().mockResolvedValue(undefined),
+  readCache: jest.fn().mockResolvedValue(undefined), writeCache: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../src/services/account-export', () => ({ clearAccountExports: jest.fn().mockResolvedValue(undefined) }));
 const first: Session = { accessToken: 'first-token', expiresAt: '2000-01-01T00:00:00Z', user: {
@@ -21,10 +25,11 @@ const second = { ...first, accessToken: 'second-token', user: { ...first.user, i
 const response = (status = 200, value: unknown = first.user) => ({ status, ok: status >= 200 && status < 300, json: async () => value }) as Response;
 let change: (state: AppStateStatus) => void, remove: jest.Mock;
 const flush = () => act(async () => {});
+function Wrapper({ children }: PropsWithChildren) { return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>; }
 beforeEach(() => {
   jest.clearAllMocks(); jest.useRealTimers(); queryClient.clear();
   useSessionStore.setState({ session: first, ready: true, cleanupError: null, accountDeleted: false, sessionUnavailable: false });
-  queryClient.setDefaultOptions({ queries: { gcTime: Infinity }, mutations: { gcTime: Infinity } });
+  queryClient.setDefaultOptions({ queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } });
   queryClient.setQueryData(['account', first.user.id, 'tasks'], [{ title: 'Cached notes' }]);
   jest.mocked(SecureStore.deleteItemAsync).mockReset().mockResolvedValue(undefined);
   jest.mocked(SecureStore.setItemAsync).mockResolvedValue(undefined);
@@ -101,6 +106,18 @@ it('handles a private mutation rejection without waiting for an app-state transi
   jest.mocked(fetch).mockResolvedValue(response(401));
   await expect(api('/tasks', { method: 'POST', body: '{}' })).rejects.toBeInstanceOf(ApiError);
   expect(useSessionStore.getState()).toMatchObject({ session: null, sessionUnavailable: true });
+});
+it('keeps the active account when an unmounted cached query supplies a late 401 after cancellation', async () => {
+  let finish!: (value: Response) => void; jest.mocked(fetch).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  const ui = renderHook(() => useTasks(), { wrapper: Wrapper });
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1)); const signal = jest.mocked(fetch).mock.calls[0][1]?.signal;
+  ui.unmount(); expect(signal?.aborted).toBe(true);
+  await act(async () => finish(response(401))); expect(useSessionStore.getState().session).toEqual(first); expect(clearAccountCache).not.toHaveBeenCalled();
+});
+it('returns a currently rejected query mutation to reauthentication through the shared API boundary', async () => {
+  jest.mocked(fetch).mockResolvedValue(response(401)); const { result } = renderHook(() => useAction(), { wrapper: Wrapper });
+  await act(async () => { await expect(result.current.mutateAsync({ path: '/tasks', body: { title: 'Task' } })).rejects.toMatchObject({ status: 401 }); });
+  expect(useSessionStore.getState()).toMatchObject({ session: null, sessionUnavailable: true }); expect(clearAccountCache).toHaveBeenCalledWith(first.user.id);
 });
 it.each(['/auth/login', '/auth/verification/request', '/health/live'])('keeps the active session when the public endpoint %s rejects credentials', async path => {
   jest.mocked(fetch).mockResolvedValue(response(401)); await expect(api(path)).rejects.toMatchObject({ status: 401 });

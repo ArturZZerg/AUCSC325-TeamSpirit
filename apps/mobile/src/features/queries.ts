@@ -8,7 +8,7 @@ import { studyPlanSchema } from '@campusflow/contracts';
 import { focusHistorySchema } from '@campusflow/contracts';
 import { campusSourcesSchema } from '@campusflow/contracts';
 import { dayBounds } from '@campusflow/domain';
-import { api, ApiError, json } from '@/lib/api';
+import { api, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
 import { useSessionStore } from '@/store/session';
 import { readCache, writeCache } from '@/services/cache';
@@ -50,19 +50,12 @@ function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTyp
     enabled: !!accountId, queryKey: ['account', accountId, key],
     queryFn: async ({ signal }) => {
       if (!accountId || !isCurrent()) throw new CancelledError();
-      try {
-        const fresh = schema.parse(await api<unknown>(path, { signal }));
-        if (signal.aborted || !isCurrent()) throw new CancelledError();
-        // Cache failure must not turn a successful server read into an error.
-        await writeCache(accountId, cacheKey, fresh).catch(() => undefined);
-        if (signal.aborted || !isCurrent()) throw new CancelledError();
-        return fresh;
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 401 && isCurrent()) {
-          await useSessionStore.getState().signOut();
-        }
-        throw error;
-      }
+      const fresh = schema.parse(await api<unknown>(path, { signal }));
+      if (signal.aborted || !isCurrent()) throw new CancelledError();
+      // Cache failure must not turn a successful server read into an error.
+      await writeCache(accountId, cacheKey, fresh).catch(() => undefined);
+      if (signal.aborted || !isCurrent()) throw new CancelledError();
+      return fresh;
     },
   });
   const savedData = saved?.token === token && saved?.key === key ? saved.data : undefined;
@@ -221,11 +214,6 @@ export function useAction<T = unknown>() {
     onSuccess: async (_data, { owner }) => {
       if (owner && useSessionStore.getState().session?.accessToken === owner.accessToken) {
         await client.invalidateQueries({ queryKey: ['account', owner.user.id] });
-      }
-    },
-    onError: async (error, { owner }) => {
-      if (error instanceof ApiError && error.status === 401 && owner && useSessionStore.getState().session?.accessToken === owner.accessToken) {
-        await useSessionStore.getState().signOut();
       }
     },
   });

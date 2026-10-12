@@ -7,7 +7,7 @@ Requirement source: ToR account privacy, availability and cached-use requirement
 | --- | --- | --- |
 | ACCESS-01 | Restored/current credentials are checked with bounded uncached `/me` on startup and foreground; overlapping checks are deduplicated and detach aborts | Mobile session-access |
 | ACCESS-02 | Only a confirmed private 401 for the current owner/token signs out; offline, timeout, 5xx, rate denial and malformed reads retain cached access | Mobile session-access; API auth-and-plan / email-verification-db |
-| ACCESS-03 | A late response, aborted request, explicit other credential or wrong public login cannot sign out a new owner/session | Mobile session-access / session / auth-verification |
+| ACCESS-03 | A late response, aborted request (including cancelled cached queries), explicit other credential or wrong public login cannot sign out a new owner/session | Mobile session-access / queries / session / auth-verification |
 | ACCESS-04 | Reauthentication explains retained server data, routes to ordinary sign-in and supports only account continuation; all private cleanup is attempted, retry remains available and new login waits for cleanup | Mobile session-access / auth-verification / account-gate / session |
 | ACCESS-05 | Production requires an independent stable random auth key; mail-disabled/closed signup deployments retain shared login and password quotas | API auth-rate-config / auth-rate-db |
 | ACCESS-06 | Atomic source/recipient/global limits are shared across replicas; rejected passwords, successful logins and later rollback cannot reset admission; actual socket source ignores forged forwarding headers | API auth-rate-db |
