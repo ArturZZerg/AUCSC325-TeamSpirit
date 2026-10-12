@@ -42,9 +42,12 @@ configuration requires an explicit time. Account quiet hours/category settings
 still apply through the existing root device service. Recurring generation is
 separate work; this editor does not promise a daily repeating notification.
 
-Check-ins validate integer ratings from 1 to 5, send explicit nullable mood,
-energy, stress and note fields, and use the current account day. Notes clear only
-after a successful save. Existing server history remains the authoritative record.
+The check-in summary now reads only the current account day and opens the
+[journal](../requirements/wellness-journal.md). The focused native workspace uses
+labelled rating choices, reviewed saved-day edits, private note search and honest
+7/30-day reflection, with bounded historical browsing. Failed or uncertain writes
+retain drafts and reviewed versions. ADR 012 replaces blind upserts with revision
+checks; the legacy creation endpoint rejects replacing an existing day.
 
 ## Validation
 

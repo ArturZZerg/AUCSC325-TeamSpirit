@@ -32,3 +32,10 @@ export function clearAccountCache(accountId: string) {
   // A read that was already saving cannot recreate rows after sign-out clears them.
   return accountWrite(accountId, async () => { await (await database()).runAsync('DELETE FROM snapshots WHERE account_id = ?', [accountId]); });
 }
+export function clearWellnessCache(accountId: string, isCurrent = () => true) {
+  return accountWrite(accountId, async () => {
+    if (!isCurrent()) return;
+    const db = await database();
+    if (isCurrent()) await db.runAsync("DELETE FROM snapshots WHERE account_id = ? AND (cache_key = 'wellness' OR cache_key LIKE 'wellnessJournal:%')", [accountId]);
+  });
+}

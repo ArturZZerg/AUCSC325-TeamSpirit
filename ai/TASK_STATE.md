@@ -1,6 +1,6 @@
 # Current development state
 
-Updated: 2026-10-11
+Updated: 2026-10-12
 
 Goal: extend the MVP with complete student workflows, preserving the accepted
 architecture and five-tab navigation, through validated PR/review/merge cycles.
@@ -230,15 +230,50 @@ Browser verifies the actual account continuation and closed-signup state at
 1280px without overflow and with 46px controls; its temporary tab is closed.
 No browser credential submission or device session acceptance is claimed.
 ADB has no attached device. Screenshot capability remains unavailable.
-PR #65 is open. Author review and final native/web artifact acceptance pass;
-the reviewed fix still needs exact-head CI and merge before delivery is complete.
+PR #65 is merged after author review and both exact-head CI runs succeed
+(`38207930701`, `38207927300`, head `cf7ac2a4c4578f6b858a848921afe4e011a3b390`).
+Main is `45fc273054c74fcb61c9891e69befd4be9a128df`; post-merge CI
+`38208267931` succeeds for that exact commit.
 
-Next substantial product candidate: complete the Wellness check-in journal with
-saved-today editing, clear mood/energy/stress choices and useful bounded history
-and reflection, preserving private notes, partial/offline coverage and account
-guards. Inspect the existing Wellness entities/queries before choosing scope.
+Wellness journal is implemented on `codex/wellness-journal` under ADR 012.
+The current-day summary and native workspace use bounded, private account/range/
+zone reads; 7/30-day reflection, optional tap ratings, saved entry editing and
+deletion, note/date search and historical browsing are implemented. Additive
+migration 12 supplies revision checks. Legacy creation cannot silently replace
+a saved day. User-first locks protect erasure; failed/uncertain edits retain
+reviewed versions and drafts, with explicit reconciliation/review and local
+cache cleanup retry. Native Android/iOS remains first; the workspace keeps five
+tabs and uses existing moss/sage primitives without a new dependency.
+Final root lint/boundaries/schema/types/tests/build passes: 621 API, 922 mobile,
+135 contracts, 173 domain, 3 Android-script and 20 release/dependency tests
+(1,874 total). The journal adds eight real PostgreSQL and fifteen contract tests,
+with editor, reflection, cache, screen and retained-tab regressions. An existing
+reminder test timed out during a competing native build; the complete idle rerun
+passes without modifying that test or its timeout.
+Two actual mail-disabled loopback API processes verify owned private ranges,
+one-winner concurrent create/edit, stale/cross-owner protection, legacy conflict,
+future/range validation, note-only save/delete, compatible export and owned
+erasure. Actual restore preserves 23 tables/199 synthetic records, including the
+revision-2 journal entry, and verifies schema/readiness before removing its
+disposable database. The source is preserved.
+An isolated copy of the actual journal/editor with public in-memory sample data
+verifies saved prefills, rating selection, save/reflection update, dirty cancel,
+note search, delete review/cancel, empty historical browsing and blank defaults.
+Geometry at 320/375/430/1024px has no page overflow, with 46px actions and 68px
+rating controls. Review adds supported ARIA aliases for selected states and modal
+background hiding; period labels remain accurate for historical windows.
+Screenshot capture is unavailable. These fixture interactions do not claim real
+browser credential submission or hardware acceptance; its tab/viewport are closed
+and reset. The fixture source never replaces production application files.
+Fresh Android/web artifacts include the reviewed journal and selected origins,
+exclude private credentials and public fixture data, and pass native ASCII/UTF16
+and HTML-referenced entry scans. Native v2 signature and real API/web entry/three
+asset/SQLite isolation smoke pass. Preview APK SHA-256:
+`3BAC903B4416FEED6C46D9F07382A00619DAFF3291AAB8F1D0569790BB83F838`.
+ADB has no attached device. Author review is complete; PR/exact-head hosted CI
+and merge are the remaining delivery steps. Production is not claimed ready.
 
-Release gates: apply FocusSession and CampusFeedState migrations to deployment,
+Release gates: apply all required migrations to the approved deployment,
 enable reviewed campus calendars for the intended campus;
 verify new native lifecycle/touch flows; retain live Canvas,
 hosting/TLS and production account-recovery gates from the MVP roadmap.
