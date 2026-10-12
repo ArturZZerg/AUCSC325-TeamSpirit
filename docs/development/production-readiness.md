@@ -51,6 +51,12 @@ The [dependency safety record](dependency-safety.md) distinguishes tool-only
 consumers from the bundled Router decoder and records remaining upstream risks.
 Audit totals include affected parent packages; zero critical entries does not
 mean the remaining dependency graph is clean or that the release is accepted.
+The actual API container also has a filesystem packaging gate: corrected pruning
+reduces installed packages from 438 to 106, removes observed test/CLI tools and
+all five currently tracked leaf packages, and retains working generated Prisma
+queries. Sixteen authenticated/anonymous HTTP checks and a 23-table/30-record
+isolated restore pass. This is API artifact evidence; mobile/build advisories,
+operating-system packages and production-host acceptance remain separate gates.
 Eight installed-Router parser/serializer regressions cover ordinary and bounded
 malformed links with a decoder invocation canary. They do not remove the bundled
 decoder or establish mounted-app/hardware incoming-link acceptance.

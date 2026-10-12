@@ -20,10 +20,13 @@ RUN --mount=type=secret,id=build_ca \
 
 # The build target retains the pinned Prisma CLI for one-shot migrations.
 FROM build AS production-dependencies
+# Restrict only this disposable stage to the runtime workspaces. Selected-workspace
+# pruning leaves orphaned mobile/test peers from the monorepo lockfile on disk.
+RUN node -e "const fs=require('node:fs'),p=JSON.parse(fs.readFileSync('package.json'));p.workspaces=['apps/api','packages/contracts','packages/domain'];fs.writeFileSync('package.json',JSON.stringify(p));"
+# Required Nest peers are direct dependencies; optional CLI/compiler peers are omitted.
 RUN --mount=type=secret,id=build_ca \
     if [ -s /run/secrets/build_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/build_ca; fi; \
-    npm prune --omit=dev --ignore-scripts --no-audit --workspace=@campusflow/api \
-    --workspace=@campusflow/contracts --workspace=@campusflow/domain --include-workspace-root
+    npm prune --omit=dev --omit=optional --omit=peer --ignore-scripts --no-audit
 RUN mkdir -p apps/api/node_modules packages/contracts/node_modules packages/domain/node_modules
 
 FROM base AS runtime
