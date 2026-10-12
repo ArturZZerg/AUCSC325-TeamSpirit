@@ -1,3 +1,5 @@
+import { requestSourceMode } from './request-source';
+
 export interface RuntimeConfig { port: number; host: string; schema: string; corsOrigins: true | string[] }
 
 // Errors name the setting only: environment values can contain credentials.
@@ -8,6 +10,7 @@ export function runtimeConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConf
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
   const host = env.HOST ?? '127.0.0.1';
   if (!host.trim() || /\s/.test(host)) throw new Error('Invalid HOST');
+  requestSourceMode(env);
   let schema = 'public';
   if (env.DATABASE_URL) {
     let url: URL;

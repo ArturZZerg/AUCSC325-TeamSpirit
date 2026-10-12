@@ -9,6 +9,7 @@ import { hashPassword, verifyPassword } from './password';
 import { REGISTRATION_CONFIG, type RegistrationConfig } from './auth-config';
 import { EmailVerificationService } from './email-verification';
 import { AuthRateService } from './auth-rate';
+import { requestSource, type SourceRequest } from './request-source';
 
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const updateMeSchema = z.object({ displayName: z.string().min(1).max(100).optional(), timeZone: timeZoneSchema.optional() }).strict();
@@ -70,8 +71,8 @@ export class AuthService {
 @Controller('auth') export class AuthController {
   constructor(private readonly auth:AuthService) {}
   @Get('capability') @Header('Cache-Control', 'private, no-store') capability() { return this.auth.capability(); }
-  @Post('register') @Header('Cache-Control', 'private, no-store') register(@Body(new ZodPipe(registerRequestSchema)) body:z.infer<typeof registerRequestSchema>, @Req() request: { socket: { remoteAddress?: string } }) { return this.auth.register(body, request.socket.remoteAddress ?? 'unknown'); }
-  @Post('login') @Header('Cache-Control', 'private, no-store') login(@Body(new ZodPipe(loginRequestSchema)) body:z.infer<typeof loginRequestSchema>, @Req() request: { socket: { remoteAddress?: string } }) { return this.auth.login(body, request.socket.remoteAddress ?? 'unknown'); }
+  @Post('register') @Header('Cache-Control', 'private, no-store') register(@Body(new ZodPipe(registerRequestSchema)) body:z.infer<typeof registerRequestSchema>, @Req() request: SourceRequest) { return this.auth.register(body, requestSource(request)); }
+  @Post('login') @Header('Cache-Control', 'private, no-store') login(@Body(new ZodPipe(loginRequestSchema)) body:z.infer<typeof loginRequestSchema>, @Req() request: SourceRequest) { return this.auth.login(body, requestSource(request)); }
   @Post('logout') @UseGuards(AuthGuard) async logout(@CurrentToken() token:string):Promise<void> { await this.auth.logout(token); }
 }
 

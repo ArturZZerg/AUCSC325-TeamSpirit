@@ -19,8 +19,20 @@ for store submission.
 | Privacy/support/store | Technical data ownership and lifecycle are documented | Owner-approved public privacy/support URLs, real backup/log retention and accurate Apple/Google data declarations; store metadata/review account |
 
 On 2026-10-12 the owner authorized the existing server for initial hosting and
-offered an Android device. The server identity, isolated deployment, HTTPS route,
-backup policy and actual device connection still require verification. No email
+offered an Android device. Read-only discovery verifies the existing server,
+its valid HTTPS and other running applications. The owner subsequently chose
+to keep source local; no CampusFlow source, service, database or HTTPS route is
+deployed there. ADR 013 and the [server beta runbook](server-beta.md) document
+prepared containers and loopback source quotas. Both local image targets build;
+all twelve migrations apply, fifteen authenticated/anonymous HTTP checks pass,
+and the local container database restores 23 tables/23 synthetic records with
+source preservation. The unlocked Pixel accepts the signed preview; current
+device testing found a stale API bundle, addressed by regenerating the bundle
+and partitioning Metro transforms by API. Actual native login/Today, task creation
+and revisioned journal editing reach the local production container/PostgreSQL.
+Offline/lifecycle acceptance is continuing; standalone journal content overlaps
+the Android status bar and needs the next inset fix. Hosted deployment, backup
+policy and monitoring remain gates. No email
 provider is approved yet; public signup remains closed and mail disabled until
 real delivery is verified. Eventual Supabase hosting remains the accepted baseline.
 

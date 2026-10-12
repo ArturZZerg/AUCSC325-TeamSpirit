@@ -290,13 +290,52 @@ prove every link safe or establish native acceptance. Full root lint, boundaries
 schema, types, tests and build pass: 621 API, 930 mobile, 135 contracts, 173 domain,
 3 Android-script and 20 release/dependency tests (1,882 total). The final canary
 also explicitly rejects invocation even if a caller catches its thrown error.
-The targeted final suite and lint are rerun after that assertion. PR/CI gates remain.
+The targeted final suite and lint are rerun after that assertion. PR #67 is
+merged after author self-review and both exact-head CI runs succeed
+(`38292274399`, `38292267141`, head `2c782d61e61badce057705464df2bc848b277356`).
+Main is `10d37fdfbc7282abf6b99921c9a916f107ab7c17`; post-merge CI
+`38293048776` succeeds for that exact commit.
 
 The owner authorized existing-server hosting and offered a connected Android
 device on 2026-10-12. Read-only discovery verifies the existing server at
 95.217.239.38 runs Nginx/PostgreSQL and other live applications. An isolated
 CampusFlow HTTPS deployment and actual device acceptance are the next delivery
 work; SMTP/provider approval is still absent, so public signup stays closed.
+
+The current `codex/vps-native-beta` slice prepares ADR 013, a pinned Node 22
+production image, bounded non-root read-only Compose runtime, isolated Nginx path
+and container CI readiness gate. Shared account admission now defaults to socket
+identity, with explicit loopback-only forwarding that validates one IP and rejects
+ambiguous/public startup binds. Twenty-five new API tests include real HTTP
+controller checks. Full root lint/boundaries/schema/types/tests/build passes
+1,907 tests (646 API, 930 mobile, 135 contracts, 173 domain, 3 Android-script,
+20 release/dependency). Both local image targets build; all twelve migrations
+apply to a disposable PostgreSQL 17 database. Fifteen actual production-container
+HTTP requests verify readiness, closed signup, anonymous rejection, owned login,
+tasks/Today, revisioned journal and private export. Restore preserves 23 tables/
+23 synthetic records and removes only its generated disposable database.
+
+Automatic approval review rejected a prepared private source upload. The owner
+then explicitly chose to keep source local: no archive/source was uploaded,
+and no CampusFlow server database, service or route was installed. Any locally
+built runtime image contains readable compiled JavaScript and needs separate
+explicit transfer approval. Existing server applications remain untouched.
+
+The supplied Pixel 10 Pro XL/Android 16 is unlocked. A new v2-signed preview
+installs with app data retained. Actual sign-in revealed a stale native API:
+changing only EXPO_PUBLIC_API_URL left the old HTTPS bundle in the local APK.
+The native workflow now reruns only the bundle task; Metro partitions transforms
+by the selected API because Expo suppresses reset-cache under CI. Actual rebuilt
+APK inspection verifies local API/current journal, excludes the previous HTTPS
+API and private QA credentials, and passes v2 signature verification (SHA-256
+`3BAC903B4416FEED6C46D9F07382A00619DAFF3291AAB8F1D0569790BB83F838`).
+The workflow also refuses to copy a preview whose generated Hermes output lacks
+the selected URL. Actual ordinary native login/Today, task creation with estimate/
+date-only deadline, and journal editing reach PostgreSQL; optional stress stays
+blank and the journal advances to revision 5. Offline/lifecycle acceptance is in
+progress. Device inspection finds the standalone journal header under Android's
+status bar; standalone screen insets are the next separate slice. No new native
+notification delivery, independent hosting, SMTP, iOS or store acceptance is claimed.
 
 Release gates: apply all required migrations to the approved deployment,
 enable reviewed campus calendars for the intended campus;

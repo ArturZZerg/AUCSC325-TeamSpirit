@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { ZodPipe } from '../common';
 import { hashPassword } from '../password';
+import { requestSource, type SourceRequest } from '../request-source';
 import { PrismaService } from '../prisma.service';
 import { RECOVERY_CONFIG, type RecoveryConfig } from './recovery-config';
 import { RecoveryRateService } from './recovery-rate';
@@ -50,18 +51,16 @@ export class RecoveryService {
   }
 }
 
-type RecoveryRequest = { socket: { remoteAddress?: string } };
 @Controller('auth/recovery')
 export class RecoveryController {
   constructor(private readonly recovery: RecoveryService) {}
   @Get('capability') @Header('Cache-Control', 'private, no-store') capability() { return this.recovery.capability(); }
   @Post('request') @HttpCode(202) @Header('Cache-Control', 'private, no-store')
-  request(@Body(new ZodPipe(passwordRecoveryRequestSchema)) input: z.infer<typeof passwordRecoveryRequestSchema>, @Req() request: RecoveryRequest) {
-    // Until an explicit deployment proxy policy exists, use the actual peer only.
-    return this.recovery.request(input, request.socket.remoteAddress ?? 'unknown');
+  request(@Body(new ZodPipe(passwordRecoveryRequestSchema)) input: z.infer<typeof passwordRecoveryRequestSchema>, @Req() request: SourceRequest) {
+    return this.recovery.request(input, requestSource(request));
   }
   @Post('reset') @HttpCode(200) @Header('Cache-Control', 'private, no-store')
-  reset(@Body(new ZodPipe(passwordResetRequestSchema)) input: z.infer<typeof passwordResetRequestSchema>, @Req() request: RecoveryRequest) {
-    return this.recovery.reset(input, request.socket.remoteAddress ?? 'unknown');
+  reset(@Body(new ZodPipe(passwordResetRequestSchema)) input: z.infer<typeof passwordResetRequestSchema>, @Req() request: SourceRequest) {
+    return this.recovery.reset(input, requestSource(request));
   }
 }
