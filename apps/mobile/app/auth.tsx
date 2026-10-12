@@ -18,7 +18,7 @@ export default function Auth() {
   const [capability, setCapability] = useState<'preview' | 'verified' | 'closed' | 'loading' | 'error'>('loading');
   const [capabilityRetry, setCapabilityRetry] = useState(0), [verification, setVerification] = useState<{ codeRequested: boolean } | null>(null);
   const [pending, setPending] = useState(false), mounted = useRef(false), revision = useRef(0), busy = useRef(false), request = useRef<AbortController | null>(null);
-  const { session, setSession, accountDeleted, cleanupError, retryCleanup } = useSessionStore();
+  const { session, setSession, accountDeleted, sessionUnavailable, cleanupError, retryCleanup } = useSessionStore();
   const { control, handleSubmit, clearErrors, setValue, reset, formState: { errors } } = useForm<AuthFormValues>({
     resolver: zodResolver(authFormSchema(registering)),
     defaultValues: { email: '', displayName: '', password: '', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
@@ -68,6 +68,7 @@ export default function Auth() {
         <View style={styles.form}>
           <Text style={styles.title}>{verification ? 'Check your email' : registering ? 'Create your account' : next === 'account' ? 'Sign in to manage your account' : 'Welcome back'}</Text>
           {accountDeleted && <Text accessibilityRole="alert">Your account was deleted. All sessions have lost server access.</Text>}
+          {sessionUnavailable && <Text accessibilityRole="alert" style={styles.body}>Your session is no longer available. Sign in again to continue. Your server-saved student data is retained. Unsaved device drafts aren’t kept when signing in again.</Text>}
           {cleanupError && <><Text accessibilityRole="alert" style={styles.error}>{cleanupError}</Text><Button title="Retry device cleanup" tone="plain" onPress={() => void retryCleanup()}/></>}
           {verification ? <>
             <Text style={styles.body}>{verification.codeRequested ? 'Verification is required before you can sign in. A code has been requested for your email.' : 'Verification is required before you can sign in. Code requests are temporarily limited. You can use a recent code or request one later.'}</Text>

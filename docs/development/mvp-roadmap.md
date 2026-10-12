@@ -63,6 +63,13 @@ palette and Today-centered product model.
     supports a self-service resource without persistent browser credentials.
     Native acceptance and hosted release evidence remain in the
     [production readiness record](production-readiness.md).
+18. **Public email verification:** password-and-code mailbox proof, explicit
+    registration capabilities and usable native verification/resend forms.
+    Implemented under ADR 010; real provider delivery remains a release gate.
+19. **Account access lifecycle:** restored/foreground session validation,
+    ordinary sign-in after confirmed rejection, offline preservation and shared
+    auth limits independent of SMTP. Implemented in
+    [account access](../requirements/account-access-lifecycle.md) under ADR 011.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native

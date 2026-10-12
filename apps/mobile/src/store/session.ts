@@ -32,10 +32,10 @@ async function cleanup() {
   if (results.some(result => result.status === 'rejected')) throw new Error('Some private data could not be cleared from this device. Retry cleanup before signing in.');
   cleanupAccounts.clear();
 }
-type State = { session: Session | null; ready: boolean; cleanupError: string | null; accountDeleted: boolean;
-  restore(): Promise<void>; setSession(session: Session): Promise<void>; signOut(options?: { deleted?: boolean }): Promise<void>; retryCleanup(): Promise<void> };
+type State = { session: Session | null; ready: boolean; cleanupError: string | null; accountDeleted: boolean; sessionUnavailable: boolean;
+  restore(): Promise<void>; setSession(session: Session): Promise<void>; signOut(options?: { deleted?: boolean; unavailable?: boolean }): Promise<void>; retryCleanup(): Promise<void> };
 export const useSessionStore = create<State>((set, get) => ({
-  session: null, ready: false, cleanupError: null, accountDeleted: false,
+  session: null, ready: false, cleanupError: null, accountDeleted: false, sessionUnavailable: false,
   async restore() {
     const restoringRevision = revision;
     let session: Session | null = null;
@@ -67,7 +67,7 @@ export const useSessionStore = create<State>((set, get) => ({
       await deleteCache(session.user.id, 'focus-draft:v1');
       if (settingRevision !== revision) return;
       await sessionStorage.write(JSON.stringify(session));
-      if (settingRevision === revision) set({ session, ready: true, cleanupError: null, accountDeleted: false });
+      if (settingRevision === revision) set({ session, ready: true, cleanupError: null, accountDeleted: false, sessionUnavailable: false });
     });
   },
   async signOut(options) {
@@ -76,9 +76,9 @@ export const useSessionStore = create<State>((set, get) => ({
     ++revision;
     // Hide account data and cancel reads immediately, before any network or
     // storage waits. A subsequent sign-in waits for the serialized cleanup.
-    set({ session: null, accountDeleted: options?.deleted === true });
+    set({ session: null, accountDeleted: options?.deleted === true, sessionUnavailable: options?.unavailable === true });
     queryClient.clear();
-    if (!options?.deleted) void revokeSession(session);
+    if (!options?.deleted && !options?.unavailable) void revokeSession(session);
     cleanupAccounts.add(session.user.id);
     await serialize(async () => {
       try { await cleanup(); set({ cleanupError: null }); }

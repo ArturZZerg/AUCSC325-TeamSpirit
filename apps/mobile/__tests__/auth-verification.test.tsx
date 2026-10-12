@@ -2,23 +2,29 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import Auth from '../app/auth';
 import { api } from '../src/lib/api';
 
-let mockSession: { accessToken: string } | null, mockNext: string | undefined;
+let mockSession: { accessToken: string } | null, mockNext: string | undefined, mockSessionUnavailable = false;
 const mockRouter = { replace: jest.fn(), push: jest.fn() }, mockNavigation = { addListener: jest.fn() }, mockSetSession = jest.fn();
 let mockBeforeRemove: (event: { preventDefault: () => void }) => void;
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ next: mockNext }), useRouter: () => mockRouter, useNavigation: () => mockNavigation }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
-jest.mock('../src/store/session', () => ({ useSessionStore: Object.assign(() => ({ session: mockSession, setSession: mockSetSession, accountDeleted: false, cleanupError: null, retryCleanup: jest.fn() }), { getState: () => ({ session: mockSession }) }) }));
+jest.mock('../src/store/session', () => ({ useSessionStore: Object.assign(() => ({ session: mockSession, setSession: mockSetSession, accountDeleted: false, sessionUnavailable: mockSessionUnavailable, cleanupError: null, retryCleanup: jest.fn() }), { getState: () => ({ session: mockSession }) }) }));
 jest.mock('../src/lib/api', () => ({ ...jest.requireActual('../src/lib/api'), api: jest.fn() }));
 const call = jest.mocked(api), email = 'student@example.test', password = 'account-password-123';
 const session = { accessToken: 'fresh-access', expiresAt: '2026-11-11T12:00:00.000Z', user: { id: '123e4567-e89b-12d3-a456-426614174000', email, displayName: 'Student', timeZone: 'UTC', createdAt: '2026-10-11T12:00:00.000Z' } };
 beforeEach(() => {
-  jest.clearAllMocks(); mockSession = null; mockNext = undefined;
+  jest.clearAllMocks(); mockSession = null; mockNext = undefined; mockSessionUnavailable = false;
   mockNavigation.addListener.mockImplementation((_event, callback) => { mockBeforeRemove = callback; return () => {}; });
   call.mockReset().mockImplementation(async path => path === '/auth/capability' ? { registration: 'verified', verificationAvailable: true }
     : { verificationRequired: true, codeRequested: true, expiresInMinutes: 15 });
 });
 const press = async (text: string) => act(async () => { fireEvent.press(screen.getByText(text)); });
 const enterLogin = () => { fireEvent.changeText(screen.getByLabelText('Email'), email); fireEvent.changeText(screen.getByLabelText('Password'), password); };
+it('explains session recovery and retained server data while offering ordinary sign-in', async () => {
+  mockSessionUnavailable = true; mockNext = 'account'; render(<Auth/>); await act(async () => {});
+  expect(screen.getByText('Sign in to manage your account')).toBeTruthy();
+  expect(screen.getByText(/Your session is no longer available/)).toHaveProp('accessibilityRole', 'alert');
+  expect(screen.getByText('Sign in')).toBeEnabled();
+});
 it('handles verification-required login without storing a session or keeping a password draft', async () => {
   render(<Auth/>); enterLogin(); await press('Sign in'); expect(screen.getByText('Check your email')).toBeTruthy();
   expect(mockSetSession).not.toHaveBeenCalled(); expect(screen.queryByLabelText('Password')).toBeNull();

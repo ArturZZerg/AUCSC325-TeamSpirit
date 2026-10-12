@@ -14,6 +14,14 @@ can make authenticated requests without an Origin header. CORS is a browser
 policy, not authentication. Use the chosen host's protected secret configuration;
 do not commit credentials or print connection URLs.
 
+Production also requires `AUTH_RATE_KEY`: 32 random bytes in canonical base64,
+stored only on the API and shared across replicas. Use a stable secret independent
+of `RECOVERY_OUTBOX_KEY`; SMTP can be disabled without disabling auth quotas.
+Missing/invalid configuration stops startup with setting-name-only errors. Local
+test/preview without this key keeps bounded process-local protections. Key rotation
+changes quota identity and requires a reviewed rollout/abuse plan; never put it in
+an `EXPO_PUBLIC_*` value or print the generated secret.
+
 Use `CANVAS_MODE=disabled` (or leave it unset) until institutional authorization
 is implemented and verified. Production refuses fixture mode. Existing Canvas
 authorization endpoints remain disabled. Configure `CAMPUS_CALENDARS` explicitly
@@ -140,9 +148,18 @@ associated-data/version format and can survive this additive deployment.
 The `/auth/capability` response reports global mode and mail availability.
 `/auth/verification/request` requires account email/password; confirmation also
 requires the full email code. Real SMTP does not prove source/proxy policy or
-native acceptance. On a disabled-mail replicated deployment, shared login and
-password-challenge limits remain a release gate; local in-memory login limits
-alone are not sufficient evidence.
+native acceptance. ADR 011 supplies mail-independent shared login and
+password-challenge limits. The deployed socket/trusted-proxy policy, key
+configuration and abuse/capacity monitoring still need hosted acceptance.
+
+Apply additive migration `20261012000000_owned_auth_limits` before the ADR 011
+API build. It adds nullable ownership/cascade/index to the existing private rate
+table; it creates no student entity or backfill. Password admission commits before
+the deletion transaction, then the current password is checked under User lock.
+The native client checks restored sessions on startup/foreground and handles a
+still-current private 401 through ordinary sign-in and existing cleanup/retry.
+Network failure leaves cached reads usable. Deployments must test actual proxy
+source identity; forwarding headers are ignored until trust is explicitly configured.
 
 On 2026-10-11, the existing PostgreSQL 18.4 isolated test database was dumped with
 the official 18.6 client and restored: **19 tables / 163 records**, identical
@@ -163,3 +180,13 @@ token, while preserving the source and removing the disposable restore database.
 Responsive browser geometry and empty-form/account-return behavior pass at
 320/390/1100px with 46px controls. Screenshot capture and actual browser verification
 submission remain unverified; native component/API evidence covers completion.
+
+ADR 011 passes **1,807 tests**, fresh Android/web artifacts and actual two-process
+mail-disabled login/password quotas. The running API rejects revoked/expired
+credentials and retains saved student data after ordinary login. Actual restore
+matches **23 tables / 202 synthetic records**, including live owned quota rows,
+with source preservation and generated-restore cleanup. Native ASCII/UTF16
+content/origin/privacy scan, preview v2 signature and referenced web asset/API/
+SQLite-isolation smoke pass. No ADB device is attached. Browser checks confirm
+account continuation and disabled closed signup at 1280px with 46px controls;
+new credential submission and hardware session/cleanup acceptance are unverified.

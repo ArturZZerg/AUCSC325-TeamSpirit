@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Header, Injectable, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Injectable, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { accountExportSchema, deleteAccountSchema } from '@campusflow/contracts';
 import { z } from 'zod';
@@ -52,11 +52,12 @@ export class AccountService {
         ...collections, personalTasks: tasks, classes: classSchedules, notificationPreferences: notificationPreference, privateEvents })));
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 30000 });
   }
-  async delete(userId: string, currentPassword: string) {
+  async delete(userId: string, currentPassword: string, source = 'unknown') {
+    await this.auth.admitPassword(userId, source);
     return this.prisma.$transaction(async tx => {
       const [record] = await tx.$queryRaw<{ id: string; email: string; passwordHash: string }[]>`SELECT "id", "email", "passwordHash" FROM "User" WHERE "id" = ${userId}::uuid FOR UPDATE`;
       if (!record) throw new UnauthorizedException('Account is unavailable.');
-      await this.auth.confirmCurrentPassword(userId, currentPassword, record.passwordHash);
+      await this.auth.confirmCurrentPassword(currentPassword, record.passwordHash);
       const recipientHash = recoveryRecipientHash(record.email);
       await tx.recoveryMail.deleteMany({ where: { recipientHash } });
       await tx.recoveryRateBucket.deleteMany({ where: { recipientHash } });
@@ -73,7 +74,7 @@ export class AccountController {
   @Get('export') @Header('Cache-Control', 'private, no-store')
   export(@CurrentUser() user: RequestUser) { return this.account.export(user.id); }
   @Delete() @Header('Cache-Control', 'private, no-store')
-  delete(@CurrentUser() user: RequestUser, @Body(new ZodPipe(deleteAccountSchema)) body: z.infer<typeof deleteAccountSchema>) {
-    return this.account.delete(user.id, body.currentPassword);
+  delete(@CurrentUser() user: RequestUser, @Body(new ZodPipe(deleteAccountSchema)) body: z.infer<typeof deleteAccountSchema>, @Req() request: { socket: { remoteAddress?: string } }) {
+    return this.account.delete(user.id, body.currentPassword, request.socket.remoteAddress ?? 'unknown');
   }
 }

@@ -7,6 +7,7 @@ jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useSegments: () =
 jest.mock('../src/store/session', () => ({ useSessionStore: () => ({ ready: true, session: mockSession, restore: mockRestore }) }));
 jest.mock('../src/features/device-reminders', () => ({ DeviceReminderSync: () => null }));
 jest.mock('../src/features/focus-recovery-sync', () => ({ FocusRecoverySync: () => null }));
+jest.mock('../src/features/session-access-sync', () => ({ SessionAccessSync: () => null }));
 beforeEach(() => { jest.clearAllMocks(); mockSegments = ['auth']; mockNext = undefined; mockSession = {}; });
 it('continues account self-service after sign-in using the active route query', () => {
   mockNext = 'account'; render(<RootLayout/>); expect(mockRouter.replace).toHaveBeenCalledWith('/account');
