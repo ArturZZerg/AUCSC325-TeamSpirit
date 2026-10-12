@@ -47,7 +47,7 @@ blindly across a major ORM migration.
 | --- | --- | --- |
 | `braces` 3.0.3 through micromatch/Jest/Metro | [Upstream advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) lists no patched version; registry latest remains 3.0.3 | Deeply nested untrusted glob patterns can exhaust a tool process. App source exposes no glob-pattern endpoint. Keep build/test tools private and continue tracking a supported upstream fix. |
 | `node-forge` 1.4.0 through Expo CLI/code-signing tools | [Upstream advisory](https://github.com/advisories/GHSA-86w9-cpqp-85rv) lists no patched version; registry latest remains 1.4.0 | Malformed PKCS#1 signature verification is a tooling risk. No API/app source imports this package. Do not describe it as a remotely reachable CampusFlow API bug or as resolved; signing/OTA acceptance remains pending. |
-| `decode-uri-component` 0.2.2 through query-string 7 / Expo Router | [Advisory](https://github.com/advisories/GHSA-vcc3-ghjq-m6fr); fixed 0.5 changes to ESM outside the parent's CommonJS `^0.2.2` range. Router's inspected callers use `stringify`; its incoming query parser uses a separate implementation. | Exploitability through current incoming navigation is not established by the audit. Keep the bundled decoder tracked until a supported upstream fix and malicious-link acceptance. Do not describe all remaining packages as build-only or claim the mobile/web bundle clean. |
+| `decode-uri-component` 0.2.2 through query-string 7 / Expo Router | [Advisory](https://github.com/advisories/GHSA-vcc3-ghjq-m6fr); fixed 0.5 changes to ESM outside the parent's CommonJS `^0.2.2` range. Router 55.0.18 is the latest SDK 55 release checked on 2026-10-12. Its inspected callers use `stringify`; its incoming query parser uses `URLSearchParams`. Installed-parser regressions cover ordinary focus/account links and bounded malformed encodings with a throwing decoder canary. | These exercised parser/serializer paths do not invoke the older decoder. This does not remove the bundled dependency or prove all links, the mounted app, or hardware acceptance safe. Keep it tracked until a supported upstream fix and native malicious-link acceptance. Do not claim the mobile/web bundle clean. |
 | `sprintf-js` 1.0.3 through argparse 1 | [Advisory](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) lists no patch, including latest 1.1.3; parent restricts `~1.0.2` | Track a supported parser/toolchain repair; current app source does not take user format strings. |
 | `uuid` 7.0.3 through xcode 3 | [Advisory](https://github.com/advisories/GHSA-w5hq-g745-h8pq); old iOS tooling range | Upgrade through a supported Xcode/Expo path and verify on a supported iOS host. App UUID validation and API ID generation do not use xcode's package. |
 
@@ -59,7 +59,8 @@ must inspect the actual installed/runtime package set and exercised paths; an
 
 ## Repeatable verification
 
-Audits refreshed on 2026-10-11 after a clean install of this lockfile:
+Audits refreshed on 2026-10-12 against the previously clean-installed, unchanged
+lockfile (SHA-256 `1FCBC83D6D246F40D9D039D2732222EF4852E44AECF48053602693B754F06650`):
 
 | Report | Before (critical / high / moderate / total) | After |
 | --- | --- | --- |
@@ -110,3 +111,20 @@ production-host acceptance.
 
 Exact-head Linux CI must also pass clean installation, generation/migrations,
 root checks, web export and real disposable-database restore before merge.
+
+## Incoming-link release regressions
+
+`apps/mobile/__tests__/router-release.test.ts` exercises the installed SDK's
+`getStateFromPath` / `getPathFromState` with a representative configuration of
+actual app routes. Eight cases preserve account navigation and focus task/Unicode
+query data, round-trip unfinished/invalid/repeated bounded encodings and an
+unknown segment, and preserve ordinary query data without changing object
+prototypes. The mocked decoder throws on invocation, so a newly reachable old
+decoder fails these checks. Reassess this SDK-specific harness after Router
+upgrades. These are parser acceptance checks, not mounted-screen or device tests.
+
+No runtime dependency is changed. The newer query-string release also changes
+ESM exports, so substituting it beneath Router's current CommonJS import is not
+a supported repair. No speculative native redirect hook is added: the exercised
+links did not reproduce a crash. The existing signed preview remains the same
+artifact; fresh device and HTTPS-host acceptance are separate release gates.
