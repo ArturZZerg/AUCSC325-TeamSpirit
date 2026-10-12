@@ -16,7 +16,7 @@ for store submission.
 | Notifications | Server intent, local reconciliation and behavioral tests | Device permission, edit/delete/reschedule, quiet hours and duplicate-prevention acceptance; offline/other-device limitations accurately disclosed |
 | Mobile builds | Locally signed Android preview, signature checks; no synthetic QA credentials in package | Production signing/identifiers, store builds, installation/backend connectivity and signed-device acceptance; iOS build/signing on supported host |
 | Web artifacts | Reproduced Metro environment-cache issue; build now clears cache; fresh referenced entry and packaged bundles inspected | Fresh deployment output with authorized HTTPS API/domain; validate actual hosted assets and avoid publishing old generated bundles |
-| Privacy/support/store | Technical data ownership and lifecycle are documented | Owner-approved public privacy/support URLs, real backup/log retention and accurate Apple/Google data declarations; store metadata/review account |
+| Privacy/support/store | Technical data ownership/lifecycle and public offline Help are documented; searchable workflow/data answers, protected account continuation and configurable validated policy/support links | Owner-approved public privacy/support URLs, real backup/log retention and accurate Apple/Google data declarations; native Help/browser acceptance, store metadata/review account |
 
 On 2026-10-12 the owner authorized the existing server for initial hosting and
 offered an Android device. Read-only discovery verifies the existing server,

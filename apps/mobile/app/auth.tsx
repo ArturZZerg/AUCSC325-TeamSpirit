@@ -89,6 +89,7 @@ export default function Auth() {
           <Button tone="plain" title={registering ? 'I already have an account' : 'Create an account'} disabled={pending} onPress={() => { clearErrors(); setValue('password', ''); setMessage(undefined); setRegistering(!registering); }}/>
           </>}
         </View>
+        <Button title="Help & data" tone="plain" disabled={pending} onPress={() => { if (!busy.current) { setValue('password', ''); router.push('/help'); } }}/>
       </ScrollView>
     </KeyboardAvoidingView>
   </SafeAreaView>;

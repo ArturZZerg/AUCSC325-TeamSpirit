@@ -74,6 +74,11 @@ palette and Today-centered product model.
     and deletion, bounded offline history, note search and sparse 7/30-day
     reflection. Implemented under ADR 012; see
     [journal requirements](../requirements/wellness-journal.md).
+21. **Help & data center:** public offline answers, topic/search controls and
+    useful workflow/account actions, with explicit preview limitations and
+    configurable published privacy/support links. Implemented in
+    [Help & data](../requirements/help-and-data.md); approved public pages,
+    retention decisions and store declarations remain release gates.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native

@@ -7,7 +7,7 @@ import { getPathFromState } from 'expo-router/build/fork/getPathFromState';
 jest.mock('decode-uri-component', () => jest.fn(() => { throw new Error('Unsafe decoder reached by incoming link'); }));
 afterEach(() => expect(jest.requireMock('decode-uri-component')).not.toHaveBeenCalled());
 
-const config = { screens: { account: 'account', auth: 'auth', today: 'today', journal: 'journal',
+const config = { screens: { account: 'account', auth: 'auth', today: 'today', journal: 'journal', help: 'help',
   focus: 'focus', '+not-found': '*not-found' } };
 function roundTrip(path: string) {
   const state = getStateFromPath(path, config);
@@ -20,6 +20,10 @@ function roundTrip(path: string) {
 it('preserves ordinary account links and navigation serialization', () => {
   const { state, serialized } = roundTrip('/account');
   expect(state.routes[0].name).toBe('account'); expect(serialized).toBe('/account');
+});
+it('preserves a public help link without following its untrusted query', () => {
+  const { state, serialized } = roundTrip('/help?next=https%3A%2F%2Funtrusted.test');
+  expect(state.routes[0].name).toBe('help'); expect(getStateFromPath(serialized, config)?.routes[0].name).toBe('help');
 });
 it('preserves task identity and Unicode text in a focus link', () => {
   const id = '74000000-0000-4000-8000-000000000001';
