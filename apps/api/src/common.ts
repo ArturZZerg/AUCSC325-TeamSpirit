@@ -1,8 +1,9 @@
-import { ArgumentMetadata, BadRequestException, CanActivate, ExecutionContext, Injectable, PipeTransform, UnauthorizedException, createParamDecorator } from '@nestjs/common';
+import { ArgumentMetadata, BadRequestException, CanActivate, ExecutionContext, Inject, Injectable, Optional, PipeTransform, UnauthorizedException, createParamDecorator } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { z, ZodType } from 'zod';
 import { PrismaService } from './prisma.service';
 import type { Prisma } from '@prisma/client';
+import { REGISTRATION_CONFIG, type RegistrationConfig } from './auth-config';
 
 // Acquire before locking a child that may create another User foreign key
 // (a reminder/completion). Otherwise account deletion can wait on the child
@@ -25,7 +26,8 @@ type HttpRequest = { headers: Record<string, string | string[] | undefined>; use
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+    @Optional() @Inject(REGISTRATION_CONFIG) private readonly registration: RegistrationConfig = { mode: process.env.NODE_ENV === 'production' ? 'closed' : 'preview' }) {}
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<HttpRequest>();
     const header = request.headers.authorization;
@@ -34,6 +36,7 @@ export class AuthGuard implements CanActivate {
     const accessToken = raw.slice(7); const tokenHash = createHash('sha256').update(accessToken).digest('hex');
     const session = await this.prisma.session.findUnique({ where: { tokenHash }, include: { user: true } });
     if (!session || session.revokedAt || session.expiresAt <= new Date()) throw new UnauthorizedException();
+    if (this.registration.mode !== 'preview' && !session.user.emailVerifiedAt) throw new UnauthorizedException('Verify your email before signing in.');
     request.user = session.user;
     request.accessToken = accessToken;
     return true;

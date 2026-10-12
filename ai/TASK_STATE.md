@@ -120,7 +120,9 @@ Five unresolved leaf advisories remain tracked with actual usage in
 `docs/development/dependency-safety.md`; no forced SDK downgrade or suppression.
 PR #62 merged after author self-review and both exact-head Linux CI checks passed.
 
-Account recovery is implemented on `codex/account-recovery` under ADR 009.
+Account recovery merged as PR #63 under ADR 009 after author self-review and
+both exact-head CI checks passed for `13d4c33ea5aac7276fa236bf644cbb48a1d13aca`.
+Main merge commit is `ea30b2f56cb4a5e77a6e598235c5d13ec1cfa33d`.
 Request/reset UI and transactional credential/session lifecycle use private
 encrypted PostgreSQL mail envelopes and shared rate buckets in the existing API.
 Delivery stays disabled until the approved provider is configured; real sender
@@ -168,6 +170,36 @@ does not prove real SMTP or browser/native password-change submission.
 Final PostgreSQL restore matches 22 tables/201 synthetic records, preserves the
 source and removes only the generated disposable restore. Review fixes also
 prove nonblocking cleanup and real Nest worker-drain-before-Prisma shutdown.
+
+Email verification is implemented on `codex/email-verification`, under ADR 010.
+Public signup/login with an unverified mailbox issues no access session.
+Password-and-code proof is single-use, credential-bound and atomic; verification
+revokes old preview sessions, then requires ordinary sign-in. Preview users are
+not silently marked verified. Recovery/reset/delete, separate token purposes,
+encrypted retry/fencing and private export behavior preserve student data.
+Production defaults to closed signup; verified mode requires complete SMTP.
+Native forms handle capabilities, verification-required results, resend limits,
+failed drafts, pending controls, safe account return and late/owner changes.
+
+Final root checks: 588 API, 855 mobile, 120 contract, 173 domain, 3 Android-script
+and 20 release/dependency tests pass (1,759 total), with lint/types/build. A running
+loopback API verifies actual captured-mail signup, password/code proof, replay and
+cross-purpose rejection, ordinary login and owned task creation. Fresh Android
+and web exports, v2 signature, chosen native origin/privacy and actual web asset/
+SQLite/API smoke pass. Preview APK SHA-256:
+`75B03DAEC7160B1F0287577C6EF0A6228FE3309C9D77B0C5579A7DC6F00CC6AE`.
+Actual restore preserves 23 tables/194 synthetic records, including a live private
+verification token, and removes only the generated disposable database.
+Browser geometry/empty validation/account continuation passes at 320/390/1100px,
+with 46px controls. Browser screenshot capture is unavailable; no visual image or
+browser verification submission is claimed. ADB has no attached device. Real SMTP,
+hosted production, native phone/iOS and store acceptance remain unverified.
+PR/self-review/exact-head CI/merge are pending; production mail stays off.
+
+Next concrete feature: account access lifecycle, with automatic native recovery
+from expired/revoked sessions and shared sign-in/password-challenge quotas that
+work when mail delivery is disabled. Define the additive architecture decision
+and preserve offline reads, account cleanup and late-owner guards before coding.
 
 Release gates: apply FocusSession and CampusFeedState migrations to deployment,
 enable reviewed campus calendars for the intended campus;

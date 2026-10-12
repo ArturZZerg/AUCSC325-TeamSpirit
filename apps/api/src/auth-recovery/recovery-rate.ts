@@ -5,11 +5,14 @@ import { RECOVERY_CONFIG, type RecoveryConfig } from './recovery-config';
 import { recoveryPrivateId, recoveryRecipientHash } from './recovery-secrets';
 
 export const RECOVERY_RATE_NAMESPACE = Symbol('RECOVERY_RATE_NAMESPACE');
-type RecoveryAction = 'request' | 'reset';
+type RecoveryAction = 'request' | 'reset' | 'verification-request' | 'verification-login' | 'verify';
 const hour = 60 * 60_000, quarterHour = 15 * 60_000;
 const policies = {
   request: { source: 10, recipient: 3, recipientWindow: hour },
   reset: { source: 20, recipient: 8, recipientWindow: quarterHour },
+  'verification-request': { source: 20, recipient: 3, recipientWindow: hour },
+  'verification-login': { source: 40, recipient: 8, recipientWindow: quarterHour },
+  verify: { source: 20, recipient: 8, recipientWindow: quarterHour },
 } as const;
 
 @Injectable()
@@ -40,9 +43,9 @@ export class RecoveryRateService {
       if (await this.count(tx, `${prefix}:global`, hour) > 2000) return { limited: true, recipientAllowed: false };
       if (await this.count(tx, `${prefix}:source:${sourceId}`, quarterHour) > policy.source) return { limited: true, recipientAllowed: false };
       const allowed = await this.count(tx, `${prefix}:recipient:${recipientId}`, policy.recipientWindow, recipientHash) <= policy.recipient;
-      return { limited: action === 'reset' && !allowed, recipientAllowed: allowed };
+      return { limited: !['request', 'verification-request'].includes(action) && !allowed, recipientAllowed: allowed };
     }, { timeout: 5000, maxWait: 5000 });
-    if (result.limited) throw new HttpException('Too many recovery attempts. Try again later.', 429);
+    if (result.limited) throw new HttpException('Too many account attempts. Try again later.', 429);
     return { recipientAllowed: result.recipientAllowed };
   }
 }

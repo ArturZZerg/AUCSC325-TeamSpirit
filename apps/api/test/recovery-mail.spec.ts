@@ -40,6 +40,17 @@ describe('private SMTP recovery delivery', () => {
     expect(sendMail.mock.calls[0][0]).toMatchObject({ to: email, subject: 'Your CampusFlow password changed', text: expect.stringContaining('Previous sessions have been signed out') });
     expect(sendMail.mock.calls[0][0].text).not.toContain(code);
   });
+  it('sends a purpose-specific verification code with password and unsolicited-account instructions, without private binding or code in the URL', async () => {
+    const credentialHash = 'a'.repeat(64);
+    await new SmtpRecoveryMailer(config).send(id, { kind: 'verify', email, code, credentialHash }, expiresAt);
+    const message = sendMail.mock.calls[0][0];
+    expect(message.subject).toBe('Verify your CampusFlow email');
+    expect(message.text).toContain('ABC123-DEF456-ABC123-DEF456-ABC123');
+    expect(message.text).toContain('account password'); expect(message.text).toContain('do not verify it');
+    expect(message.text).toContain('Forgot password first'); expect(message.text).toContain(expiresAt.toISOString());
+    expect(message.text.match(/https:\/\/\S+/)[0]).toBe('https://app.example.test/verify');
+    expect(message.text).not.toContain(credentialHash); expect(message.text).not.toContain(config.smtp.password);
+  });
   it('redacts provider failures and closes the transport', async () => {
     sendMail.mockRejectedValue(new Error(`SMTP rejection ${email} ${code} ${config.smtp.password}`));
     await expect(new SmtpRecoveryMailer(config).send(id, { kind: 'code', email, code }, expiresAt)).rejects.toThrow(/^Recovery delivery is unavailable$/);

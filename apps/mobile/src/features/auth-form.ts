@@ -9,7 +9,7 @@ export function authFormSchema(registering: boolean) {
     displayName: z.string(),
     timeZone: z.string(),
   }).superRefine((values, context) => {
-    const result = (registering ? registerRequestSchema : loginRequestSchema).safeParse(values);
+    const result = registering ? registerRequestSchema.safeParse(values) : loginRequestSchema.safeParse({ email: values.email, password: values.password });
     if (!result.success) {
       for (const issue of result.error.issues) context.addIssue(issue);
     }

@@ -12,10 +12,10 @@ function Gate() {
   useEffect(() => { void restore(); }, [restore]);
   useEffect(() => {
     if (!ready) return;
-    const atAuth = segments[0] === 'auth' || segments[0] === 'recover';
+    const atAuth = segments[0] === 'auth' || segments[0] === 'recover' || segments[0] === 'verify';
     if (!session && !atAuth) router.replace(segments[0] === 'account' ? '/auth?next=account' : '/auth');
     if (session && atAuth) router.replace(next === 'account' ? '/account' : '/today');
   }, [ready, session, segments, router, next]);
-  return <Stack screenOptions={{ headerShown: false, statusBarStyle: 'dark' }}><Stack.Screen name="auth"/><Stack.Screen name="recover"/><Stack.Screen name="(tabs)"/></Stack>;
+  return <Stack screenOptions={{ headerShown: false, statusBarStyle: 'dark' }}><Stack.Screen name="auth"/><Stack.Screen name="recover"/><Stack.Screen name="verify"/><Stack.Screen name="(tabs)"/></Stack>;
 }
 export default function RootLayout() { return <QueryClientProvider client={queryClient}><FocusRecoverySync /><DeviceReminderSync /><Gate /></QueryClientProvider>; }

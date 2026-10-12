@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma.service';
 import { RECOVERY_CONFIG, type RecoveryConfig } from './recovery-config';
 import { RECOVERY_MAILER, type RecoveryMailer } from './recovery-mail';
-import { openRecoveryEnvelope, recoveryCodeHash, recoveryRecipientHash, type RecoveryEnvelope } from './recovery-secrets';
+import { openRecoveryEnvelope, recoveryCodeHash, recoveryRecipientHash, verificationCredentialHash, type RecoveryEnvelope } from './recovery-secrets';
 
 const leaseMs = 120_000, maxAttempts = 8;
 @Injectable()
@@ -42,6 +42,8 @@ export class RecoveryWorker implements OnApplicationBootstrap, OnModuleDestroy {
         ORDER BY "expiresAt" LIMIT 500 FOR UPDATE SKIP LOCKED)`;
     await this.prisma.$executeRaw`DELETE FROM "PasswordResetToken" WHERE "id" IN
       (SELECT "id" FROM "PasswordResetToken" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ORDER BY "expiresAt" LIMIT 500 FOR UPDATE SKIP LOCKED)`;
+    await this.prisma.$executeRaw`DELETE FROM "EmailVerificationToken" WHERE "id" IN
+      (SELECT "id" FROM "EmailVerificationToken" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ORDER BY "expiresAt" LIMIT 500 FOR UPDATE SKIP LOCKED)`;
     await this.prisma.$executeRaw`DELETE FROM "RecoveryRateBucket" WHERE "key" IN
       (SELECT "key" FROM "RecoveryRateBucket" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ORDER BY "expiresAt" LIMIT 500 FOR UPDATE SKIP LOCKED)`;
   }
@@ -66,11 +68,18 @@ export class RecoveryWorker implements OnApplicationBootstrap, OnModuleDestroy {
     if (envelope.kind !== job.kind || recoveryRecipientHash(envelope.email) !== job.recipientHash) throw new Error('Recovery message is unavailable');
     return this.prisma.$transaction(async tx => {
       // Match reset/deletion lock order: User first, then its private mail/token rows.
-      const [user] = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "email" = ${envelope.email} FOR UPDATE`;
+      const [user] = await tx.$queryRaw<{ id: string; passwordHash: string; emailVerifiedAt: Date | null }[]>`
+        SELECT "id", "passwordHash", "emailVerifiedAt" FROM "User" WHERE "email" = ${envelope.email} FOR UPDATE`;
       if (!user || job.userId && job.userId !== user.id || envelope.kind === 'changed' && job.userId !== user.id) return null;
       const current = await tx.recoveryMail.findFirst({ where: { id: job.id, leaseToken: job.leaseToken,
         leaseUntil: { gt: new Date() }, expiresAt: { gt: new Date() } } });
       if (!current) return null;
+      if (envelope.kind === 'verify') {
+        if (job.userId !== user.id || user.emailVerifiedAt || envelope.credentialHash !== verificationCredentialHash(user.passwordHash)) return null;
+        const tokenHash = recoveryCodeHash(envelope.code);
+        await tx.emailVerificationToken.upsert({ where: { tokenHash }, update: {},
+          create: { userId: user.id, tokenHash, credentialHash: envelope.credentialHash, expiresAt: job.expiresAt } });
+      }
       if (envelope.kind === 'code') {
         const tokenHash = recoveryCodeHash(envelope.code);
         await tx.passwordResetToken.upsert({ where: { tokenHash }, update: {},

@@ -81,6 +81,7 @@ databaseSuite('Account export and erasure with disposable PostgreSQL accounts', 
     const expiresAt = new Date(Date.now() + 15 * 60_000);
     try {
       await db.passwordResetToken.create({ data: { userId: user.user.id, tokenHash: recoveryCodeHash(code), expiresAt } });
+      await db.emailVerificationToken.create({ data: { userId: user.user.id, tokenHash: recoveryCodeHash(code), credentialHash: 'a'.repeat(64), expiresAt } });
       await db.recoveryMail.createMany({ data: [
         { id: ids[0], userId: user.user.id, recipientHash, kind: 'code', sealed: 'hidden-recovery-linked', expiresAt },
         { id: ids[1], recipientHash, kind: 'code', sealed: 'hidden-recovery-unbound', expiresAt },
@@ -91,9 +92,10 @@ databaseSuite('Account export and erasure with disposable PostgreSQL accounts', 
         { key: keys[2], count: 1, expiresAt },
       ] });
       const exported = await client().get('/me/export').set('Authorization', bearer(user)).expect(200);
-      for (const secret of ['hidden-recovery-', 'passwordResetTokens', 'recoveryMail', 'tokenHash', recipientHash, code]) expect(JSON.stringify(exported.body)).not.toContain(secret);
+      for (const secret of ['hidden-recovery-', 'passwordResetTokens', 'emailVerificationTokens', 'credentialHash', 'recoveryMail', 'tokenHash', recipientHash, code]) expect(JSON.stringify(exported.body)).not.toContain(secret);
       await remove(user).expect(200);
       expect(await db.passwordResetToken.count({ where: { userId: user.user.id } })).toBe(0);
+      expect(await db.emailVerificationToken.count({ where: { userId: user.user.id } })).toBe(0);
       expect(await db.recoveryMail.count({ where: { recipientHash } })).toBe(0);
       expect(await db.recoveryRateBucket.count({ where: { recipientHash } })).toBe(0);
       expect(await db.recoveryMail.findUnique({ where: { id: ids[2] } })).not.toBeNull();

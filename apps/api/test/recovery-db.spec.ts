@@ -1,4 +1,5 @@
 import { INestApplication, Logger } from '@nestjs/common';
+import { sessionSchema } from '@campusflow/contracts';
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -111,7 +112,7 @@ withDatabase('password recovery with disposable PostgreSQL owners and captured d
   });
   it('resets once, invalidates all other codes and sessions, preserves student data and queues a private notice', async () => {
     const owner = await register(), other = await register();
-    const secondSession = await auth.login({ email: owner.user.email, password: oldPassword });
+    const secondSession = sessionSchema.parse(await auth.login({ email: owner.user.email, password: oldPassword }));
     const task = await client().post('/tasks').set('Authorization', bearer(owner)).send({ title: 'Retained assignment', priority: 'medium' }).expect(201);
     const code = await readyCode(owner); await requestCode(owner.user.email);
     const pending = await db.recoveryMail.findFirstOrThrow({ where: { recipientHash: recoveryRecipientHash(owner.user.email) } });
@@ -183,7 +184,7 @@ withDatabase('password recovery with disposable PostgreSQL owners and captured d
     try {
       await waitForAccountLock();
       release(); const [session] = await Promise.all([signingIn, resetting]);
-      await client().get('/me').set('Authorization', `Bearer ${session.accessToken}`).expect(401);
+      await client().get('/me').set('Authorization', `Bearer ${sessionSchema.parse(session).accessToken}`).expect(401);
       expect(await db.session.count({ where: { userId: owner.user.id, revokedAt: null } })).toBe(0);
     } finally { release(); spy.mockRestore(); await Promise.allSettled([signingIn, resetting]); }
   });
