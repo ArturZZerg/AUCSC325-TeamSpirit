@@ -1,6 +1,6 @@
 # Student password recovery
 
-Status: in progress on `codex/account-recovery`, after merged PR #62.
+Status: implemented on `codex/account-recovery`; release acceptance pending.
 
 A student can choose Forgot password from sign-in, request a code for the account
 email and enter that code with a new, confirmed password. Keep the existing calm
@@ -40,9 +40,17 @@ interaction remain release gates. Registration email verification is a separate
 public-onboarding requirement. Never enable production mail with invented owner
 credentials or describe fixture delivery as a verified production provider.
 
-Current foundation evidence: full lint/boundaries/types/test/build gate passes
-1,614 tests, including 63 new cases for boundaries, crypto/configuration, atomic
-shared quotas and recovery-material privacy/erasure. The ninth migration and
-updated readiness manifest pass an actual 22-table/164-record restore rehearsal.
-Request/reset endpoints, durable worker and user-facing forms remain in progress;
-this is not a completed recovery or delivery acceptance claim.
+Current automated evidence: full lint/boundaries/types/test/build gate passes
+1,676 tests (547 API, 824 mobile, 109 contracts, 173 domain, 3 Android build-script
+and 20 release/dependency). Recovery tests cover strict contracts, crypto/config,
+atomic shared quotas, privacy/erasure, real PostgreSQL request/reset transactions,
+both sign-in/reset lock orders, durable delivery and native screen interactions.
+UTC SQL is tested against an Auckland-time database connection; local PostgreSQL
+also runs in Denver time. Browser QA verifies request/acknowledgment, code-entry
+validation and responsive layout, with reset completion covered separately by
+disposable API and native component tests. See the [operations runbook](../development/password-recovery.md)
+for the migration, settings, retry guarantees and remaining delivery/device gates.
+Fresh web/Android builds, preview signing/privacy checks and actual API/web smoke
+pass. A running API with captured delivery completes reset while retaining a
+synthetic task; old sessions/password and repeated code are rejected. The final
+restore matches 22 tables/201 synthetic records and preserves the source.

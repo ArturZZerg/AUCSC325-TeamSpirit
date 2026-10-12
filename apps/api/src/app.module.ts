@@ -13,10 +13,17 @@ import { PrismaService } from './prisma.service';
 import { TodayController, TodayService } from './today';
 import { CanvasController, CanvasService } from './canvas';
 import { CanvasProvider, FixtureCanvasProvider } from './integrations/canvas/canvas-provider';
+import { RECOVERY_CONFIG, recoveryConfig } from './auth-recovery/recovery-config';
+import { RecoveryController, RecoveryService } from './auth-recovery/recovery-service';
+import { RecoveryRateService } from './auth-recovery/recovery-rate';
+import { RECOVERY_MAILER, SmtpRecoveryMailer } from './auth-recovery/recovery-mail';
+import { RecoveryWorker } from './auth-recovery/recovery-worker';
 
 @Module({
-  controllers: [HealthController, AccountController, AuthController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController, ClassesController, StudyPlansController, FocusController, CampusSourcesController],
+  controllers: [HealthController, AccountController, AuthController, RecoveryController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController, ClassesController, StudyPlansController, FocusController, CampusSourcesController],
   providers: [HealthService, AccountService, EventSyncService, CampusFeedsService, { provide: CAMPUS_FEEDS, useFactory: configuredCampusFeeds }, PrismaService, AuthService, ReminderService, TodayService, CanvasService,
-    { provide: CanvasProvider, useClass: FixtureCanvasProvider }],
+    { provide: CanvasProvider, useClass: FixtureCanvasProvider },
+    { provide: RECOVERY_CONFIG, useFactory: recoveryConfig }, RecoveryRateService, RecoveryService, RecoveryWorker,
+    { provide: RECOVERY_MAILER, useClass: SmtpRecoveryMailer }],
 })
 export class AppModule {}

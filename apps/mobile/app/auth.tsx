@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, json } from '@/lib/api';
@@ -12,10 +12,11 @@ import { authFormSchema, type AuthFormValues } from '@/features/auth-form';
 
 export default function Auth() {
   const { next } = useLocalSearchParams<{ next?: string }>();
+  const router = useRouter();
   const [registering, setRegistering] = useState(false);
   const [message, setMessage] = useState<string>();
   const { setSession, accountDeleted, cleanupError, retryCleanup } = useSessionStore();
-  const { control, handleSubmit, clearErrors, formState: { errors, isSubmitting } } = useForm<AuthFormValues>({
+  const { control, handleSubmit, clearErrors, setValue, formState: { errors, isSubmitting } } = useForm<AuthFormValues>({
     resolver: zodResolver(authFormSchema(registering)),
     defaultValues: { email: '', displayName: '', password: '', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
   });
@@ -42,6 +43,7 @@ export default function Auth() {
           {registering && <Controller control={control} name="timeZone" render={({ field }) => <Field label="Time zone" value={field.value} onChangeText={field.onChange} placeholder="America/Edmonton" autoCapitalize="none" autoCorrect={false}/>}/>}
           <Text style={styles.error}>{errors.email?.message || errors.displayName?.message || errors.password?.message || errors.timeZone?.message || message}</Text>
           <Button title={isSubmitting ? 'Please wait…' : registering ? 'Create account' : 'Sign in'} onPress={handleSubmit(submit)} disabled={isSubmitting}/>
+          {!registering && <Button title="Forgot password?" tone="plain" disabled={isSubmitting} onPress={() => { setValue('password', ''); router.push(next === 'account' ? '/recover?next=account' : '/recover'); }}/>}
           <Button tone="plain" title={registering ? 'I already have an account' : 'Create an account'} disabled={isSubmitting} onPress={() => { clearErrors(); setMessage(undefined); setRegistering(!registering); }}/>
         </View>
       </ScrollView>
