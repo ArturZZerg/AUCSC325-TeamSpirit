@@ -44,6 +44,8 @@ export default function SettingsScreen() {
 
   return <Screen><ScrollView contentContainerStyle={styles.content}>
     <Text style={styles.title}>Settings</Text>
+    <Card><Text style={styles.label}>Help & data</Text><Text style={styles.muted}>Find answers, understand your saved information and open your account controls.</Text>
+      <Button title="Open Help & data" tone="plain" onPress={() => router.push('/help')}/></Card>
     <Card><Text style={styles.label}>Account</Text><Text style={styles.muted}>{session?.user.email}</Text>
       <Text style={styles.muted}>Time zone: {session?.user.timeZone}</Text><Button title="Account & privacy" tone="plain" onPress={() => router.push('/account')}/><Button title="Sign out" tone="danger" onPress={() => void signOut()}/></Card>
     <Card><Text style={styles.label}>Canvas</Text><Text style={styles.muted}>Canvas authorization will appear here after the university approves a developer key, scopes, and HTTPS callback. This build does not ask for or store a personal Canvas token.</Text></Card>

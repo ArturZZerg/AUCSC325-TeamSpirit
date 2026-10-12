@@ -383,6 +383,42 @@ image passes. Sixteen real HTTP checks pass with a separate synthetic owner;
 23-table/30-record restore preserves the source and original Pixel owner.
 Full root lint/boundary/schema/type/test/build checks pass all 1,912 tests.
 Both image targets build, the migrator retains Prisma 6.19.0, and every installed
-runtime version matches the unchanged root lockfile. Exact-head PR/main CI is
-required before merge. Remaining mobile/build advisories, physical device,
+runtime version matches the unchanged root lockfile. PR #70 is merged after
+author self-review and both exact-head CI runs succeed (`38303090260`,
+`38303052573`, head `5ee62fb4a44aec72ddf80c54e577a226a698309a`). Main
+`6bced70d038ac6078bc431080bd3aca99964804f` has successful post-merge CI
+`38303654760`. Remaining mobile/build advisories, physical device,
 hosting/mail/iOS/store gates persist.
+
+### Public Help and data center, 2026-10-12
+
+The `codex/help-data-center` slice adds ten bundled workflow/data answers, three
+topics, bounded local search, usable empty-state reset, accessible accordions and
+existing account/student-tool actions. Help is readable before sign-in; only the
+exact route bypasses the account gate. Sign-in clears an entered password when
+opening Help and prevents navigation during a pending request. Settings has a
+direct entry. No backend, schema, shared contract or dependency changes are made.
+
+Published privacy/support URLs are configurable, validated in the actual Expo
+configuration and screen, and partition Metro transforms together with the API.
+Invalid URL diagnostics are redacted; missing pages are explicitly unavailable
+in the preview. Opening a website adds no search/account data. The bundled
+answers disclose offline writes, explicit focus saving, per-device reminders,
+export/copy boundaries and cleanup retry without inventing backup/log retention.
+Approved public policies/contact pages and store declarations are still needed.
+
+Final root lint/boundary/schema/type/test/build checks pass 1,948 tests: 646 API,
+966 mobile, 135 contracts, 173 domain, 3 Android-script and 25 release/dependency.
+The final pending-sign-in test preserves the real API error class and verifies
+Help becomes usable after failure. A clean web export and browser checks at
+320/390/1,280px verify layout, combined filters/reset, keyboard accordion,
+public account continuation, cleared password and protected planner routing.
+The temporary preview server/tab are closed and viewport reset. A fresh Android
+preview builds and passes v2 signing, selected localhost API/current Help and
+known private-fixture scans (SHA-256
+`4B0DDA46D02E3BDC7DA0B21FE87FBCB7842983AE8860B623980A01154D72B198`).
+The native geometry script now includes Help; syntax passes, hardware execution
+is pending. The Pixel remains disconnected, including keep-awake restoration.
+Exact-head PR/main CI is required before accepting the slice. Source remains
+local; hosting/mail, iOS and store gates persist. The next concrete local task
+is reviewing and constraining the actual Android artifact's unused permissions.

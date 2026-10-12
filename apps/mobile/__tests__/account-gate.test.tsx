@@ -22,3 +22,10 @@ it.each(['recover', 'verify'])('allows signed-out %s and returns an already sign
   mockSegments = [route]; mockSession = null; const ui = render(<RootLayout/>); expect(mockRouter.replace).not.toHaveBeenCalled();
   mockSession = {}; mockNext = 'account'; ui.rerender(<RootLayout/>); expect(mockRouter.replace).toHaveBeenCalledWith('/account');
 });
+it('keeps public help readable before and after signing in', () => {
+  mockSegments = ['help']; mockSession = null; const ui = render(<RootLayout/>); expect(mockRouter.replace).not.toHaveBeenCalled();
+  mockSession = {}; ui.rerender(<RootLayout/>); expect(mockRouter.replace).not.toHaveBeenCalled();
+});
+it.each([['journal'], ['planner'], ['(tabs)', 'settings'], ['help', 'private'], ['unknown']])('keeps %s private instead of widening the help exemption', (...segments) => {
+  mockSegments = segments; mockSession = null; render(<RootLayout/>); expect(mockRouter.replace).toHaveBeenCalledWith('/auth');
+});

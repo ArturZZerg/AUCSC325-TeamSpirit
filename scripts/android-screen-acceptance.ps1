@@ -1,11 +1,11 @@
 param(
   [string]$AdbPath = (Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'),
-  [string[]]$Routes = @('journal','planner','focus','workload','academics','timetable','study-plans','study-report','focus-history','get-started','review','routines')
+  [string[]]$Routes = @('journal','planner','focus','workload','academics','timetable','study-plans','study-report','focus-history','get-started','review','routines','help')
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $headings = @{
-  journal='CHECK-IN JOURNAL'; planner='PLAN AHEAD'; focus='FOCUS SPACE'; workload='WORKLOAD INBOX'
+  journal='CHECK-IN JOURNAL'; planner='PLAN AHEAD'; focus='FOCUS SPACE'; workload='WORKLOAD INBOX'; help='HELP & DATA'
   academics='COURSEWORK'; timetable='CLASS TIMETABLE'; 'study-plans'='MY STUDY PLANS'; 'study-report'='STUDY REPORT'
   'focus-history'='YOUR STUDY TIME'; 'get-started'='GET STARTED'; review='WEEKLY REVIEW'; routines='ROUTINE LIBRARY'
 }
@@ -46,7 +46,7 @@ foreach ($route in $Routes) {
   [xml]$ui = [IO.File]::ReadAllText($local)
   if ($ui.SelectSingleNode('//node').package -ne 'com.campusflow.mobile') { throw 'Another surface interrupted CampusFlow acceptance' }
   $nodes = @($ui.SelectNodes('//node'))
-  if (-not ($nodes | Where-Object { $_.text -eq $headings[$route] })) { throw "Expected signed-in $route workspace; do not substitute an auth/unknown screen" }
+  if (-not ($nodes | Where-Object { $_.text -eq $headings[$route] })) { throw "Expected $route workspace; do not substitute an auth/unknown screen" }
   $scrolls = @($nodes | Where-Object { $_.class -eq 'android.widget.ScrollView' } | Sort-Object { $b = Bounds $_; ($b[2]-$b[0])*($b[3]-$b[1]) } -Descending)
   if (-not $scrolls.Count) { throw "No main scroll viewport for $route" }
   $viewport = Bounds $scrolls[0]
