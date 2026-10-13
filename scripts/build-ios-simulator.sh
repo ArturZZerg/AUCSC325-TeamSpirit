@@ -12,6 +12,7 @@ if [[ "${1:-}" == '--check' ]]; then printf '%s\n' "$xcode_version"; exit 0; fi
 [[ $# == 0 ]] || { echo 'Only --check is supported.' >&2; exit 1; }
 export CI=1 NODE_ENV=production EXPO_NO_DOTENV=1 EXPO_NO_TELEMETRY=1
 export EXPO_PUBLIC_API_URL='http://127.0.0.1:3000'
+export EXPO_PUBLIC_NATIVE_QA=1
 export CAMPUSFLOW_BUILD_SHA="$(git rev-parse HEAD)"
 mkdir -p .local artifacts/ios/evidence
 root="$PWD"
@@ -19,6 +20,10 @@ root="$PWD"
 cd apps/mobile
 node ../../node_modules/expo/bin/cli prebuild --platform ios --no-install
 git diff --exit-code -- "$root/package-lock.json" "$root/apps/mobile/package.json"
+cd "$root"
+node scripts/ios-linking-probe.mjs
+cp apps/mobile/ios/CampusFlow/AppDelegate.swift artifacts/ios/evidence/generated-AppDelegate.swift
+cd apps/mobile
 cd ios
 pod install
 xcodebuild -workspace CampusFlow.xcworkspace -scheme CampusFlow -configuration Release \

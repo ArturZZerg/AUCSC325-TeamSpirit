@@ -54,11 +54,16 @@ jobs:
           .local/maestro/bin/maestro --device "$udid" test --format JUNIT \
             --output artifacts/ios/evidence/public-flow.xml --debug-output artifacts/ios/evidence/maestro \
             --test-output-dir "$PWD/artifacts/ios/evidence/screenshots" .maestro/ios-public.yaml
+      - name: Collect public simulator diagnostics
+        if: always() && env.IOS_SIMULATOR_UDID != ''
+        run: |
+          xcrun simctl spawn "$IOS_SIMULATOR_UDID" log show --last 5m --style compact --info --debug --predicate 'process == "CampusFlow"' > artifacts/ios/evidence/native-system.log
+          xcrun simctl io "$IOS_SIMULATOR_UDID" screenshot artifacts/ios/evidence/last-native-frame.png
       - name: Stop only this job's simulator
         if: always() && env.IOS_SIMULATOR_UDID != ''
         run: xcrun simctl shutdown "$IOS_SIMULATOR_UDID"
       - uses: actions/upload-artifact@v4
-        if: steps.build.outcome == 'success'
+        if: always() && steps.build.outcome == 'success'
         with:
           name: campusflow-ios-simulator-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/ios/campusflow-simulator.zip

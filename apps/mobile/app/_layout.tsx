@@ -13,6 +13,9 @@ function Gate() {
   const { session, ready, restore } = useSessionStore();
   useEffect(() => { void restore(); }, [restore]);
   useEffect(() => {
+    if (process.env.EXPO_PUBLIC_NATIVE_QA === '1') console.info('CF_QA_GATE', JSON.stringify({ ready, signedIn: !!session, route: segments.join('/') || 'root' }));
+  }, [ready, session, segments]);
+  useEffect(() => {
     if (!ready) return;
     const atAuth = segments[0] === 'auth' || segments[0] === 'recover' || segments[0] === 'verify';
     const atHelp = segments.length === 1 && segments[0] === 'help';
