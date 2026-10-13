@@ -30,7 +30,9 @@ student titles on a lock screen or following an arbitrary notification URL.
   taps. Verify the CampusFlow marker, UUIDs, matching request/stable identities
   and optional explicit reminder ID. Legacy owned stable IDs remain readable.
   Discard unsupported/custom actions, malformed identities, signed-out taps and
-  different accounts. Wait for ordinary session restoration and mounted navigation;
+  different accounts. Reject incompatible context as soon as ordinary restoration
+  completes, even before navigation mounts; a later matching login must not revive
+  that discarded tap. Valid owned context waits for mounted navigation;
   a changed token invalidates a queued response. Consume the native last response
   and deduplicate recent callbacks in bounded memory. Native read failures do not
   prevent startup or future taps. Web registers no native notification listener.

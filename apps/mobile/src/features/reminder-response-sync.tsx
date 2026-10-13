@@ -39,9 +39,14 @@ export function ReminderResponseSync() {
     return () => { active = false; subscription.remove(); };
   }, []);
   useEffect(() => {
-    if (!pending || !ready || !navigation?.key) return;
+    if (!pending || !ready) return;
+    // Restored auth context can reject a tap before the navigator mounts. Do
+    // not retain it across a later matching login or stale session snapshot.
+    if (!session || session.user.id !== pending.accountId || (pending.token && pending.token !== session.accessToken)) {
+      setPending(undefined); return;
+    }
+    if (!navigation?.key) return;
     setPending(undefined);
-    if (!session || session.user.id !== pending.accountId || (pending.token && pending.token !== session.accessToken)) return;
     router.push({ pathname: '/reminders', params: { reminderId: pending.reminderId, accountId: pending.accountId } });
   }, [pending, ready, session, navigation?.key, router]);
   return null;

@@ -57,6 +57,31 @@ it('rejects a queued tap if the account token changes before navigation mounts',
   act(() => useSessionStore.setState({ session: { ...session, accessToken: 'fresh-login' } }));
   mockNavigation = { key: 'root' }; act(() => useSessionStore.setState({ ready: true })); expect(mockRouter.push).not.toHaveBeenCalled();
 });
+it.each([null, { ...session, user: { ...session.user, id: '10000000-0000-4000-8000-000000000002' } }])('discards incompatible restored context before navigation mounts, preventing a later matching login from replaying the tap', restored => {
+  useSessionStore.setState({ session: null, ready: false }); mockNavigation = undefined;
+  jest.mocked(Notifications.getLastNotificationResponse).mockReturnValue(response());
+  const view = render(<ReminderResponseSync/>);
+  act(() => useSessionStore.setState({ session: restored, ready: true }));
+  act(() => useSessionStore.setState({ session: { ...session, accessToken: 'fresh-login' } }));
+  mockNavigation = { key: 'mounted' }; view.rerender(<ReminderResponseSync/>);
+  expect(mockRouter.push).not.toHaveBeenCalled();
+});
+it('discards a changed-token queue before navigation even if an old session snapshot later reappears', () => {
+  mockNavigation = undefined; const view = render(<ReminderResponseSync/>); act(() => listener(response()));
+  act(() => useSessionStore.setState({ session: { ...session, accessToken: 'replacement' } }));
+  act(() => useSessionStore.setState({ session })); mockNavigation = { key: 'mounted' }; view.rerender(<ReminderResponseSync/>);
+  expect(mockRouter.push).not.toHaveBeenCalled();
+});
+it('still accepts a new owned delivery after an incompatible startup tap was discarded', () => {
+  useSessionStore.setState({ session: null, ready: false }); mockNavigation = undefined;
+  jest.mocked(Notifications.getLastNotificationResponse).mockReturnValue(response());
+  const view = render(<ReminderResponseSync/>); act(() => useSessionStore.setState({ session: null, ready: true }));
+  act(() => useSessionStore.setState({ session })); mockNavigation = { key: 'mounted' }; view.rerender(<ReminderResponseSync/>);
+  expect(mockRouter.push).not.toHaveBeenCalled();
+  const next = response(); next.notification.date = 5678; act(() => listener(next));
+  expect(mockRouter.push).toHaveBeenCalledTimes(1);
+  expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/reminders', params: { reminderId, accountId } });
+});
 it.each([{ campusFlowReminder: false }, { accountId: 'invalid' }, { reminderId: 'invalid' }, { stableId: `campusflow:${accountId}:invalid` }, { stableId: 'https://untrusted.test' }])('rejects malformed or inconsistent notification identities %j', data => {
   expect(reminderResponseTarget(response(data), 'default')).toBeUndefined();
 });
