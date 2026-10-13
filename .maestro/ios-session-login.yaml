@@ -24,8 +24,13 @@ name: iOS ordinary sign-in and owned task capture
 - extendedWaitUntil:
     visible: Your daily flow
     timeout: 30000
-- tapOn: Add a task to this day
-- assertVisible: New task
+- waitForAnimationToEnd
+- tapOn:
+    id: today-add-task
+- extendedWaitUntil:
+    visible: New task
+    timeout: 30000
+- waitForAnimationToEnd
 - tapOn:
     id: task-title
 - inputText: ${IOS_QA_TASK}

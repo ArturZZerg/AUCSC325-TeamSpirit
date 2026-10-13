@@ -41,6 +41,12 @@ stage/check record are published. Public native logs/screenshots are collected b
 creating the synthetic account. The initial storage run remains unverified until
 actual exact-head native acceptance succeeds.
 
+Private-flow diagnostics publish only whitelisted command kinds, status enums and
+numeric duration/sequence, plus fixed known-label presence booleans on failure.
+Selectors, typed values, variables, private paths, tokens and full UI hierarchies
+remain in the ignored runner directory. A raw hierarchy or log is never a fallback.
+These summaries diagnose the flow; label presence alone is not visibility proof.
+
 The first signed run (`751c960`, native `38373718950`) compiles with Xcode's ad-hoc
 identity and passes strict signature verification, but its code-signature entitlement
 dump is `{}`. The first gate rejects it before account creation. That gate was too
@@ -74,6 +80,16 @@ is removed; Xcode now handles simulator entitlement placement. This correction i
 supported by [WebKit's simulator/signature distinction](https://github.com/WebKit/WebKit/blob/main/Source/WebKit/Scripts/process-entitlements.sh)
 and [Bazel's Xcode simulator section investigation](https://github.com/bazelbuild/rules_apple/issues/106),
 with actual compiled section inspection and native acceptance still required.
+
+At `fea92e5` (`38452499305`), the actual Xcode signature and compiled simulator
+sections pass in both architectures. Healthy direct launch and the original public
+flow pass (one JUnit flow, zero failures, 140 seconds), including first Help/Back
+navigation. The ordinary API login reaches Today, implying the awaited Secure Store
+write succeeded, but the first capture tap does not produce the visible New task
+assertion. No API-confirmed task or cold restoration is accepted. Cause remains
+unproven. The current flow waits for navigation settlement, targets the actual
+capture Pressable by stable ID, and requires New task within 30 seconds after one
+tap; native capture/storage acceptance must still pass. App behavior is unchanged.
 
 Installed Expo introspection originally produces `aps-environment: development`:
 `expo-notifications` adds APNs entitlement even when only local reminders are used.

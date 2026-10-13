@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { openSync, closeSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { openSync, closeSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -34,6 +34,53 @@ export function publicFlowFailure(log, privateValues) {
   const match = clean.match(/(?:Assertion is false:|Element not found:|Unable to find element:)[^\r\n]*/);
   if (!match) return undefined;
   return privateValues.reduce((text, value) => text.replaceAll(value, '[private]'), match[0]).slice(0, 250);
+}
+
+/** Diagnostic structure only: omit selectors, inputs, variables and UI hierarchy. */
+export function privateFlowTimeline(records) {
+  const actions = new Set(['launchAppCommand', 'openLinkCommand', 'runFlowCommand', 'tapOnElement', 'inputTextCommand',
+    'hideKeyboardCommand', 'assertConditionCommand', 'waitForAnimationToEndCommand', 'scrollUntilVisibleCommand',
+    'stopAppCommand', 'applyConfigurationCommand', 'defineVariablesCommand', 'takeScreenshotCommand']);
+  const states = new Set(['COMPLETED', 'FAILED', 'RUNNING', 'PENDING']);
+  if (!Array.isArray(records)) return [];
+  return records.slice(0, 200).map((record, index) => {
+    const action = Object.keys(record?.command ?? {}).find(name => actions.has(name)) ?? 'unknown';
+    const metadata = record?.metadata ?? {};
+    return { sequence: Number.isSafeInteger(metadata.sequenceNumber) ? metadata.sequenceNumber : index,
+      action, status: states.has(metadata.status) ? metadata.status : 'UNKNOWN',
+      durationMs: Number.isFinite(metadata.duration) ? Math.max(0, Math.min(metadata.duration, 3_600_000)) : null };
+  }).sort((a, b) => a.sequence - b.sequence);
+}
+
+export function privateViewSummary(hierarchy) {
+  const known = { auth: 'Welcome back', today: 'Your daily flow', editor: 'New task', capture: 'today-add-task',
+    titleInput: 'task-title', save: 'Save task', cleanupRetry: 'Retry device cleanup' };
+  const result = Object.fromEntries(Object.keys(known).map(name => [name, false]));
+  function visit(value, depth) {
+    if (depth > 40 || value === null || typeof value !== 'object') return;
+    for (const child of Object.values(value)) {
+      if (typeof child === 'string') {
+        for (const [name, label] of Object.entries(known)) if (child === label) result[name] = true;
+      } else visit(child, depth + 1);
+    }
+  }
+  visit(hierarchy, 0);
+  return result;
+}
+
+function saveFlowTimeline(directory, output, depth = 0) {
+  if (depth > 3) return false;
+  let entries;
+  try { entries = readdirSync(directory, { withFileTypes: true }); } catch { return false; }
+  for (const entry of entries.slice(0, 50)) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory() && saveFlowTimeline(file, output, depth + 1)) return true;
+    if (entry.isFile() && /^commands-.*\.json$/.test(entry.name)) {
+      try { writeFileSync(output, `${JSON.stringify(privateFlowTimeline(JSON.parse(readFileSync(file, 'utf8'))), null, 2)}\n`); return true; }
+      catch { /* No raw data fallback; the generic failure stage remains visible. */ }
+    }
+  }
+  return false;
 }
 
 async function unusedPort(port) {
@@ -72,6 +119,7 @@ async function run() {
     closeSync(log);
     child.once('error', () => reject(new Error(`Acceptance command could not start: ${name}.`)));
     child.once('exit', code => {
+      if (name.startsWith('ios-session-')) saveFlowTimeline(path.join(runDir, name), path.join(root, `artifacts/ios/evidence/${name}-timeline.json`));
       if (code === 0) return resolve();
       // Publish only a bounded assertion summary, never raw Maestro commands/UI dumps.
       const failed = publicFlowFailure(readFileSync(path.join(runDir, `${name}.log`), 'utf8'), [email, password, dbPassword]);
@@ -102,9 +150,21 @@ async function run() {
     }
     throw new Error('Loopback API readiness timed out.');
   };
-  const flow = name => command(path.join(root, '.local/maestro/bin/maestro'), ['--device', config.udid, 'test',
-    '-e', `IOS_QA_EMAIL=${email}`, '-e', `IOS_QA_PASSWORD=${password}`, '-e', `IOS_QA_TASK=${title}`,
-    '--debug-output', path.join(runDir, name), '--test-output-dir', path.join(runDir, name), `.maestro/${name}.yaml`], name);
+  const flow = async name => {
+    const cli = path.join(root, '.local/maestro/bin/maestro');
+    try {
+      await command(cli, ['--device', config.udid, 'test', '-e', `IOS_QA_EMAIL=${email}`, '-e', `IOS_QA_PASSWORD=${password}`, '-e', `IOS_QA_TASK=${title}`,
+        '--debug-output', path.join(runDir, name), '--test-output-dir', path.join(runDir, name), `.maestro/${name}.yaml`], name);
+    } catch (error) {
+      try {
+        await command(cli, ['--device', config.udid, 'hierarchy'], 'private-hierarchy');
+        const raw = readFileSync(path.join(runDir, 'private-hierarchy.log'), 'utf8');
+        const hierarchy = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+        writeFileSync(path.join(root, `artifacts/ios/evidence/${name}-view.json`), `${JSON.stringify(privateViewSummary(hierarchy), null, 2)}\n`);
+      } catch { /* No raw hierarchy fallback. Failure stage/timeline remain available. */ }
+      throw error;
+    }
+  };
   const check = name => { proof.checks.push(name); console.log(`iOS storage acceptance passed: ${name}.`); };
   try {
     await command(pg('initdb'), ['-D', path.join(runDir, 'pg'), '-U', 'campusflow_ios', '--auth-host=scram-sha-256',

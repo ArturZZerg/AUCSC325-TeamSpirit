@@ -47,7 +47,8 @@ API-confirmed task state, API-disconnected cold encrypted session/SQLite restora
 native logout revocation and cache removal. Private credentials/UI dumps remain on the
 disposable runner; public diagnostics precede account creation. No app authentication
 behavior, schema, server deployment or physical-device interaction changes. Local
-artifact/harness tests pass eighteen cases, root lint and mobile types pass. Prior
+artifact/harness tests pass twenty cases, 49 Today/editor/capture cases, root lint
+and mobile types pass. Prior
 head `9be7a3e` passes standard PR/push CI (`38375810030`, `38375803905`, 2,122 tests)
 and actual native signature/entitlement/product verification. Its native run
 `38375810149` reports failed simulator data migration, then cannot launch the app;
@@ -58,6 +59,17 @@ requires an absent API, preventing 401 cleanup from masking a stale local creden
 `a61c0c6` standard PR/push checks pass (`38379422589`, `38379418278`), but native
 `38379422576` proves healthy boot and rejects direct app launch. New exact-head
 native/standard acceptance is required before merge.
+
+`fea92e5` standard PR/push checks pass (`38452499240`, `38452490757`). Its native
+`38452499305` verifies both compiled simulator slices, launches and passes the
+original public flow (140 seconds, zero failures). Ordinary API login reaches Today;
+capture then fails its New task assertion. Task persistence, cold offline restoration
+and logout remain unverified. The revised flow settles navigation and targets the
+actual capture Pressable by stable ID, retaining a single tap and bounded New task
+assertion. Private diagnostic summaries publish only fixed label-presence booleans
+and command/status/timing; raw private dumps remain excluded. New exact-head checks
+remain required. The next unavailable-link screen/gate is isolated in `.local` and
+passes 16 draft cases; it is not part of the active PR.
 
 PR #81's native iOS simulator gate merged as
 `2c5fff3df80553313ebc005a0eeb3214c0d15339`. Standard CI

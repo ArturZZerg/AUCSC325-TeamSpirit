@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure } from './ios-storage-acceptance.mjs';
+import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
 
 test('requires an explicit disposable macOS runner and UUID, without an external API', () => {
@@ -16,6 +16,25 @@ test('publishes only a bounded redacted assertion, excluding raw private command
   assert.equal(publicFlowFailure(log, ['private@example.test', 'private-password']), 'Assertion is false: "[private]" is visible)');
   assert.equal(publicFlowFailure('Input text: private-password', ['private-password']), undefined);
   assert.equal(publicFlowFailure(`\x1b[31mElement not found: ${'x'.repeat(500)}\x1b[0m`, []).length, 250);
+});
+
+test('private flow timeline publishes only known actions, states and numeric timing', () => {
+  const privateText = 'private@example.test secret-password';
+  const result = privateFlowTimeline([{ command: { inputTextCommand: { text: privateText } },
+    metadata: { status: 'COMPLETED', duration: 500, sequenceNumber: 2, hierarchy: privateText } },
+  { command: { defineVariablesCommand: { env: { PASSWORD: privateText } } }, metadata: { status: privateText, sequenceNumber: 1 } }]);
+  assert.deepEqual(result, [{ sequence: 1, action: 'defineVariablesCommand', status: 'UNKNOWN', durationMs: null },
+    { sequence: 2, action: 'inputTextCommand', status: 'COMPLETED', durationMs: 500 }]);
+  assert.ok(!JSON.stringify(result).includes(privateText));
+  assert.deepEqual(privateFlowTimeline(undefined), []);
+});
+
+test('private screen diagnostics output fixed label-presence booleans only', () => {
+  const result = privateViewSummary({ children: [{ attributes: { text: 'Your daily flow', id: 'today-add-task' } },
+    { attributes: { text: 'private@example.test', input: 'secret-password', token: 'private-token' } }] });
+  assert.deepEqual(result, { auth: false, today: true, editor: false, capture: true, titleInput: false, save: false, cleanupRetry: false });
+  assert.ok(Object.values(result).every(value => typeof value === 'boolean'));
+  assert.ok(!JSON.stringify(result).includes('private'));
 });
 
 const task = { id: '11111111-2222-4333-8444-555555555555', title: 'Synthetic study', description: null,
