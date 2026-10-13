@@ -52,6 +52,8 @@ export default function SettingsScreen() {
       <Text style={styles.muted}>Time zone: {session?.user.timeZone}</Text><Button title="Account & privacy" tone="plain" onPress={() => router.push('/account')}/><Button title="Sign out" tone="danger" onPress={() => void signOut()}/></Card>
     <Card><Text style={styles.label}>Canvas</Text><Text style={styles.muted}>Canvas authorization will appear here after the university approves a developer key, scopes, and HTTPS callback. This build does not ask for or store a personal Canvas token.</Text></Card>
     <Card><Text style={styles.label}>Notifications</Text><State loading={preferences.isLoading} error={preferences.error}/>
+      <Text style={styles.muted}>Review reminder times and open the saved item behind each nudge.</Text>
+      <Button title="Open my reminders" tone="plain" onPress={() => router.push('/reminders')}/>
       {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
       <Button title="Allow device notifications" tone="plain" disabled={disabled} onPress={() => { void run(async () => {
         const granted = await ensureNotificationPermission();

@@ -47,6 +47,11 @@ it('routes signed-in guides and reminder controls to the existing workspaces', (
   fireEvent.press(screen.getByRole('button', { name: 'Notification settings' })); expect(mockRouter.push).toHaveBeenCalledWith('/settings');
   fireEvent.press(screen.getByRole('button', { name: 'Back to CampusFlow' })); expect(mockRouter.replace).toHaveBeenCalledWith('/today');
 });
+it('opens saved reminder browsing from the signed-in reminder guide', () => {
+  mockSession = {}; render(<Help/>); fireEvent.press(screen.getByRole('button', { name: 'Why didn’t a reminder arrive?' }));
+  fireEvent.press(screen.getByRole('button', { name: 'Open my reminders' })); expect(mockRouter.push).toHaveBeenCalledWith('/reminders');
+  expect(screen.getByText(/It is not a delivery history/)).toBeOnTheScreen();
+});
 it('keeps navigation disabled while the account session is restoring', () => {
   mockReady = false; render(<Help/>); expect(screen.getByRole('button', { name: 'Back to sign in' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Account & privacy' })).toBeDisabled();

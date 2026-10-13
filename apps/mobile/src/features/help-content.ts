@@ -2,7 +2,7 @@ export const helpTopics = ['Study & planning', 'Using CampusFlow', 'Your data'] 
 export type HelpTopic = (typeof helpTopics)[number];
 export type HelpArticle = {
   id: string; topic: HelpTopic; question: string; answer: string; keywords: string;
-  action?: { label: string; path: '/tasks' | '/planner' | '/academics' | '/study-plans' | '/focus' | '/settings' | '/account' };
+  action?: { label: string; path: '/tasks' | '/planner' | '/academics' | '/study-plans' | '/focus' | '/settings' | '/account' | '/reminders' };
 };
 
 export const helpArticles: readonly HelpArticle[] = [
@@ -24,8 +24,8 @@ export const helpArticles: readonly HelpArticle[] = [
   { id: 'offline', topic: 'Using CampusFlow', question: 'What can I do without a connection?', keywords: 'offline wifi network cache internet sync failed save',
     answer: 'Previously saved information can be read from this device’s cache. Saved or stale notices show when fresh information is unavailable. Changes need a connection to CampusFlow; they are not queued for later. If a save fails, keep the editor open and retry when connected.' },
   { id: 'reminders', topic: 'Using CampusFlow', question: 'Why didn’t a reminder arrive?', keywords: 'notifications permission quiet hours edit delete device refresh',
-    answer: 'Allow notifications on this device, check the reminder category and quiet hours in Settings, then refresh device reminders. Reminders are scheduled on each device. Server changes cannot update another offline device’s existing schedule until it refreshes.',
-    action: { label: 'Open notification settings', path: '/settings' } },
+    answer: 'Allow notifications on this device, check the reminder category and quiet hours in Settings, then refresh device reminders. My reminders shows saved times and opens the matching task, coursework, routine or saved event. It is not a delivery history. Reminders are scheduled on each device. Server changes cannot update another offline device’s existing schedule until it refreshes.',
+    action: { label: 'Open my reminders', path: '/reminders' } },
   { id: 'saved-data', topic: 'Your data', question: 'Where are my student records and check-ins saved?', keywords: 'privacy wellness journal mood energy stress note account server',
     answer: 'Your email, name and time zone identify your CampusFlow account. Saved tasks, coursework, classes, plans, study time, routines, check-ins and saved-event choices are stored with that account on the CampusFlow server. Optional check-in ratings and notes are sent when you save. This device also keeps account-specific cached information for offline reading.',
     action: { label: 'Manage account & data', path: '/account' } },

@@ -2,6 +2,25 @@
 
 Updated: 2026-10-12
 
+Reminder center and native notification taps: Settings exposes saved
+reminder browsing/search, effective quiet-hour times and subject-specific existing
+editors. Default taps wait for restored session/navigation, validate owned stable
+identities and reject stale account/token responses; no arbitrary payload URL is
+followed. API contracts, persistence and account-only sign-in continuation remain
+unchanged. Integrated root checks and the updated native-tool suite pass 2,060
+tests; fresh web, x86 and ARM previews pass. The current x86 APK proves actual
+warm/cold API-disconnected notification taps, ordinary-launch non-replay, stale/
+invalid link recovery, fourteen inset checks and 320px/150% text acceptance.
+Temporary reminder/display changes are undone; both synthetic task/account and
+the separate Pixel QA data are preserved. See [requirements](../docs/requirements/reminder-center.md)
+and [native evidence](../docs/requirements/android-reminder-center-2026-10-12.md).
+Exact-head review/CI/merge remains the final delivery gate for this slice.
+
+Next safe release task: establish an iOS simulator build/acceptance gate on a
+supported host. Unknown native paths still use SDK Unmatched Route and need a
+clear recovery path. Production hosting/email, contact/operator details,
+signing/privacy and physical acceptance remain pending; source stays local.
+
 Goal: extend the MVP with complete student workflows, preserving the accepted
 architecture and five-tab navigation, through validated PR/review/merge cycles.
 Release priority remains native Android/iOS first, confirmed by the user after
