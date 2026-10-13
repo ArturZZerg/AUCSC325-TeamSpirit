@@ -17,13 +17,24 @@ and [native evidence](../docs/requirements/android-reminder-center-2026-10-12.md
 PR #79 passed author self-review and both exact-head CI runs, merged as
 `ffba4dd9726aa7b8921e402abd95700c66ea6031`, and its exact-main CI passed.
 
-Current release task: finish PR #81's native iOS simulator gate. Standard CI
+Current release task: discard invalid queued reminder taps before navigation
+mounts. Four behavior regressions reproduce confirmed sign-out/different-owner/
+changed-token replay across delayed navigation and verify future owned deliveries
+remain usable. The adapter now rejects restored incompatible context immediately,
+while valid cold-start taps still wait for navigation. All 1,087 mobile tests,
+mobile types and root lint pass. Exact-head CI/PR delivery is in progress; no API,
+schema or auth-continuation change is introduced.
+
+PR #81's native iOS simulator gate merged as
+`2c5fff3df80553313ebc005a0eeb3214c0d15339`. Standard CI
 passes 2,112 tests. A diagnostic unsigned Release build and actual public
 Help/search/account/cold-start flow pass on Xcode/iOS SDK 26.2; actual native
 callback logs show proper forwarding. The first warm-link assertion had failed
 in an earlier run. Temporary probes are now removed and the original first-link
-order is restored for final-source acceptance before review/merge. The next run
-uses a bounded 45-second wait after the first OS confirmation: the last native
+order was restored for final-source acceptance, which passed at `79b9313` in
+run `38366147179` (one public flow, zero failures, 104 seconds). Final archive
+SHA-256: `B1E9A15522E23BAAE53590279F412A42593CE086F35A288245407D66FA5497C1`.
+The flow uses a bounded 45-second wait after the first OS confirmation: the prior native
 log delivered the URI after the assertion ended, and its later full frame shows
 correct Help. Unsigned Keychain entitlement failures keep authenticated storage
 acceptance open. Full simctl
