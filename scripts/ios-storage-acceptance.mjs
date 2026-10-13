@@ -89,7 +89,7 @@ export function privateViewSummary(hierarchy) {
   const known = { auth: 'Welcome back', today: 'Your daily flow', editor: 'New task', capture: 'today-add-task',
     titleInput: 'task-title', save: 'Save task', cleanupRetry: 'Retry device cleanup',
     savePassword: 'Save Password', notNow: 'Not Now', passwords: 'Passwords',
-    settingsTab: 'Settings, tab, 5 of 5', settings: 'Settings', signOut: 'Sign out' };
+    settingsTab: 'Settings, tab, 5 of 5', settings: 'Settings', signOut: 'Sign out', unavailable: 'This page isn’t available.' };
   const result = Object.fromEntries(Object.keys(known).map(name => [name, false]));
   function visit(value, depth) {
     if (depth > 40 || value === null || typeof value !== 'object') return;

@@ -175,9 +175,25 @@ correct Help. Unsigned Keychain entitlement failures keep authenticated storage
 acceptance open. Full simctl
 images confirm public screen spacing; Maestro images omit system chrome. See
 [the gate](../docs/requirements/ios-simulator-preview.md).
-Unknown native paths still use SDK Unmatched Route and need a
+Merged main's unknown native paths still use SDK Unmatched Route and need a
 clear recovery path. Production hosting/email, contact/operator details,
 signing/privacy and physical acceptance remain pending; source stays local.
+
+Next feature branch `codex/native-link-recovery` implements branded unavailable-link
+recovery while PR #83's exact `a85fa8e` native run (`38468138262`) remains active;
+both its standard PR/push checks pass (`38468138308`, `38468131011`). The feature
+uses fixed Today/sign-in/Help recovery actions after restoration, ignores incoming
+path/query values, and permits only the exact generic `+not-found` public leaf.
+Known private routes and Account continuation remain guarded. Twelve new behavior
+cases pass, including seven mounted installed-Router cases; the targeted suite has
+32 passing tests. Native flows append warm/cold generic recovery and require return
+to the same cached task with the API absent. Full local checks and fresh web export
+pass (256 API database cases skipped locally). Actual browser recovery/Help and
+keyboard sign-in pass; reviewed 320px/150%-zoom/1280px frames show no horizontal
+overflow. The task-owned browser/server are stopped. Native evidence, review and
+feature PR remain pending. See
+[requirements](../docs/requirements/native-link-recovery.md). No API/schema or
+deployment change is introduced. Do not merge this feature ahead of PR #83.
 
 Goal: extend the MVP with complete student workflows, preserving the accepted
 architecture and five-tab navigation, through validated PR/review/merge cycles.

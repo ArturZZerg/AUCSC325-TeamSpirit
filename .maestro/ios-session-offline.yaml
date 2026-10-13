@@ -11,4 +11,19 @@ name: iOS cold encrypted-session and SQLite restoration without API
     direction: DOWN
 - assertVisible: ${IOS_QA_TASK}
 - assertNotVisible: Welcome back
+- openLink: campusflow:///unavailable-link
+- runFlow: ios-confirm-link.yaml
+- extendedWaitUntil:
+    visible: This page isn’t available.
+    timeout: 30000
+- waitForAnimationToEnd
+- tapOn: Back to Today
+- extendedWaitUntil:
+    visible: Your daily flow
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: ${IOS_QA_TASK}
+    direction: DOWN
+- assertVisible: ${IOS_QA_TASK}
 - stopApp
