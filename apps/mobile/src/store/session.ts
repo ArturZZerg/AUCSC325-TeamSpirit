@@ -1,7 +1,7 @@
 import { sessionStorage } from '@/services/session-storage';
 import { clearAccountExports } from '@/services/account-export';
 import { create } from 'zustand';
-import { sessionSchema } from '@campusflow/contracts';
+import { sessionSchema, userSchema } from '@campusflow/contracts';
 import type { Session } from '@/lib/types';
 import { queryClient } from '@/lib/query-client';
 import { clearAccountCache, deleteCache } from '@/services/cache';
@@ -33,7 +33,9 @@ async function cleanup() {
   cleanupAccounts.clear();
 }
 type State = { session: Session | null; ready: boolean; cleanupError: string | null; accountDeleted: boolean; sessionUnavailable: boolean;
-  restore(): Promise<void>; setSession(session: Session): Promise<void>; signOut(options?: { deleted?: boolean; unavailable?: boolean }): Promise<void>; retryCleanup(): Promise<void> };
+  restore(): Promise<void>; setSession(session: Session): Promise<void>;
+  syncProfile(accountId: string, token: string, value: unknown, isCurrent?: () => boolean): Promise<void>;
+  signOut(options?: { deleted?: boolean; unavailable?: boolean }): Promise<void>; retryCleanup(): Promise<void> };
 export const useSessionStore = create<State>((set, get) => ({
   session: null, ready: false, cleanupError: null, accountDeleted: false, sessionUnavailable: false,
   async restore() {
@@ -69,6 +71,32 @@ export const useSessionStore = create<State>((set, get) => ({
       await sessionStorage.write(JSON.stringify(session));
       if (settingRevision === revision) set({ session, ready: true, cleanupError: null, accountDeleted: false, sessionUnavailable: false });
     });
+  },
+  async syncProfile(accountId, token, value, isCurrent = () => true) {
+    const user = userSchema.parse(value);
+    const previous = get().session;
+    if (!isCurrent() || user.id !== accountId || previous?.user.id !== accountId || previous.accessToken !== token) return;
+    const syncingRevision = ++revision;
+    const current = () => isCurrent() && syncingRevision === revision
+      && get().session?.user.id === accountId && get().session?.accessToken === token;
+    const zoneChanged = previous.user.timeZone !== user.timeZone;
+    // Cancel old calendar reads before publishing the new timezone. Preserve
+    // SQLite records and Focus drafts; profile refresh is not a fresh login.
+    if (zoneChanged) await queryClient.cancelQueries({ queryKey: ['account', accountId] });
+    if (!current()) return;
+    const session = { ...previous, user };
+    if (JSON.stringify(previous.user) !== JSON.stringify(user)) set({ session });
+    const persistence = serialize(async () => {
+      if (current()) await sessionStorage.write(JSON.stringify(session));
+    });
+    // Revalidation must not depend on session storage succeeding. Same-profile
+    // checks also retry persistence after a previous device write failure.
+    if (zoneChanged && current()) {
+      void queryClient.invalidateQueries({ queryKey: ['account', accountId] }).catch(() => {
+        // Query errors remain visible with cached reads; foreground refresh can retry.
+      });
+    }
+    await persistence;
   },
   async signOut(options) {
     const session = get().session;

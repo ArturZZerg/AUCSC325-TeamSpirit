@@ -1,3 +1,5 @@
+import { waitFor } from '@testing-library/react-native';
+import { focusOwner, useFocusStore } from '../src/store/focus';
 import * as SecureStore from 'expo-secure-store';
 import { useSessionStore } from '../src/store/session';
 import { queryClient } from '../src/lib/query-client';
@@ -91,4 +93,50 @@ describe('local account lifecycle (ToR 19)', () => {
     await useSessionStore.getState().retryCleanup(); expect(useSessionStore.getState().cleanupError).toBeNull();
     await useSessionStore.getState().setSession(second); expect(useSessionStore.getState()).toMatchObject({ session: second, accountDeleted: false });
   });
+});
+
+it('preserves an active Focus draft, credentials and account caches during timezone synchronization', async () => {
+  useSessionStore.setState({ session: first, ready: true });
+  const owner = focusOwner(first)!;
+  useFocusStore.getState().configure(owner, 25, { id: '20000000-0000-4000-8000-000000000001', title: 'Study' });
+  useFocusStore.getState().start(owner);
+  const draft = useFocusStore.getState();
+  queryClient.setQueryData(['account', first.user.id, 'tasks'], ['cached task']);
+  queryClient.setQueryData(['account', second.user.id, 'tasks'], ['other account']);
+  await useSessionStore.getState().syncProfile(first.user.id, first.accessToken, { ...first.user, timeZone: 'UTC' });
+  expect(useFocusStore.getState()).toBe(draft);
+  expect(focusOwner(useSessionStore.getState().session)).toBe(owner);
+  expect(useSessionStore.getState().session).toEqual({ ...first, user: { ...first.user, timeZone: 'UTC' } });
+  expect(queryClient.getQueryData(['account', first.user.id, 'tasks'])).toEqual(['cached task']);
+  expect(queryClient.getQueryState(['account', first.user.id, 'tasks'])?.isInvalidated).toBe(true);
+  expect(queryClient.getQueryState(['account', second.user.id, 'tasks'])?.isInvalidated).toBe(false);
+  expect(deleteCache).not.toHaveBeenCalled(); expect(clearAccountCache).not.toHaveBeenCalled();
+  expect(clearScheduledReminders).not.toHaveBeenCalled();
+});
+it('rechecks ownership after cancelling reads before applying a profile', async () => {
+  useSessionStore.setState({ session: first, ready: true });
+  let finish!: () => void;
+  const cancel = jest.spyOn(queryClient, 'cancelQueries').mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  const syncing = useSessionStore.getState().syncProfile(first.user.id, first.accessToken, { ...first.user, timeZone: 'UTC' });
+  await useSessionStore.getState().setSession(second);
+  finish(); await syncing;
+  expect(useSessionStore.getState().session).toEqual(second);
+  expect(SecureStore.setItemAsync).toHaveBeenCalledTimes(1);
+  cancel.mockRestore();
+});
+
+it('serializes a pending profile write before logout cleanup and a newer login', async () => {
+  useSessionStore.setState({ session: first, ready: true });
+  let finish!: () => void;
+  jest.mocked(SecureStore.setItemAsync).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const syncing = useSessionStore.getState().syncProfile(first.user.id, first.accessToken, { ...first.user, timeZone: 'UTC' });
+  await waitFor(() => expect(SecureStore.setItemAsync).toHaveBeenCalledTimes(1));
+  const logout = useSessionStore.getState().signOut({ unavailable: true });
+  const login = useSessionStore.getState().setSession(second);
+  expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
+  finish(); await syncing; await logout; await login;
+  expect(useSessionStore.getState().session).toEqual(second);
+  expect(SecureStore.setItemAsync).toHaveBeenLastCalledWith('campusflow.session.v1', JSON.stringify(second));
+  expect(jest.mocked(SecureStore.deleteItemAsync).mock.invocationCallOrder[0])
+    .toBeLessThan(jest.mocked(SecureStore.setItemAsync).mock.invocationCallOrder[1]);
 });

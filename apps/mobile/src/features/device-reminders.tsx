@@ -14,7 +14,9 @@ export function DeviceReminderSync() {
   const failure = useReminderStatus();
   useEffect(() => {
     let active = true;
-    const isCurrent = () => active && !!session && useSessionStore.getState().session?.accessToken === session.accessToken;
+    const isCurrent = () => active && !!session && useSessionStore.getState().session?.accessToken === session.accessToken
+      && useSessionStore.getState().session?.user.id === session.user.id
+      && useSessionStore.getState().session?.user.timeZone === session.user.timeZone;
     if (Platform.OS !== 'web' && session && reminders.data && preferences.data) {
       void reconcileReminders(reminders.data, { accountId: session.user.id, timeZone: session.user.timeZone,
         preferences: preferences.data, isCurrent }).catch(() => { /* The service exposes account-scoped retry status. */ });

@@ -170,3 +170,16 @@ describe('Academic deadline reminder DTO consumer contract', () => {
     expect(scheduled).toHaveLength(1); expect(scheduled[0].content.data?.accountId).toBe(next.accountId);
   });
 });
+
+it('reschedules an unchanged reminder for the new timezone across DST quiet hours', async () => {
+  jest.mocked(Date.now).mockReturnValue(Date.parse('2025-03-09T05:00:00Z'));
+  const owner = context(); owner.preferences.quietHoursStart = '22:00'; owner.preferences.quietHoursEnd = '07:00';
+  const quiet = { ...reminder, fireAt: '2025-03-09T05:30:00Z' };
+  await reconcileReminders([quiet], owner);
+  expect(scheduled[0].content.data?.fireAt).toBe('2025-03-09T13:00:00.000Z');
+  await reconcileReminders([quiet], { ...owner, timeZone: 'UTC' });
+  expect(scheduled).toHaveLength(1);
+  expect(scheduled[0].content.data?.fireAt).toBe('2025-03-09T07:00:00.000Z');
+  expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
+  expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
+});
