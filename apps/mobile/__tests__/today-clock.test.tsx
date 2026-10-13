@@ -443,3 +443,25 @@ it('uses newer snapshot goal history and exclusions while removing obsolete serv
   await act(async () => { await result.current.refetch(); });
   await waitFor(() => expect(result.current.data).toEqual(latest));
 });
+
+it('withholds old-zone SQLite Today data after profile synchronization and retains refreshed offline data', async () => {
+  const old = plan('2026-10-03', 'Old zone task');
+  jest.mocked(readCache).mockImplementation(async (_account, key) => key === 'today:2026-10-03' ? old : undefined);
+  jest.mocked(api).mockRejectedValue(new Error('offline'));
+  const { result } = renderHook(() => useToday('2026-10-03'), { wrapper: Wrapper });
+  await waitFor(() => expect(result.current.data).toEqual(old));
+  await act(async () => { await useSessionStore.getState().syncProfile(session.user.id, session.accessToken,
+    { ...session.user, timeZone: 'America/Vancouver' }); });
+  await waitFor(() => expect(result.current.isFetching).toBe(false));
+  expect(result.current.timeZone).toBe('America/Vancouver');
+  expect(result.current.data).toBeUndefined();
+  const fresh = plan('2026-10-03', 'New zone task');
+  jest.mocked(api).mockImplementation(async path => path.startsWith('/today') ? fresh : Promise.reject(new Error('offline')));
+  await act(async () => { await result.current.refetch(); });
+  await waitFor(() => expect(result.current.data).toEqual(fresh));
+  expect(writeCache).toHaveBeenCalledWith(session.user.id, 'today:2026-10-03', fresh);
+  jest.mocked(api).mockRejectedValue(new Error('offline'));
+  jest.mocked(readCache).mockImplementation(async (_account, key) => key === 'today:2026-10-03' ? fresh : undefined);
+  await act(async () => { await result.current.refetch(); });
+  expect(result.current.data).toEqual(fresh);
+});

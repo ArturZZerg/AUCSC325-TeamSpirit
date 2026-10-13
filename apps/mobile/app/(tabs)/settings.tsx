@@ -39,7 +39,9 @@ export default function SettingsScreen() {
     if (!records || !settings) throw new Error('Connect to refresh your notification settings.');
     await reconcileReminders(records, { accountId: session.user.id, timeZone: session.user.timeZone,
       preferences: settings,
-      isCurrent: () => useSessionStore.getState().session?.accessToken === session.accessToken });
+      isCurrent: () => useSessionStore.getState().session?.accessToken === session.accessToken
+        && useSessionStore.getState().session?.user.id === session.user.id
+        && useSessionStore.getState().session?.user.timeZone === session.user.timeZone });
   };
 
   return <Screen><ScrollView contentContainerStyle={styles.content}>

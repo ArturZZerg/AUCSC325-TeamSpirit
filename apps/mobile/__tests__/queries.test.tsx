@@ -305,3 +305,34 @@ describe('account-scoped cached query lifecycle (ToR 10, 19)', () => {
     expect(writeCache).not.toHaveBeenCalled();
   });
 });
+
+it('does not cache an obsolete read cancelled by timezone synchronization', async () => {
+  const pending = deferred<typeof oldTasks>();
+  jest.mocked(api).mockReturnValueOnce(pending.promise);
+  const { result } = renderHook(() => useTasks(), { wrapper: Wrapper });
+  await waitFor(() => expect(api).toHaveBeenCalledTimes(1));
+  const signal = jest.mocked(api).mock.calls[0][1]?.signal;
+  await act(async () => { await useSessionStore.getState().syncProfile(first.user.id, first.accessToken,
+    { ...first.user, timeZone: 'UTC' }); });
+  expect(signal?.aborted).toBe(true);
+  await waitFor(() => expect(result.current.data).toEqual(freshTasks));
+  await act(async () => { pending.resolve(oldTasks); });
+  expect(result.current.data).toEqual(freshTasks);
+  expect(writeCache).toHaveBeenCalledTimes(1);
+  expect(writeCache).toHaveBeenCalledWith(first.user.id, 'tasks', freshTasks);
+});
+it.each([second, { ...first, accessToken: 'renewed-token' }])('does not cache a late background refetch after ownership changes', async fresh => {
+  const pending = deferred<typeof oldTasks>();
+  const { result } = renderHook(() => useTasks(), { wrapper: Wrapper });
+  await waitFor(() => expect(result.current.data).toEqual(freshTasks));
+  jest.mocked(api).mockReturnValueOnce(pending.promise);
+  await act(async () => { await useSessionStore.getState().syncProfile(first.user.id, first.accessToken,
+    { ...first.user, timeZone: 'UTC' }); });
+  const signal = jest.mocked(api).mock.calls.at(-1)?.[1]?.signal;
+  expect(signal?.aborted).toBe(false);
+  await act(async () => { await useSessionStore.getState().setSession(fresh); });
+  await waitFor(() => expect(useSessionStore.getState().session).toEqual(fresh));
+  await act(async () => { pending.resolve(oldTasks); });
+  expect(jest.mocked(writeCache).mock.calls.some(([, , rows]) => JSON.stringify(rows) === JSON.stringify(oldTasks))).toBe(false);
+  expect(useSessionStore.getState().session).toEqual(fresh);
+});

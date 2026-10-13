@@ -74,3 +74,13 @@ describe('device reminder lifecycle (ToR 13, 19)', () => {
     expect(reconcileReminders).not.toHaveBeenCalled(); expect(refreshReminders).not.toHaveBeenCalled();
   });
 });
+
+it('reconciles the synchronized timezone and invalidates pending schedules for the old zone', async () => {
+  render(<DeviceReminderSync/>); await act(async () => {});
+  const previous = jest.mocked(reconcileReminders).mock.calls[0][1];
+  await act(async () => { await useSessionStore.getState().syncProfile(session.user.id, session.accessToken, { ...session.user, timeZone: 'UTC' }); });
+  expect(previous.isCurrent()).toBe(false);
+  const current = jest.mocked(reconcileReminders).mock.calls.at(-1)![1];
+  expect(current.timeZone).toBe('UTC'); expect(current.accountId).toBe(session.user.id);
+  expect(current.isCurrent()).toBe(true);
+});

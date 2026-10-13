@@ -28,6 +28,8 @@ invalid key even with mail disabled; local/test without it retains bounded local
 preview protections. Changing this key changes anonymous quota identity, so
 rotation requires a reviewed abuse/rollout plan. It is never a client setting.
 
+Successful current-owner `/me` checks synchronize validated profile fields while preserving credentials and Focus drafts. A timezone change cancels old account reads and invalidates account queries; cached calendar data must match the new timezone before display. Device reminder reconciliation rejects pending work for the old timezone and reschedules using the updated profile. Failed profile persistence is retried on the next successful check. Query revalidation runs in the background; the access-check deadline releases its gate even if cancellation or ordered persistence is still pending. Expired work cannot apply a profile or release a newer check’s gate.
+
 The additive migration adds nullable User ownership and a cascade to the existing
 private counter table. No legacy data backfill, auth framework, queue or dependency
 is added. Counter expiry uses UTC instants even on non-UTC database connections.
