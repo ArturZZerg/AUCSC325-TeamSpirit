@@ -1,4 +1,4 @@
-import { createPersonalTaskSchema, dateSchema, localTimeSchema } from '@campusflow/contracts';
+import { createPersonalTaskRequestSchema, dateSchema, localTimeSchema } from '@campusflow/contracts';
 import { instantAtLocalTime, localDateAt } from '@campusflow/domain';
 import { z } from 'zod';
 import { taskTimingLabel } from './task-form';
@@ -33,7 +33,7 @@ export function studyTaskTitle(item: AcademicItem, step: typeof studySteps[numbe
   return `${step.prefix}: ${item.title}`.slice(0, 240);
 }
 
-export function studyPlanRequest(item: AcademicItem, course: string | undefined, values: StudyPlanValues, timeZone: string) {
+export function studyPlanRequest(item: AcademicItem, course: string | undefined, values: StudyPlanValues, timeZone: string, requestKey?: string) {
   const valid = studyPlanSchema(timeZone).parse(values);
   // Context is a note captured when planning, not a live link or Canvas submission.
   const description = [
@@ -42,12 +42,17 @@ export function studyPlanRequest(item: AcademicItem, course: string | undefined,
     `Deadline when planned: ${taskTimingLabel(item.due, timeZone)}`,
     '', valid.notes,
   ].filter(line => line !== undefined).join('\n');
-  return { path: '/tasks', method: 'POST', body: createPersonalTaskSchema.parse({
+  return { path: '/tasks', method: 'POST', body: createPersonalTaskRequestSchema.parse({
+    ...(requestKey === undefined ? {} : { requestKey }),
     title: valid.title, description, category: 'university', priority: 'medium',
     due: null, scheduled: valid.time ? { kind: 'instant', at: instantAtLocalTime(valid.date, valid.time, timeZone) }
       : { kind: 'date', date: valid.date }, estimatedMinutes: Number(valid.minutes),
   }) };
 }
+
+// A save identity, not an authentication credential. Keep it with the attempted
+// request until acknowledged; a new editor creates a genuinely new identity.
+export const studyTaskSaveKey = () => `task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 
 export function studyAfterDeadline(item: AcademicItem, date: string, timeZone: string): boolean {
   const dueDate = item.due?.kind === 'date' ? item.due.date
