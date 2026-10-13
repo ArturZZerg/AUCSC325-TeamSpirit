@@ -49,7 +49,8 @@ sign-out, startup/listener duplication, legacy IDs, malformed identities, native
 failure and listener cleanup. Existing reconciliation tests cover one-time schedule
 upgrade, generic content, category/permission/quiet-hour changes and no duplicates.
 
-Signed native acceptance and exact artifacts are recorded separately. Local
+Signed native acceptance and exact artifacts are recorded in the
+[Android evidence](android-reminder-center-2026-10-12.md). Local
 notification schedules cannot learn server changes while offline, Android delivery
 can be inexact, and this center is not a delivery log. Physical Android and iOS
 acceptance remain release gates.
