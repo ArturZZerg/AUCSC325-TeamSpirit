@@ -520,3 +520,34 @@ Next: review the scoped diff, publish the PR and verify exact-head/main CI. Broa
 physical Android, old Android, iOS, hosting/TLS/mail/policies/store and dependency
 disposition gates remain open. Pixel keep-awake restoration remains pending its
 availability. Source stays local; no deployment or server transfer is performed.
+
+### Today task capture, 2026-10-12
+
+PR #74 is merged after author self-review and successful PR/push CI on reviewed
+head `e8442bd51ea8efc60995e0d211f11c669a72d887` (`38327943034`, `38327938039`).
+Main `6b1985a55b18e674386238ccc84682dab8b0b56a` passes post-merge CI `38328628613`.
+The owner explicitly approved deleting the disposable emulator account. Its native
+password/DELETE form acknowledges deletion without a cleanup error, the verification
+token returns 401, and the separate existing Pixel QA export fingerprint is unchanged.
+Cold Account/Focus remain signed out with no former task/recovery/email visible.
+This does not inspect byte-level cache erasure or every cleanup-failure path.
+
+The next feature adds a prominent Today task-capture action using the existing
+editor, captured displayed calendar day and ordinary task service. Scheduling stays
+separate from the deadline; no date-to-instant conversion or new persisted read
+model is introduced. Private forms retain the existing keyed tab-session boundary.
+Eight Today/editor behavioral cases and three session-transition cases cover the
+new flow. Complete root checks pass all 1,983 tests (646 API, 977 mobile, 135
+contracts, 173 domain, 27 Android tooling and 25 release). The lockfile is unchanged.
+Native capture creates one date-scheduled 20-minute task without a deadline or
+reminder; actual task/Today reads independently confirm it. A selected DST day
+prefills correctly and cancellation creates nothing. Offline cold startup keeps
+the saved task; failed capture keeps its draft. The initial native fetch diagnostic
+is replaced with an unconfirmed-save message that advises checking saved tasks
+before retrying. The final APK exercises that message and its cancellation leaves
+the server count at one. The existing Pixel export fingerprint remains unchanged.
+See [capture evidence](../docs/requirements/today-task-capture.md) for both exact
+APK hashes, final signature/architecture/permission/private-fixture proof and limits.
+The separate synthetic Today account and all credentials/evidence remain local.
+Next: author review, exact-head PR/push CI, merge and exact post-main proof;
+then mounted native incoming-link/lifecycle acceptance. Source stays local.

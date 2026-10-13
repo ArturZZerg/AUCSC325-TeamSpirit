@@ -22,7 +22,7 @@ export default function TodayScreen() {
   const busy = useRef(false);
   const [pending, setPending] = useState<{ key: string; action: PlanAction }>();
   const [failure, setFailure] = useState<{ key: string; message: string }>();
-  const [studyDraft, setStudyDraft] = useState<Partial<TaskFormValues>>();
+  const [taskDraft, setTaskDraft] = useState<Partial<TaskFormValues>>();
 
   const run = async (item: PlanItem, selected: PlanAction) => {
     if (busy.current || action.isPending || !item.allowedActions.includes(selected)) return;
@@ -59,16 +59,18 @@ export default function TodayScreen() {
   };
 
   return <Screen><ScrollView contentContainerStyle={styles.content}
-    aria-hidden={!!studyDraft} accessibilityElementsHidden={!!studyDraft} importantForAccessibility={studyDraft ? 'no-hide-descendants' : 'auto'}
+    aria-hidden={!!taskDraft} accessibilityElementsHidden={!!taskDraft} importantForAccessibility={taskDraft ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
     <Text style={styles.kicker}>{new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}</Text>
     <View style={styles.heading}><Text style={styles.title}>Your daily flow</Text>
       <Button title="Get started" tone="plain" onPress={() => router.push('/get-started')}/></View>
+    <Button title="Add a task to this day" disabled={!!pending || action.isPending || !!taskDraft}
+      onPress={() => setTaskDraft({ scheduledMode: 'date', scheduledDate: date })}/>
     <View style={styles.actions}><Button title="Organise my workload" tone="plain" onPress={() => router.push('/workload')}/><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/><Button title="My study plans" tone="plain" onPress={() => router.push('/study-plans')}/><Button title="Focus space" tone="plain" onPress={() => router.push('/focus')}/></View>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <FocusRecoveryCard/>
     <State loading={query.isLoading} error={query.error}/>
-    <DayAgenda compact date={date} timeZone={query.timeZone} onPlan={setStudyDraft}/>
+    <DayAgenda compact date={date} timeZone={query.timeZone} onPlan={setTaskDraft}/>
     {query.data && !query.data.items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>
       <Text style={styles.meta}>Add a task, keep a deadline in sight, or choose one small routine.</Text>
       <Button title="Build my daily plan" onPress={() => router.push('/get-started')}/></Card>}
@@ -82,7 +84,7 @@ export default function TodayScreen() {
     {query.data?.upcoming.length ? <><Text style={styles.section}>Coming up</Text>
       {query.data.upcoming.map(item => <Card key={item.key}><Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.state}</Text><PlanTiming item={item} timeZone={query.timeZone}/></Card>)}
     </> : null}
-  </ScrollView>{studyDraft && <TaskEditor task={null} timeZone={query.timeZone} initialValues={studyDraft} onClose={() => setStudyDraft(undefined)}/>}</Screen>;
+  </ScrollView>{taskDraft && <TaskEditor task={null} timeZone={query.timeZone} initialValues={taskDraft} onClose={() => setTaskDraft(undefined)}/>}</Screen>;
 }
 
 function PlanCard({ item, timeZone, isCurrentDay, disabled, pendingAction, error, onAction }: {
