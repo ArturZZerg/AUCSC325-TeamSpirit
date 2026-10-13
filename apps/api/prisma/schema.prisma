@@ -19,6 +19,7 @@ model User {
   recoveryMail RecoveryMail[]
   authRateBuckets RecoveryRateBucket[]
   tasks PersonalTask[]
+  taskCreationRequests TaskCreationRequest[]
   studyPlans StudyPlan[]
   focusSessions FocusSession[]
   taskCompletions TaskCompletion[]
@@ -114,9 +115,21 @@ model PersonalTask {
   completions TaskCompletion[]
   focusSessions FocusSession[]
   reminders Reminder[]
+  creationRequest TaskCreationRequest?
   @@index([userId, updatedAt])
   @@index([userId, mainGoalDate])
   @@index([studyPlanId, studyPlanOrder])
+}
+// Creation identity is retained after task deletion to prevent delayed retries
+// from recreating work. Account deletion erases the request metadata.
+model TaskCreationRequest {
+  userId String @db.Uuid
+  requestKey String
+  requestHash String
+  taskId String? @unique @db.Uuid
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  task PersonalTask? @relation(fields:[taskId], references:[id], onDelete:SetNull)
+  @@id([userId, requestKey])
 }
 model StudyPlan {
   id String @id @default(uuid()) @db.Uuid

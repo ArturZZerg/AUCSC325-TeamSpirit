@@ -11,7 +11,7 @@ capture the coursework title, course and deadline at the time of planning;
 this is context, not a synchronized relationship. Subsequent Canvas updates
 remain visible on the academic record. Study-task completion never changes
 submission state. Tasks, Today, weekly planning, cache and reminder editing
-reuse the established task behavior without new storage or dependencies.
+reuse the established task behavior.
 
 The date chips use calendar arithmetic across DST. Explicit times reject missing
 and ambiguous local times. A day after the deadline shows a warning without
@@ -19,6 +19,19 @@ preventing deliberate catch-up work. Failed writes retain the draft and expose
 retry; pending writes block editing, duplicate taps and dismissal. Account/session
 changes dismiss private drafts. Submitted/graded work has no planning action.
 
-Automated evidence: `study-plan.test.ts`, `study-plan-editor.test.tsx`, and
-`academics.test.tsx`. Run root checks and Expo web export. Native keyboard,
+Plan study time sends an optional `POST /tasks` creation key. PostgreSQL records
+the per-account key and canonical payload hash atomically with the ordinary task
+and its reminders. Identical concurrent/retried requests return the same task;
+changed payloads conflict. Task edits do not change the creation identity. Deleted
+tasks retain a request tombstone so retries cannot recreate them; account deletion
+erases this private metadata. Existing unkeyed callers retain ordinary creation.
+After an uncertain failure the editor freezes its exact request/key and notes.
+Retry sends that request unchanged, including after coursework metadata changes.
+A new editor uses a new key. Closing an uncertain attempt tells the student to
+check Tasks before creating again; the request is not a persistent offline outbox.
+
+Automated evidence: `study-plan.test.ts`, `study-plan-editor.test.tsx`,
+`academics.test.tsx`, contract creation-key tests and
+`task-creation-idempotency-db.spec.ts` (including a committed write with a dropped
+HTTP response). Run root checks and Expo web export. Native keyboard,
 screen-reader and touch behavior require an updated device build.

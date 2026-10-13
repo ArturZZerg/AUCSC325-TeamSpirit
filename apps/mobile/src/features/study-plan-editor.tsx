@@ -7,7 +7,9 @@ import { useAction } from './queries';
 import { useTodayClock } from './today-clock';
 import { calendarLabel } from './weekly-planner';
 import { taskTimingLabel } from './task-form';
-import { studyAfterDeadline, studyPlanRequest, studyPlanSchema, studySteps, studyTaskTitle, type StudyPlanValues } from './study-plan';
+import { studyAfterDeadline, studyPlanRequest, studyPlanSchema, studySteps, studyTaskTitle, studyTaskSaveKey, type StudyPlanValues } from './study-plan';
+import { ApiError } from '@/lib/api';
+import { ZodError } from 'zod';
 import type { AcademicItem } from '@/lib/types';
 
 export function StudyPlanEditor({ item, course, timeZone, onClose, onSaved }: {
@@ -16,7 +18,11 @@ export function StudyPlanEditor({ item, course, timeZone, onClose, onSaved }: {
   const { date: today } = useTodayClock(timeZone);
   const action = useAction();
   const busy = useRef(false);
+  const attempted = useRef<ReturnType<typeof studyPlanRequest> | undefined>(undefined);
+  const uncertain = useRef(false);
   const [saving, setSaving] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const disabled = saving || locked;
   const [error, setError] = useState<string>();
   const [step, setStep] = useState<typeof studySteps[number]['id']>('work');
   const [values, setValues] = useState<StudyPlanValues>({ title: studyTaskTitle(item, studySteps[1]), notes: studySteps[1].detail, date: today, time: '', minutes: '25' });
@@ -24,11 +30,19 @@ export function StudyPlanEditor({ item, course, timeZone, onClose, onSaved }: {
   const close = () => { if (!busy.current) onClose(); };
   const save = async () => {
     if (busy.current) return;
-    const result = studyPlanSchema(timeZone).safeParse(values);
-    if (!result.success) { setError(result.error.issues[0].message); return; }
-    busy.current = true; setSaving(true); setError(undefined);
-    try { await action.mutateAsync(studyPlanRequest(item, course, result.data, timeZone)); onSaved(); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not save your study task. Try again.'); }
+    try {
+      const request = attempted.current ?? studyPlanRequest(item, course, studyPlanSchema(timeZone).parse(values), timeZone, studyTaskSaveKey());
+      attempted.current = request;
+      busy.current = true; setSaving(true); setLocked(true); setError(undefined);
+      await action.mutateAsync(request); onSaved();
+    } catch (failure) {
+      // Validation failed before sending, or the API definitively rejected input.
+      // A conflict may refer to an earlier commit/deletion: keep its identity.
+      if (!busy.current || (!uncertain.current && failure instanceof ApiError && failure.status === 400)) {
+        attempted.current = undefined; setLocked(false);
+      } else uncertain.current = true;
+      setError(failure instanceof ZodError ? failure.issues[0].message : failure instanceof Error ? failure.message : 'Could not save your study task. Try again.');
+    }
     finally { busy.current = false; setSaving(false); }
   };
   return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
@@ -38,31 +52,32 @@ export function StudyPlanEditor({ item, course, timeZone, onClose, onSaved }: {
         <Text style={styles.title}>A small step forward.</Text>
         <Card><Text style={styles.kicker}>{course ?? 'COURSEWORK'}</Text><Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>Coursework deadline: {taskTimingLabel(item.due, timeZone)}</Text></Card>
         <Text style={styles.section}>1. Choose your next step</Text>
-        <View style={styles.choices}>{studySteps.map(option => <Choice key={option.id} label={option.label} selected={step === option.id} disabled={saving} onPress={() => {
+        <View style={styles.choices}>{studySteps.map(option => <Choice key={option.id} label={option.label} selected={step === option.id} disabled={disabled} onPress={() => {
           const previous = studySteps.find(value => value.id === step)!;
           setStep(option.id);
           setValues(value => ({ ...value, title: value.title === studyTaskTitle(item, previous) ? studyTaskTitle(item, option) : value.title,
             notes: value.notes === previous.detail ? option.detail : value.notes }));
         }}/>)}</View>
-        <Field label="Study task" value={values.title} onChangeText={value => update('title', value)} editable={!saving}/>
-        <Field label="What will you work on?" value={values.notes} onChangeText={value => update('notes', value)} editable={!saving} multiline/>
+        <Field label="Study task" value={values.title} onChangeText={value => update('title', value)} editable={!disabled}/>
+        <Field label="What will you work on?" value={values.notes} onChangeText={value => update('notes', value)} editable={!disabled} multiline/>
         <Text style={styles.section}>2. Reserve some time</Text>
-        <View style={styles.choices}>{(['25', '50', '90'] as const).map(minutes => <Choice key={minutes} label={`${minutes} min`} selected={values.minutes === minutes} disabled={saving} onPress={() => update('minutes', minutes)}/>)}</View>
+        <View style={styles.choices}>{(['25', '50', '90'] as const).map(minutes => <Choice key={minutes} label={`${minutes} min`} selected={values.minutes === minutes} disabled={disabled} onPress={() => update('minutes', minutes)}/>)}</View>
         <Text style={styles.meta}>One focused block is enough to make progress.</Text>
         <Text style={styles.section}>3. Pick a day</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choices}>
           {Array.from({ length: 7 }, (_, offset) => {
             const date = addCalendarDays(today, offset);
             const label = offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : calendarLabel(date, { weekday: 'short', day: 'numeric' });
-            return <Choice key={date} label={label} selected={values.date === date} disabled={saving} onPress={() => update('date', date)}/>;
+            return <Choice key={date} label={label} selected={values.date === date} disabled={disabled} onPress={() => update('date', date)}/>;
           })}
         </ScrollView>
-        <Field label="Study date" value={values.date} onChangeText={value => update('date', value)} placeholder="YYYY-MM-DD" autoCorrect={false} editable={!saving}/>
-        <Field label="Start time (optional)" value={values.time} onChangeText={value => update('time', value)} placeholder="HH:MM" autoCorrect={false} editable={!saving}/>
+        <Field label="Study date" value={values.date} onChangeText={value => update('date', value)} placeholder="YYYY-MM-DD" autoCorrect={false} editable={!disabled}/>
+        <Field label="Start time (optional)" value={values.time} onChangeText={value => update('time', value)} placeholder="HH:MM" autoCorrect={false} editable={!disabled}/>
         <Text style={styles.meta}>Times follow {timeZone}. Leave the time blank to keep the day flexible.</Text>
         {studyAfterDeadline(item, values.date, timeZone) && <Text style={styles.notice}>This day is after the coursework deadline. Choose an earlier day if you need to finish before it is due.</Text>}
         <Text style={styles.meta}>Saved as your own task in Tasks and your plan. Completing it tracks your preparation; submit coursework in your learning platform.</Text>
         {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+        {locked && !saving && <Text style={styles.notice}>The save may have reached the server. Retry the unchanged task safely, or close and check Tasks before creating another.</Text>}
         <Button title={saving ? 'Saving…' : 'Add to my plan'} disabled={saving} onPress={() => { void save(); }}/>
       </ScrollView>
     </KeyboardAvoidingView>

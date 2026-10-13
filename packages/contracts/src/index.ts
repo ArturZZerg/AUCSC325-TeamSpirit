@@ -47,6 +47,10 @@ export const emailVerificationResultSchema = z.object({ verified: z.literal(true
 
 export const personalTaskSchema = z.object({ id: idSchema, studyPlanId: idSchema.nullable().optional(), title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), createdAt: instantSchema, updatedAt: instantSchema });
 export const createPersonalTaskSchema = personalTaskSchema.pick({ title: true, description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true }).partial({ description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true });
+/** Optional creation identity; never part of editable task state or response DTOs. */
+export const createPersonalTaskRequestSchema = createPersonalTaskSchema.extend({
+  requestKey: z.string().min(16).max(120).regex(/^[A-Za-z0-9-]+$/).optional(),
+});
 export const updatePersonalTaskSchema = createPersonalTaskSchema.partial().strict();
 export const taskQuerySchema = z.object({
   search: z.string().trim().max(240).optional(),

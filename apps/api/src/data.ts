@@ -1,8 +1,9 @@
 import { eventRange, selectEvents } from './integrations/events/event-query';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createManualAcademicItemSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
 import { campusEventSchema } from '@campusflow/contracts';
-import { BadRequestException, Body, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { createPersonalTaskRequestSchema } from '@campusflow/contracts';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { configureAcademicReminderSchema, academicReminderConfigurationSchema, dueSchema, eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema } from '@campusflow/contracts';
@@ -15,6 +16,11 @@ const taskDto = (r:{id:string;title:string;description:string|null;priority:stri
 const goalDto = (r:{id:string;title:string;category:string;schedule:Prisma.JsonValue;timeZone:string;reminder:Prisma.JsonValue|null;pausedAt:Date|null;snoozedUntil:Date|null;createdAt:Date;updatedAt:Date}) => goalSchema.parse({...r,pausedAt:r.pausedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
 const eventDto = (r:{id:string;title:string;description:string|null;category:string|null;source:string;externalId:string;timing:Prisma.JsonValue;location:string|null;url:string|null}) => eventSchema.parse(r);
 const isExplicitReminder = (reminder: unknown): reminder is { kind: 'instant'; at: string } => Boolean(reminder && typeof reminder === 'object' && 'kind' in reminder && reminder.kind === 'instant' && 'at' in reminder && typeof reminder.at === 'string');
+// Boundary-validated instants are UTC. Normalize spelling only for hashing,
+// preserving fractional precision rather than truncating through JavaScript Date.
+const canonicalTaskTime = (value: z.infer<typeof dueSchema> | null | undefined) => value?.kind === 'instant'
+  ? { kind: 'instant', at: value.at.replace(/T(\d{2}:\d{2})Z$/, 'T$1:00Z')
+    .replace(/(\.\d*?[1-9])0+Z$/, '$1Z').replace(/\.0+Z$/, 'Z') } : value ?? null;
 
 @Injectable() export class ReminderService {
   constructor(private readonly prisma:PrismaService) {}
@@ -92,9 +98,25 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
     return (await this.prisma.personalTask.findMany({ where, orderBy: { updatedAt: 'desc' } })).map(taskDto);
   }
 
-  @Post() async create(@CurrentUser() u: RequestUser, @Body(new ZodPipe(createPersonalTaskSchema)) b: z.infer<typeof createPersonalTaskSchema>) {
+  @Post() async create(@CurrentUser() u: RequestUser, @Body(new ZodPipe(createPersonalTaskRequestSchema)) b: z.infer<typeof createPersonalTaskRequestSchema>) {
     validateTaskAnchor(b);
+    // Zod normalizes nested object field order. Defaults/nulls match persisted
+    // task semantics, so omitted defaults and reordered JSON replay identically.
+    const requestHash = createHash('sha256').update(JSON.stringify({ title: b.title, description: b.description ?? null,
+      priority: b.priority ?? 'medium', category: b.category ?? 'personal', due: canonicalTaskTime(b.due), scheduled: canonicalTaskTime(b.scheduled),
+      recurrence: b.recurrence ?? null, reminder: canonicalTaskTime(b.reminder), estimatedMinutes: b.estimatedMinutes ?? null })).digest('hex');
     return this.prisma.$transaction(async tx => {
+      if (b.requestKey) {
+        // Serialize account-scoped creation retries, following Focus/StudyPlan.
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${u.id}::uuid FOR UPDATE`;
+        const existing = await tx.taskCreationRequest.findUnique({ where: { userId_requestKey: { userId: u.id, requestKey: b.requestKey } } });
+        if (existing) {
+          if (existing.requestHash !== requestHash) throw new ConflictException('This save key belongs to a different task.');
+          const task = existing.taskId ? await tx.personalTask.findFirst({ where: { id: existing.taskId, userId: u.id } }) : null;
+          if (!task) throw new ConflictException('This task was deleted. Check Tasks before creating another.');
+          return taskDto(task);
+        }
+      }
       const task = await tx.personalTask.create({ data: {
         userId: u.id, title: b.title, description: b.description ?? null,
         priority: b.priority ?? 'medium', category: b.category ?? 'personal',
@@ -103,6 +125,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
         reminder: b.reminder ? asJson(b.reminder) : Prisma.JsonNull, estimatedMinutes: b.estimatedMinutes ?? null,
       } });
       await this.reminders.replace(u.id, 'personalTask', task.id, b.reminder, tx);
+      if (b.requestKey) await tx.taskCreationRequest.create({ data: { userId: u.id, requestKey: b.requestKey, requestHash, taskId: task.id } });
       return taskDto(task);
     });
   }
