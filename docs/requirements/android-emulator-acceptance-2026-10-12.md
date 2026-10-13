@@ -50,6 +50,7 @@ Only that emulator forwards port 3000 to the PC's loopback API port 18780.
 | Remove the reminder in its native editor | API intent/configuration and all pending CampusFlow alarms are absent |
 | Start task-linked focus, force-stop, cold-launch, use Today's recovery action | A paused checkpoint retains 23:46 of the 25-minute block; it offers explicit resume/save/discard controls |
 | Save recovered time explicitly | API confirms exactly one linked interrupted focus record with 74 focused seconds, matching the paused checkpoint |
+| Force-stop and open one cold Focus or Account URI | Each reaches its expected signed-in screen; the explicitly saved focus draft does not reappear |
 
 Android's outer navigation container can appear as a full-window ScrollView in
 the accessibility tree even when the workspace is inset. The geometry checker
@@ -70,8 +71,9 @@ Broader account cleanup remains a separate observation. The changing running
 timer prevents the standard UiAutomator command from reaching idle; lifecycle
 restart and the paused recovery controls provide inspectable snapshots. A link
 sent immediately during initial session restoration returned to Today in this
-run; the observed recovery action opens the restored block. Do not treat that
-attempt as successful cold incoming-link acceptance.
+run; the observed recovery action opens the restored block. A later single cold
+URI launch reaches Focus/Account as recorded above. The rapid two-start attempt
+does not establish incoming-link race behavior or general malformed-link safety.
 
 Delivery above establishes this emulator
 run and does not promise punctual delivery in other power states.

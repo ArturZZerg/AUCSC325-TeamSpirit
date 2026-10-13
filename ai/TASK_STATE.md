@@ -508,6 +508,13 @@ one linked interrupted 74-second record through the API. The standard snapshot
 tool cannot reach idle while the timer's text updates; paused recovery is
 inspectable. An immediate startup link returned to Today during session restore;
 that attempt is not accepted as cold incoming-link evidence.
+Later proper single cold URI launches reach Focus and Account, and the explicitly
+saved focus draft does not reappear. This remains targeted link evidence.
+
+PR #74's first exact-head CI exposes Linux PowerShell's ANSI/wrapped diagnostic
+format breaking one assertion; the device safety behavior itself passes. Test
+diagnostics now normalize ANSI and wrapped continuations, retaining exact command
+selection/failure assertions. New exact-head CI remains required before merging.
 
 Next: review the scoped diff, publish the PR and verify exact-head/main CI. Broader
 physical Android, old Android, iOS, hosting/TLS/mail/policies/store and dependency

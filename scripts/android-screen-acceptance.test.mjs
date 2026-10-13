@@ -4,8 +4,9 @@ import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, mkdirSync,
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { stripVTControlCharacters } from 'node:util';
 
-const available = !spawnSync('pwsh', ['-NoProfile', '-Command', 'exit 0']).error;
+const available = !spawnSync('pwsh', ['-NoProfile', '-Command', 'exit 0'], { windowsHide: true }).error;
 const options = { skip: available ? false : 'PowerShell required for native acceptance script tests' };
 const fake = String.raw`
 $global:LASTEXITCODE=0
@@ -30,9 +31,11 @@ function run(t, { devices = 'PixelQA device', serial, viewport = '[0,63][1080,23
   const workspace = `<node package="${surface}" class="android.widget.ScrollView" bounds="${viewport}" text="" clickable="false"><node package="${surface}" class="android.widget.TextView" text="${heading}" bounds="[20,80][500,140]"/><node package="${surface}" class="android.widget.Button" text="Back" bounds="[20,150][500,270]" clickable="true"/></node>`;
   const xml = `<hierarchy>${wrapper ? `<node package="${surface}" class="android.widget.ScrollView" bounds="[0,0][1080,2400]">${workspace}</node>` : workspace}</hierarchy>`;
   const args = ['-NoProfile', '-File', script, '-AdbPath', adb, '-AdbServerPort', '5039', '-Routes', 'help', ...(serial === undefined ? [] : ['-Serial', serial])];
-  const result = spawnSync('pwsh', args, { encoding: 'utf8', timeout: 15_000, env: { ...process.env, FAKE_ADB_LOG: log, FAKE_ADB_DEVICES: devices, FAKE_ADB_XML: xml, FAKE_ADB_FAILURE: failure } });
+  const result = spawnSync('pwsh', args, { encoding: 'utf8', timeout: 15_000, windowsHide: true, env: { ...process.env, FAKE_ADB_LOG: log, FAKE_ADB_DEVICES: devices, FAKE_ADB_XML: xml, FAKE_ADB_FAILURE: failure } });
+  // PowerShell decorates/wraps error continuations differently on Linux/Windows.
+  const stderr = stripVTControlCharacters(result.stderr ?? '').replace(/\r?\n\s*\|\s*/g, ' ');
   const commands = existsSync(log) ? readFileSync(log, 'utf8').trim().split(/\r?\n/).map(line => JSON.parse(line).map(String)) : [];
-  return { ...result, commands, report: path.join(directory, '.local/native-screen-acceptance/result.json') };
+  return { ...result, stderr, commands, report: path.join(directory, '.local/native-screen-acceptance/result.json') };
 }
 
 function selected(commands, serial) {
