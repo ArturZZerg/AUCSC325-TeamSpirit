@@ -1,0 +1,73 @@
+name: iOS simulator preview
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['apps/mobile/**', 'packages/contracts/**', 'packages/domain/**', 'package*.json', 'scripts/*ios*', '.maestro/ios-public.yaml', '.github/workflows/ios-preview.yml']
+  pull_request:
+    paths: ['apps/mobile/**', 'packages/contracts/**', 'packages/domain/**', 'package*.json', 'scripts/*ios*', '.maestro/ios-public.yaml', '.github/workflows/ios-preview.yml']
+permissions:
+  contents: read
+concurrency:
+  group: ios-preview-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      CI: 'true'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci
+      - run: bash scripts/build-ios-simulator.sh --check
+      - run: npm run build:ios:simulator
+        id: build
+      - name: Install pinned local Maestro CLI
+        run: |
+          curl --fail --location --retry 2 https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.6.1/maestro.zip -o .local/maestro.zip
+          echo '3440825f514f537c6a96bcf5de995780c2a4a7f83a43208fdc95d4f1fecfad3b  .local/maestro.zip' | shasum -a 256 -c -
+          unzip -q .local/maestro.zip -d .local
+          .local/maestro/bin/maestro --version
+      - name: Boot only this job's iPhone simulator and run public flows
+        run: |
+          if lsof -nP -iTCP:3000 -sTCP:LISTEN >/dev/null; then echo 'Public offline acceptance requires no loopback API/Metro listener.' >&2; exit 1; fi
+          udid="$(xcrun simctl create CampusFlowIosQa com.apple.CoreSimulator.SimDeviceType.iPhone-16 com.apple.CoreSimulator.SimRuntime.iOS-26-2)"
+          echo "IOS_SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl ui "$udid" appearance light
+          xcrun simctl status_bar "$udid" override --time '9:41' --batteryState charged --batteryLevel 100
+          xcrun simctl install "$udid" artifacts/ios/CampusFlow.app
+          .local/maestro/bin/maestro --device "$udid" test --format JUNIT \
+            --output artifacts/ios/evidence/public-flow.xml --debug-output artifacts/ios/evidence/maestro \
+            -e "EVIDENCE_DIR=$PWD/artifacts/ios/evidence" .maestro/ios-public.yaml
+      - name: Stop only this job's simulator
+        if: always() && env.IOS_SIMULATOR_UDID != ''
+        run: xcrun simctl shutdown "$IOS_SIMULATOR_UDID"
+      - uses: actions/upload-artifact@v4
+        if: steps.build.outcome == 'success'
+        with:
+          name: campusflow-ios-simulator-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ios/campusflow-simulator.zip
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: campusflow-ios-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ios/evidence
+          if-no-files-found: warn
+          retention-days: 7

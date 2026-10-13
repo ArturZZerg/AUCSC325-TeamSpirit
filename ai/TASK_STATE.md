@@ -14,10 +14,15 @@ invalid link recovery, fourteen inset checks and 320px/150% text acceptance.
 Temporary reminder/display changes are undone; both synthetic task/account and
 the separate Pixel QA data are preserved. See [requirements](../docs/requirements/reminder-center.md)
 and [native evidence](../docs/requirements/android-reminder-center-2026-10-12.md).
-Exact-head review/CI/merge remains the final delivery gate for this slice.
+PR #79 passed author self-review and both exact-head CI runs, merged as
+`ffba4dd9726aa7b8921e402abd95700c66ea6031`, and its exact-main CI passed.
 
-Next safe release task: establish an iOS simulator build/acceptance gate on a
-supported host. Unknown native paths still use SDK Unmatched Route and need a
+Current release task: establish an iOS simulator build/acceptance gate in the
+existing GitHub workflow. An unsigned embedded Release product, actual artifact
+inspection, installed-plugin configuration regressions and public Maestro
+Help/account/cold-start flow are prepared. Native compilation/flow results are
+pending their actual macOS run; see [the gate](../docs/requirements/ios-simulator-preview.md).
+Unknown native paths still use SDK Unmatched Route and need a
 clear recovery path. Production hosting/email, contact/operator details,
 signing/privacy and physical acceptance remain pending; source stays local.
 
