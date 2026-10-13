@@ -6,6 +6,8 @@ import { preparationFixture, planId } from './preparation-fixture';
 import { quiz } from './academic-fixture';
 import type { AcademicItem, PersonalTask } from '../src/lib/types';
 import type { StudyPlan } from '@campusflow/contracts';
+import { api } from '../src/lib/api';
+jest.mock('../src/lib/api', () => ({ ...jest.requireActual('../src/lib/api'), api: jest.fn() }));
 const mockPush = jest.fn(), mockReplace = jest.fn(); let mockToken = 'first', mockResume = 0;
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }));
 jest.mock('../src/features/queries', () => ({ useTasks: jest.fn(), useAcademic: jest.fn(), useStudyPlans: jest.fn(), useAction: jest.fn() }));
@@ -25,6 +27,7 @@ function show(tasks: PersonalTask[] | undefined, academic: AcademicItem[] | unde
   jest.mocked(useStudyPlans).mockReturnValue({ ...query, data: plans, refetch: refreshPlans } as unknown as ReturnType<typeof useStudyPlans>);
 }
 beforeEach(() => { jest.clearAllMocks(); mockToken = 'first'; mockResume = 0; save.mockReset().mockResolvedValue({}); show([looseTask()], [quiz], []);
+  jest.mocked(api).mockResolvedValue(looseTask());
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>); });
 it('connects loose tasks, preparation and weekly windows without writing on open', () => {
   render(<WorkloadScreen/>); expect(screen.getByText('Read chapter notes')).toBeOnTheScreen(); expect(screen.getByText('Graph quiz')).toBeOnTheScreen();
@@ -40,6 +43,7 @@ it('reviews an existing archived plan by exact identity without offering another
 });
 it('edits the exact task, retains a failed schedule draft and protects a pending retry', async () => {
   save.mockRejectedValueOnce(new Error('Offline')); render(<WorkloadScreen/>); fireEvent.press(screen.getByText('Schedule task'));
+  await screen.findByLabelText('Title');
   fireEvent.press(screen.getByRole('radio', { name: 'Scheduled date only' })); fireEvent.changeText(screen.getByLabelText('Scheduled date'), '2025-03-10');
   await act(async () => fireEvent.press(screen.getByText('Save task')));
   expect(screen.getByRole('alert')).toHaveTextContent('Offline'); expect(screen.getByLabelText('Scheduled date')).toHaveDisplayValue('2025-03-10');
@@ -75,10 +79,11 @@ it('distinguishes missing reads from empty work and retains partial tasks', () =
   show([looseTask()], undefined, undefined); ui.rerender(<WorkloadScreen/>); expect(screen.getByText('Read chapter notes')).toBeOnTheScreen();
   show([], [], []); ui.rerender(<WorkloadScreen/>); expect(screen.getByText('Your next steps have a place.')).toBeOnTheScreen();
 });
-it('refreshes available sources, searches and isolates private editors across accounts', () => {
+it('refreshes available sources, searches and isolates private editors across accounts', async () => {
   const ui = render(<WorkloadScreen/>); fireEvent(screen.UNSAFE_getByType(RefreshControl), 'refresh');
   expect(refreshTasks).toHaveBeenCalledTimes(1); expect(refreshAcademic).toHaveBeenCalledTimes(1); expect(refreshPlans).toHaveBeenCalledTimes(1);
   fireEvent.changeText(screen.getByLabelText('Search workload'), 'chapter'); fireEvent.press(screen.getByText('Schedule task'));
+  await screen.findByLabelText('Title');
   fireEvent.changeText(screen.getByLabelText('Title'), 'Private draft'); mockToken = 'second'; ui.rerender(<WorkloadScreen/>);
   expect(screen.queryByLabelText('Title')).toBeNull(); expect(screen.getByLabelText('Search workload')).toHaveDisplayValue(''); expect(save).not.toHaveBeenCalled();
   mockResume++; ui.rerender(<WorkloadScreen/>); expect(refreshTasks).toHaveBeenCalledTimes(2); expect(refreshAcademic).toHaveBeenCalledTimes(2);

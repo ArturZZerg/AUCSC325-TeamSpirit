@@ -336,3 +336,87 @@ it.each([second, { ...first, accessToken: 'renewed-token' }])('does not cache a 
   expect(jest.mocked(writeCache).mock.calls.some(([, , rows]) => JSON.stringify(rows) === JSON.stringify(oldTasks))).toBe(false);
   expect(useSessionStore.getState().session).toEqual(fresh);
 });
+
+it('settles an acknowledged task creation while its active query refresh remains pending', async () => {
+  const refresh = deferred<typeof freshTasks>();
+  let reads = 0, settled = false;
+  jest.mocked(api).mockImplementation((_path, init) => init?.method === 'POST' ? Promise.resolve(freshTasks[0])
+    : ++reads === 1 ? Promise.resolve(oldTasks) : refresh.promise);
+  queryClient.setQueryData(['account', second.user.id, 'tasks'], ['other account']);
+  const { result } = renderHook(() => ({ tasks: useTasks(), action: useAction() }), { wrapper: Wrapper });
+  await waitFor(() => expect(result.current.tasks.data).toEqual(oldTasks));
+  let mutation!: Promise<unknown>;
+  await act(async () => { mutation = result.current.action.mutateAsync({ path: '/tasks', body: { title: 'Fresh task' } })
+    .then(value => { settled = true; return value; }); });
+  try {
+    await waitFor(() => expect(reads).toBe(2));
+    await waitFor(() => expect(settled).toBe(true));
+    await expect(mutation).resolves.toEqual(freshTasks[0]);
+    await waitFor(() => expect(result.current.action.isPending).toBe(false));
+    await waitFor(() => expect(result.current.tasks.isFetching).toBe(true));
+    expect(result.current.tasks.data).toEqual(oldTasks);
+    expect(queryClient.getQueryState(['account', second.user.id, 'tasks'])?.isInvalidated).toBe(false);
+  } finally { await act(async () => { refresh.resolve(freshTasks); await mutation; }); }
+  await waitFor(() => expect(result.current.tasks.data).toEqual(freshTasks));
+  expect(writeCache).toHaveBeenLastCalledWith(first.user.id, 'tasks', freshTasks);
+});
+
+it('finishes confirmed-write cleanup before starting background refresh', async () => {
+  const cleanup = deferred<void>();
+  const afterCommit = jest.fn(() => cleanup.promise);
+  const invalidate = jest.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined);
+  const { result } = renderHook(() => useAction(afterCommit), { wrapper: Wrapper });
+  let settled = false, mutation!: Promise<unknown>;
+  try {
+    await act(async () => { mutation = result.current.mutateAsync({ path: '/tasks', body: { title: 'Task' } })
+      .then(value => { settled = true; return value; }); });
+    await waitFor(() => expect(afterCommit).toHaveBeenCalledWith(freshTasks, first));
+    expect(settled).toBe(false); expect(invalidate).not.toHaveBeenCalled();
+    await act(async () => { cleanup.resolve(); await mutation; });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['account', first.user.id] });
+  } finally { cleanup.resolve(); invalidate.mockRestore(); }
+});
+it('retains acknowledged success when background invalidation rejects', async () => {
+  const invalidate = jest.spyOn(queryClient, 'invalidateQueries').mockRejectedValueOnce(new Error('Refresh failed'));
+  const { result } = renderHook(() => useAction(), { wrapper: Wrapper });
+  try {
+    await act(async () => { await expect(result.current.mutateAsync({ path: '/tasks', body: { title: 'Task' } })).resolves.toEqual(freshTasks); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.error).toBeNull();
+  } finally { invalidate.mockRestore(); }
+});
+it.each([new ApiError(400, 'Invalid task'), new ApiError(409, 'Conflicting task'), new ApiError(503, 'Server unavailable'), new Error('Response lost')])('preserves actual mutation failure without starting revalidation: %s', async failure => {
+  jest.mocked(api).mockRejectedValueOnce(failure);
+  const invalidate = jest.spyOn(queryClient, 'invalidateQueries');
+  const afterCommit = jest.fn();
+  const { result } = renderHook(() => useAction(afterCommit), { wrapper: Wrapper });
+  try {
+    await act(async () => { await expect(result.current.mutateAsync({ path: '/tasks', body: { title: 'Task' } })).rejects.toBe(failure); });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error).toBe(failure); expect(invalidate).not.toHaveBeenCalled(); expect(afterCommit).not.toHaveBeenCalled();
+  } finally { invalidate.mockRestore(); }
+});
+
+it.each(['logout', 'account', 'token', 'timezone'])('rejects an obsolete mutation-triggered refetch after a %s change', async transition => {
+  const refresh = deferred<typeof freshTasks>();
+  const obsolete = [{ ...task, title: 'Obsolete refetch' }];
+  let reads = 0;
+  jest.mocked(api).mockImplementation((_path, init) => init?.method === 'POST' ? Promise.resolve(freshTasks[0])
+    : ++reads === 1 ? Promise.resolve(oldTasks) : reads === 2 ? refresh.promise : Promise.resolve(freshTasks));
+  const { result } = renderHook(() => ({ tasks: useTasks(), action: useAction() }), { wrapper: Wrapper });
+  await waitFor(() => expect(result.current.tasks.data).toEqual(oldTasks));
+  await act(async () => { await result.current.action.mutateAsync({ path: '/tasks', body: { title: 'Fresh task' } }); });
+  expect(reads).toBe(2);
+  await act(async () => {
+    if (transition === 'logout') await useSessionStore.getState().signOut({ unavailable: true });
+    else if (transition === 'account') await useSessionStore.getState().setSession(second);
+    else if (transition === 'token') await useSessionStore.getState().setSession({ ...first, accessToken: 'renewed-token' });
+    else await useSessionStore.getState().syncProfile(first.user.id, first.accessToken, { ...first.user, timeZone: 'UTC' });
+    refresh.resolve(obsolete);
+  });
+  expect(writeCache).not.toHaveBeenCalledWith(first.user.id, 'tasks', obsolete);
+  if (transition === 'logout') {
+    expect(result.current.tasks.data).toBeUndefined();
+    expect(queryClient.getQueryData(['account', first.user.id, 'tasks'])).toBeUndefined();
+  } else await waitFor(() => expect(result.current.tasks.data).toEqual(freshTasks));
+});

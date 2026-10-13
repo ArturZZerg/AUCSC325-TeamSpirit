@@ -7,10 +7,12 @@ import { useSessionStore } from '../src/store/session';
 import { snapshotFixture, accountId } from './snapshot-fixture';
 import { eventFixture } from './event-fixture';
 import type { AcademicItem, Reminder, Session } from '../src/lib/types';
+import { api } from '../src/lib/api';
 const mockRouter = { push: jest.fn(), replace: jest.fn(), setParams: jest.fn() };
 let mockParams: { reminderId?: string | string[]; accountId?: string | string[] } = {};
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => mockParams }));
 jest.mock('../src/features/queries', () => ({ useTasks: jest.fn(), useAcademic: jest.fn(), useGoals: jest.fn(), useEvents: jest.fn(), useReminders: jest.fn(), usePreferences: jest.fn(), useAction: jest.fn(), useAcademicReminder: jest.fn() }));
+jest.mock('../src/lib/api', () => ({ ...jest.requireActual('../src/lib/api'), api: jest.fn() }));
 jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn() }));
 jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn() }));
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
@@ -44,11 +46,17 @@ it('opens the selected owned task and hands its exact identity to Focus without 
   expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/focus', params: { taskId: task.id } }); expect(save).not.toHaveBeenCalled();
 });
 it('opens the existing task and reminder editors for the exact saved subject', async () => {
+  jest.mocked(api).mockResolvedValueOnce(task);
   mockParams = { reminderId: reminder.id }; render(<Reminders/>);
   fireEvent.press(screen.getByRole('button', { name: 'Edit this reminder' }));
   expect(screen.getByText('Task reminder')).toBeOnTheScreen(); expect(screen.getAllByText(task.title)).toHaveLength(2);
   fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
-  fireEvent.press(screen.getByRole('button', { name: 'Edit this task' })); expect(screen.getByDisplayValue(task.title)).toBeOnTheScreen();
+  fireEvent.press(screen.getByRole('button', { name: 'Edit this task' }));
+  expect(screen.getByText('Loading task for editing…')).toBeOnTheScreen();
+  expect(await screen.findByDisplayValue(task.title)).toBeOnTheScreen();
+  expect(api).toHaveBeenCalledWith(`/tasks/${task.id}`, expect.objectContaining({
+    cache: 'no-store', headers: { Authorization: `Bearer ${session.accessToken}` },
+  }));
   expect(save).not.toHaveBeenCalled(); await act(async () => {});
 });
 it.each([['academicItem', academic.id, academic.title, 'Coursework reminder'], ['goal', goal.id, goal.title, 'Goal reminder'], ['savedEvent', event.id, event.title, 'Event reminder']] as const)('resolves %s from owned records and reuses its reminder controls', (targetKind, targetId, title, heading) => {

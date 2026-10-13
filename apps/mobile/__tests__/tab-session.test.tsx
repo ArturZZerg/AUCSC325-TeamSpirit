@@ -5,6 +5,8 @@ import { useSessionStore } from '../src/store/session';
 import { composeOfflineToday } from '../src/features/offline-today';
 import type { Session } from '../src/lib/types';
 import { snapshotFixture } from './snapshot-fixture';
+import { api } from '../src/lib/api';
+jest.mock('../src/lib/api', () => ({ ...jest.requireActual('../src/lib/api'), api: jest.fn() }));
 
 let mockRoute = 'tasks';
 // Keep actual screen/forms mounted under the navigator's React boundary; native
@@ -38,6 +40,7 @@ const preferences = { academicEnabled: true, personalEnabled: true, goalEnabled:
 function session(value: Session | null) { act(() => { useSessionStore.setState({ session: value, ready: true }); }); }
 beforeEach(() => {
   jest.clearAllMocks(); mockRoute = 'tasks'; session(first); save.mockReset().mockResolvedValue({});
+  jest.mocked(api).mockResolvedValue(task);
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>);
   jest.mocked(useTasks).mockReturnValue({ data: [task], isLoading: false } as ReturnType<typeof useTasks>);
   jest.mocked(useAcademic).mockReturnValue({ data: [], isLoading: false } as unknown as ReturnType<typeof useAcademic>);
@@ -68,15 +71,17 @@ describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
     session(transition === 'switch' ? second : { ...first, accessToken: 'new-login' });
     expect(screen.queryByLabelText('Title')).toBeNull(); expect(save).not.toHaveBeenCalled();
   });
-  it.each(['switch', 'sign-out', 'relogin'])('discards a task draft on %s', transition => {
+  it.each(['switch', 'sign-out', 'relogin'])('discards a task draft on %s', async transition => {
     render(<TabsLayout/>);
     fireEvent.press(screen.getByText('Edit'));
+    await screen.findByLabelText('Title');
     fireEvent.changeText(screen.getByLabelText('Title'), 'Private draft');
     session(transition === 'switch' ? second : transition === 'sign-out' ? null : { ...first, accessToken: 'new-login' });
     expect(screen.queryByLabelText('Title')).toBeNull();
     expect(save).not.toHaveBeenCalled();
     session(first);
     fireEvent.press(screen.getByText('Edit'));
+    await screen.findByLabelText('Title');
     expect(screen.getByLabelText('Title')).toHaveDisplayValue(task.title);
   });
 

@@ -16,6 +16,7 @@ import { wellnessJournalSchema } from '@campusflow/contracts';
 import type { Session } from '@/lib/types';
 import { useTodayClock } from '@/features/today-clock';
 import { composeOfflineToday } from '@/features/offline-today';
+import { beginTaskWrite, taskEditBaselineCurrent, taskEditWriteCurrent, taskOwnerCurrent, taskOwnershipGeneration, taskCredentialsGeneration, type TaskEditBaseline } from '@/features/task-edit-freshness';
 
 const schemas = {
   courses: courseSchema.array(),
@@ -205,36 +206,56 @@ export function useWellnessJournal(from: string, through: string) {
 export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences', notificationPreferencesSchema);
 export const useReminders = () => cachedQuery<Reminder[]>('reminders', '/reminders', schemas.reminders);
 
-type ActionRequest = { path: string; method?: string; body?: unknown };
-export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) => Promise<void>) {
+type ActionRequest = { path: string; method?: string; body?: unknown; taskEditBaseline?: TaskEditBaseline };
+export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) => Promise<void>, options?: { awaitRefresh: boolean }) {
   const client = useQueryClient();
   const session = useSessionStore(state => state.session);
   const mutation = useMutation({
-    onMutate: async ({ owner }) => {
-      if (!owner || useSessionStore.getState().session?.accessToken !== owner.accessToken) throw new Error('Your session has ended.');
-      await client.cancelQueries({ queryKey: ['account', owner.user.id] });
+    onMutate: async ({ owner, request, ownershipGeneration }) => {
+      if (!owner || !taskOwnerCurrent(owner) || ownershipGeneration !== taskOwnershipGeneration()) throw new Error('Your session has ended.');
+      if (request.taskEditBaseline && (!taskEditBaselineCurrent(request.taskEditBaseline)
+        || request.taskEditBaseline.taskId !== request.path.split('/')[2])) throw new Error('Reload the task before saving.');
+      const endWrite = beginTaskWrite(owner, request.path);
+      try { await client.cancelQueries({ queryKey: ['account', owner.user.id] }); }
+      catch (error) { endWrite?.(); throw error; }
+      return { endWrite };
     },
-    mutationFn: async ({ request: { path, method = 'POST', body }, owner }: { request: ActionRequest; owner: typeof session }) => {
+    mutationFn: async ({ request: { path, method = 'POST', body, taskEditBaseline }, owner, ownershipGeneration }: { request: ActionRequest; owner: typeof session; ownershipGeneration: number; credentialsGeneration: number }) => {
       // Recheck after cancellation: an account switch must not submit an old
       // screen's write using the new account's credentials.
-      if (!owner || useSessionStore.getState().session?.accessToken !== owner.accessToken) throw new Error('Your session has ended.');
+      if (!owner || !taskOwnerCurrent(owner) || ownershipGeneration !== taskOwnershipGeneration()) throw new Error('Your session has ended.');
+      if (taskEditBaseline && !taskEditWriteCurrent(taskEditBaseline)) throw new Error('Reload the task before saving.');
       return api<T>(path, json(method, body));
     },
-    onSuccess: async (data: T, { owner }) => {
-      if (owner && useSessionStore.getState().session?.accessToken === owner.accessToken) {
+    onSuccess: async (data: T, { owner, request, credentialsGeneration }, context) => {
+      context?.endWrite?.();
+      if (owner && useSessionStore.getState().session?.user.id === owner.user.id
+        && useSessionStore.getState().session?.accessToken === owner.accessToken && credentialsGeneration === taskCredentialsGeneration()) {
         // Derived local cleanup runs before refresh; it cannot undo a confirmed
         // server write. Feature callbacks report their own cleanup retry state.
         await afterCommit?.(data, owner).catch(() => undefined);
-        if (useSessionStore.getState().session?.accessToken === owner.accessToken)
-          await client.invalidateQueries({ queryKey: ['account', owner.user.id] });
+        // A profile-only timezone change still needs a new read after this
+        // commit. Existing query guards reject obsolete timezone responses;
+        // logout/login or token replacement must never refresh a newer owner.
+        if (useSessionStore.getState().session?.user.id === owner.user.id
+          && useSessionStore.getState().session?.accessToken === owner.accessToken && credentialsGeneration === taskCredentialsGeneration()) {
+          const refresh = client.invalidateQueries({ queryKey: ['account', owner.user.id] });
+          // Only task paths have a fresh-detail editor gate. Other full-payload
+          // editors retain their existing awaited refresh/failure semantics.
+          if (options?.awaitRefresh || !/^\/tasks(?:\/|$)/.test(request.path)) { await refresh; return; }
+          void refresh.catch(() => {
+            // Reads expose refresh errors alongside cached data and can retry.
+          });
+        }
       }
     },
+    onSettled: (_data, _error, _variables, context) => { context?.endWrite?.(); },
   });
   // Capture ownership when the action is invoked, including across awaited
   // cancellation and hook rerenders during an account transition.
   return { ...mutation,
-    mutate: (request: ActionRequest) => mutation.mutate({ request, owner: session }),
-    mutateAsync: (request: ActionRequest) => mutation.mutateAsync({ request, owner: session }),
+    mutate: (request: ActionRequest) => mutation.mutate({ request, owner: session, ownershipGeneration: taskOwnershipGeneration(), credentialsGeneration: taskCredentialsGeneration() }),
+    mutateAsync: (request: ActionRequest) => mutation.mutateAsync({ request, owner: session, ownershipGeneration: taskOwnershipGeneration(), credentialsGeneration: taskCredentialsGeneration() }),
   };
 }
 export function useWellnessJournalAction() {

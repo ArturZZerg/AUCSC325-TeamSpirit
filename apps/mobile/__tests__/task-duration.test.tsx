@@ -6,6 +6,12 @@ import { useAction, useTasks } from '../src/features/queries';
 import { snapshotFixture } from './snapshot-fixture';
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useTasks: jest.fn(), useAcademic: () => ({ data: [], isLoading: false }) }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { timeZone: 'UTC' } } }) }));
+// These are isolated field/action tests; the real online editor gate is covered
+// with real useAction in task-edit-freshness.test.tsx.
+jest.mock('../src/features/task-editor', () => {
+  const actual = jest.requireActual('../src/features/task-editor');
+  return { ...actual, TaskEditor: actual.TaskEditorForm };
+});
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
 const task = { ...snapshotFixture().personalTasks[0], estimatedMinutes: 30 }; const save = jest.fn();
 const label = 'Estimated minutes (optional)';

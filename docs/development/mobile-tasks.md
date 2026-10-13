@@ -98,6 +98,7 @@ repeat taps; failed writes preserve the selection and allow retry.
 | Search/category/completion combinations, cache reuse, empty/unavailable results, refreshed data, correct action targets, account reset | `apps/mobile/__tests__/task-filters.test.tsx` |
 | Timed reminder UTC input, expired/DST validation, removal, unchanged configuration, pending/retry controls and refreshed display | `apps/mobile/__tests__/task-reminder.test.tsx` |
 | Duration bounds, optional/unchanged values, explicit clearing, validation correction, retry/pending guards and refreshed cards | `apps/mobile/__tests__/task-duration.test.tsx` |
+| Authoritative editor reads, independent schedule/recurrence draft rebasing, write barriers, obsolete-owner cleanup and consecutive edits during stalled list refresh | `apps/mobile/__tests__/task-edit-freshness.test.tsx` |
 
 Run `npm run check` and `npm run build:web -w @campusflow/mobile`. Use the
 [Android preview workflow](../requirements/android-preview.md) for real-device
@@ -108,6 +109,23 @@ completion/skipping are covered by the [Today actions slice](mobile-today.md).
 academic routing, clearing, replacement, pending controls, and offline retry.
 New-date offline composition is covered by the snapshot tests. Native device
 acceptance remains outstanding.
+
+## Editing freshness and unresolved academic issue
+
+Existing-task editors require a validated uncached task-detail GET after relevant
+local writes settle. Explicit reload retains dirty deadline, schedule, and
+recurrence groups independently and refreshes unchanged fields. A failed or
+obsolete detail read cannot enable submission. Task acknowledgments do not wait
+for background list refetches; pending old-owner writes retain barriers until
+settlement, then obsolete owner records are released.
+
+Separate unresolved finding: academic full-payload editors still initialize from
+cached rows. Awaiting query invalidation does not establish freshness: TanStack
+Query normally resolves invalidation even when a refetch fails. After an
+acknowledged academic title edit followed by a failed refresh, reopening and
+editing only the deadline can submit the old cached title and revert that edit.
+This pre-existing academic issue requires an independent freshness fix and is
+not addressed by the task-only guard.
 
 ## Next task
 
