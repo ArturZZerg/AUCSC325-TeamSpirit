@@ -30,8 +30,7 @@ app='.local/ios-derived-data/Build/Products/Release-iphonesimulator/CampusFlow.a
 plutil -convert json -o artifacts/ios/evidence/info.json "$app/Info.plist"
 architectures="$(xcrun lipo -archs "$app/CampusFlow")"
 node scripts/ios-preview.mjs artifacts/ios/evidence/info.json "$app/main.jsbundle" "$architectures" artifacts/ios/evidence/product.json
-ditto "$app" artifacts/ios/CampusFlow.app
-ditto -c -k --sequesterRsrc --keepParent artifacts/ios/CampusFlow.app artifacts/ios/campusflow-simulator.zip
+ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/ios/campusflow-simulator.zip
 shasum -a 256 artifacts/ios/campusflow-simulator.zip > artifacts/ios/evidence/archive-sha256.txt
 printf '%s\n' "$xcode_version" > artifacts/ios/evidence/xcode.txt
 echo 'Unsigned Release simulator preview built; not an App Store or physical-device build.'

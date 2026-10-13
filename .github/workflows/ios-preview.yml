@@ -50,7 +50,7 @@ jobs:
           xcrun simctl bootstatus "$udid" -b
           xcrun simctl ui "$udid" appearance light
           xcrun simctl status_bar "$udid" override --time '9:41' --batteryState charged --batteryLevel 100
-          xcrun simctl install "$udid" artifacts/ios/CampusFlow.app
+          xcrun simctl install "$udid" .local/ios-derived-data/Build/Products/Release-iphonesimulator/CampusFlow.app
           .local/maestro/bin/maestro --device "$udid" test --format JUNIT \
             --output artifacts/ios/evidence/public-flow.xml --debug-output artifacts/ios/evidence/maestro \
             -e "EVIDENCE_DIR=$PWD/artifacts/ios/evidence" .maestro/ios-public.yaml
