@@ -71,7 +71,20 @@ native forwarding logs show Expo returning false, React Native returning true,
 and correct Help/account/auth routes. That does not by itself explain or waive
 the original failure. Temporary callback/route probes are removed and the final
 flow restores the original first warm three-slash link before any in-app Help
-navigation. Accept only its actual final-source success, recorded with the
+navigation. The uninstrumented `1b4c8e1` run repeats that assertion timeout, but
+its native log receives the first URL at 07:31:20 UTC, after the 17-second
+assertion ended; its later full native frame shows the correct Help screen.
+The first system-confirmed link therefore gets a bounded 45-second visible wait
+and animation settlement after Open. The original first-link order and expected
+screen remain required. This is an observed simulator/confirmation delivery delay,
+not proof of an app routing defect or a delivery-time guarantee.
+
+Unsigned native logs also report Keychain error `-34018` for missing entitlements.
+This public-flow gate cannot establish usable signed-in Secure Store or notification
+registration. A properly signed simulator/device build with actual storage acceptance
+is required before claiming those capabilities.
+
+Accept only actual final-source success, recorded with the
 [PR](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/81)'s checks and reviewed
 artifacts. A diagnostic build is not a production or signing claim.
 

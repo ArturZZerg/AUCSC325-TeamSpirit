@@ -22,7 +22,11 @@ passes 2,112 tests. A diagnostic unsigned Release build and actual public
 Help/search/account/cold-start flow pass on Xcode/iOS SDK 26.2; actual native
 callback logs show proper forwarding. The first warm-link assertion had failed
 in an earlier run. Temporary probes are now removed and the original first-link
-order is restored for final-source acceptance before review/merge. Full simctl
+order is restored for final-source acceptance before review/merge. The next run
+uses a bounded 45-second wait after the first OS confirmation: the last native
+log delivered the URI after the assertion ended, and its later full frame shows
+correct Help. Unsigned Keychain entitlement failures keep authenticated storage
+acceptance open. Full simctl
 images confirm public screen spacing; Maestro images omit system chrome. See
 [the gate](../docs/requirements/ios-simulator-preview.md).
 Unknown native paths still use SDK Unmatched Route and need a

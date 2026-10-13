@@ -16,7 +16,10 @@ name: iOS public offline Help and account navigation
       visible: 'Open in.*CampusFlow.*'
     commands:
       - tapOn: Open
-- assertVisible: A little help for your day.
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: A little help for your day.
+    timeout: 45000
 - tapOn: Back to sign in
 - assertVisible: Welcome back
 - tapOn: Help & data
