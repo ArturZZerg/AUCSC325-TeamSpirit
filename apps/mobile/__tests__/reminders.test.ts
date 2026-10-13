@@ -36,7 +36,16 @@ describe('device reminder reconciliation (ToR 13, 19)', () => {
     expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
     expect(scheduled).toHaveLength(1);
     expect(scheduled[0].identifier).toBe(`campusflow:${context().accountId}:${reminder.id}`);
-    expect(scheduled[0].content.data).toMatchObject({ accountId: context().accountId, fireAt: '2025-03-09T18:00:00.000Z' });
+    expect(scheduled[0].content.data).toMatchObject({ accountId: context().accountId, reminderId: reminder.id, fireAt: '2025-03-09T18:00:00.000Z' });
+    expect(scheduled[0].content.data?.url).toBeUndefined();
+  });
+  it('upgrades older owned schedules once to include the validated tap identity, keeping generic lock-screen content', async () => {
+    scheduled = [notification(`campusflow:${context().accountId}:${reminder.id}`, { campusFlowReminder: true, accountId: context().accountId,
+      stableId: `campusflow:${context().accountId}:${reminder.id}`, fireAt: '2025-03-09T18:00:00.000Z' })];
+    await reconcileReminders([reminder], context()); await reconcileReminders([reminder], context());
+    expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1); expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(expect.objectContaining({ content: expect.objectContaining({
+      title: 'CampusFlow reminder', body: 'Something in your plan is coming up.', data: expect.objectContaining({ reminderId: reminder.id }) }) }));
   });
   it('replaces the native notification when the same reminder fire time changes', async () => {
     await reconcileReminders([reminder], context());

@@ -2,12 +2,12 @@ param(
   [string]$AdbPath = (Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'),
   [string]$Serial,
   [ValidateRange(1024,65535)][int]$AdbServerPort = 5037,
-  [string[]]$Routes = @('journal','planner','focus','workload','academics','timetable','study-plans','study-report','focus-history','get-started','review','routines','help')
+  [string[]]$Routes = @('journal','planner','focus','workload','academics','timetable','study-plans','study-report','focus-history','get-started','review','routines','help','reminders')
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $headings = @{
-  journal='CHECK-IN JOURNAL'; planner='PLAN AHEAD'; focus='FOCUS SPACE'; workload='WORKLOAD INBOX'; help='HELP & DATA'
+  journal='CHECK-IN JOURNAL'; planner='PLAN AHEAD'; focus='FOCUS SPACE'; workload='WORKLOAD INBOX'; help='HELP & DATA'; reminders='YOUR REMINDERS'
   academics='COURSEWORK'; timetable='CLASS TIMETABLE'; 'study-plans'='MY STUDY PLANS'; 'study-report'='STUDY REPORT'
   'focus-history'='YOUR STUDY TIME'; 'get-started'='GET STARTED'; review='WEEKLY REVIEW'; routines='ROUTINE LIBRARY'
 }

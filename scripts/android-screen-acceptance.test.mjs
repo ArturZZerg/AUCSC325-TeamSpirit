@@ -19,7 +19,7 @@ if ($args -contains 'dumpsys') { Write-Output 'mType=statusBars mInsetsHint=Inse
 if ($args -contains 'pull') { $index=[Array]::IndexOf($args,'pull'); [IO.File]::WriteAllText($args[$index+2], $env:FAKE_ADB_XML); exit }
 `;
 
-function run(t, { devices = 'PixelQA device', serial, viewport = '[0,63][1080,2337]', heading = 'HELP &amp; DATA', surface = 'com.campusflow.mobile', failure = '', wrapper = false } = {}) {
+function run(t, { devices = 'PixelQA device', serial, route = 'help', viewport = '[0,63][1080,2337]', heading = 'HELP &amp; DATA', surface = 'com.campusflow.mobile', failure = '', wrapper = false } = {}) {
   const directory = mkdtempSync(path.join(tmpdir(), 'campusflow-screen-target-'));
   t.after(() => {
     assert.equal(path.dirname(directory), tmpdir()); assert.ok(path.basename(directory).startsWith('campusflow-screen-target-'));
@@ -30,7 +30,7 @@ function run(t, { devices = 'PixelQA device', serial, viewport = '[0,63][1080,23
   copyFileSync(new URL('./android-screen-acceptance.ps1', import.meta.url), script); writeFileSync(adb, fake);
   const workspace = `<node package="${surface}" class="android.widget.ScrollView" bounds="${viewport}" text="" clickable="false"><node package="${surface}" class="android.widget.TextView" text="${heading}" bounds="[20,80][500,140]"/><node package="${surface}" class="android.widget.Button" text="Back" bounds="[20,150][500,270]" clickable="true"/></node>`;
   const xml = `<hierarchy>${wrapper ? `<node package="${surface}" class="android.widget.ScrollView" bounds="[0,0][1080,2400]">${workspace}</node>` : workspace}</hierarchy>`;
-  const args = ['-NoProfile', '-File', script, '-AdbPath', adb, '-AdbServerPort', '5039', '-Routes', 'help', ...(serial === undefined ? [] : ['-Serial', serial])];
+  const args = ['-NoProfile', '-File', script, '-AdbPath', adb, '-AdbServerPort', '5039', '-Routes', route, ...(serial === undefined ? [] : ['-Serial', serial])];
   const result = spawnSync('pwsh', args, { encoding: 'utf8', timeout: 15_000, windowsHide: true, env: { ...process.env, FAKE_ADB_LOG: log, FAKE_ADB_DEVICES: devices, FAKE_ADB_XML: xml, FAKE_ADB_FAILURE: failure } });
   // PowerShell decorates/wraps error continuations differently on Linux/Windows.
   const stderr = stripVTControlCharacters(result.stderr ?? '').replace(/\r?\n\s*\|\s*/g, ' ');
@@ -46,6 +46,11 @@ function selected(commands, serial) {
 test('single ready device is selected explicitly for every geometry command', options, t => {
   const result = run(t); assert.equal(result.status, 0, result.stderr); selected(result.commands, 'PixelQA');
   const report = JSON.parse(readFileSync(result.report, 'utf8')); assert.equal(report.serial, 'PixelQA'); assert.equal(report.screens.length, 1);
+});
+test('reminder workspace requires its own heading and reports the selected route', options, t => {
+  const result = run(t, { route: 'reminders', heading: 'YOUR REMINDERS' }); assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(readFileSync(result.report, 'utf8')).screens[0].route, 'reminders');
+  const wrong = run(t, { route: 'reminders' }); assert.notEqual(wrong.status, 0); assert.equal(existsSync(wrong.report), false);
 });
 test('an explicit emulator is selected with another ready phone present', options, t => {
   const result = run(t, { devices: 'PixelQA device\nemulator-5558 device', serial: 'emulator-5558' });
