@@ -1,0 +1,14 @@
+appId: com.campusflow.mobile
+name: iOS cold encrypted-session and SQLite restoration without API
+---
+- launchApp
+- extendedWaitUntil:
+    visible: Your daily flow
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: ${IOS_QA_TASK}
+    direction: DOWN
+- assertVisible: ${IOS_QA_TASK}
+- assertNotVisible: Welcome back
+- stopApp

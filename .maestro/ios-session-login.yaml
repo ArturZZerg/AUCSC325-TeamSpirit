@@ -1,0 +1,46 @@
+appId: com.campusflow.mobile
+name: iOS ordinary sign-in and owned task capture
+---
+- launchApp
+- openLink: campusflow:///today
+- runFlow:
+    when:
+      visible: 'Open in.*CampusFlow.*'
+    commands:
+      - tapOn: Open
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 45000
+- tapOn:
+    id: auth-email
+- inputText: ${IOS_QA_EMAIL}
+- tapOn:
+    id: auth-password
+- inputText: ${IOS_QA_PASSWORD}
+- hideKeyboard
+- tapOn:
+    text: '^Sign in$'
+- extendedWaitUntil:
+    visible: Your daily flow
+    timeout: 30000
+- tapOn: Add a task to this day
+- assertVisible: New task
+- tapOn:
+    id: task-title
+- inputText: ${IOS_QA_TASK}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: Save task
+    direction: DOWN
+- tapOn: Save task
+- extendedWaitUntil:
+    visible: Your daily flow
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: ${IOS_QA_TASK}
+    direction: DOWN
+- assertVisible: ${IOS_QA_TASK}
+- stopApp

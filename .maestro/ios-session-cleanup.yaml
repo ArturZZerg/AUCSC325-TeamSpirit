@@ -1,0 +1,27 @@
+appId: com.campusflow.mobile
+name: iOS sign-out and cold private-route cleanup
+---
+- launchApp
+- extendedWaitUntil:
+    visible: Your daily flow
+    timeout: 30000
+- tapOn: Settings
+- scrollUntilVisible:
+    element:
+      text: Sign out
+    direction: DOWN
+- tapOn: Sign out
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
+- assertNotVisible: Retry device cleanup
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
+- assertNotVisible: Your daily flow
+- assertNotVisible: ${IOS_QA_TASK}
+- assertNotVisible: ${IOS_QA_EMAIL}
+- assertNotVisible: Retry device cleanup
+- stopApp

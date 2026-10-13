@@ -4,6 +4,10 @@ CampusFlow prioritizes native Android/iOS delivery. Android previews already hav
 actual native evidence; an iOS export alone does not prove native compilation or
 startup. This gate builds and installs an unsigned Release app on a fresh iPhone
 simulator, then exercises public navigation without account credentials or an API.
+The initial unsigned gate is retained below as historical evidence. Current builds
+request Xcode's local ad-hoc simulator signature and inspect the effective Keychain
+application identifier. A separate disposable API/database flow checks authenticated
+storage; it never treats simulator signing as Apple device/store signing.
 It uses the existing GitHub Actions infrastructure and the architecture's Maestro
 test tool; it does not deploy CampusFlow to the owner's server.
 
@@ -17,6 +21,23 @@ test tool; it does not deploy CampusFlow to the owner's server.
 | IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public.yaml`; actual Maestro assertions, JUnit and screenshots |
 | IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | Actual Maestro assertions and cold Help screenshot |
 | IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 40-minute timeout and seven-day artifacts |
+| IOS-STORAGE-01 | Verify the actual app's local simulator signature and effective default Keychain entitlement, without invented team IDs or shared groups | `codesign --verify --deep --strict`, signed entitlement dump and negative artifact tests |
+| IOS-STORAGE-02 | Ordinary native sign-in writes Secure Store and Today capture creates exactly one date-scheduled task through the real API | Disposable PostgreSQL 17 and NestJS preview API; native flow plus independent contract-validated API read |
+| IOS-STORAGE-03 | Terminated-process startup restores the encrypted session and owned SQLite task with no API/Metro listener | Explicit API shutdown/port guard and native cold offline flow |
+| IOS-STORAGE-04 | Native sign-out revokes its actual API session, removes owned SQLite rows, and cold startup stays signed out while the server task survives | Before/after session/cache counts and native cleanup flow |
+
+The storage harness is restricted to the disposable macOS Actions runner and the
+explicit booted `CampusFlowIosQa` UUID. It creates its own SCRAM-protected, loopback
+PostgreSQL cluster, runs the current migrations and compiled NestJS API, and uses
+ordinary preview registration/login. No authentication bypass or fixture transport
+is compiled into the app. The API runs in development/preview mode because verified
+registration requires approved SMTP. This does not establish production hosting or
+email verification. The helper stops its own API and PostgreSQL instance on exit.
+Credentials and Maestro private screenshots/dumps/logs stay in a restrictive ignored
+directory and are not uploaded; only a bounded redacted assertion and sanitized
+stage/check record are published. Public native logs/screenshots are collected before
+creating the synthetic account. The initial storage run remains unverified until
+actual exact-head native acceptance succeeds.
 
 The `com.campusflow.mobile` simulator identifier matches the existing Android
 preview identity. It is not an owner-approved App Store registration or signing

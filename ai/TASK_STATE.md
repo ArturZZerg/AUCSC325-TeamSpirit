@@ -1,6 +1,6 @@
 # Current development state
 
-Updated: 2026-10-12
+Updated: 2026-10-13
 
 Reminder center and native notification taps: Settings exposes saved
 reminder browsing/search, effective quiet-hour times and subject-specific existing
@@ -17,13 +17,26 @@ and [native evidence](../docs/requirements/android-reminder-center-2026-10-12.md
 PR #79 passed author self-review and both exact-head CI runs, merged as
 `ffba4dd9726aa7b8921e402abd95700c66ea6031`, and its exact-main CI passed.
 
-Current release task: discard invalid queued reminder taps before navigation
+Previous release task: discard invalid queued reminder taps before navigation
 mounts. Four behavior regressions reproduce confirmed sign-out/different-owner/
 changed-token replay across delayed navigation and verify future owned deliveries
 remain usable. The adapter now rejects restored incompatible context immediately,
 while valid cold-start taps still wait for navigation. All 1,087 mobile tests,
-mobile types and root lint pass. Exact-head CI/PR delivery is in progress; no API,
-schema or auth-continuation change is introduced.
+mobile types and root lint pass. PR #82 merged as
+`f99ac8ab18984cb25b8c93957effcdb41b54aef9` after author self-review and exact-head
+PR/push/native success (`38369172330`, `38369165671`, `38369172371`); standard
+checks pass 2,116 tests. Exact-main standard check `38371477411` passes; native
+`38371477582` is still running. No API/schema/auth-continuation change is introduced.
+
+Current release task: replace the unsigned iOS simulator build's missing Keychain
+entitlements with Xcode-generated local ad-hoc signing, inspecting the actual product.
+Disposable real PostgreSQL/NestJS acceptance exercises ordinary sign-in, Today capture,
+API-confirmed task state, API-disconnected cold encrypted session/SQLite restoration,
+native logout revocation and cache removal. Private credentials/UI dumps remain on the
+disposable runner; public diagnostics precede account creation. No app authentication
+behavior, schema, server deployment or physical-device interaction changes. Local
+artifact/harness tests pass ten cases, root lint and mobile types pass; actual macOS
+compilation, signed-entitlement acceptance and private native flows remain pending.
 
 PR #81's native iOS simulator gate merged as
 `2c5fff3df80553313ebc005a0eeb3214c0d15339`. Standard CI
