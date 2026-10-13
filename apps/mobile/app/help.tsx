@@ -30,7 +30,7 @@ export default function HelpScreen() {
       <View style={styles.action}><Button title="Account & privacy" disabled={!ready} onPress={() => router.push('/account')}/></View>
       {session && <View style={styles.action}><Button title="Notification settings" tone="plain" disabled={!ready} onPress={() => router.push('/settings')}/></View>}
     </View>
-    <View style={styles.search}><Text style={styles.label}>Search help</Text><TextInput accessibilityLabel="Search help" style={styles.input} value={search}
+    <View style={styles.search}><Text style={styles.label}>Search help</Text><TextInput testID="help-search" accessibilityLabel="Search help" style={styles.input} value={search}
       onChangeText={value => { setSearch(value); setExpanded(undefined); }} maxLength={100} autoCapitalize="none" autoCorrect={false} returnKeyType="search"
       placeholder="Try offline, reminders or coursework"/>
       {!!search && <Button title="Clear search" tone="plain" onPress={() => { setSearch(''); setExpanded(undefined); }}/>}</View>

@@ -13,7 +13,8 @@ name: iOS public offline Help and account navigation
 - assertVisible: A little help for your day.
 - assertVisible: Search help
 - takeScreenshot: ${EVIDENCE_DIR}/ios-help
-- tapOn: Search help
+- tapOn:
+    id: help-search
 - inputText: offline
 - hideKeyboard
 - scrollUntilVisible:
