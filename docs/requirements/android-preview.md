@@ -125,10 +125,41 @@ notification permission denial/restoration.
 The [2026-10-12 report](android-native-acceptance-2026-10-12.md) records corrected
 native API bundling, actual task/journal writes and disconnected cold reads.
 For standalone system-bar geometry, run `scripts/android-screen-acceptance.ps1`
-after installing the reviewed preview and signing in on exactly one authorized
-device. It validates twelve native workspaces against observed bar boundaries;
-private accessibility snapshots stay in ignored `.local`. New-build geometry
-remains pending device reconnection in that report.
+after installing the reviewed preview and signing in on one authorized device,
+or select an explicit `-Serial`. It validates thirteen native workspaces against
+observed bar boundaries using each verified heading's scroll ancestor. Private
+accessibility snapshots stay in ignored `.local`. The
+[isolated emulator report](android-emulator-acceptance-2026-10-12.md) records
+new-build checks; physical Pixel follow-up remains pending.
+
+## Separate emulator preview
+
+An ARM APK installing on an x86 emulator does not prove native library loading.
+Build the explicit x86_64 preview for a matching installed emulator image:
+
+```powershell
+npm.cmd run build:android -- --emulator
+```
+
+This publishes `artifacts/android/campusflow-emulator-preview.apk`, preserving
+`campusflow-preview.apk` for the phone. Both paths retain the selected-API and
+actual APK permission/architecture gates. `--check --emulator` performs the
+configuration preflight without building. These are locally signed test APKs.
+
+Use a separate project-owned AVD with fresh data and isolated ANDROID_AVD_HOME,
+ANDROID_USER_HOME and ANDROID_EMULATOR_HOME directories; do not copy or wipe an
+existing user's AVD or snapshots. Once it is booted, installed and signed in,
+select its actual serial and ADB server port explicitly, for example:
+
+```powershell
+& scripts/android-screen-acceptance.ps1 -Serial emulator-5558 -AdbServerPort 5039
+```
+
+The checker inventories that server, refuses an absent/offline/unauthorized
+selected device, and uses `-s` for every subsequent command including temporary
+snapshot cleanup. Omit the serial only when exactly one ready authorized device
+is present. Run `npm run test:android-build` for the build/selection/geometry
+regressions; PowerShell tests report an explicit skip when pwsh is unavailable.
 
 Official workflow references: [Expo local builds](https://docs.expo.dev/guides/local-app-development/)
 and [installable Android APKs](https://docs.expo.dev/build-reference/apk/).
