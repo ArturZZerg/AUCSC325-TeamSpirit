@@ -2,6 +2,14 @@
 
 Updated: 2026-10-12
 
+Active slice: Reminder center and native notification taps. Settings exposes saved
+reminder browsing/search, effective quiet-hour times and subject-specific existing
+editors. Default taps wait for restored session/navigation, validate owned stable
+identities and reject stale account/token responses; no arbitrary payload URL is
+followed. API contracts, persistence and account-only sign-in continuation remain
+unchanged. Validation and signed-native acceptance are in progress; see
+[requirements](../docs/requirements/reminder-center.md).
+
 Goal: extend the MVP with complete student workflows, preserving the accepted
 architecture and five-tab navigation, through validated PR/review/merge cycles.
 Release priority remains native Android/iOS first, confirmed by the user after

@@ -53,7 +53,8 @@ export function reconcileReminders(reminders: Reminder[], context: ReminderConte
     for (const item of scheduled.filter(ownedNotification)) {
       if (!current()) return;
       const key = String(item.content.data?.stableId ?? '');
-      if (expected.has(key) && item.content.data?.fireAt === expected.get(key) && !kept.has(key)) kept.add(key);
+      if (expected.has(key) && item.content.data?.fireAt === expected.get(key)
+        && item.content.data?.accountId === context.accountId && item.content.data?.reminderId === key.split(':')[2] && !kept.has(key)) kept.add(key);
       else await Notifications.cancelScheduledNotificationAsync(item.identifier);
     }
     for (const [key, fireAt] of expected) {
@@ -61,7 +62,7 @@ export function reconcileReminders(reminders: Reminder[], context: ReminderConte
       if (kept.has(key) || Date.parse(fireAt) <= Date.now()) continue;
       await Notifications.scheduleNotificationAsync({ identifier: key,
         content: { title: 'CampusFlow reminder', body: 'Something in your plan is coming up.',
-          data: { campusFlowReminder: true, accountId: context.accountId, stableId: key, fireAt } },
+          data: { campusFlowReminder: true, accountId: context.accountId, reminderId: key.split(':')[2], stableId: key, fireAt } },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(fireAt) },
       });
     }

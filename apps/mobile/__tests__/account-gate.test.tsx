@@ -8,6 +8,7 @@ jest.mock('../src/store/session', () => ({ useSessionStore: () => ({ ready: true
 jest.mock('../src/features/device-reminders', () => ({ DeviceReminderSync: () => null }));
 jest.mock('../src/features/focus-recovery-sync', () => ({ FocusRecoverySync: () => null }));
 jest.mock('../src/features/session-access-sync', () => ({ SessionAccessSync: () => null }));
+jest.mock('../src/features/reminder-response-sync', () => ({ ReminderResponseSync: () => null }));
 beforeEach(() => { jest.clearAllMocks(); mockSegments = ['auth']; mockNext = undefined; mockSession = {}; });
 it('continues account self-service after sign-in using the active route query', () => {
   mockNext = 'account'; render(<RootLayout/>); expect(mockRouter.replace).toHaveBeenCalledWith('/account');

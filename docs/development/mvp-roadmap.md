@@ -79,6 +79,9 @@ palette and Today-centered product model.
     configurable published privacy/support links. Implemented in
     [Help & data](../requirements/help-and-data.md); approved public pages,
     retention decisions and store declarations remain release gates.
+22. **Actionable reminders:** account-owned reminder browsing, quiet-hour-aware
+    timing and native taps that open the exact saved item with existing edit/focus
+    controls. See [Reminder center](../requirements/reminder-center.md).
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native
