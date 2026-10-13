@@ -20,11 +20,18 @@ name: iOS public offline Help and account navigation
 - extendedWaitUntil:
     visible: A little help for your day.
     timeout: 45000
+- waitForAnimationToEnd
+- takeScreenshot: ios-help-first-link
 - tapOn: Back to sign in
-- assertVisible: Welcome back
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
 - tapOn: Help & data
 - assertVisible: A little help for your day.
 - tapOn: Back to sign in
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
 - openLink: campusflow://help
 - assertVisible: A little help for your day.
 - assertVisible: Search help

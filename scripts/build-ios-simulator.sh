@@ -32,9 +32,13 @@ xcodebuild -workspace CampusFlow.xcworkspace -scheme CampusFlow -configuration R
 cd "$root"
 app='.local/ios-derived-data/Build/Products/Release-iphonesimulator/CampusFlow.app'
 plutil -convert json -o artifacts/ios/evidence/info.json "$app/Info.plist"
+# Xcode's no-team ad-hoc signature has empty effective entitlements. Give only
+# this simulator product its app-private local Keychain namespace; no Apple team.
+[[ "$(plutil -extract DTPlatformName raw "$app/Info.plist")" == iphonesimulator ]] || { echo 'Local entitlement signing is simulator-only.' >&2; exit 1; }
+codesign --force --sign - --entitlements scripts/ios-simulator.entitlements "$app"
 codesign --verify --deep --strict "$app"
 codesign -dv --verbose=4 "$app" 2> artifacts/ios/evidence/signature.txt
-# Inspect Xcode's effective entitlements; do not invent an Apple team or access group.
+# Inspect the effective signature, not just the signing input.
 codesign -d --entitlements :- "$app" > artifacts/ios/evidence/entitlements.plist
 plutil -convert json -o artifacts/ios/evidence/entitlements.json artifacts/ios/evidence/entitlements.plist
 architectures="$(xcrun lipo -archs "$app/CampusFlow")"

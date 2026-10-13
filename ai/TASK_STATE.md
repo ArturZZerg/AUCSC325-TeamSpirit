@@ -26,16 +26,25 @@ mobile types and root lint pass. PR #82 merged as
 `f99ac8ab18984cb25b8c93957effcdb41b54aef9` after author self-review and exact-head
 PR/push/native success (`38369172330`, `38369165671`, `38369172371`); standard
 checks pass 2,116 tests. Exact-main standard check `38371477411` passes; native
-`38371477582` is still running. No API/schema/auth-continuation change is introduced.
+`38371477582` fails the Back-to-sign-in assertion after its first Help link.
+Its driver log targets an in-button point, but the final frame remains Help;
+the precise cause is unproven. The new flow waits for Help animation settlement,
+captures that first frame and gives Back a bounded visible-screen wait. It keeps
+the original first-link order and required behavior. Actual acceptance remains
+required. No API/schema/auth-continuation change is introduced.
 
 Current release task: replace the unsigned iOS simulator build's missing Keychain
-entitlements with Xcode-generated local ad-hoc signing, inspecting the actual product.
+entitlements with explicit local ad-hoc signing for the simulator's app-private
+Keychain namespace, inspecting the actual product. The first native run at `751c960`
+compiles and verifies its signature but exposes empty effective entitlements; the
+strict product gate rejects it before account creation. Only a checked simulator
+product gets the explicit local entitlement file, without an Apple team/profile.
 Disposable real PostgreSQL/NestJS acceptance exercises ordinary sign-in, Today capture,
 API-confirmed task state, API-disconnected cold encrypted session/SQLite restoration,
 native logout revocation and cache removal. Private credentials/UI dumps remain on the
 disposable runner; public diagnostics precede account creation. No app authentication
 behavior, schema, server deployment or physical-device interaction changes. Local
-artifact/harness tests pass ten cases, root lint and mobile types pass; actual macOS
+artifact/harness tests pass twelve cases, root lint and mobile types pass; actual macOS
 compilation, signed-entitlement acceptance and private native flows remain pending.
 
 PR #81's native iOS simulator gate merged as

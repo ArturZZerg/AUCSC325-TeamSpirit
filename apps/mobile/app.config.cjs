@@ -6,6 +6,8 @@ module.exports = () => {
   return {
     ...expo,
     plugins: [
+      // Entitlement mods execute in reverse registration order. Remove APNs last.
+      './plugins/with-local-reminders-ios.cjs',
       ...expo.plugins,
       ['./plugins/with-preview-network.cjs', {
         enabled: process.env.CAMPUSFLOW_ANDROID_PREVIEW === '1',

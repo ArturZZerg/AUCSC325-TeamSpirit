@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import { inspectIosPreview as inspectProduct, inspectSimulatorSigning } from './ios-preview.mjs';
 const require = createRequire(import.meta.url);
 const api = 'http://127.0.0.1:3000';
@@ -45,6 +46,11 @@ test('requires effective Keychain entitlements and actual local simulator signin
     assert.throws(() => inspectSimulatorSigning(entitlements, value));
   assert.equal(inspectSimulatorSigning({ ...entitlements, 'keychain-access-groups': ['com.campusflow.mobile'] }, signature).keychainIdentifier, 'com.campusflow.mobile');
 });
+
+test('local simulator signing requests only the matching app-private Keychain namespace', () => {
+  const value = require('@expo/plist').default.parse(readFileSync(new URL('./ios-simulator.entitlements', import.meta.url), 'utf8'));
+  assert.deepEqual({ ...value }, { 'application-identifier': 'com.campusflow.mobile', 'keychain-access-groups': ['com.campusflow.mobile'] });
+});
 test('configuration uses the established app identity and removes unused Face ID access', () => {
   const config = require('../apps/mobile/app.config.cjs')();
   assert.equal(config.ios.bundleIdentifier, config.android.package);
@@ -57,9 +63,11 @@ test('generated native plist removes Face ID and global cleartext access after a
     env: { ...process.env, CI: '1', EXPO_NO_DOTENV: '1', EXPO_NO_TELEMETRY: '1', EXPO_PUBLIC_API_URL: api }, timeout: 30_000,
   });
   assert.equal(result.status, 0, 'Installed Expo plugins must generate a valid native configuration.');
-  const plist = JSON.parse(result.stdout)._internal.modResults.ios.infoPlist;
+  const generated = JSON.parse(result.stdout)._internal.modResults.ios;
+  const plist = generated.infoPlist;
   assert.equal(plist.NSFaceIDUsageDescription, undefined);
   assert.equal(plist.NSAppTransportSecurity.NSAllowsArbitraryLoads, false);
   assert.equal(plist.NSAppTransportSecurity.NSAllowsLocalNetworking, true);
   assert.deepEqual(Object.keys(plist).filter(key => /^NS.*UsageDescription$/.test(key)), []);
+  assert.equal(generated.entitlements['aps-environment'], undefined, 'Local reminders must not request APNs remote-push entitlement.');
 });

@@ -29,6 +29,13 @@ export function assertOwnedTask(values, title, date) {
   return task;
 }
 
+export function publicFlowFailure(log, privateValues) {
+  const clean = log.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g'), '');
+  const match = clean.match(/(?:Assertion is false:|Element not found:|Unable to find element:)[^\r\n]*/);
+  if (!match) return undefined;
+  return privateValues.reduce((text, value) => text.replaceAll(value, '[private]'), match[0]).slice(0, 250);
+}
+
 async function unusedPort(port) {
   const server = createServer();
   await new Promise((resolve, reject) => {
@@ -56,7 +63,7 @@ async function run() {
     PGPASSWORD: dbPassword, NODE_ENV: 'development', PORT: '3000', HOST: '127.0.0.1', REGISTRATION_MODE: 'preview',
     CANVAS_MODE: 'disabled', RECOVERY_DELIVERY: 'disabled' };
   // No real accounts, SMTP, external Canvas, global PostgreSQL service or Metro.
-  let apiProcess, dbStarted = false, prisma, stage = 'database setup';
+  let apiProcess, dbStarted = false, prisma, failure, stage = 'database setup';
   const proof = { commit: process.env.CAMPUSFLOW_BUILD_SHA ?? process.env.GITHUB_SHA,
     api: apiUrl, database: 'disposable PostgreSQL 17 with ordinary NestJS preview registration', checks: [] };
   const command = (executable, args, name, extraEnv = {}) => new Promise((resolve, reject) => {
@@ -67,9 +74,8 @@ async function run() {
     child.once('exit', code => {
       if (code === 0) return resolve();
       // Publish only a bounded assertion summary, never raw Maestro commands/UI dumps.
-      const lines = readFileSync(path.join(runDir, `${name}.log`), 'utf8').split('\n');
-      const failed = lines.find(line => /^(Assertion is false:|Element not found:|Unable to find element:)/.test(line.trim()));
-      if (failed) console.error(failed.replaceAll(email, '[account]').replaceAll(password, '[password]').replaceAll(dbPassword, '[database password]').slice(0, 250));
+      const failed = publicFlowFailure(readFileSync(path.join(runDir, `${name}.log`), 'utf8'), [email, password, dbPassword]);
+      if (failed) console.error(failed);
       reject(new Error(`Acceptance command failed: ${name}. Private diagnostics stay on the runner.`));
     });
   });
@@ -149,12 +155,17 @@ async function run() {
     proof.result = 'passed';
   } catch {
     proof.result = 'failed'; proof.failedStage = stage;
-    throw new Error(`iOS storage acceptance failed at ${stage}. Credentials, UI dumps and private logs are not published.`);
+    failure = new Error(`iOS storage acceptance failed at ${stage}. Credentials, UI dumps and private logs are not published.`);
   } finally {
+    const cleanup = await Promise.allSettled([stopApi(), ...(prisma ? [prisma.$disconnect()] : []),
+      ...(dbStarted ? [command(pg('pg_ctl'), ['-D', path.join(runDir, 'pg'), '-m', 'fast', '-w', 'stop'], 'pg-stop')] : [])]);
+    const failed = cleanup.some(result => result.status === 'rejected');
+    proof.cleanup = failed ? 'failed' : 'passed';
+    if (failed) { proof.result = 'failed'; proof.failedStage = 'process cleanup'; }
     writeFileSync(path.join(root, 'artifacts/ios/evidence/storage.json'), `${JSON.stringify(proof, null, 2)}\n`);
-    await stopApi(); if (prisma) await prisma.$disconnect();
-    if (dbStarted) await command(pg('pg_ctl'), ['-D', path.join(runDir, 'pg'), '-m', 'fast', '-w', 'stop'], 'pg-stop');
+    if (failed) failure = new Error('iOS storage acceptance process cleanup failed.');
   }
+  if (failure) throw failure;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   run().catch(error => { console.error(error.message); process.exitCode = 1; });

@@ -5,8 +5,8 @@ actual native evidence; an iOS export alone does not prove native compilation or
 startup. This gate builds and installs an unsigned Release app on a fresh iPhone
 simulator, then exercises public navigation without account credentials or an API.
 The initial unsigned gate is retained below as historical evidence. Current builds
-request Xcode's local ad-hoc simulator signature and inspect the effective Keychain
-application identifier. A separate disposable API/database flow checks authenticated
+request a local ad-hoc simulator signature with only the explicit app-private Keychain
+namespace and inspect the effective application identifier. A disposable API/database flow checks authenticated
 storage; it never treats simulator signing as Apple device/store signing.
 It uses the existing GitHub Actions infrastructure and the architecture's Maestro
 test tool; it does not deploy CampusFlow to the owner's server.
@@ -39,6 +39,25 @@ stage/check record are published. Public native logs/screenshots are collected b
 creating the synthetic account. The initial storage run remains unverified until
 actual exact-head native acceptance succeeds.
 
+The first signed run (`751c960`, native `38373718950`) compiles with Xcode's ad-hoc
+identity and passes strict signature verification, but its effective entitlements
+are `{}`; the product gate rejects it before any account creation. Signing alone
+therefore does not fix Keychain access. After checking the actual product is
+`iphonesimulator`, the build signs it using the explicit local namespace
+`com.campusflow.mobile` for its application identifier and sole Keychain group.
+There is no Apple team identifier, provisioning profile, remote-push entitlement
+or shared-app group. This namespace is a simulator development input, not an Apple
+allocated device entitlement or distribution identity. The gate dumps and validates
+the actual resulting signature before archiving/installing it; ordinary native
+sign-in and cold restoration remain required to prove usable storage.
+
+Installed Expo introspection originally produces `aps-environment: development`:
+`expo-notifications` adds APNs entitlement even when only local reminders are used.
+CampusFlow has no push-token registration or remote delivery backend. The final
+local-reminder plugin removes that unused iOS entitlement after Expo's plugin;
+installed-plugin introspection and actual signed-product checks require its absence.
+Adding remote delivery later requires an explicit capability/signing decision.
+
 The `com.campusflow.mobile` simulator identifier matches the existing Android
 preview identity. It is not an owner-approved App Store registration or signing
 identity. Tablet, older iOS and physical iPhone acceptance remain unverified.
@@ -54,10 +73,11 @@ directly. Windows cannot compile this native target. The checked-in workflow use
 macOS 15/Xcode 26.2 and a checksum-verified Maestro CLI 2.6.1; it runs locally on
 its runner, without a Maestro Cloud account or EAS/store upload.
 
-The simulator API is deliberately `http://127.0.0.1:3000`. No backend is started
-and no login, account creation or student-data write is performed. Public Help
-must work despite the unavailable API. This does not verify signed-in cache,
-SQLite/session recovery, focus persistence, reminders, sharing, deletion or mail.
+The simulator API is deliberately `http://127.0.0.1:3000`. The public phase requires
+no backend and makes no account writes. After public evidence is collected, the
+storage phase starts its own loopback API and synthetic account, then stops the
+API to require actual cached cold restoration. Neither phase establishes focus
+persistence, reminders, sharing, deletion, physical-device behavior or real mail.
 
 Artifacts: `artifacts/ios/campusflow-simulator.zip` contains `CampusFlow.app`;
 `artifacts/ios/evidence` contains actual product/toolchain/archive metadata,
@@ -99,6 +119,13 @@ The first system-confirmed link therefore gets a bounded 45-second visible wait
 and animation settlement after Open. The original first-link order and expected
 screen remain required. This is an observed simulator/confirmation delivery delay,
 not proof of an app routing defect or a delivery-time guarantee.
+
+PR #82's exact-head public run passes, but its merged-main native run
+`38371477582` fails Back-to-sign-in after opening the first Help link. The driver
+log targets an in-button point; the final native frame remains Help. The cause is
+unproven. Current flow adds Help animation settlement and a first-link screenshot,
+then a bounded 30-second Back-screen assertion. The original order and single tap
+remain required; a passing corrected native run is still needed.
 
 Unsigned native logs also report Keychain error `-34018` for missing entitlements.
 This public-flow gate cannot establish usable signed-in Secure Store or notification

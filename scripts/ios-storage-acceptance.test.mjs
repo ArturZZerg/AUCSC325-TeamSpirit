@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { storageAcceptanceConfig, assertOwnedTask } from './ios-storage-acceptance.mjs';
+import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
 
 test('requires an explicit disposable macOS runner and UUID, without an external API', () => {
@@ -9,6 +9,13 @@ test('requires an explicit disposable macOS runner and UUID, without an external
     { IOS_SIMULATOR_UDID: 'booted' }, { IOS_PG_BIN: 'relative/bin' }, { EXPO_PUBLIC_API_URL: 'https://production.example.test' }])
     assert.throws(() => storageAcceptanceConfig({ ...env, ...changed }, 'darwin'));
   assert.throws(() => storageAcceptanceConfig(env, 'win32'));
+});
+
+test('publishes only a bounded redacted assertion, excluding raw private commands', () => {
+  const log = 'Input text: private-password\n[Failed] flow (Assertion is false: "private@example.test" is visible)\nUI dump with private-password';
+  assert.equal(publicFlowFailure(log, ['private@example.test', 'private-password']), 'Assertion is false: "[private]" is visible)');
+  assert.equal(publicFlowFailure('Input text: private-password', ['private-password']), undefined);
+  assert.equal(publicFlowFailure(`\x1b[31mElement not found: ${'x'.repeat(500)}\x1b[0m`, []).length, 250);
 });
 
 const task = { id: '11111111-2222-4333-8444-555555555555', title: 'Synthetic study', description: null,
