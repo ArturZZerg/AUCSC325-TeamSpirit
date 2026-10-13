@@ -17,7 +17,7 @@ import type { Session } from '@/lib/types';
 export default function RemindersScreen() {
   const session = useSessionStore(state => state.session);
   const params = useLocalSearchParams<{ reminderId?: string | string[]; accountId?: string | string[] }>();
-  return session ? <ReminderCenter key={session.accessToken} owner={session} params={params}/> : null;
+  return session ? <ReminderCenter key={`${session.accessToken}:${session.user.timeZone}`} owner={session} params={params}/> : null;
 }
 function ReminderCenter({ owner, params }: { owner: Session; params: { reminderId?: string | string[]; accountId?: string | string[] } }) {
   const router = useRouter(), reminders = useReminders(), preferences = usePreferences();

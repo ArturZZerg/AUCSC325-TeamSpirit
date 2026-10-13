@@ -112,6 +112,13 @@ it('unmounts private editor state on account switch and on sign-out', () => {
   expect(screen.queryByText('Task reminder')).toBeNull(); expect(screen.queryByRole('button', { name: 'Edit this reminder' })).toBeNull();
   act(() => useSessionStore.setState({ session: null })); expect(screen.queryByText(task.title)).toBeNull();
 });
+it('closes an existing local-time editor when the same account adopts a different timezone', () => {
+  mockParams = { reminderId: reminder.id, accountId }; render(<Reminders/>); fireEvent.press(screen.getByRole('button', { name: 'Edit this reminder' }));
+  expect(screen.getByText('Task reminder')).toBeOnTheScreen();
+  act(() => useSessionStore.setState({ session: { ...session, user: { ...session.user, timeZone: 'Pacific/Honolulu' } } }));
+  expect(screen.queryByText('Task reminder')).toBeNull(); expect(screen.getByText(/2025-03-08 09:00 · Pacific\/Honolulu/)).toBeOnTheScreen();
+  expect(save).not.toHaveBeenCalled();
+});
 it('derives quiet-hour times across DST and never invents enabled preferences or unsaved event ownership', () => {
   const quiet = reminderRows([{ ...reminder, fireAt: '2025-03-09T05:30:00Z' }], { tasks: [task] }, zone, { ...preferences, quietHoursStart: '22:00', quietHoursEnd: '07:00' })[0];
   expect(new Date(quiet.fireAt).toISOString()).toBe('2025-03-09T13:00:00.000Z'); expect(quiet.delayed).toBe(true);

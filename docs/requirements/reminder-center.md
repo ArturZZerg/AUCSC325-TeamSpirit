@@ -20,6 +20,8 @@ student titles on a lock screen or following an arbitrary notification URL.
   refresh. Unavailable reads are distinct from confirmed empty arrays. Changes
   still require the API; no notification action silently completes, reschedules
   or saves work. Editors and selection state unmount on account/token changes.
+  A same-account timezone update closes local-time editors before their input
+  could be reinterpreted in the new zone; the selected saved reminder remains usable.
 - REMINDER-04: New local schedules retain generic title/body and contain only
   existing account/stable/fire identities plus the reminder UUID. Reconciliation
   upgrades older pending schedules once and still prevents duplicates. There is
