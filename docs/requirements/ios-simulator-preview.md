@@ -59,6 +59,19 @@ the state under investigation. Known password-dialog label booleans help identif
 an overlay without publishing its contents or assuming one is present. New native
 acceptance remains required; no app state, routing or credentials are changed.
 
+At `a85fa8e` (`38468138262`), the public flow passes again (131 seconds, zero
+failures), but capture scrolling fails after sign-in. Non-reinstalling failure
+inspection now finds the exact `Not Now` control while app screen labels are
+absent. That control does not occur in CampusFlow source, supporting a system
+prompt obstruction; the full prompt's identity is not established. The private
+flow conditionally declines that observed prompt, requires its disappearance
+within ten seconds, and requires Today again before scrolling/capture. Only this
+idempotent system gesture uses unchanged-hierarchy retry. Application capture/save
+remain single taps; all task/API/offline/logout requirements remain required.
+No native storage acceptance is claimed from this failure. Both standard checks
+pass the exact head; process cleanup passes. The separately validated recovery
+feature remains local on `codex/native-link-recovery` at `25443bf` pending this PR.
+
 The first signed run (`751c960`, native `38373718950`) compiles with Xcode's ad-hoc
 identity and passes strict signature verification, but its code-signature entitlement
 dump is `{}`. The first gate rejects it before account creation. That gate was too

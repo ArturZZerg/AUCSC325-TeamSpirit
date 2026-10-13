@@ -93,6 +93,20 @@ exact-head run must still prove native task save, cold offline restoration and
 logout cleanup before PR #83 can merge. Local twenty tooling/privacy cases and
 root lint pass; no application behavior, API, schema or deployment change is added.
 
+`a85fa8e` passes both standard checks (`38468138308`, `38468131011`). Native
+`38468138262` builds/launches and passes public navigation (131 seconds), then
+fails capture scrolling. The preserved failure hierarchy reports exact `Not Now`
+with app screen labels absent. This label is absent from CampusFlow source,
+supporting a system prompt obstruction without establishing its full identity.
+The flow now conditionally declines this observed prompt, requires disappearance
+and Today again, then retains one capture/save tap and every storage requirement.
+New native/standard exact-head acceptance remains required; do not merge yet.
+The recovery feature is committed locally as `25443bf` on
+`codex/native-link-recovery`: twelve new cases, complete available local checks,
+fresh web export and reviewed 320px/150%-zoom/1280px browser layouts pass. Its
+native scenarios and PR wait for this storage branch; no rejected deployment or
+physical-device operation occurs. Local API checks skipped 256 DB-dependent cases.
+
 PR #81's native iOS simulator gate merged as
 `2c5fff3df80553313ebc005a0eeb3214c0d15339`. Standard CI
 passes 2,112 tests. A diagnostic unsigned Release build and actual public

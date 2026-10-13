@@ -20,6 +20,20 @@ name: iOS ordinary sign-in and owned task capture
     visible: Your daily flow
     timeout: 30000
 - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: '^Not Now$'
+    commands:
+      - tapOn:
+          text: '^Not Now$'
+          retryTapIfNoChange: true
+      - extendedWaitUntil:
+          notVisible: '^Not Now$'
+          timeout: 10000
+- extendedWaitUntil:
+    visible: Your daily flow
+    timeout: 10000
+- waitForAnimationToEnd
 - scrollUntilVisible:
     element:
       id: today-add-task
