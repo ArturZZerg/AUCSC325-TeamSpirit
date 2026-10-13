@@ -44,8 +44,15 @@ API-confirmed task state, API-disconnected cold encrypted session/SQLite restora
 native logout revocation and cache removal. Private credentials/UI dumps remain on the
 disposable runner; public diagnostics precede account creation. No app authentication
 behavior, schema, server deployment or physical-device interaction changes. Local
-artifact/harness tests pass twelve cases, root lint and mobile types pass; actual macOS
-compilation, signed-entitlement acceptance and private native flows remain pending.
+artifact/harness tests pass fourteen cases, root lint and mobile types pass. Corrected
+head `9be7a3e` passes standard PR/push CI (`38375810030`, `38375803905`, 2,122 tests)
+and actual native signature/entitlement/product verification. Its native run
+`38375810149` reports failed simulator data migration, then cannot launch the app;
+public navigation and private storage are unverified. The workflow now rejects that
+actual boot-log failure even with a zero exit/Booted inventory, can replace only its
+own fresh failed UUID once, and preflights native launch. Logout cold restoration now
+requires an absent API, preventing 401 cleanup from masking a stale local credential.
+New exact-head native/standard acceptance is required before merge.
 
 PR #81's native iOS simulator gate merged as
 `2c5fff3df80553313ebc005a0eeb3214c0d15339`. Standard CI

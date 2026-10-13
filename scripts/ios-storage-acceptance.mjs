@@ -151,7 +151,10 @@ async function run() {
     assert.equal(await prisma.session.count({ where: { userId: session.user.id, revokedAt: null } }), 1);
     assert.equal(await prisma.personalTask.count({ where: { userId: session.user.id, id: task.id } }), 1);
     assert.equal(cachedCount(), 0);
-    check('native sign-out revocation, cold signed-out state, zero owned SQLite rows, and retained server task');
+    check('native sign-out revocation, zero owned SQLite rows, and retained server task');
+    stage = 'offline cold signed-out state'; await stopApi(); await unusedPort(3000);
+    await flow('ios-session-signed-out');
+    check('cold signed-out state without API revocation fallback');
     proof.result = 'passed';
   } catch {
     proof.result = 'failed'; proof.failedStage = stage;

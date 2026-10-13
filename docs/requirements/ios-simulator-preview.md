@@ -2,8 +2,8 @@
 
 CampusFlow prioritizes native Android/iOS delivery. Android previews already have
 actual native evidence; an iOS export alone does not prove native compilation or
-startup. This gate builds and installs an unsigned Release app on a fresh iPhone
-simulator, then exercises public navigation without account credentials or an API.
+startup. This gate builds and installs a Release app on a fresh iPhone simulator,
+then exercises public navigation without account credentials or an API.
 The initial unsigned gate is retained below as historical evidence. Current builds
 request a local ad-hoc simulator signature with only the explicit app-private Keychain
 namespace and inspect the effective application identifier. A disposable API/database flow checks authenticated
@@ -21,10 +21,11 @@ test tool; it does not deploy CampusFlow to the owner's server.
 | IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public.yaml`; actual Maestro assertions, JUnit and screenshots |
 | IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | Actual Maestro assertions and cold Help screenshot |
 | IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 40-minute timeout and seven-day artifacts |
+| IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
 | IOS-STORAGE-01 | Verify the actual app's local simulator signature and effective default Keychain entitlement, without invented team IDs or shared groups | `codesign --verify --deep --strict`, signed entitlement dump and negative artifact tests |
 | IOS-STORAGE-02 | Ordinary native sign-in writes Secure Store and Today capture creates exactly one date-scheduled task through the real API | Disposable PostgreSQL 17 and NestJS preview API; native flow plus independent contract-validated API read |
 | IOS-STORAGE-03 | Terminated-process startup restores the encrypted session and owned SQLite task with no API/Metro listener | Explicit API shutdown/port guard and native cold offline flow |
-| IOS-STORAGE-04 | Native sign-out revokes its actual API session, removes owned SQLite rows, and cold startup stays signed out while the server task survives | Before/after session/cache counts and native cleanup flow |
+| IOS-STORAGE-04 | Native sign-out revokes its actual API session, removes owned SQLite rows, and cold startup stays signed out without an API while the server task survives | Before/after session/cache counts, online logout and separate API-disconnected cold signed-out flow; a server 401 cannot mask stale Secure Store |
 
 The storage harness is restricted to the disposable macOS Actions runner and the
 explicit booted `CampusFlowIosQa` UUID. It creates its own SCRAM-protected, loopback
@@ -50,6 +51,18 @@ or shared-app group. This namespace is a simulator development input, not an App
 allocated device entitlement or distribution identity. The gate dumps and validates
 the actual resulting signature before archiving/installing it; ordinary native
 sign-in and cold restoration remain required to prove usable storage.
+
+The corrected `9be7a3e` run (`38375810149`) builds and verifies the universal
+simulator product with those exact effective entitlements and no APNs/unused
+sensitive usage descriptions. Both standard checks pass 2,122 tests. Native app
+acceptance does not pass: the simulator reports `Data Migration Failed` despite
+bootstatus allowing continuation, then Maestro cannot launch CampusFlow. The final
+frame is SpringBoard and no CampusFlow process log is available. This establishes
+neither an app launch defect nor successful Keychain operations. Current workflow
+requires successful finished migration and the explicitly booted QA UUID before
+installing/testing; it can replace only its own failed fresh instance once. A
+direct launch preflight and app-specific SpringBoard/runningboard diagnostics help
+distinguish the next failure. Actual native public/private acceptance remains open.
 
 Installed Expo introspection originally produces `aps-environment: development`:
 `expo-notifications` adds APNs entitlement even when only local reminders are used.

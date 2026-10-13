@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { inspectSimulatorBoot } from './ios-simulator-boot.mjs';
 import { inspectIosPreview as inspectProduct, inspectSimulatorSigning } from './ios-preview.mjs';
 const require = createRequire(import.meta.url);
 const api = 'http://127.0.0.1:3000';
@@ -50,6 +51,19 @@ test('requires effective Keychain entitlements and actual local simulator signin
 test('local simulator signing requests only the matching app-private Keychain namespace', () => {
   const value = require('@expo/plist').default.parse(readFileSync(new URL('./ios-simulator.entitlements', import.meta.url), 'utf8'));
   assert.deepEqual({ ...value }, { 'application-identifier': 'com.campusflow.mobile', 'keychain-access-groups': ['com.campusflow.mobile'] });
+});
+
+test('accepts completed boot only for the explicit fresh QA simulator', () => {
+  const device = { udid: 'qa-uuid', name: 'CampusFlowIosQa', state: 'Booted' };
+  assert.equal(inspectSimulatorBoot('Status=4294967295, isTerminal=YES\nFinished\n', { devices: { ios: [device] } }, device.udid).ready, true);
+  for (const changed of [{ ...device, state: 'Shutdown' }, { ...device, name: 'User phone' }, { ...device, udid: 'other-uuid' }])
+    assert.throws(() => inspectSimulatorBoot('Finished', { devices: { ios: [changed] } }, device.udid));
+});
+
+test('rejects actual failed migration even when bootstatus exits zero and inventory says Booted', () => {
+  const inventory = { devices: { ios: [{ udid: 'qa-uuid', name: 'CampusFlowIosQa', state: 'Booted' }] } };
+  for (const log of ['Status=3, isTerminal=YES\nData Migration Failed', 'Data Migration Failed\nFinished', 'Waiting on System App'])
+    assert.throws(() => inspectSimulatorBoot(log, inventory, 'qa-uuid'));
 });
 test('configuration uses the established app identity and removes unused Face ID access', () => {
   const config = require('../apps/mobile/app.config.cjs')();

@@ -1,0 +1,12 @@
+appId: com.campusflow.mobile
+name: iOS cold signed-out state without API revocation fallback
+---
+- launchApp
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
+- assertNotVisible: Your daily flow
+- assertNotVisible: ${IOS_QA_TASK}
+- assertNotVisible: ${IOS_QA_EMAIL}
+- assertNotVisible: Retry device cleanup
+- stopApp
