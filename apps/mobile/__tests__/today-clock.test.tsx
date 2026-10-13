@@ -38,6 +38,93 @@ function plan(date: string, title = `Plan for ${date}`): Today {
 function Wrapper({ children }: PropsWithChildren) { return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>; }
 const todayCalls = () => jest.mocked(api).mock.calls.filter(([path]) => path.startsWith('/today?'));
 
+it.each([
+  ['newer', '2026-10-04T01:30:00Z'],
+  ['older', '2026-10-04T00:30:00Z'],
+  ['equal', '2026-10-04T01:00:00Z'],
+])('uses a %s snapshot consistently across Today membership, state and ordering', async (freshness, capturedAt) => {
+  const date = '2026-10-03'; // Still October 3 in the account zone, despite UTC October 4.
+  const before = snapshotFixture();
+  before.capturedAt = '2026-10-04T01:00:00Z';
+  before.coverage = { ...before.coverage, from: date, through: '2026-10-10' };
+  before.goals = []; before.goalCompletions = []; before.taskCompletions = [];
+  const task = { ...before.personalTasks[0], recurrence: null, due: { kind: 'date' as const, date }, scheduled: null };
+  before.personalTasks = [1, 2, 3].map(index => ({ ...task, id: `20000000-0000-4000-8000-00000000000${index}`, title: `Task ${index}` }));
+  before.academicItems = [1, 2, 3].map(index => ({
+    id: `50000000-0000-4000-8000-00000000000${index}`, courseId: null, title: `Coursework ${index}`,
+    kind: 'assignment' as const, due: { kind: 'date' as const, date: index === 3 ? '2026-10-05' : date },
+    submissionState: 'unsubmitted' as const, source: 'manual', externalId: String(index), mainGoalDate: null, updatedAt: before.capturedAt,
+  }));
+  const event = { id: '60000000-0000-4000-8000-000000000001', title: 'Newly included event', description: null,
+    category: null, source: 'fixture', externalId: 'event-1', location: null, url: null,
+    timing: { kind: 'timed' as const, startsAt: '2026-10-04T03:00:00Z', endsAt: null } };
+  before.events = [event, { ...event, id: '60000000-0000-4000-8000-000000000002', title: 'Formerly included event', externalId: 'event-2' }];
+  before.savedEvents = [{ eventId: before.events[1].id, includedInPlan: true, reminder: null, savedAt: before.capturedAt }];
+  const oldToday = composeOfflineToday(before, session.user.id, session.user.timeZone, date, new Date().toISOString())!;
+  const after = { ...before, capturedAt,
+    sourceStatus: { ...before.sourceStatus, availability: 'available' as const },
+    personalTasks: [
+      { ...before.personalTasks[0], due: null, scheduled: { kind: 'date' as const, date: '2026-10-04' } },
+      { ...before.personalTasks[1], completedAt: '2026-10-04T01:15:00Z' },
+      { ...task, id: '20000000-0000-4000-8000-000000000004', title: 'New main goal', mainGoalDate: date },
+    ],
+    academicItems: [
+      { ...before.academicItems[0], due: { kind: 'instant' as const, at: '2026-10-05T01:00:00Z' } },
+      { ...before.academicItems[2], submissionState: 'submitted' as const },
+      { ...before.academicItems[0], id: '50000000-0000-4000-8000-000000000004', title: 'New overdue coursework', due: { kind: 'date' as const, date: '2026-10-02' } },
+    ],
+    events: [...before.events, { ...event, id: '60000000-0000-4000-8000-000000000003', title: 'New campus event', externalId: 'event-3' }],
+    savedEvents: [
+      { ...before.savedEvents[0], includedInPlan: false },
+      { eventId: event.id, includedInPlan: true, reminder: null, savedAt: capturedAt },
+    ],
+  };
+  jest.mocked(api).mockImplementation(async path => path.startsWith('/snapshot') ? after : oldToday);
+  const { result } = renderHook(() => useToday(), { wrapper: Wrapper });
+  await waitFor(() => expect(writeCache).toHaveBeenCalledWith(session.user.id, 'snapshot', after));
+  await waitFor(() => expect(result.current.isLoading).toBe(false));
+  if (freshness !== 'newer') {
+    expect(result.current.data).toEqual(oldToday);
+    return;
+  }
+  await waitFor(() => expect(result.current.data?.generatedAt).toBe(capturedAt));
+  expect(result.current.data?.items.map(item => [item.title, item.state])).toEqual([
+    ['New main goal', 'today'], ['New overdue coursework', 'overdue'], ['Newly included event', 'today'], ['Task 2', 'completed'],
+  ]);
+  expect(result.current.data?.upcoming.map(item => [item.title, item.schedule, item.due])).toEqual([
+    ['Task 1', { kind: 'date', date: '2026-10-04' }, null],
+    ['Coursework 1', null, { kind: 'instant', at: '2026-10-05T01:00:00Z' }],
+  ]);
+  expect(result.current.data?.campusEvents).toEqual([after.events[1], after.events[2]]);
+  expect(result.current.data?.sourceStatus).toEqual(after.sourceStatus);
+});
+
+it('keeps a newer SQLite snapshot authoritative when an older successful Today response arrives late', async () => {
+  const snapshot = snapshotFixture();
+  snapshot.capturedAt = '2026-10-04T01:30:00Z';
+  snapshot.coverage = { ...snapshot.coverage, from: '2026-10-03', through: '2026-10-10' };
+  snapshot.personalTasks[0] = { ...snapshot.personalTasks[0], title: 'Updated cached task', recurrence: null,
+    due: { kind: 'date', date: '2026-10-03' } };
+  const older = plan('2026-10-03', 'Obsolete server task');
+  older.generatedAt = '2026-10-04T01:00:00Z';
+  let resolveToday!: (value: Today) => void;
+  const pendingToday = new Promise<Today>(resolve => { resolveToday = resolve; });
+  jest.mocked(readCache).mockImplementation(async (_account, key) => key === 'snapshot' ? snapshot : undefined);
+  jest.mocked(api).mockImplementation(path => path.startsWith('/today') ? pendingToday : Promise.reject(new Error('Snapshot refresh unavailable')));
+  const { result } = renderHook(() => useToday(), { wrapper: Wrapper });
+  await waitFor(() => expect(result.current.data?.generatedAt).toBe(snapshot.capturedAt));
+  expect(result.current.data?.items.find(item => item.kind === 'personalTask')?.title).toBe('Updated cached task');
+  expect(readCache).toHaveBeenCalledWith(session.user.id, 'snapshot');
+  expect(writeCache).not.toHaveBeenCalled();
+  const cachedPlan = result.current.data;
+  await act(async () => { resolveToday(older); });
+  await waitFor(() => expect(writeCache).toHaveBeenCalledWith(session.user.id, 'today:2026-10-03', older));
+  await waitFor(() => expect(queryClient.getQueryData(['account', session.user.id, 'today:2026-10-03'])).toEqual(older));
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(result.current.data).toEqual(cachedPlan);
+  expect(result.current.error).toBeNull();
+});
+
 beforeEach(() => {
   jest.useFakeTimers();
   jest.setSystemTime(new Date('2026-10-04T02:00:00Z'));
@@ -332,7 +419,7 @@ it.each(['2026-10-04T17:00:00Z', '2026-10-04T18:00:00Z'])('repairs incompatible 
   expect(writeCache).not.toHaveBeenCalled();
 });
 
-it('uses newer snapshot goal history and exclusions while retaining unrelated server items', async () => {
+it('uses newer snapshot goal history and exclusions while removing obsolete server items', async () => {
   jest.setSystemTime(new Date('2026-10-04T19:00:00Z'));
   const snapshot = snapshotFixture(); snapshot.accountId = session.user.id; snapshot.timeZone = session.user.timeZone;
   snapshot.capturedAt = '2026-10-04T18:30:00Z';
@@ -345,11 +432,11 @@ it('uses newer snapshot goal history and exclusions while retaining unrelated se
   jest.mocked(api).mockImplementation(async path => path.startsWith('/snapshot') ? snapshot : server);
   const { result } = renderHook(() => useToday(), { wrapper: Wrapper });
   await waitFor(() => expect(result.current.data?.items.find(item => item.kind === 'goal')?.state).toBe('skipped'));
-  expect(result.current.data?.items.filter(item => item.kind !== 'goal')).toEqual(server.items.filter(item => item.kind !== 'goal'));
+  expect(result.current.data?.items.filter(item => item.kind !== 'goal')).toEqual([]);
   const paused = { ...snapshot, capturedAt: '2026-10-04T18:45:00Z', goals: snapshot.goals.map(goal => ({ ...goal, pausedAt: '2026-10-04T18:40:00Z' })) };
   jest.mocked(api).mockImplementation(async path => path.startsWith('/snapshot') ? paused : server);
   await act(async () => { await result.current.refetch(); });
-  await waitFor(() => expect(result.current.data?.items).toEqual(server.items.filter(item => item.kind !== 'goal')));
+  await waitFor(() => expect(result.current.data?.items).toEqual([]));
   // A subsequent newer server result cannot be overwritten by that snapshot.
   const latest = { ...server, generatedAt: '2026-10-04T19:00:00Z' };
   jest.mocked(api).mockImplementation(async path => path.startsWith('/snapshot') ? paused : latest);

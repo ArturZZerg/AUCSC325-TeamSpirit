@@ -83,20 +83,20 @@ export function useToday(selectedDate?: string) {
   const now = new Date().toISOString();
   const offline = session ? composeOfflineToday(snapshotData, session.user.id, timeZone, date, now) : undefined;
   const validToday = query.data?.date === date && query.data.timeZone === timeZone ? query.data : undefined;
-  const preferred = validToday && ((!query.isCached && !query.isError) || !offline || Date.parse(validToday.generatedAt) >= Date.parse(offline.generatedAt)) ? validToday : offline;
+  // The two endpoints can capture different states. A newer validated snapshot
+  // owns the complete plan, even when the older Today request succeeded.
+  const preferred = validToday && (!offline || Date.parse(validToday.generatedAt) >= Date.parse(offline.generatedAt)) ? validToday : offline;
   let data = preferred;
   if (offline && snapshotData && preferred === validToday && validToday) {
     const snapshotAge = Date.parse(snapshotData.capturedAt) - Date.parse(validToday.generatedAt);
     const goals = new Map(offline.items.filter(item => item.kind === 'goal').map(item => [item.entityId, item]));
     const metadata = new Map(snapshotData.goals.map(goal => [goal.id, goal]));
-    // Newer normalized data owns goal membership, configuration and history.
     // At equal capture times retain already-compatible Today rows.
     // Older metadata may detect an incompatible derived key, but cannot safely
     // generate its replacement: withhold that row until usable metadata arrives.
     const items = validToday.items.flatMap(item => {
       if (item.kind !== 'goal') return [item];
       const current = goals.get(item.entityId); goals.delete(item.entityId);
-      if (snapshotAge > 0) return current ? [current] : [];
       const goal = metadata.get(item.entityId);
       const compatible = !goal || item.occurrenceKey === goalOccurrenceDate(goal.timeZone, date, timeZone, now);
       if (compatible) return [item];
