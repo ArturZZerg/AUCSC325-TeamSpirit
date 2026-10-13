@@ -82,6 +82,17 @@ original app routes and single Back/capture/save actions remain required. New
 exact-head native/standard checks are pending. The isolated recovery draft also
 type-checks against current generated routes, with the exact public allowlist intact.
 
+At `019f64c`, standard PR/push runs (`38460730956`, `38460722234`) pass 2,130
+tests. Native run `38460731027` passes build/capabilities/launch and public flow
+(120 seconds, zero failures); private login reaches Today, but capture's ID is not
+found before its tap. Its downloaded archive hash and selector presence match the
+actual CI product. Capture now scrolls to that control before the single tap.
+Failure diagnostics skip Maestro's default driver reinstall and publish only the
+existing fixed-label booleans, including known password-dialog labels. A fresh
+exact-head run must still prove native task save, cold offline restoration and
+logout cleanup before PR #83 can merge. Local twenty tooling/privacy cases and
+root lint pass; no application behavior, API, schema or deployment change is added.
+
 PR #81's native iOS simulator gate merged as
 `2c5fff3df80553313ebc005a0eeb3214c0d15339`. Standard CI
 passes 2,112 tests. A diagnostic unsigned Release build and actual public

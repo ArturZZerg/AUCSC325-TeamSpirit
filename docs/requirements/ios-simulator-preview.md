@@ -47,6 +47,18 @@ Selectors, typed values, variables, private paths, tokens and full UI hierarchie
 remain in the ignored runner directory. A raw hierarchy or log is never a fallback.
 These summaries diagnose the flow; label presence alone is not visibility proof.
 
+At `019f64c` (`38460731027`), build, effective simulator capabilities, healthy
+launch and the public flow pass (120 seconds, zero failures). Ordinary native
+sign-in reaches Today, but the capture ID is not found before its tap. The actual
+downloaded archive matches CI's hash and contains that selector, ruling out an
+older bundle. Task save, offline restoration and logout are not accepted. The
+flow now requires scrolling to the capture control before its single tap.
+Failure hierarchy inspection disables the pinned CLI's default driver reinstall
+with `--no-reinstall-driver`; this avoids an additional driver restart changing
+the state under investigation. Known password-dialog label booleans help identify
+an overlay without publishing its contents or assuming one is present. New native
+acceptance remains required; no app state, routing or credentials are changed.
+
 The first signed run (`751c960`, native `38373718950`) compiles with Xcode's ad-hoc
 identity and passes strict signature verification, but its code-signature entitlement
 dump is `{}`. The first gate rejects it before account creation. That gate was too

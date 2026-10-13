@@ -32,9 +32,16 @@ test('private flow timeline publishes only known actions, states and numeric tim
 test('private screen diagnostics output fixed label-presence booleans only', () => {
   const result = privateViewSummary({ children: [{ attributes: { text: 'Your daily flow', id: 'today-add-task' } },
     { attributes: { text: 'private@example.test', input: 'secret-password', token: 'private-token' } }] });
-  assert.deepEqual(result, { auth: false, today: true, editor: false, capture: true, titleInput: false, save: false, cleanupRetry: false });
+  assert.deepEqual(result, { auth: false, today: true, editor: false, capture: true, titleInput: false, save: false, cleanupRetry: false,
+    savePassword: false, notNow: false, passwords: false });
   assert.ok(Object.values(result).every(value => typeof value === 'boolean'));
   assert.ok(!JSON.stringify(result).includes('private'));
+  const overlay = privateViewSummary({ children: [{ attributes: { text: 'Save Password' } },
+    { attributes: { text: 'Not Now', value: 'secret-password' } }] });
+  assert.equal(overlay.savePassword, true);
+  assert.equal(overlay.notNow, true);
+  assert.equal(overlay.passwords, false);
+  assert.ok(!JSON.stringify(overlay).includes('secret-password'));
 });
 
 const task = { id: '11111111-2222-4333-8444-555555555555', title: 'Synthetic study', description: null,

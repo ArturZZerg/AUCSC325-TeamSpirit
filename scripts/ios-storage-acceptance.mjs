@@ -54,7 +54,8 @@ export function privateFlowTimeline(records) {
 
 export function privateViewSummary(hierarchy) {
   const known = { auth: 'Welcome back', today: 'Your daily flow', editor: 'New task', capture: 'today-add-task',
-    titleInput: 'task-title', save: 'Save task', cleanupRetry: 'Retry device cleanup' };
+    titleInput: 'task-title', save: 'Save task', cleanupRetry: 'Retry device cleanup',
+    savePassword: 'Save Password', notNow: 'Not Now', passwords: 'Passwords' };
   const result = Object.fromEntries(Object.keys(known).map(name => [name, false]));
   function visit(value, depth) {
     if (depth > 40 || value === null || typeof value !== 'object') return;
@@ -157,7 +158,8 @@ async function run() {
         '--debug-output', path.join(runDir, name), '--test-output-dir', path.join(runDir, name), `.maestro/${name}.yaml`], name);
     } catch (error) {
       try {
-        await command(cli, ['--device', config.udid, 'hierarchy'], 'private-hierarchy');
+        // Default hierarchy reinstalls XCTest and can change the foreground UI.
+        await command(cli, ['--device', config.udid, 'hierarchy', '--no-reinstall-driver'], 'private-hierarchy');
         const raw = readFileSync(path.join(runDir, 'private-hierarchy.log'), 'utf8');
         const hierarchy = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
         writeFileSync(path.join(root, `artifacts/ios/evidence/${name}-view.json`), `${JSON.stringify(privateViewSummary(hierarchy), null, 2)}\n`);
