@@ -8,13 +8,13 @@ const databaseSuite = process.env.DATABASE_URL ? describe : describe.skip;
 databaseSuite('Readiness against disposable PostgreSQL schema', () => {
   const schema = `health_${randomUUID().replace(/-/g, '')}`;
   const originalUrl = process.env.DATABASE_URL!;
-  const sourceSchema = new URL(originalUrl).searchParams.get('schema') ?? 'public';
   let source: PrismaService, clone: PrismaService;
   const quoted = (name: string) => {
     if (!/^[A-Za-z_][A-Za-z0-9_]{0,62}$/.test(name)) throw new Error('Unsafe schema identifier');
     return Prisma.raw(`"${name}"`);
   };
   beforeAll(async () => {
+    const sourceSchema = new URL(originalUrl).searchParams.get('schema') ?? 'public';
     source = new PrismaService(); await source.$connect();
     await source.$executeRaw(Prisma.sql`CREATE SCHEMA ${quoted(schema)}`);
     for (const name of [...requiredSchema.tables.map(table => table.name), '_prisma_migrations']) {
