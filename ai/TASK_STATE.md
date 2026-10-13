@@ -180,8 +180,9 @@ clear recovery path. Production hosting/email, contact/operator details,
 signing/privacy and physical acceptance remain pending; source stays local.
 
 Next feature branch `codex/native-link-recovery` implements branded unavailable-link
-recovery while PR #83's exact `a85fa8e` native run (`38468138262`) remains active;
-both its standard PR/push checks pass (`38468138308`, `38468131011`). The feature
+recovery atop PR #83's corrected `ab46128` system-prompt flow. Its previous
+`a85fa8e` native run failed with preserved `Not Now` evidence; fresh exact-head
+standard/native checks are running. The feature
 uses fixed Today/sign-in/Help recovery actions after restoration, ignores incoming
 path/query values, and permits only the exact generic `+not-found` public leaf.
 Known private routes and Account continuation remain guarded. Twelve new behavior
