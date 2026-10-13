@@ -34,17 +34,20 @@ the original first-link order and required behavior. Actual acceptance remains
 required. No API/schema/auth-continuation change is introduced.
 
 Current release task: replace the unsigned iOS simulator build's missing Keychain
-entitlements with explicit local ad-hoc signing for the simulator's app-private
-Keychain namespace, inspecting the actual product. The first native run at `751c960`
-compiles and verifies its signature but exposes empty effective entitlements; the
-strict product gate rejects it before account creation. Only a checked simulator
-product gets the explicit local entitlement file, without an Apple team/profile.
+capability gap with Xcode-managed simulator entitlements and actual compiled-section
+inspection. The first signed `751c960` gate inspects only the host signature and
+rejects its empty dump; that alone does not prove simulator capability absence.
+Manual signing in `9be7a3e`/`a61c0c6` puts iOS entitlements in the host signature.
+After healthy boot, `a61c0c6` cannot launch (spawn error 162, no JavaScript). The
+correction removes manual re-signing, supplies the private namespace as Expo/Xcode
+input only for simulator builds, and checks every compiled Mach-O slice. Device
+builds receive no simulator override; no Apple team/profile is invented.
 Disposable real PostgreSQL/NestJS acceptance exercises ordinary sign-in, Today capture,
 API-confirmed task state, API-disconnected cold encrypted session/SQLite restoration,
 native logout revocation and cache removal. Private credentials/UI dumps remain on the
 disposable runner; public diagnostics precede account creation. No app authentication
 behavior, schema, server deployment or physical-device interaction changes. Local
-artifact/harness tests pass fourteen cases, root lint and mobile types pass. Corrected
+artifact/harness tests pass eighteen cases, root lint and mobile types pass. Prior
 head `9be7a3e` passes standard PR/push CI (`38375810030`, `38375803905`, 2,122 tests)
 and actual native signature/entitlement/product verification. Its native run
 `38375810149` reports failed simulator data migration, then cannot launch the app;
@@ -52,7 +55,9 @@ public navigation and private storage are unverified. The workflow now rejects t
 actual boot-log failure even with a zero exit/Booted inventory, can replace only its
 own fresh failed UUID once, and preflights native launch. Logout cold restoration now
 requires an absent API, preventing 401 cleanup from masking a stale local credential.
-New exact-head native/standard acceptance is required before merge.
+`a61c0c6` standard PR/push checks pass (`38379422589`, `38379418278`), but native
+`38379422576` proves healthy boot and rejects direct app launch. New exact-head
+native/standard acceptance is required before merge.
 
 PR #81's native iOS simulator gate merged as
 `2c5fff3df80553313ebc005a0eeb3214c0d15339`. Standard CI

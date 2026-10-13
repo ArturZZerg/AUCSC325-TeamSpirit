@@ -5,8 +5,9 @@ actual native evidence; an iOS export alone does not prove native compilation or
 startup. This gate builds and installs a Release app on a fresh iPhone simulator,
 then exercises public navigation without account credentials or an API.
 The initial unsigned gate is retained below as historical evidence. Current builds
-request a local ad-hoc simulator signature with only the explicit app-private Keychain
-namespace and inspect the effective application identifier. A disposable API/database flow checks authenticated
+retain Xcode's local ad-hoc signature and declare an app-private Keychain namespace
+only for the explicit simulator build. The gate inspects the compiled simulated
+entitlement section in every executable architecture. A disposable API/database flow checks authenticated
 storage; it never treats simulator signing as Apple device/store signing.
 It uses the existing GitHub Actions infrastructure and the architecture's Maestro
 test tool; it does not deploy CampusFlow to the owner's server.
@@ -22,7 +23,7 @@ test tool; it does not deploy CampusFlow to the owner's server.
 | IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | Actual Maestro assertions and cold Help screenshot |
 | IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 40-minute timeout and seven-day artifacts |
 | IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
-| IOS-STORAGE-01 | Verify the actual app's local simulator signature and effective default Keychain entitlement, without invented team IDs or shared groups | `codesign --verify --deep --strict`, signed entitlement dump and negative artifact tests |
+| IOS-STORAGE-01 | Verify the actual app's local host signature and compiled simulator Keychain capabilities in every architecture, without invented team IDs or shared groups | Strict signature verification; actual Mach-O `__TEXT,__entitlements` extraction; negative host/device/slice artifact tests |
 | IOS-STORAGE-02 | Ordinary native sign-in writes Secure Store and Today capture creates exactly one date-scheduled task through the real API | Disposable PostgreSQL 17 and NestJS preview API; native flow plus independent contract-validated API read |
 | IOS-STORAGE-03 | Terminated-process startup restores the encrypted session and owned SQLite task with no API/Metro listener | Explicit API shutdown/port guard and native cold offline flow |
 | IOS-STORAGE-04 | Native sign-out revokes its actual API session, removes owned SQLite rows, and cold startup stays signed out without an API while the server task survives | Before/after session/cache counts, online logout and separate API-disconnected cold signed-out flow; a server 401 cannot mask stale Secure Store |
@@ -41,16 +42,17 @@ creating the synthetic account. The initial storage run remains unverified until
 actual exact-head native acceptance succeeds.
 
 The first signed run (`751c960`, native `38373718950`) compiles with Xcode's ad-hoc
-identity and passes strict signature verification, but its effective entitlements
-are `{}`; the product gate rejects it before any account creation. Signing alone
-therefore does not fix Keychain access. After checking the actual product is
-`iphonesimulator`, the build signs it using the explicit local namespace
-`com.campusflow.mobile` for its application identifier and sole Keychain group.
-There is no Apple team identifier, provisioning profile, remote-push entitlement
-or shared-app group. This namespace is a simulator development input, not an Apple
-allocated device entitlement or distribution identity. The gate dumps and validates
-the actual resulting signature before archiving/installing it; ordinary native
-sign-in and cold restoration remain required to prove usable storage.
+identity and passes strict signature verification, but its code-signature entitlement
+dump is `{}`. The first gate rejects it before account creation. That gate was too
+narrow: simulator capabilities may be embedded in `__TEXT,__entitlements`, so an
+empty host signature alone does not prove their absence. The corrected pipeline
+declares the private `com.campusflow.mobile` namespace as Expo/Xcode input only when
+`CAMPUSFLOW_IOS_SIMULATOR=1`. It preserves Xcode's original signature and reads the
+actual compiled section in both arm64 and x86_64 slices. iOS application/group
+entitlements must not be manually added to the macOS host signature. No Apple team,
+profile, APNs or shared group is invented. Device builds do not set this flag and
+must use their real Apple team/profile. Native sign-in/cold restoration remain
+required to prove usable storage; metadata alone is insufficient.
 
 The corrected `9be7a3e` run (`38375810149`) builds and verifies the universal
 simulator product with those exact effective entitlements and no APNs/unused
@@ -63,6 +65,15 @@ requires successful finished migration and the explicitly booted QA UUID before
 installing/testing; it can replace only its own failed fresh instance once. A
 direct launch preflight and app-specific SpringBoard/runningboard diagnostics help
 distinguish the next failure. Actual native public/private acceptance remains open.
+
+The guarded `a61c0c6` run (`38379422576`) confirms successful migration and a booted
+QA UUID, but direct native launch is denied before JavaScript with launchd spawn
+error 162. Its manual signature contains iOS application/group entitlements. Thus
+the previous migration problem does not explain this run. Manual post-build signing
+is removed; Xcode now handles simulator entitlement placement. This correction is
+supported by [WebKit's simulator/signature distinction](https://github.com/WebKit/WebKit/blob/main/Source/WebKit/Scripts/process-entitlements.sh)
+and [Bazel's Xcode simulator section investigation](https://github.com/bazelbuild/rules_apple/issues/106),
+with actual compiled section inspection and native acceptance still required.
 
 Installed Expo introspection originally produces `aps-environment: development`:
 `expo-notifications` adds APNs entitlement even when only local reminders are used.

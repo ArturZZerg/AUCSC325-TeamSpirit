@@ -12,6 +12,7 @@ if [[ "${1:-}" == '--check' ]]; then printf '%s\n' "$xcode_version"; exit 0; fi
 [[ $# == 0 ]] || { echo 'Only --check is supported.' >&2; exit 1; }
 export CI=1 NODE_ENV=production EXPO_NO_DOTENV=1 EXPO_NO_TELEMETRY=1
 export EXPO_PUBLIC_API_URL='http://127.0.0.1:3000'
+export CAMPUSFLOW_IOS_SIMULATOR=1
 export CAMPUSFLOW_BUILD_SHA="$(git rev-parse HEAD)"
 mkdir -p .local artifacts/ios/evidence
 root="$PWD"
@@ -32,18 +33,22 @@ xcodebuild -workspace CampusFlow.xcworkspace -scheme CampusFlow -configuration R
 cd "$root"
 app='.local/ios-derived-data/Build/Products/Release-iphonesimulator/CampusFlow.app'
 plutil -convert json -o artifacts/ios/evidence/info.json "$app/Info.plist"
-# Xcode's no-team ad-hoc signature has empty effective entitlements. Give only
-# this simulator product its app-private local Keychain namespace; no Apple team.
-[[ "$(plutil -extract DTPlatformName raw "$app/Info.plist")" == iphonesimulator ]] || { echo 'Local entitlement signing is simulator-only.' >&2; exit 1; }
-codesign --force --sign - --entitlements scripts/ios-simulator.entitlements "$app"
+# Keep Xcode's simulator signature. iOS capabilities live in its simulated
+# Mach-O section; inserting device entitlements in the host signature prevents launch.
+[[ "$(plutil -extract DTPlatformName raw "$app/Info.plist")" == iphonesimulator ]] || { echo 'Entitlement inspection is simulator-only.' >&2; exit 1; }
 codesign --verify --deep --strict "$app"
 codesign -dv --verbose=4 "$app" 2> artifacts/ios/evidence/signature.txt
 # Inspect the effective signature, not just the signing input.
 codesign -d --entitlements :- "$app" > artifacts/ios/evidence/entitlements.plist
 plutil -convert json -o artifacts/ios/evidence/entitlements.json artifacts/ios/evidence/entitlements.plist
 architectures="$(xcrun lipo -archs "$app/CampusFlow")"
+for architecture in $architectures; do
+  slice=".local/ios-executable-$architecture"
+  xcrun lipo "$app/CampusFlow" -thin "$architecture" -output "$slice"
+  node scripts/ios-simulated-entitlements.mjs "$slice" "$architecture" "artifacts/ios/evidence/simulated-$architecture.json"
+done
 node scripts/ios-preview.mjs artifacts/ios/evidence/info.json "$app/main.jsbundle" "$architectures" artifacts/ios/evidence/product.json \
-  artifacts/ios/evidence/entitlements.json artifacts/ios/evidence/signature.txt
+  artifacts/ios/evidence/entitlements.json artifacts/ios/evidence/signature.txt artifacts/ios/evidence
 ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/ios/campusflow-simulator.zip
 shasum -a 256 artifacts/ios/campusflow-simulator.zip > artifacts/ios/evidence/archive-sha256.txt
 printf '%s\n' "$xcode_version" > artifacts/ios/evidence/xcode.txt

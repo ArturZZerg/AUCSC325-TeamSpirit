@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { inspectSimulatorBoot } from './ios-simulator-boot.mjs';
+import { readSimulatedEntitlements } from './ios-simulated-entitlements.mjs';
 import { inspectIosPreview as inspectProduct, inspectSimulatorSigning } from './ios-preview.mjs';
 const require = createRequire(import.meta.url);
 const api = 'http://127.0.0.1:3000';
@@ -14,7 +15,8 @@ const info = { DTPlatformName: 'iphonesimulator', CFBundleIdentifier: 'com.campu
 const bundle = Buffer.from(`${api}\0A little help for your day.`);
 const entitlements = { 'application-identifier': 'com.campusflow.mobile' };
 const signature = 'Signature=adhoc\nTeamIdentifier=not set\n';
-const inspectIosPreview = (info, bundle, arch, api) => inspectProduct(info, bundle, arch, api, entitlements, signature);
+const inspectIosPreview = (info, bundle, arch, api) => inspectProduct(info, bundle, arch, api, {}, signature,
+  Object.fromEntries(arch.map(value => [value, entitlements])));
 test('accepts actual simulator metadata and either supported bundle string encoding', () => {
   for (const encoding of ['utf8', 'utf16le']) {
     const proof = inspectIosPreview(info, Buffer.from(bundle.toString(), encoding), ['arm64', 'x86_64'], api);
@@ -42,10 +44,37 @@ test('requires effective Keychain entitlements and actual local simulator signin
     { ...entitlements, 'keychain-access-groups': [] }, { ...entitlements, 'keychain-access-groups': ['shared.app'] },
     { ...entitlements, 'keychain-access-groups': ['com.campusflow.mobile', 'shared.app'] },
     { ...entitlements, 'aps-environment': 'development' }, { ...entitlements, 'com.apple.developer.team-identifier': 'invented' }])
-    assert.throws(() => inspectSimulatorSigning(value, signature));
+    assert.throws(() => inspectSimulatorSigning({}, signature, value));
   for (const value of ['', 'code object is not signed at all', 'Signature=adhoc\nTeamIdentifier=ABC123\n', 'Authority=Apple Development\nTeamIdentifier=ABC123\n'])
-    assert.throws(() => inspectSimulatorSigning(entitlements, value));
-  assert.equal(inspectSimulatorSigning({ ...entitlements, 'keychain-access-groups': ['com.campusflow.mobile'] }, signature).keychainIdentifier, 'com.campusflow.mobile');
+    assert.throws(() => inspectSimulatorSigning({}, value, entitlements));
+  for (const host of [entitlements, { 'keychain-access-groups': ['com.campusflow.mobile'] }, { 'aps-environment': 'development' }])
+    assert.throws(() => inspectSimulatorSigning(host, signature, entitlements));
+  assert.equal(inspectSimulatorSigning({}, signature, { ...entitlements, 'keychain-access-groups': ['com.campusflow.mobile'] }).keychainIdentifier, 'com.campusflow.mobile');
+});
+
+test('requires simulated capabilities in every installed architecture, not just the host signature', () => {
+  assert.throws(() => inspectProduct(info, bundle, ['arm64', 'x86_64'], api, {}, signature, { arm64: entitlements }));
+});
+
+function simulatedExecutable(architecture = 'arm64') {
+  const xml = Buffer.from(require('@expo/plist').default.build(entitlements));
+  const binary = Buffer.alloc(184 + xml.length);
+  binary.writeUInt32LE(0xfeedfacf); binary.writeUInt32LE(architecture === 'arm64' ? 0x0100000c : 0x01000007, 4);
+  binary.writeUInt32LE(1, 16); binary.writeUInt32LE(152, 20);
+  binary.writeUInt32LE(0x19, 32); binary.writeUInt32LE(152, 36); binary.writeUInt32LE(1, 96);
+  binary.write('__entitlements', 104); binary.write('__TEXT', 120);
+  binary.writeBigUInt64LE(BigInt(xml.length), 144); binary.writeUInt32LE(184, 152); xml.copy(binary, 184);
+  return binary;
+}
+test('reads actual simulated entitlements from either supported Mach-O section', () => {
+  for (const architecture of ['arm64', 'x86_64']) assert.deepEqual(readSimulatedEntitlements(simulatedExecutable(architecture), architecture), entitlements);
+});
+test('rejects missing, truncated, wrong-architecture and out-of-bounds simulator sections', () => {
+  const missing = simulatedExecutable(); missing.write('__unrelated', 104);
+  const bounds = simulatedExecutable(); bounds.writeUInt32LE(bounds.length + 100, 152);
+  for (const value of [Buffer.alloc(0), simulatedExecutable().subarray(0, 150), missing, bounds])
+    assert.throws(() => readSimulatedEntitlements(value, 'arm64'));
+  assert.throws(() => readSimulatedEntitlements(simulatedExecutable(), 'x86_64'));
 });
 
 test('local simulator signing requests only the matching app-private Keychain namespace', () => {
@@ -84,4 +113,15 @@ test('generated native plist removes Face ID and global cleartext access after a
   assert.equal(plist.NSAppTransportSecurity.NSAllowsLocalNetworking, true);
   assert.deepEqual(Object.keys(plist).filter(key => /^NS.*UsageDescription$/.test(key)), []);
   assert.equal(generated.entitlements['aps-environment'], undefined, 'Local reminders must not request APNs remote-push entitlement.');
+});
+
+test('only the explicit simulator build puts private Keychain capabilities in Xcode input', () => {
+  const result = spawnSync(process.execPath, ['../../node_modules/expo/bin/cli', 'config', '--type', 'introspect', '--json'], {
+    cwd: fileURLToPath(new URL('../apps/mobile', import.meta.url)), encoding: 'utf8', timeout: 30_000,
+    env: { ...process.env, CI: '1', EXPO_NO_DOTENV: '1', EXPO_NO_TELEMETRY: '1', CAMPUSFLOW_IOS_SIMULATOR: '1', EXPO_PUBLIC_API_URL: api },
+  });
+  assert.equal(result.status, 0);
+  assert.deepEqual(JSON.parse(result.stdout)._internal.modResults.ios.entitlements,
+    { ...entitlements, 'keychain-access-groups': ['com.campusflow.mobile'] });
+  assert.equal(require('../apps/mobile/app.config.cjs')().ios.entitlements, undefined);
 });
