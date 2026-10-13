@@ -10,11 +10,7 @@ name: iOS public offline Help and account navigation
     timeout: 30000
 - waitForAnimationToEnd
 - takeScreenshot: ios-auth
-- tapOn: Help & data
-- assertVisible: A little help for your day.
-- tapOn: Back to sign in
-- assertVisible: Welcome back
-- openLink: campusflow://help
+- openLink: campusflow:///help
 - runFlow:
     when:
       visible: 'Open in.*CampusFlow.*'
@@ -22,7 +18,11 @@ name: iOS public offline Help and account navigation
       - tapOn: Open
 - assertVisible: A little help for your day.
 - tapOn: Back to sign in
-- openLink: campusflow:///help
+- assertVisible: Welcome back
+- tapOn: Help & data
+- assertVisible: A little help for your day.
+- tapOn: Back to sign in
+- openLink: campusflow://help
 - assertVisible: A little help for your day.
 - assertVisible: Search help
 - takeScreenshot: ios-help
