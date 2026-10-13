@@ -51,6 +51,8 @@ Only that emulator forwards port 3000 to the PC's loopback API port 18780.
 | Start task-linked focus, force-stop, cold-launch, use Today's recovery action | A paused checkpoint retains 23:46 of the 25-minute block; it offers explicit resume/save/discard controls |
 | Save recovered time explicitly | API confirms exactly one linked interrupted focus record with 74 focused seconds, matching the paused checkpoint |
 | Force-stop and open one cold Focus or Account URI | Each reaches its expected signed-in screen; the explicitly saved focus draft does not reappear |
+| After explicit owner approval, submit the disposable account's native password/DELETE form | Deletion acknowledgment appears without a cleanup error; its separate verification token returns 401; the existing Pixel QA account's export fingerprint, excluding capture time, is unchanged |
+| Force-stop and cold-open Account and Focus after deletion | Both remain signed out; the former account email, task and focus-recovery data are absent |
 
 Android's outer navigation container can appear as a full-window ScrollView in
 the accessibility tree even when the workspace is inset. The geometry checker
@@ -67,7 +69,9 @@ installed; native acceptance itself requires installed SDK tools and PowerShell.
 
 ## Remaining evidence
 
-Broader account cleanup remains a separate observation. The changing running
+The deletion observations establish targeted native/session isolation. Byte-level
+SQLite erasure was not inspected on this non-rooted release emulator; other-device,
+cleanup-failure and broader account-switch acceptance remain separate. The changing running
 timer prevents the standard UiAutomator command from reaching idle; lifecycle
 restart and the paused recovery controls provide inspectable snapshots. A link
 sent immediately during initial session restoration returned to Today in this
@@ -88,5 +92,8 @@ pages, intended campus deployment, live Canvas authorization, production signing
 and store declarations/review remain release gates.
 
 For repeatable build/target commands see the [preview guide](android-preview.md).
+PR #74's reviewed head `e8442bd51ea8efc60995e0d211f11c669a72d887` passes PR/push
+CI `38327943034` and `38327938039`. Merged main
+`6b1985a55b18e674386238ccc84682dab8b0b56a` passes CI `38328628613`.
 Android documents [separate emulator data directories and command options](https://developer.android.com/studio/run/emulator-commandline)
 and [AVD/user home variables](https://developer.android.com/tools/variables).

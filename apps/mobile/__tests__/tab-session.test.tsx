@@ -53,6 +53,15 @@ beforeEach(() => {
 });
 
 describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
+  it.each(['switch', 'sign-out', 'relogin'])('discards a Today capture draft on %s', transition => {
+    mockRoute = 'today'; render(<TabsLayout/>);
+    fireEvent.press(screen.getByText('Add a task to this day'));
+    fireEvent.changeText(screen.getByLabelText('Title'), 'Private captured draft');
+    session(transition === 'switch' ? second : transition === 'sign-out' ? null : { ...first, accessToken: 'new-login' });
+    expect(screen.queryByLabelText('Title')).toBeNull(); expect(save).not.toHaveBeenCalled();
+    session(first); fireEvent.press(screen.getByText('Add a task to this day'));
+    expect(screen.getByLabelText('Title')).toHaveDisplayValue('');
+  });
   it.each(['switch', 'relogin'])('discards a private study-window draft on %s', transition => {
     mockRoute = 'today'; render(<TabsLayout/>); fireEvent.press(screen.getByText('Find study time'));
     fireEvent.press(screen.getByText('Plan 30 min at 8:00 AM')); fireEvent.changeText(screen.getByLabelText('Title'), 'Private study draft');

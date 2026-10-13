@@ -26,7 +26,8 @@ export function TaskEditor({ task, onClose, timeZone = 'UTC', initialValues }: {
   const save = async (values: TaskFormValues) => {
     setMessage(undefined);
     try { await action.mutateAsync(taskFormRequest(values, task, timeZone)); onClose(); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the task. Please try again.'); }
+    catch (error) { setMessage(error instanceof TypeError ? 'Couldn’t confirm the save. Check your connection and saved tasks before retrying.'
+      : error instanceof Error ? error.message : 'Could not save the task. Please try again.'); }
   };
   const submit = async () => {
     if (saving.current) return;
