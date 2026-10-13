@@ -71,6 +71,17 @@ and command/status/timing; raw private dumps remain excluded. New exact-head che
 remain required. The next unavailable-link screen/gate is isolated in `.local` and
 passes 16 draft cases; it is not part of the active PR.
 
+`b9a8377` passes standard PR/push checks (`38456972034`, `38456965578`). Native
+`38456971969` needs its second fresh UUID after failed migration; healthy boot
+and app launch pass. The first system Open tap targets the correct button, but
+the final frame still shows `Open in CampusFlow?`, with no app incoming URL.
+Private acceptance is skipped. A common confirmation subflow now waits for dialog
+settlement and retries only the unchanged idempotent system Open gesture using
+the documented Maestro option. Dialog dismissal is required within ten seconds;
+original app routes and single Back/capture/save actions remain required. New
+exact-head native/standard checks are pending. The isolated recovery draft also
+type-checks against current generated routes, with the exact public allowlist intact.
+
 PR #81's native iOS simulator gate merged as
 `2c5fff3df80553313ebc005a0eeb3214c0d15339`. Standard CI
 passes 2,112 tests. A diagnostic unsigned Release build and actual public

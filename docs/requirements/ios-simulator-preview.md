@@ -91,6 +91,18 @@ unproven. The current flow waits for navigation settlement, targets the actual
 capture Pressable by stable ID, and requires New task within 30 seconds after one
 tap; native capture/storage acceptance must still pass. App behavior is unchanged.
 
+`b9a8377` (`38456971969`) builds and launches, but its public flow cannot leave
+the first iOS `Open in CampusFlow?` dialog. The driver logs a tap at its Open
+button's center (270,461); the final full frame still shows that system dialog,
+and no incoming `UIOpenURLAction` reaches CampusFlow. The private stage is skipped.
+The common confirmation subflow now settles the dialog before tapping and uses
+Maestro's [documented unchanged-hierarchy tap retry](https://docs.maestro.dev/reference/commands-available/tapon)
+only for that idempotent system Open action. It requires the dialog to disappear
+within ten seconds, then the original expected app route. App Back/capture/save
+actions remain single taps, with no retry added. No arbitrary links, coordinates
+or app routing/auth behavior change. This addresses observed simulator input
+delivery; new actual native acceptance is still required.
+
 Installed Expo introspection originally produces `aps-environment: development`:
 `expo-notifications` adds APNs entitlement even when only local reminders are used.
 CampusFlow has no push-token registration or remote delivery backend. The final

@@ -11,12 +11,7 @@ name: iOS public offline Help and account navigation
 - waitForAnimationToEnd
 - takeScreenshot: ios-auth
 - openLink: campusflow:///help
-- runFlow:
-    when:
-      visible: 'Open in.*CampusFlow.*'
-    commands:
-      - tapOn: Open
-      - waitForAnimationToEnd
+- runFlow: ios-confirm-link.yaml
 - extendedWaitUntil:
     visible: A little help for your day.
     timeout: 45000

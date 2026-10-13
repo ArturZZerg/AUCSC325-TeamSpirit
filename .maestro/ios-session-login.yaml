@@ -3,12 +3,7 @@ name: iOS ordinary sign-in and owned task capture
 ---
 - launchApp
 - openLink: campusflow:///today
-- runFlow:
-    when:
-      visible: 'Open in.*CampusFlow.*'
-    commands:
-      - tapOn: Open
-      - waitForAnimationToEnd
+- runFlow: ios-confirm-link.yaml
 - extendedWaitUntil:
     visible: Welcome back
     timeout: 45000

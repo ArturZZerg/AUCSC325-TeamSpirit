@@ -1,0 +1,15 @@
+appId: com.campusflow.mobile
+name: Settle and confirm the iOS system incoming-link dialog
+---
+- runFlow:
+    when:
+      visible: 'Open in.*CampusFlow.*'
+    commands:
+      - waitForAnimationToEnd
+      - tapOn:
+          text: '^Open$'
+          retryTapIfNoChange: true
+      - extendedWaitUntil:
+          notVisible: 'Open in.*CampusFlow.*'
+          timeout: 10000
+      - waitForAnimationToEnd
