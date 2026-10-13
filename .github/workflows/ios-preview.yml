@@ -53,7 +53,7 @@ jobs:
           xcrun simctl install "$udid" .local/ios-derived-data/Build/Products/Release-iphonesimulator/CampusFlow.app
           .local/maestro/bin/maestro --device "$udid" test --format JUNIT \
             --output artifacts/ios/evidence/public-flow.xml --debug-output artifacts/ios/evidence/maestro \
-            -e "EVIDENCE_DIR=$PWD/artifacts/ios/evidence" .maestro/ios-public.yaml
+            --test-output-dir "$PWD/artifacts/ios/evidence/screenshots" .maestro/ios-public.yaml
       - name: Stop only this job's simulator
         if: always() && env.IOS_SIMULATOR_UDID != ''
         run: xcrun simctl shutdown "$IOS_SIMULATOR_UDID"
