@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { inspectAndroidPermissions } from './android-permissions.mjs';
+import { androidPreviewTarget, inspectAndroidArchitecture } from './android-preview-target.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mobile = path.join(root, 'apps/mobile');
@@ -14,6 +15,8 @@ const java = process.env.JAVA_HOME;
 const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 function fail(message) { console.error(message); process.exit(1); }
+let target;
+try { target = androidPreviewTarget(process.argv.slice(2)); } catch (error) { fail(error.message); }
 if (!sdk || !existsSync(path.join(sdk, 'platform-tools'))) fail('Set ANDROID_HOME to an installed Android SDK (platform-tools are required).');
 if (!java || !existsSync(path.join(java, 'bin', windows ? 'java.exe' : 'java'))) fail('Set JAVA_HOME to a JDK 17 or newer.');
 const endpoint = new URL(apiUrl);
@@ -24,6 +27,7 @@ if (endpoint.username || endpoint.password || endpoint.search || endpoint.hash
 }
 console.log(`Android preview API: ${endpoint.origin}${endpoint.pathname === '/' ? '' : endpoint.pathname}`);
 console.log(`Android SDK: ${sdk}`);
+console.log(`Android preview architecture: ${target.architecture}`);
 if (process.argv.includes('--check')) process.exit(0);
 
 const env = {
@@ -48,7 +52,7 @@ writeFileSync(wrapper, readFileSync(wrapper, 'utf8').replace(/gradle-9\.0\.0-bin
 // The environment-selected API is not a Gradle bundle input. Regenerate only
 // the bundle task, retaining native compile caches. Metro also partitions its
 // transforms by API URL because Expo suppresses reset-cache when CI is enabled.
-const gradleArgs = [':app:createBundleReleaseJsAndAssets', '--rerun', ':app:assembleRelease', '-PreactNativeArchitectures=arm64-v8a', '--console=plain', '--no-daemon', '--max-workers=2', '--no-watch-fs', '-Dorg.gradle.parallel=false'];
+const gradleArgs = [':app:createBundleReleaseJsAndAssets', '--rerun', ':app:assembleRelease', `-PreactNativeArchitectures=${target.architecture}`, '--console=plain', '--no-daemon', '--max-workers=2', '--no-watch-fs', '-Dorg.gradle.parallel=false'];
 if (windows) {
   // Use the Windows certificate store; retain normal TLS verification.
   const trust = '-Djavax.net.ssl.trustStoreType=Windows-ROOT -Djavax.net.ssl.trustStore=NONE';
@@ -63,7 +67,7 @@ if (windows) {
 const bundle = readFileSync(path.join(mobile, 'android/app/build/generated/assets/react/release/index.android.bundle'));
 if (!bundle.includes(Buffer.from(apiUrl)) && !bundle.includes(Buffer.from(apiUrl, 'utf16le')))
   fail('Native bundle does not contain the selected API URL; inspect Gradle and Metro caches.');
-const output = path.join(root, 'artifacts/android/campusflow-preview.apk');
+const output = path.join(root, 'artifacts/android', target.artifact);
 const apk = path.join(mobile, 'android/app/build/outputs/apk/release/app-release.apk');
 const aaptName = windows ? 'aapt2.exe' : 'aapt2';
 const tools = path.join(sdk, 'build-tools');
@@ -75,6 +79,8 @@ if (!aapt) fail('Install Android SDK build-tools with aapt2 to check the actual 
 try {
   const inventory = inspectAndroidPermissions(apk, aapt);
   console.log(`Android APK permission gate passed: ${inventory.permissions.length} reviewed permissions.`);
+  inspectAndroidArchitecture(apk, aapt, target.architecture);
+  console.log(`Android APK architecture gate passed: ${target.architecture}.`);
 } catch (error) { fail(error.message); }
 mkdirSync(path.dirname(output), { recursive: true });
 copyFileSync(apk, output);

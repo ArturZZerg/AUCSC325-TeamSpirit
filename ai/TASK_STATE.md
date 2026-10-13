@@ -454,3 +454,69 @@ project-owned emulator acceptance run, preserving that AVD and phone data.
 Exact-head PR/main CI remains required. Permission names do not establish SDK
 data collection, component safety, iOS acceptance or store approval. Source
 remains local; hosting/mail/policy/store and mobile advisory gates persist.
+
+### Isolated Android emulator acceptance, 2026-10-12
+
+PR #72 is merged after author self-review and both exact-head CI runs succeed
+(`38310361778`, `38310355745`, head `babfa399958671be766507d1e6d66ecadb8e2713`).
+Main `a595a61b45e784609b91270507c23c191fd882b1` has successful post-merge CI
+`38324601717`. Automatic approval review initially could not run because of a
+usage limit; after it became available, the normal reviewed merge succeeded.
+No approval boundary was bypassed.
+
+The owner asked to continue without the Pixel. The next task creates a separate
+project-owned API 36 AVD in ignored workspace directories and a separate synthetic
+owner in the existing loopback production container. It reuses the installed
+SDK image/WHPX, with snapshots/metrics disabled, explicit emulator serial and a
+separate ADB server. The existing Medium_Phone configuration hash is unchanged;
+its userdata/snapshots and the physical phone are not used or reset.
+
+The ARM-only APK installs but crashes during React Native library loading on the
+x86 emulator. The reviewed build workflow now supports explicit `--emulator`
+x86_64 builds with a separate artifact and actual APK architecture inventory.
+The normal ARM artifact remains unchanged. The x86 APK builds, passes v2 signing,
+25-permission inventory and known private-fixture exclusion, then installs and
+launches (SHA-256 `21FEC5F075730C204EB6B63EAFDCBA4A9C2AB575EBD4179D38CDEBC3F2385669`).
+
+Native public Help clears an entered password; ordinary sign-in reaches Today.
+Local search, accordion, combined empty/reset states and wrapped topic controls
+pass. Preparing the data copy opens Android's actual JSON chooser; cancellation
+returns cleanly without selecting any destination. The native task editor saves
+one 25-minute/date-only study task, independently confirmed through the API.
+Offline cold startup restores its encrypted session and SQLite task with stale
+notices. Real notification permission is granted, one cached future alarm restores
+after that cold start, and its exact notification posts while backgrounded with
+the API reverse absent, at 00:17:46.453Z for 00:17:00Z (Android inexact delay).
+
+The geometry checker previously selected a full-window navigation ScrollView.
+It now checks the nearest scroll ancestor of the unique verified workspace
+heading. All thirteen workspaces fit the observed 63..2337 system-bar content
+area. Eight PowerShell regressions retain the old-overlap failure and cover
+explicit selection with another phone, missing/offline/ambiguous targets, failed
+commands and nested navigation. Five target/architecture regressions pass.
+Complete root checks pass 1,972 tests (646 API, 966 mobile, 135 contracts, 173
+domain, 27 Android tooling and 25 release), with the root lockfile unchanged.
+
+Native reminder replacement moves the one future intent/alarm; three repeated
+refreshes do not duplicate it. Disabling Personal reminders removes the alarm;
+enabling restores exactly one. Native removal clears server intent/configuration
+and all pending CampusFlow alarms.
+
+Native task-linked focus survives a force-stop: cold Today offers recovery,
+the observed action opens a paused 23:46 checkpoint, and explicit saving creates
+one linked interrupted 74-second record through the API. The standard snapshot
+tool cannot reach idle while the timer's text updates; paused recovery is
+inspectable. An immediate startup link returned to Today during session restore;
+that attempt is not accepted as cold incoming-link evidence.
+Later proper single cold URI launches reach Focus and Account, and the explicitly
+saved focus draft does not reappear. This remains targeted link evidence.
+
+PR #74's first exact-head CI exposes Linux PowerShell's ANSI/wrapped diagnostic
+format breaking one assertion; the device safety behavior itself passes. Test
+diagnostics now normalize ANSI and wrapped continuations, retaining exact command
+selection/failure assertions. New exact-head CI remains required before merging.
+
+Next: review the scoped diff, publish the PR and verify exact-head/main CI. Broader
+physical Android, old Android, iOS, hosting/TLS/mail/policies/store and dependency
+disposition gates remain open. Pixel keep-awake restoration remains pending its
+availability. Source stays local; no deployment or server transfer is performed.

@@ -6,17 +6,17 @@ for store submission.
 | Area | Confirmed evidence | Required before production |
 | --- | --- | --- |
 | Daily workflow | Tasks, Today, planner, classes, preparation, focus/history/report, routines, wellness, campus discovery and workload inbox; automated behavior tests and real API/cache browser checks | Full acceptance script on authorized Android and iOS devices, including keyboard, accessibility, lifecycle and offline cold start |
-| Account privacy | Password-confirmed whole-account deletion, complete versioned export, private-import race protection, attempt-all cleanup/retry, ordinary web sign-in and actual JSON download verified; ADR 011 adds owned shared password admission with rollback/erasure protection | Authorized native share/cleanup acceptance, hosted HTTPS `/account` resource, declared backup/log retention and deployed abuse monitoring |
+| Account privacy | Password-confirmed whole-account deletion, complete versioned export, private-import race protection, attempt-all cleanup/retry, ordinary web sign-in and actual JSON download verified; isolated signed Android emulator opens/cancels the real JSON share chooser; ADR 011 adds owned shared password admission with rollback/erasure protection | Physical native share/cleanup acceptance, hosted HTTPS `/account` resource, declared backup/log retention and deployed abuse monitoring |
 | Account recovery | Request/reset, encrypted durable mail, shared quotas, single-use/expiry/rollback and sign-in/reset session races verified with disposable PostgreSQL; native recovery UI states and narrow/wide browser request layout verified under ADR 009 | Approved SMTP sender/provider and real delivery, deployed trusted proxy/source policy, signed-device acceptance |
 | Public signup | ADR 010 adds password-and-code mailbox verification, private purpose/credential-bound tokens, public session gating, explicit preview/verified/closed modes and native verification forms; ADR 011 adds mail-independent shared auth limits and native recovery from confirmed session rejection while preserving offline reads | Approved real mail delivery, deployed auth key/source policy, signed-device acceptance and abuse/capacity monitoring |
 | Backend hosting | NestJS/PostgreSQL, bounded read-only schema/migration readiness, production configuration validation, actual local smoke and snapshot-consistent restore rehearsal; CI also restores its disposable DB | Authorized production project/secrets, real migration/backup/restore policy and host rehearsal, TLS, health monitoring, capacity and availability checks |
 | Dependencies | Reviewed compatible patches, effective scoped Prisma CLI overrides, clean install and real CLI/app/build/smoke/restore verification; both audit reports have zero critical entries | Five unresolved leaf advisories and their actual runtime/bundle paths need supported upstream fixes or explicit reviewed release disposition; see the dependency evidence record |
 | Canvas | Normalized fixture integration and idempotency tests; production OAuth is disabled | Institution-approved key/scopes/callback, protected token storage and authorized live sync/revocation test |
 | Public campus events | Reviewed Augustana calendars, persisted feed coverage, replica-safe imports and failure preservation | Intended campus approval/configuration and observed successful imports on the deployed API |
-| Notifications | Server intent, local reconciliation and behavioral tests | Device permission, edit/delete/reschedule, quiet hours and duplicate-prevention acceptance; offline/other-device limitations accurately disclosed |
-| Mobile builds | Locally signed Android preview, signature checks; no synthetic QA credentials in package; reviewed permission removal and actual APK inventory gate | Production signing/identifiers, store builds, installation/backend connectivity and signed-device acceptance of session/cache/share/reminders after permission removal; older Android and iOS build/signing on supported host |
+| Notifications | Server intent, local reconciliation and behavioral tests; signed API 36 emulator obtains real permission, restores one alarm after offline cold startup and posts its exact reminder while backgrounded/disconnected | Physical latest-build edit/delete/reschedule, quiet hours and duplicate-prevention acceptance; offline/other-device and Android inexact-delivery limitations accurately disclosed |
+| Mobile builds | Separate locally signed ARM phone/x86 emulator previews, signature and actual architecture/permission gates; no known synthetic QA credentials in package; new x86 build installs, signs in, reads cached Today offline, opens sharing and passes 13 workspace geometry checks | Production signing/identifiers, store builds, hosted backend connectivity and physical-device acceptance of latest session/cache/share/reminders; older Android and iOS build/signing on supported host |
 | Web artifacts | Reproduced Metro environment-cache issue; build now clears cache; fresh referenced entry and packaged bundles inspected | Fresh deployment output with authorized HTTPS API/domain; validate actual hosted assets and avoid publishing old generated bundles |
-| Privacy/support/store | Technical data ownership/lifecycle and public offline Help are documented; searchable workflow/data answers, protected account continuation and configurable validated policy/support links | Owner-approved public privacy/support URLs, real backup/log retention and accurate Apple/Google data declarations; native Help/browser acceptance, store metadata/review account |
+| Privacy/support/store | Technical data ownership/lifecycle and public offline Help are documented; searchable workflow/data answers, protected account continuation and configurable validated policy/support links; signed emulator exercises public entry/password clearing, search/accordion/reset | Owner-approved public privacy/support URLs, real backup/log retention and accurate Apple/Google data declarations; physical Help and configured native-browser acceptance, store metadata/review account |
 
 On 2026-10-12 the owner authorized the existing server for initial hosting and
 offered an Android device. Read-only discovery verifies the existing server,
@@ -67,6 +67,15 @@ configuration and checks the actual assembled APK before publishing a preview.
 It retains current network/reminder/SDK support and rejects unreviewed additions
 or lost core capabilities. Permission names alone do not establish SDK data
 collection, native compatibility or accurate store disclosures.
+
+The owner later asked to continue without the Pixel. A separate project-owned
+API 36 emulator now provides current signed native evidence; the existing AVD
+configuration remains unchanged and no phone data/settings are operated on.
+The [emulator acceptance report](../requirements/android-emulator-acceptance-2026-10-12.md)
+records exact artifacts, native/API/cache/share/layout/reminder observations and
+remaining hardware/iOS gates. An ARM APK's successful installation on an x86
+emulator was followed by native-library failure; explicit x86 builds and actual
+APK architecture checks now avoid substituting installation for working startup.
 
 Account privacy tests cover a disposable user's full record graph,
 another user's unchanged records, public event preservation, all-token revocation,
