@@ -8,6 +8,10 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "platforms": ["ios", "android", "web"],
+    "ios": {
+      "bundleIdentifier": "com.campusflow.mobile", "supportsTablet": false,
+      "infoPlist": { "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": false, "NSAllowsLocalNetworking": true } }
+    },
     "android": {
       "package": "com.campusflow.mobile", "versionCode": 1,
       "blockedPermissions": [
@@ -19,7 +23,7 @@
       ]
     },
     "web": { "bundler": "metro", "output": "single", "favicon": "./assets/icon.png" },
-    "plugins": ["expo-router", "expo-secure-store", "expo-sqlite", "expo-notifications", "@react-native-community/datetimepicker"],
+    "plugins": ["expo-router", ["expo-secure-store", { "faceIDPermission": false }], "expo-sqlite", "expo-notifications", "@react-native-community/datetimepicker"],
     "experiments": { "typedRoutes": true }
   }
 }

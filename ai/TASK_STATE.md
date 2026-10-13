@@ -14,10 +14,22 @@ invalid link recovery, fourteen inset checks and 320px/150% text acceptance.
 Temporary reminder/display changes are undone; both synthetic task/account and
 the separate Pixel QA data are preserved. See [requirements](../docs/requirements/reminder-center.md)
 and [native evidence](../docs/requirements/android-reminder-center-2026-10-12.md).
-Exact-head review/CI/merge remains the final delivery gate for this slice.
+PR #79 passed author self-review and both exact-head CI runs, merged as
+`ffba4dd9726aa7b8921e402abd95700c66ea6031`, and its exact-main CI passed.
 
-Next safe release task: establish an iOS simulator build/acceptance gate on a
-supported host. Unknown native paths still use SDK Unmatched Route and need a
+Current release task: finish PR #81's native iOS simulator gate. Standard CI
+passes 2,112 tests. A diagnostic unsigned Release build and actual public
+Help/search/account/cold-start flow pass on Xcode/iOS SDK 26.2; actual native
+callback logs show proper forwarding. The first warm-link assertion had failed
+in an earlier run. Temporary probes are now removed and the original first-link
+order is restored for final-source acceptance before review/merge. The next run
+uses a bounded 45-second wait after the first OS confirmation: the last native
+log delivered the URI after the assertion ended, and its later full frame shows
+correct Help. Unsigned Keychain entitlement failures keep authenticated storage
+acceptance open. Full simctl
+images confirm public screen spacing; Maestro images omit system chrome. See
+[the gate](../docs/requirements/ios-simulator-preview.md).
+Unknown native paths still use SDK Unmatched Route and need a
 clear recovery path. Production hosting/email, contact/operator details,
 signing/privacy and physical acceptance remain pending; source stays local.
 

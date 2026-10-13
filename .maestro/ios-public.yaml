@@ -1,0 +1,57 @@
+appId: com.campusflow.mobile
+name: iOS public offline Help and account navigation
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: ios-auth
+- openLink: campusflow:///help
+- runFlow:
+    when:
+      visible: 'Open in.*CampusFlow.*'
+    commands:
+      - tapOn: Open
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: A little help for your day.
+    timeout: 45000
+- tapOn: Back to sign in
+- assertVisible: Welcome back
+- tapOn: Help & data
+- assertVisible: A little help for your day.
+- tapOn: Back to sign in
+- openLink: campusflow://help
+- assertVisible: A little help for your day.
+- assertVisible: Search help
+- takeScreenshot: ios-help
+- tapOn:
+    id: help-search
+- inputText: offline
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: What can I do without a connection\?
+    direction: DOWN
+- tapOn: What can I do without a connection\?
+- assertVisible: Previously saved information can be read.*
+- takeScreenshot: ios-help-offline-answer
+- scrollUntilVisible:
+    element:
+      text: Clear search
+    direction: UP
+- tapOn: Clear search
+- openLink: campusflow:///account
+- assertVisible: Sign in to manage your account
+- openLink: campusflow:///help?next=https%3A%2F%2Funtrusted.test
+- assertVisible: A little help for your day.
+- stopApp
+- openLink: campusflow:///help
+- extendedWaitUntil:
+    visible: A little help for your day.
+    timeout: 30000
+- takeScreenshot: ios-help-cold
