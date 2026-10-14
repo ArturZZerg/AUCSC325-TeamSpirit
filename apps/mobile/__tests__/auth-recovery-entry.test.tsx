@@ -50,3 +50,9 @@ it('reveals and re-hides the password without changing it, and hides it again wh
   expect(screen.getByLabelText('Password')).toHaveProp('secureTextEntry', true);
   expect(screen.getByText('Gentle routines with streaks and check-ins')).toBeOnTheScreen();
 });
+it('signs in from the password keyboard Return key without tapping the button', async () => {
+  render(<Auth/>); await act(async () => {});
+  fireEvent.changeText(screen.getByLabelText('Email'), 'return-key@example.test'); fireEvent.changeText(screen.getByLabelText('Password'), 'a-long-test-password');
+  await act(async () => { fireEvent(screen.getByLabelText('Password'), 'submitEditing'); });
+  expect(api).toHaveBeenCalledWith('/auth/login', expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'return-key@example.test', password: 'a-long-test-password' }) }));
+});
