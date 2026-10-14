@@ -27,9 +27,13 @@ baseline `38620875376` fails first Help at 19:24:28 UTC, with actual native URL
 delivery at 19:24:30.943 in PID 30152. These mixed outcomes establish input-path
 evidence, not a precise upstream root cause or a current feature acceptance.
 
-PR #86 at `4d0192e` retires the fixed-artifact experiment and implements a complete
+PR #86 at `846b105` retires the fixed-artifact experiment and implements a complete
 public XCTest gate against each current build, with private Maestro/API checks
-unchanged. Its full native run `38626385344` remains required. The compiled test
+unchanged. Earlier `4d0192e` / `38626385344` passes warm link/Back/in-app Help,
+then its frame shows query `one` instead of requested `offline`. The corrected
+test sends each key once with a visible-prefix assertion and verifies the full
+query after Return, without retyping or retrying an action. Fresh native success
+is required; the failed run is not accepted. The compiled test
 context binds source/device/run/attempt, requires actual named-test success, and
 rejects missing/reordered/duplicate stages and wrong warm/cold process transitions.
 

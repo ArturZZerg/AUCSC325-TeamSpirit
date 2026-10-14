@@ -95,9 +95,18 @@ final class NativePublicAcceptanceTests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 10))
         capture("ios-help", in: app)
         search.tap()
-        // The installed single-line input blurs/submits on Return, with either
-        // software or hardware keyboard presentation.
-        search.typeText("offline\n")
+        // Synchronize ordinary keystrokes with the controlled field. Fast bulk
+        // XCTest input previously left "one", not the requested "offline".
+        // Each key is sent exactly once; a mismatch fails rather than retyping.
+        var prefix = ""
+        for character in "offline" {
+            search.typeText(String(character))
+            prefix.append(character)
+            XCTAssertEqual(search.value as? String, prefix)
+        }
+        search.typeText("\n")
+        XCTAssertEqual(search.value as? String, "offline")
+        capture("ios-help-filtered", in: app)
         let question = app.buttons["What can I do without a connection?"]
         reveal(question, in: app)
         question.tap()
