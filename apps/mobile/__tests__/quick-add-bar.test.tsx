@@ -40,3 +40,10 @@ it('hands the parsed draft to the full editor', () => {
   expect(open).toHaveBeenCalledWith(expect.objectContaining({ title: 'Gym', scheduledMode: 'instant', scheduledDate: '2026-10-15', scheduledTime: '07:00', estimatedMinutes: '60' }));
   expect(save).not.toHaveBeenCalled();
 });
+it('does not submit a retained keyboard action after capture becomes unavailable', async () => {
+  const view = show(); type('Read chapter 4');
+  view.rerender(<QuickAddBar today="2026-10-14" planDate="2026-10-15" timeZone="America/Edmonton" onOpenEditor={open} disabled/>);
+  await act(async () => fireEvent(screen.getByLabelText('Quick add a task'), 'submitEditing'));
+  expect(save).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Quick add a task')).toHaveDisplayValue('Read chapter 4');
+});

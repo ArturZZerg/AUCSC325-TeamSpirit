@@ -110,3 +110,18 @@ Commercial-release gates remain: institution-approved live Canvas OAuth and
 an authorized integration test, deployed campus feeds, production hosting/TLS,
 account recovery, and iOS/Android acceptance. Feature development can continue
 against existing provider boundaries while these external gates are pending.
+
+## Integrated review of the October MVP stack
+
+The open UI/product slices are combined in PR #100 for final acceptance against
+main. The month calendar now reads repeating completion from the existing owned
+planning snapshot only inside its declared coverage and for the matching task
+revision. Missing, duplicate, future or foreign completion records remain
+unavailable, and failed event reads cannot imply an empty day. It remains a
+derived view with fixed links to the selected daily plan and existing editor.
+
+Quick-add `next weekday` resolves in the following Monday–Sunday calendar week;
+the visible preview remains editable before an explicit save. A disabled input
+cannot submit through a retained keyboard action. Morning-overview activation
+reconciles the saved preference after notification permission is granted, and
+incoming overview dates use the shared calendar-date boundary schema.

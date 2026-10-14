@@ -90,6 +90,15 @@ describe('notification Settings (ToR 13)', () => {
     expect(refreshReminders).toHaveBeenCalledTimes(1); expect(refreshPreferences).toHaveBeenCalledTimes(1);
     expect(reconcileReminders).toHaveBeenCalledWith([], expect.objectContaining({ accountId: session.user.id, timeZone: session.user.timeZone, preferences }));
   });
+  it('schedules the newly enabled morning overview after permission is granted', async () => {
+    refreshPreferences.mockResolvedValue({ data: { ...preferences, dailyOverviewEnabled: true } });
+    render(<Settings/>);
+    await act(async () => fireEvent.press(screen.getByRole('switch', { name: 'Morning overview' })));
+    expect(save).toHaveBeenCalledWith({ path: '/notification-preferences', method: 'PATCH', body: { dailyOverviewEnabled: true } });
+    expect(ensureNotificationPermission).toHaveBeenCalledTimes(1);
+    expect(reconcileReminders).toHaveBeenCalledWith([], expect.objectContaining({ accountId: session.user.id,
+      preferences: expect.objectContaining({ dailyOverviewEnabled: true }) }));
+  });
   it('explains denied device permission without requesting a schedule', async () => {
     jest.mocked(ensureNotificationPermission).mockResolvedValue(false); render(<Settings/>);
     await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Allow device notifications' })); });

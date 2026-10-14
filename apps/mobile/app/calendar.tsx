@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { Screen, State, colors } from '@/components/ui';
-import { useAcademic, useEvents, useTasks } from '@/features/queries';
+import { useAcademic, useEvents, usePlanningSnapshot, useTasks } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { calendarEntries, monthGrid, shiftMonth, type CalendarEntry, type CalendarKind } from '@/features/month-calendar';
 import { calendarLabel } from '@/features/weekly-planner';
@@ -18,24 +18,25 @@ const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export default function CalendarScreen() {
   const session = useSessionStore(state => state.session);
   // Account switches discard the private month/day selection.
-  return session ? <CalendarContent key={JSON.stringify([session.user.id, session.accessToken, session.user.timeZone])} timeZone={session.user.timeZone}/> : null;
+  return session ? <CalendarContent key={JSON.stringify([session.user.id, session.accessToken, session.user.timeZone])} accountId={session.user.id} timeZone={session.user.timeZone}/> : null;
 }
 
-function CalendarContent({ timeZone }: { timeZone: string }) {
+function CalendarContent({ timeZone, accountId }: { timeZone: string; accountId: string }) {
   const router = useRouter();
   const { date: today } = useTodayClock(timeZone);
   const [month, setMonth] = useState(`${today.slice(0, 7)}-01`);
   const [selected, setSelected] = useState(today);
   const [draft, setDraft] = useState<Partial<TaskFormValues>>();
   const tasks = useTasks(), academic = useAcademic(), events = useEvents();
+  const history = usePlanningSnapshot(selected);
   const grid = useMemo(() => monthGrid(month, today), [month, today]);
-  const days = useMemo(() => calendarEntries({ tasks: tasks.data, academic: academic.data, events: events.data, from: grid.start, through: grid.end, timeZone }),
-    [tasks.data, academic.data, events.data, grid.start, grid.end, timeZone]);
+  const days = useMemo(() => calendarEntries({ tasks: tasks.data, academic: academic.data, events: events.data, from: grid.start, through: grid.end, timeZone,
+    snapshot: history.data, accountId }), [tasks.data, academic.data, events.data, grid.start, grid.end, timeZone, history.data, accountId]);
   const entries = days.get(selected) ?? [];
-  const loading = tasks.isLoading || academic.isLoading;
-  const missing = (!tasks.data && !!tasks.error) || (!academic.data && !!academic.error);
-  const refreshing = tasks.isRefetching || academic.isRefetching || events.isRefetching;
-  const refresh = () => { void Promise.all([tasks.refetch(), academic.refetch(), events.refetch()]); };
+  const loading = tasks.isLoading || academic.isLoading || events.isLoading;
+  const missing = !loading && (!tasks.data || !academic.data || !events.data);
+  const refreshing = tasks.isRefetching || academic.isRefetching || events.isRefetching || history.isRefetching;
+  const refresh = () => { void Promise.all([tasks.refetch(), academic.refetch(), events.refetch(), history.refetch()]); };
   const select = (date: string) => { setSelected(date); if (date.slice(0, 7) !== month.slice(0, 7)) setMonth(`${date.slice(0, 7)}-01`); };
   const move = (months: number) => { const next = shiftMonth(month, months); setMonth(next); setSelected(next.slice(0, 7) === today.slice(0, 7) ? today : next); };
 
@@ -60,10 +61,12 @@ function CalendarContent({ timeZone }: { timeZone: string }) {
     <View style={styles.grid}>
       <View style={styles.week}>{weekdays.map(day => <Text key={day} style={styles.weekday}>{day.slice(0, 1)}</Text>)}</View>
       {grid.weeks.map(week => <View key={week[0].date} style={styles.week}>{week.map(cell => {
-        const rows = days.get(cell.date) ?? [], open = rows.filter(row => !row.done), isSelected = cell.date === selected;
-        const kinds = [...new Set(open.map(row => row.kind))];
+        const rows = days.get(cell.date) ?? [], open = rows.filter(row => row.done === false), unknown = rows.filter(row => row.done === null), isSelected = cell.date === selected;
+        const kinds = [...new Set(rows.filter(row => row.done !== true).map(row => row.kind))];
+        const count = [open.length ? `${open.length} open ${open.length === 1 ? 'item' : 'items'}` : '',
+          unknown.length ? `${unknown.length} repeating ${unknown.length === 1 ? 'occurrence' : 'occurrences'} with completion unavailable` : ''].filter(Boolean).join('; ') || 'nothing open';
         return <Pressable key={cell.date} accessibilityRole="button" accessibilityState={{ selected: isSelected }}
-          accessibilityLabel={`${calendarLabel(cell.date, { weekday: 'long', month: 'long', day: 'numeric' })}${cell.isToday ? ', today' : ''}: ${open.length ? `${open.length} open ${open.length === 1 ? 'item' : 'items'}` : 'nothing open'}`}
+          accessibilityLabel={`${calendarLabel(cell.date, { weekday: 'long', month: 'long', day: 'numeric' })}${cell.isToday ? ', today' : ''}: ${loading || missing ? 'Items not fully loaded' : count}`}
           onPress={() => select(cell.date)} style={[styles.cell, isSelected && styles.cellSelected]}>
           <View style={[styles.number, cell.isToday && !isSelected && styles.numberToday]}>
             <Text style={[styles.numberText, !cell.inMonth && styles.outside, isSelected && styles.selectedText, cell.isToday && !isSelected && styles.todayNumber]}>{Number(cell.date.slice(8))}</Text>
@@ -75,13 +78,14 @@ function CalendarContent({ timeZone }: { timeZone: string }) {
 
     <State loading={loading}/>
     {missing && <Text accessibilityRole="alert" style={styles.notice}>Some saved items couldn’t load. Days may be missing entries; refresh when you’re connected.</Text>}
-    {!loading && !missing && ((tasks.isCached && !!tasks.data) || (academic.isCached && !!academic.data)) && <Text style={styles.meta}>Showing saved information. Pull to refresh.</Text>}
+    {!loading && !missing && [tasks, academic, events].some(query => query.isCached || query.error) && <Text style={styles.meta}>Showing saved information. Pull to refresh.</Text>}
+    {tasks.data?.some(task => task.recurrence) && history.data && (history.isCached || history.error) && <Text style={styles.meta}>Showing saved repeating-task completion history. Pull to refresh.</Text>}
 
     <View style={styles.dayHeading}>
       <Text accessibilityRole="header" style={styles.section}>{calendarLabel(selected, { weekday: 'long', month: 'long', day: 'numeric' })}</Text>
       {entries.length > 0 && <Text style={styles.count}>{entries.length}</Text>}
     </View>
-    {!loading && !entries.length && <View style={styles.empty}><Ionicons name="sunny-outline" size={26} color={colors.moss}/>
+    {!loading && !missing && !entries.length && <View style={styles.empty}><Ionicons name="sunny-outline" size={26} color={colors.moss}/>
       <Text style={styles.item}>Nothing dated for this day.</Text><Text style={styles.meta}>Routines and undated tasks appear in the day plan.</Text></View>}
     {entries.map(entry => <EntryRow key={entry.key} entry={entry} timeZone={timeZone}/>)}
     <View style={styles.actions}>
@@ -101,7 +105,7 @@ function EntryRow({ entry, timeZone }: { entry: CalendarEntry; timeZone: string 
     <View style={styles.entryBody}>
       <Text style={[styles.kind, { color: kindColors[entry.kind] }]}>{kindLabels[entry.kind].toUpperCase()}</Text>
       <Text style={[styles.item, entry.done && styles.done]}>{entry.title}</Text>
-      <Text style={styles.meta}>{entry.done ? `Finished · ${label}` : label}</Text>
+      <Text style={styles.meta}>{entry.done === null ? `Completion unavailable · ${label}` : entry.done ? `Finished · ${label}` : label}</Text>
     </View>
   </View>;
 }

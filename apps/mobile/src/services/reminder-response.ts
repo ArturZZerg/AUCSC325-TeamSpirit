@@ -1,4 +1,4 @@
-import { idSchema } from '@campusflow/contracts';
+import { dateSchema, idSchema } from '@campusflow/contracts';
 import type { NotificationResponse } from 'expo-notifications';
 
 export function reminderResponseTarget(response: NotificationResponse, defaultAction: string): { accountId: string; reminderId: string } | undefined {
@@ -18,6 +18,6 @@ export function overviewResponseTarget(response: NotificationResponse, defaultAc
   const request = response.notification.request, data = request.content.data;
   if (data?.campusFlowOverview !== true || typeof data.accountId !== 'string' || typeof data.stableId !== 'string' || data.stableId.length > 100) return;
   const match = /^campusflow:([^:]+):overview-(\d{4}-\d{2}-\d{2})$/.exec(data.stableId);
-  if (!match || match[1] !== data.accountId || request.identifier !== data.stableId || !idSchema.safeParse(match[1]).success) return;
+  if (!match || match[1] !== data.accountId || request.identifier !== data.stableId || !idSchema.safeParse(match[1]).success || !dateSchema.safeParse(match[2]).success) return;
   return { accountId: match[1] };
 }

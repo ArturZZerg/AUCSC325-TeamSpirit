@@ -40,6 +40,22 @@ describe('calendar entries (account calendar)', () => {
     const weekly = task('5', { scheduled: { kind: 'date', date: '2026-10-05' }, recurrence: { frequency: 'weekly', weekdays: [1], interval: 1 } });
     const days = calendarEntries({ tasks: [weekly], from: '2026-10-01', through: '2026-10-31', timeZone: zone });
     expect([...days.keys()].sort()).toEqual(['2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26']);
+    expect([...days.values()].flat().every(row => row.done === null)).toBe(true);
+  });
+  it('uses only matching owned covered occurrence history for repeating completion', () => {
+    const weekly = task('5', { scheduled: { kind: 'date', date: '2026-10-05' }, recurrence: { frequency: 'weekly', weekdays: [1], interval: 1 } });
+    const snapshot = { ...snapshotFixture(), timeZone: zone, capturedAt: '2026-10-14T18:00:00Z',
+      coverage: { from: '2026-10-10', through: '2026-10-31', includesOverdue: true, basis: 'persisted' }, personalTasks: [weekly],
+      taskCompletions: [{ taskId: weekly.id, occurrenceKey: '2026-10-12', completedAt: '2026-10-12T18:00:00Z' }] };
+    const read = (data: unknown, accountId = snapshot.accountId) => calendarEntries({ tasks: [weekly], from: '2026-10-01', through: '2026-10-31', timeZone: zone, snapshot: data, accountId });
+    expect(read(snapshot).get('2026-10-12')?.[0].done).toBe(true);
+    expect(read(snapshot).get('2026-10-19')?.[0].done).toBe(false);
+    expect(read(snapshot).get('2026-10-05')?.[0].done).toBeNull();
+    expect(read(snapshot, base.id).get('2026-10-12')?.[0].done).toBeNull();
+    expect(read({ ...snapshot, timeZone: 'UTC' }).get('2026-10-12')?.[0].done).toBeNull();
+    expect(read({ ...snapshot, personalTasks: [{ ...weekly, updatedAt: '2026-10-14T19:00:00Z' }] }).get('2026-10-12')?.[0].done).toBeNull();
+    expect(read({ ...snapshot, taskCompletions: [...snapshot.taskCompletions, ...snapshot.taskCompletions] }).get('2026-10-12')?.[0].done).toBeNull();
+    expect(read({ ...snapshot, taskCompletions: [{ ...snapshot.taskCompletions[0], completedAt: '2026-10-14T19:00:00Z' }] }).get('2026-10-12')?.[0].done).toBeNull();
   });
   it('includes coursework deadlines and only saved events, sorting finished work last', () => {
     const academic: AcademicItem[] = [{ id: '50000000-0000-4000-8000-000000000001', courseId: null, title: 'Essay', kind: 'assignment', due: { kind: 'date', date: '2026-10-20' },

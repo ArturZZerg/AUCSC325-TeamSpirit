@@ -1,7 +1,7 @@
 import { act, render } from '@testing-library/react-native';
 import * as Notifications from 'expo-notifications';
 import { ReminderResponseSync } from '../src/features/reminder-response-sync';
-import { reminderResponseTarget } from '../src/services/reminder-response';
+import { overviewResponseTarget, reminderResponseTarget } from '../src/services/reminder-response';
 import { useSessionStore } from '../src/store/session';
 import type { Session } from '../src/lib/types';
 const mockRouter = { push: jest.fn() };
@@ -106,8 +106,14 @@ describe('morning overview taps', () => {
     ['another account', { accountId: '10000000-0000-4000-8000-000000000002' }, undefined],
     ['a mismatched identity', { stableId: `campusflow:${accountId}:overview-2025-03-11` }, undefined],
     ['a malformed date', { stableId: `campusflow:${accountId}:overview-tomorrow` }, `campusflow:${accountId}:overview-tomorrow`],
+    ['an impossible leap day', {}, `campusflow:${accountId}:overview-2025-02-29`],
+    ['an impossible month', {}, `campusflow:${accountId}:overview-2026-13-01`],
+    ['a zero day', {}, `campusflow:${accountId}:overview-2026-10-00`],
   ])('ignores %s', (_label, data, identifier) => {
     render(<ReminderResponseSync/>); act(() => listener(overview(data, identifier)));
     expect(mockRouter.push).not.toHaveBeenCalled();
+  });
+  it('accepts an actual leap day with the same owned request identity', () => {
+    expect(overviewResponseTarget(overview({}, `campusflow:${accountId}:overview-2028-02-29`), 'default')).toEqual({ accountId });
   });
 });

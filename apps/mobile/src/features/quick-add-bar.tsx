@@ -22,7 +22,7 @@ export function QuickAddBar({ today, planDate, timeZone, disabled, onOpenEditor 
   const parsed = text.trim() ? parseQuickAdd(text, today, planDate) : undefined;
   const busy = action.isPending || saving.current;
   const add = async () => {
-    if (!parsed || saving.current || action.isPending) return;
+    if (disabled || !parsed || saving.current || action.isPending) return;
     saving.current = true; setMessage(undefined);
     try {
       await action.mutateAsync(taskFormRequest({ ...taskFormDefaults(null, timeZone), ...parsed.values } as TaskFormValues, null, timeZone));

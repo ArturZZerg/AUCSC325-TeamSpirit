@@ -2,6 +2,33 @@
 
 Updated: 2026-10-14
 
+### Current combined MVP review (#100)
+
+The managed worktree integrates the existing feature stack through `360aa75`,
+the latest auth UI `64ad435`, and login correction `a2a22e7`, preserving their
+commit ancestry. PR #100 will be reviewed against main as the combined upgrade:
+Today checklist/progress, grouped tasks, habit history, month calendar, launch
+dark appearance, natural-language capture, campus cards, auth/back links, app
+icons, opt-in morning overview, and focus/planner presentation. After accepted
+combined execution, incorporated feature PRs can be resolved with that evidence;
+their older cancelled/failed native jobs are never described as passes.
+
+Review corrections: calendar event failures no longer present empty days;
+repeating completion uses owned, matching task revisions and covered snapshot
+history, with unknown/malformed/stale history withheld. Quick-add keyboard submit
+honours a disabled capture state; `next weekday` belongs to the following
+Monday–Sunday week. Morning overview payloads require actual calendar dates,
+and enabling with granted permission explicitly reconciles the saved preference.
+All use existing queries, contracts and notification serialization; no new API,
+database, dependency or offline write mechanism is added.
+
+After those corrections, all 1,195 integrated mobile tests, 181 domain cases,
+40 iOS tooling/privacy cases, workspace types and lint pass. The mobile command
+exits successfully after a delayed-handle warning; no force-exit option is used.
+A fresh web export points only at the synthetic loopback visual fixture.
+Rendered design checks, current standard/native CI, author reviews and
+matched-head merges remain required. The shared checkout remains untouched.
+
 ### Current open-PR review and native login correction
 
 PRs #86, #84 and #85 are now merged; main is `18b1694` after the API

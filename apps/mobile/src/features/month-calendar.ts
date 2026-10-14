@@ -1,9 +1,10 @@
 import { addCalendarDays, localDateAt, taskOccursOn, taskOccurrenceTiming } from '@campusflow/domain';
+import { offlineSnapshotSchema } from '@campusflow/contracts';
 import type { AcademicItem, CampusEvent, PersonalTask } from '@/lib/types';
 
 export type CalendarKind = 'academic' | 'personalTask' | 'event';
 export type CalendarEntry = {
-  key: string; kind: CalendarKind; title: string; date: string; done: boolean;
+  key: string; kind: CalendarKind; title: string; date: string; done: boolean | null;
   /** Sort key within the day: timed values by instant, date-only values last. */
   at: number; role: 'due' | 'planned' | 'starts';
   timing: { kind: 'date' } | { kind: 'instant'; at: string };
@@ -38,10 +39,21 @@ export const shiftMonth = (month: string, months: number) => {
  * tasks on each occurrence; coursework on its deadline; saved events on their start.
  * Routines are excluded: they would mark nearly every day.
  */
-export function calendarEntries({ tasks, academic, events, from, through, timeZone }: {
+export function calendarEntries({ tasks, academic, events, from, through, timeZone, snapshot, accountId }: {
   tasks?: readonly PersonalTask[]; academic?: readonly AcademicItem[]; events?: readonly CampusEvent[]; from: string; through: string; timeZone: string;
+  snapshot?: unknown; accountId?: string;
 }) {
   const entries: CalendarEntry[] = [];
+  const parsed = offlineSnapshotSchema.safeParse(snapshot);
+  const saved = parsed.success && parsed.data.accountId === accountId && parsed.data.timeZone === timeZone ? parsed.data : undefined;
+  const completions = saved?.taskCompletions;
+  const usableHistory = saved && completions && new Set(completions.map(row => `${row.taskId}:${row.occurrenceKey}`)).size === completions.length
+    && completions.every(row => Date.parse(row.completedAt) <= Date.parse(saved.capturedAt));
+  const completionState = (task: PersonalTask, date: string): boolean | null => {
+    if (!usableHistory || !saved || date < saved.coverage.from || date > saved.coverage.through
+      || saved.personalTasks.find(row => row.id === task.id)?.updatedAt !== task.updatedAt) return null;
+    return saved.taskCompletions.some(row => row.taskId === task.id && row.occurrenceKey === date);
+  };
   const inRange = (date: string) => date >= from && date <= through;
   for (const task of tasks ?? []) {
     if (task.recurrence) {
@@ -50,7 +62,7 @@ export function calendarEntries({ tasks, academic, events, from, through, timeZo
         const timing = taskOccurrenceTiming({ ...task, due: task.due ?? undefined, scheduled: task.scheduled ?? undefined, recurrence: task.recurrence,
           completedAt: undefined, snoozedUntil: undefined, mainGoalDate: undefined }, date, timeZone);
         const value = timing.scheduled ?? timing.due;
-        entries.push({ key: `task:${task.id}:${date}`, kind: 'personalTask', title: task.title, date, done: false, at: value ? sortAt(value) : Number.MAX_SAFE_INTEGER,
+        entries.push({ key: `task:${task.id}:${date}`, kind: 'personalTask', title: task.title, date, done: completionState(task, date), at: value ? sortAt(value) : Number.MAX_SAFE_INTEGER,
           role: timing.scheduled ? 'planned' : 'due', timing: value ?? { kind: 'date' } });
       }
       continue;

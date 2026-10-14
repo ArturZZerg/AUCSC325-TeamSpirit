@@ -84,7 +84,10 @@ export default function SettingsScreen() {
           const enabling = !preferences.data!.dailyOverviewEnabled;
           await action.mutateAsync({ path: '/notification-preferences', method: 'PATCH', body: { dailyOverviewEnabled: enabling } });
           // The preference is saved either way; delivery also needs device permission.
-          if (enabling && !(await ensureNotificationPermission())) setMessage('Morning overview is on, but device notifications are disabled. You can enable them in your device settings.');
+          if (enabling) {
+            if (!(await ensureNotificationPermission())) setMessage('Morning overview is on, but device notifications are disabled. You can enable them in your device settings.');
+            else await refresh();
+          }
         }); }}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
         <View style={[styles.icon, { backgroundColor: colors.streak }]}><Ionicons name="sunny-outline" size={17} color={colors.onAccent}/></View>

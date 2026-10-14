@@ -62,8 +62,9 @@ function parseDate(text: string, today: string) {
   const weekday = take(text, `(?:on\\s+)?(next\\s+)?${weekdayPattern}`);
   if (weekday) {
     const target = weekdays.findIndex(name => name.startsWith(weekday.groups[1].toLowerCase().slice(0, 3))) + 1;
-    const ahead = (target - weekdayOf(today) + 7) % 7;
-    return { rest: weekday.rest, date: addCalendarDays(today, ahead + (weekday.groups[0] ? 7 : 0)) };
+    const current = weekdayOf(today);
+    const ahead = weekday.groups[0] ? target - current + 7 : (target - current + 7) % 7;
+    return { rest: weekday.rest, date: addCalendarDays(today, ahead) };
   }
   const monthFirst = take(text, `(?:on\\s+)?${monthPattern}\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?`);
   const dayFirst = monthFirst ? undefined : take(text, `(?:on\\s+)?(\\d{1,2})(?:st|nd|rd|th)?\\s+${monthPattern}`);

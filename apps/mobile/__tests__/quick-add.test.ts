@@ -16,9 +16,16 @@ describe('quick add parsing', () => {
     expect(parseQuickAdd('Call mom tomorrow', today).values).toMatchObject({ scheduledMode: 'date', scheduledDate: '2026-10-15' });
     expect(parseQuickAdd('Laundry fri', today).values).toMatchObject({ scheduledDate: '2026-10-16' });
     expect(parseQuickAdd('Team sync wednesday', today).values).toMatchObject({ scheduledDate: today });
-    expect(parseQuickAdd('Review next monday', today).values).toMatchObject({ scheduledDate: '2026-10-26' });
+    expect(parseQuickAdd('Review next monday', today).values).toMatchObject({ scheduledDate: '2026-10-19' });
     expect(parseQuickAdd('Renew card in 2 weeks', today).values).toMatchObject({ scheduledDate: '2026-10-28' });
     expect(parseQuickAdd('Renew card in 2 weeks', today).title).toBe('Renew card');
+  });
+
+  it('resolves next weekdays within the following Monday–Sunday calendar week', () => {
+    expect(parseQuickAdd('Review next friday', today).values.scheduledDate).toBe('2026-10-23');
+    expect(parseQuickAdd('Review next monday', '2026-10-18').values.scheduledDate).toBe('2026-10-19');
+    expect(parseQuickAdd('Review next monday', '2026-10-19').values.scheduledDate).toBe('2026-10-26');
+    expect(parseQuickAdd('Review next friday', '2026-12-31').values.scheduledDate).toBe('2027-01-08');
   });
 
   it('marks deadlines with due/by and combines date and time', () => {
