@@ -51,6 +51,17 @@ Maestro logs/images/hierarchies stay in the restrictive ignored runner directory
 Actual full current-source native and standard acceptance remain required before
 merging the successor; the successful subset comparison cannot substitute for it.
 
+The first full successor `4d0192e` / `38626385344` passes first-warm Help, single
+Back and in-app Help with PID 34998, then fails finding the expected offline FAQ.
+The native failure frame shows the search field contains `one`, although the
+XCTest command requested `offline` plus Return. No private phase runs. The
+successor therefore sends each ordinary keystroke once and asserts its visible
+prefix, then asserts the full query after Return before scrolling/selecting the
+same FAQ. A mismatch fails without retyping, clearing or retrying an action.
+A filtered-screen attachment records that boundary. Application code and all
+existing search/answer/Account/cold/private assertions remain unchanged; fresh
+complete current-source execution is still required.
+
 Primary API references:
 - [Opening a URL in its default application](https://developer.apple.com/documentation/xcuiautomation/xcuisystem/open(_:))
 - [Native tap events](https://developer.apple.com/documentation/xcuiautomation/xcuielement/tap())
