@@ -67,8 +67,10 @@ export default function Auth() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.safe}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
         <View style={styles.brand}>
-          <View style={styles.mark}><Ionicons name="leaf" size={30} color={colors.onAccent}/></View>
-          <Text style={styles.logo}>CampusFlow</Text><Text style={styles.subtitle}>Your student day, in one calm place.</Text>
+          {/* Keep the brand row compact: the sign-in fields must stay above the keyboard on small phones. */}
+          <View style={styles.brandRow}><View style={styles.mark}><Ionicons name="leaf" size={22} color={colors.onAccent}/></View>
+            <Text style={styles.logo}>CampusFlow</Text></View>
+          <Text style={styles.subtitle}>Your student day, in one calm place.</Text>
           {registering && !verification && <View style={styles.points}>{([['today-outline', 'Deadlines, tasks and campus events in one daily plan'],
             ['flame-outline', 'Gentle routines with streaks and check-ins'], ['cloud-offline-outline', 'Your saved plan stays readable offline']] as const).map(([icon, text]) =>
             <View key={icon} style={styles.point}><Ionicons name={icon} size={18} color={colors.moss}/><Text style={styles.pointText}>{text}</Text></View>)}</View>}
@@ -115,7 +117,7 @@ function TextLink({ title, disabled, onPress }: { title: string; disabled?: bool
 }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas }, page: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 24, width: '100%', maxWidth: 588, alignSelf: 'center' },
-  brand: { gap: 8 }, mark: { width: 56, height: 56, borderRadius: 18, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  brand: { gap: 8 }, brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 }, mark: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center' },
   logo: { color: colors.ink, fontSize: 34, fontWeight: '800' }, subtitle: { color: colors.muted, fontSize: 17 },
   points: { gap: 8, marginTop: 8 }, point: { flexDirection: 'row', alignItems: 'center', gap: 10 }, pointText: { color: colors.ink, fontSize: 15, flexShrink: 1 },
   form: { gap: 14, backgroundColor: colors.card, borderRadius: 24, padding: 20, borderWidth: 1, borderColor: colors.line },
