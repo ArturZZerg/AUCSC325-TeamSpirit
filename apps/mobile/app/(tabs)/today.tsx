@@ -15,9 +15,10 @@ import { useSessionStore } from '@/store/session';
 
 type MutationAction = Exclude<PlanAction, 'focus'>;
 type IconName = ComponentProps<typeof Ionicons>['name'];
-const shortcuts: { label: string; title: string; icon: IconName; path: '/focus' | '/planner' | '/academics' | '/study-plans' | '/workload' | '/review' }[] = [
+const shortcuts: { label: string; title: string; icon: IconName; path: '/focus' | '/planner' | '/calendar' | '/academics' | '/study-plans' | '/workload' | '/review' }[] = [
   { label: 'Focus space', title: 'Focus', icon: 'timer-outline', path: '/focus' },
-  { label: 'Plan your week', title: 'Week', icon: 'calendar-outline', path: '/planner' },
+  { label: 'Plan your week', title: 'Week', icon: 'albums-outline', path: '/planner' },
+  { label: 'Month calendar', title: 'Calendar', icon: 'calendar-outline', path: '/calendar' },
   { label: 'Coursework', title: 'Courses', icon: 'school-outline', path: '/academics' },
   { label: 'My study plans', title: 'Study plans', icon: 'layers-outline', path: '/study-plans' },
   { label: 'Organise my workload', title: 'Workload', icon: 'file-tray-full-outline', path: '/workload' },

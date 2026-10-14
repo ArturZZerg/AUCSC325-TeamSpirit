@@ -83,6 +83,19 @@ palette and Today-centered product model.
     timing and native taps that open the exact saved item with existing edit/focus
     controls. See [Reminder center](../requirements/reminder-center.md).
 
+23. **Today dashboard:** progress card, icon shortcuts, floating capture and a
+    checklist plan with human timing and a collapsible Done group.
+24. **Grouped tasks:** Overdue/Today/Tomorrow/Next 7 days/Later/No date buckets,
+    segmented completion filter, category chips and expandable task rows.
+25. **Habit tracker:** goal-local streaks (skips neutral), a seven-day strip and
+    weekly-target progress on each routine card; rules live in the domain package.
+26. **Settings:** grouped list with profile card and real reminder switches; all
+    tabs draw their own large titles.
+27. **Month calendar:** account-zone month grid of task, coursework and saved-event
+    dates (repeating tasks expanded), day agenda, open-day and capture actions.
+    Built from the authoritative task/coursework/event lists rather than the
+    eight-day snapshot window.
+
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native
 acceptance remains a separate gate for new interactions. Temporary browser

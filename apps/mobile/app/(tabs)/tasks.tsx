@@ -75,6 +75,7 @@ export default function Tasks() {
       <View style={styles.links}>
         <Chip icon="layers-outline" label="My study plans" onPress={() => router.push('/study-plans')}/>
         <Chip icon="school-outline" label="Coursework" onPress={() => router.push('/academics')}/>
+        <Chip icon="calendar-outline" label="Calendar" onPress={() => router.push('/calendar')}/>
       </View>
       {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
       <TaskFilterControls filters={filters} onChange={updateFilters} onReset={resetFilters}/>
