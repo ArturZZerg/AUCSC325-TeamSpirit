@@ -751,3 +751,25 @@ Next: publish this diagnostic on PR #83, review its exact head and inspect the
 native event sequence before selecting a fix. Keep #84 draft until its dependency
 and its own required native gates pass. Physical devices and source transfers
 remain excluded by the owner's current instructions; unrelated files are preserved.
+
+### iOS runner handoff comparison, 2026-10-14
+
+At `3b0a827`, both standard checks pass all 2,136 tests. Native run `38511768603`
+fails the original Back assertion, with consecutive same-process public markers
+showing press-in/out but no onPress/replacement. Direct BackBoard evidence records
+an active CampusFlow touch cancelled when its virtual digitizer is removed; the
+successful system Open control has an ordinary release before cleanup. This is
+native input cancellation, not evidence that the app replacement callback failed.
+
+Pinned-source and actual PID review show both CLIs already start fresh XCTest
+processes, even with no-reinstall-driver. Changing only that flag would not test
+a new pre-Back condition. Help arrives before the first CLI ends in the diagnostic
+run. The next scoped comparison uses one ordered wrapper for both existing warm
+subflows, avoiding the second runner handoff. Original sign-in/first-link/Back,
+in-app Help, search, protected Account, termination, cold and all private gates
+remain required, with no action retry or assertion expansion. App code is unchanged.
+
+Next: validate/publish the wrapper and inspect exact-head native touch/navigation
+evidence. Remove temporary app probes and require final uninstrumented native and
+standard success before merging #83; #84 remains draft. No phone/server transfer
+or account deletion is performed.

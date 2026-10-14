@@ -19,7 +19,7 @@ test tool; it does not deploy CampusFlow to the owner's server.
 | IOS-PREVIEW-01 | Build native iOS with the installed supported toolchain and embedded Release JS, without Metro or signing credentials | `build-ios-simulator.sh`; actual Xcode job and archive |
 | IOS-PREVIEW-02 | Inspect the product's simulator platform, identity, executable architectures, incoming-link scheme and selected API in the actual bundle | `ios-preview.mjs`; positive and invalid/stale artifact tests; generated product record |
 | IOS-PREVIEW-03 | Avoid unused sensitive capability prompts and arbitrary insecure HTTP access | Native Info.plist gate; installed Expo plugin introspection; Face ID/global cleartext regressions |
-| IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public-link-request.yaml` then `ios-public.yaml` on the same installed app/UUID; both CLI results, JUnit and screenshots |
+| IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public-first-warm.yaml` sequentially requires `ios-public-link-request.yaml` then `ios-public.yaml` in one XCTest session on the same installed app/UUID; whole-flow JUnit and screenshots |
 | IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | `ios-public.yaml` must finish by terminating the app, then `ios-public-cold.yaml` opens the link without launching first; all CLI/JUnit results and cold Help screenshot required |
 | IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 60-minute whole-job budget and seven-day artifacts |
 | IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
@@ -141,6 +141,26 @@ distinguish responder, dispatch and presentation failures; they do not fix or
 accept the failed flow. Four new diagnostic/component cases and the existing
 navigation cases pass (34 scoped tests), along with 22 iOS tooling cases,
 mobile types and lint. Fresh exact-head native acceptance remains required.
+
+The diagnostic `3b0a827` run (`38511768603`) fails Back again, but changes the
+next investigation: the same CampusFlow process logs consecutive route controls
+and Back press-in/out, with no `onPress` or auth replacement. BackBoard explicitly
+cancels an active touch destined to CampusFlow after its virtual digitizer is
+removed. The requested down/up coordinates are identical, and hierarchy reads
+do not overlap the touch. A successful system Open control normally releases its
+contact before cleanup. Native injected-touch cancellation is confirmed; the
+duplicate digitizer registration's precise cause remains unproven.
+
+The two public CLIs start different XCTest runner processes despite
+`--no-reinstall-driver`. Changing that flag alone would not refresh the already
+fresh process before Back. In this run Help arrives before the first CLI ends,
+so the next comparison keeps both original warm subflows in one XCTest session
+through an ordered `runFlow` wrapper. This removes the runner handoff without
+changing the first link, intervening app state, Back action or expected screen.
+The entire warm JUnit must pass before the separate post-termination cold phase
+and every private API/session/cache/logout gate. Temporary app markers remain
+for comparison and must be removed before final uninstrumented acceptance.
+This is a diagnostic lifecycle experiment, not a confirmed fix or a waived gate.
 
 At `019f64c` (`38460731027`), build, effective simulator capabilities, healthy
 launch and the public flow pass (120 seconds, zero failures). Ordinary native
