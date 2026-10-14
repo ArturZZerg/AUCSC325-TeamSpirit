@@ -1,0 +1,15 @@
+appId: com.campusflow.mobile
+name: iOS public cold unavailable-link recovery
+---
+# Previous public cold flow must terminate the app; do not launch before this link.
+- openLink: campusflow:///unavailable-link
+- runFlow: ios-confirm-link.yaml
+- extendedWaitUntil:
+    visible: This page isn’t available.
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: ios-unavailable-cold
+- tapOn: Open Help & data
+- extendedWaitUntil:
+    visible: A little help for your day.
+    timeout: 30000

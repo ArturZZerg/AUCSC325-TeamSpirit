@@ -8,3 +8,17 @@ name: iOS public cold Help link after termination
     visible: A little help for your day.
     timeout: 30000
 - takeScreenshot: ios-help-cold
+- openLink: campusflow:///unavailable-link?code=ignored-link-code&next=https%3A%2F%2Funtrusted.test
+- runFlow: ios-confirm-link.yaml
+- extendedWaitUntil:
+    visible: This page isn’t available.
+    timeout: 30000
+- assertNotVisible: ignored-link-code
+- assertNotVisible: https://untrusted.test
+- waitForAnimationToEnd
+- takeScreenshot: ios-unavailable-warm
+- tapOn: Back to sign in
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
+- stopApp

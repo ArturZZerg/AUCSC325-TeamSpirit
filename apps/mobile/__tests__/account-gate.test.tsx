@@ -30,3 +30,11 @@ it('keeps public help readable before and after signing in', () => {
 it.each([['journal'], ['planner'], ['(tabs)', 'settings'], ['help', 'private'], ['unknown']])('keeps %s private instead of widening the help exemption', (...segments) => {
   mockSegments = segments; mockSession = null; render(<RootLayout/>); expect(mockRouter.replace).toHaveBeenCalledWith('/auth');
 });
+
+it('allows only the exact generic unavailable-page leaf without widening private routes', () => {
+  mockSession = null; mockNext = 'https://untrusted.test'; mockSegments = ['+not-found'];
+  const view = render(<RootLayout/>); expect(mockRouter.replace).not.toHaveBeenCalled();
+  mockSession = {}; view.rerender(<RootLayout/>); expect(mockRouter.replace).not.toHaveBeenCalled();
+  mockSession = null; mockSegments = ['+not-found', 'account']; view.rerender(<RootLayout/>);
+  expect(mockRouter.replace).toHaveBeenLastCalledWith('/auth');
+});

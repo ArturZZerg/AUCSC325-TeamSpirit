@@ -2,99 +2,54 @@
 
 Updated: 2026-10-14
 
-### Current: finish the open PRs with complete native acceptance
+### Current open-PR completion task
 
-Full successor `4d0192e` / `38626385344` fails at the expected offline FAQ after
-passing first-warm/single-Back/in-app Help in PID 34998. Its native frame shows
-query `one` despite requested `offline` plus Return, so the FAQ absence is not
-accepted as an application search defect. The test now sends each ordinary key
-once with a visible-prefix assertion, verifies the complete query after Return
-and captures the filtered screen. There is no retyping, clear/retry or app change.
-All 34 tooling cases and the previous standard checks retain their stated scope;
-fresh full native acceptance remains required. Preserve the existing feature
-runs, integrate this scoped parent correction into #84/#85, and finish the stack.
+The owner explicitly requests finishing open PRs. Recovery #84 at `71e8082`
+and dependent day-review #85 at `9df62cc` have passing standard checks, but
+their native runs `38613496910` and `38615841433` fail first warm public Help
+before private recovery/day-review/storage checks. Keep both draft until the
+required current-source native checks pass; finish them in dependency order.
+Use a matched-head merge preserving the recovery ancestry needed by day-review.
 
-The owner explicitly requests finishing the three open PRs. The fixed-source
-public XCTest comparison `35ba837` / `38623494563` passes one actual test with
-zero failures in 17.675 seconds. Native PID 7707 survives the first warm Help URL,
-one Back, in-app Help and one Back. Extracted/installed app executable and JS
-hashes match before/after, and owned cleanup passes. This is a tested subset,
-not acceptance of search, Account, cold links or private storage.
+Storage PR #83 is merged as `c08a0987222c3940bc59cd187f03e0e9e47aadea`. Its
+tree exactly equals final uninstrumented source `c3c2563`, accepted by native
+`38603642902` attempt 2 and independently validated source-bound `storage.json`
+with all four real API/cache/logout/cold-signed-out checks and cleanup. Main's
+standard check passes, but native `38612589080` fails first warm Help. This
+distinction is now reflected in the production-readiness record.
 
-PR #86 now retires the fixed-artifact experiment and implements a permanent full
-public native gate on each current build. A separate XCTest host retains ordinary
-sign-in, first-warm ordering, single Back actions, in-app/legacy Help, search/
-answer/clear, protected Account, ignored continuation and cold Help after explicit
-termination. Source-bound verification rejects zero tests, missing/duplicate/
-reordered stages, changed warm processes, reused cold processes and failed native
-execution. Compiled test context also binds the source, simulator, run and attempt,
-rejecting replay under a different valid identity. The application and existing
-private API/cache/logout flows are unchanged. Six new verifier cases bring local
-iOS tooling to 34 passing tests;
-lint, YAML and shell syntax checks pass. Full actual native execution is required.
+The public XCTest comparison `35ba837` / `38623494563` passes its actual one-test
+subset in 17.675 seconds with unchanged PID 7707 and unchanged installed/extracted
+app bytes. Its separate baseline `38623494445` also finishes successfully before
+retirement; no cancellation is issued. Downloaded `storage.json` independently
+passes all four source-bound private checks and cleanup for `35ba837`. The older
+baseline `38620875376` fails first Help at 19:24:28 UTC, with actual native URL
+delivery at 19:24:30.943 in PID 30152. These mixed outcomes establish input-path
+evidence, not a precise upstream root cause or a current feature acceptance.
 
-Recovery #84 remains at published `71e8082`; local `ca6b2be` records the accepted
-storage parent and current release gates, without application changes. Day-review
-#85 remains at `9df62cc`, stacked on #84. Both have passing standard checks but
-failed earlier public native assertions, so neither is ready to merge. Integrate
-the accepted permanent gate into both, retain every added recovery/day-review
-assertion, obtain exact-head full acceptance and author review, then merge with
-matched heads in dependency order and verify main. No physical device or server
-source is operated on. The entries below retain historical proposals and results.
+PR #86 at `846b105` retires the fixed-artifact experiment and implements a complete
+public XCTest gate against each current build, with private Maestro/API checks
+unchanged. Earlier `4d0192e` / `38626385344` passes warm link/Back/in-app Help,
+then its frame shows query `one` instead of requested `offline`. The corrected
+test sends each key once with a visible-prefix assertion and verifies the full
+query after Return, without retyping or retrying an action. Fresh native success
+is required; the failed run is not accepted. The compiled test
+context binds source/device/run/attempt, requires actual named-test success, and
+rejects missing/reordered/duplicate stages and wrong warm/cold process transitions.
 
-### Current state: accepted storage gate and isolated public-input comparison
+This recovery integration preserves all parent warm/search/Account/cold checks,
+then requires warm unavailable-link recovery with ignored private parameters and
+cold unavailable-link recovery to Help. Strict proof requires both new stages,
+retains the cold Help PID for warm recovery and requires a third distinct PID for
+terminated recovery. All original private offline recovery/retained-task and
+API/cache/logout checks remain unchanged. Actual current-source native and
+standard checks, author review and matched-head merges remain required. Keep
+the stacked PR dependency order #86, #84, #85; preserve ancestry for later merges.
 
-PR #83 merged as `c08a0987222c3940bc59cd187f03e0e9e47aadea` after its final
-uninstrumented source `c3c2563` passed standard checks and native run
-`38603642902` attempt 2. The downloaded exact-source `storage.json` independently
-passes all four real API/cold-cache/logout/cold-signed-out proof requirements.
-Its tree equals merged main. Exact-main standard run `38612589071` passes, while
-native `38612589080` fails the first warm Help observation. Recovery PR #84 at
-`71e8082` and day-review PR #85 at `9df62cc` have passing standard checks, but
-their native runs `38613496910` and `38615841433` fail that same earlier public
-assertion. Private recovery/day-review/storage phases therefore remain untested
-at those heads. Neither feature is accepted for merge or production release.
-
-An isolated diagnostic uses the unchanged main simulator artifact from
-`38612589080` on a fresh job-owned simulator and a separate minimal XCTest host.
-It compares Apple's public URL/tap APIs, requires the same native app process
-before/after the first Help URL and each single Back action, and hashes the app
-executable/JS before/after. Missing PID evidence or a replacement process fails.
-The original acceptance workflow, application code, API and dependencies remain
-unchanged. Local YAML/tooling/lint validation and actual macOS execution are
-required. Even success covers only this public subset; it cannot waive existing
-system confirmation/search/Account/cold/private acceptance. Retire the temporary
-fixed-artifact diagnostic after it informs a reviewed permanent correction.
-
-The day-review feature is published on #85, stacked on #84. Its native Android
-emulator evidence covers explicit prefill, Cancel without mutation, one Save
-preserving the deadline, API-disconnected cold reads and 320px/150% text. Its
-expanded iOS gate adds independent real-API cancellation/save/deadline checks
-and recorded study totals, preserving all prior cleanup assertions. Source tests
-pass 1,140 mobile cases and 33 iOS tooling cases. Real execution of the additional
-iOS cases is still required. No physical device or server source is operated on.
-
-Diagnostic PR #86 is published at `0337bbaec1aa1c370e9dc0563c5ee24eaf1a3b93`.
-Local 28-case iOS tooling, lint, YAML and diff checks pass. Standard runs
-`38620875045` / `38620866592` pass. Comparison `38620875306` fails before test
-generation: the guessed Homebrew Ruby executable is absent. Artifact source,
-installation, extracted/installed executable and JS byte checks, and owned
-simulator shutdown pass. No application URL/tap evidence is produced. Use the
-runner's documented default Ruby and require its existing xcodeproj gem rather
-than constructing a Homebrew interpreter/gem path. The comparison uses public
-`XCUIDevice.shared.system.open` for incoming delivery to the default URL handler,
-retaining the unchanged-PID check; application launch-by-URL is not assumed to
-preserve a warm process. Actual compilation remains required. Native baseline
-`38620875376` is still running. This temporary branch disables native preview's
-cancel-in-progress behavior, preserving the running baseline while queuing the
-follow-up; the separate corrected comparison can then execute concurrently.
-All original acceptance assertions remain. A transient automatic approval-review usage failure
-has recovered without bypass. The owner now explicitly prioritizes finishing
-the three open PRs; complete recovery #84 and day-review #85 in dependency order,
-and retire/close the temporary #86 after its evidence informs the permanent fix.
-
-The entries below retain earlier investigations; they are historical rather
-than the current merge/acceptance state.
+No physical-device operations, server source transfer, new account deletion or
+dependency change is performed. The five advisory records are refreshed, with
+no compatible repair or production-release disposition inferred. Historical
+investigations below are retained and do not supersede this current state.
 
 Current iOS correction: `50a2546`/`38503168076` passes three public JUnit flows,
 native ordinary login/API capture and cold encrypted-session/SQLite restoration,
@@ -269,9 +224,34 @@ correct Help. Unsigned Keychain entitlement failures keep authenticated storage
 acceptance open. Full simctl
 images confirm public screen spacing; Maestro images omit system chrome. See
 [the gate](../docs/requirements/ios-simulator-preview.md).
-Unknown native paths still use SDK Unmatched Route and need a
+Merged main's unknown native paths still use SDK Unmatched Route and need a
 clear recovery path. Production hosting/email, contact/operator details,
 signing/privacy and physical acceptance remain pending; source stays local.
+
+Next feature branch `codex/native-link-recovery` implements branded unavailable-link
+recovery atop PR #83's `6c36838` corrected accessible-tab/driver/storage gate. Both prior
+`ab46128` and feature `bf1aa34` native runs fail the original Help assertion before
+new recovery/private scenarios, despite passing standard checks. PR #84 is draft;
+fresh exact-head standard/native acceptance is required. `e787af9` subsequently
+passes first Help/Back/search/Account before a cold-link OS timeout; fresh Android
+warm/cold/malformed/offline and native 320px/150% text acceptance pass with data
+preserved. `7160802` then passes all four iOS public flows, native API-confirmed
+capture and owned cold offline recovery, but fails the bare Settings selector
+before logout; process cleanup passes. Reviewed native warm/cold frames are
+readable. The rebased feature retains all recovery assertions in required cold
+phases; application sources match the exercised Android artifacts. The feature
+uses fixed Today/sign-in/Help recovery actions after restoration, ignores incoming
+path/query values, and permits only the exact generic `+not-found` public leaf.
+Known private routes and Account continuation remain guarded. Twelve new behavior
+cases pass, including seven mounted installed-Router cases; the targeted suite has
+32 passing tests. Native flows append warm/cold generic recovery and require return
+to the same cached task with the API absent. Full local checks and fresh web export
+pass (256 API database cases skipped locally). Actual browser recovery/Help and
+keyboard sign-in pass; reviewed 320px/150%-zoom/1280px frames show no horizontal
+overflow. The task-owned browser/server are stopped. Native evidence, review and
+acceptance remain pending. See
+[requirements](../docs/requirements/native-link-recovery.md). No API/schema or
+deployment change is introduced. Do not merge this feature ahead of PR #83.
 
 Goal: extend the MVP with complete student workflows, preserving the accepted
 architecture and five-tab navigation, through validated PR/review/merge cycles.
@@ -893,3 +873,29 @@ stash `2ce9944872143540b41ab74e86e99a85482099d1` safely holds those named featur
 files while this cleanup fix is published. Its synthetic loopback visual preview
 is still open; this is not native/production acceptance. No existing user files,
 phone, retained account or server source are operated on.
+
+### Accepted iOS storage parent and recovery integration, 2026-10-14
+
+PR #83 is merged at `c08a0987222c3940bc59cd187f03e0e9e47aadea`. Both standard
+checks and final uninstrumented native `38603642902` attempt 2 pass on reviewed
+head `c3c2563`. Downloaded final product/JUnit/storage records match that source;
+the proof validator confirms all four ordered API/cache/logout checks and passed
+cleanup. Earlier failed-attempt artifacts are preserved locally with hashes and
+only their duplicate remote upload slots were cleared. The merged tree matches
+the reviewed tree. Main standard `38612589071` passes; native `38612589080` is running.
+
+The queued recovery feature is rebased onto accepted main. Its recovery/root-gate
+file hashes match the previously exercised Android/partial iOS feature code.
+It retains the parent's full final-proof guard, original warm wrapper and exact
+Settings-tab selection; all added warm/cold/offline recovery assertions remain.
+Artifact names now include source and run attempt, preserving evidence on retries.
+All 1,099 integrated mobile tests and 28 iOS tooling cases pass, along with lint,
+strict mobile types and all ten native YAML flows. Exact-head PR/native/main
+checks remain required.
+
+The separate day-review feature is also prepared locally on the accepted main;
+Button retains both native testID and its task-specific accessibility label.
+All 1,128 integrated mobile tests, 28 iOS tooling cases, lint and mobile types pass.
+Its earlier native fixture evidence remains tied to app source `72a1395`; final
+integrated feature acceptance is still required. Backups and unrelated user files
+are preserved. No physical phone or server source transfer is performed.

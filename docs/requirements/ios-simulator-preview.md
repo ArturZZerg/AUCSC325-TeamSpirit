@@ -25,10 +25,20 @@ records the observed failure and actual unchanged-app evidence for this choice.
 | IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | The same native test explicitly terminates the app, opens cold Help without launch/reset, and requires a new PID; source-bound `public-native.json`, full execution log and public XCTest result |
 | IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 60-minute whole-job budget and seven-day artifacts |
 | IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
+| IOS-RECOVERY-01 | Warm unavailable links ignore private parameters and return to ordinary sign-in; cold unavailable links open recovery and return to offline Help | Full public XCTest retains all parent assertions, requires the warm recovery process and a third distinct cold process; both added source-bound proof stages are mandatory |
 | IOS-STORAGE-01 | Verify the actual app's local host signature and compiled simulator Keychain capabilities in every architecture, without invented team IDs or shared groups | Strict signature verification; actual Mach-O `__TEXT,__entitlements` extraction; negative host/device/slice artifact tests |
 | IOS-STORAGE-02 | Ordinary native sign-in writes Secure Store and Today capture creates exactly one date-scheduled task through the real API | Disposable PostgreSQL 17 and NestJS preview API; native flow plus independent contract-validated API read |
 | IOS-STORAGE-03 | Terminated-process startup restores the encrypted session and owned SQLite task with no API/Metro listener | Explicit API shutdown/port guard and native cold offline flow |
+| IOS-RECOVERY-02 | An authenticated unavailable link returns to Today and the same cached task while the API is absent | Existing `ios-session-offline.yaml` and independent native cache/task persistence checks remain required |
 | IOS-STORAGE-04 | Native sign-out revokes its actual API session, removes owned SQLite rows, and cold startup stays signed out without an API while the server task survives | Before/after session/cache counts, online logout and separate API-disconnected cold signed-out flow; a server 401 cannot mask stale Secure Store |
+
+PR #83 merged at `c08a0987222c3940bc59cd187f03e0e9e47aadea` after final native
+`38603642902` attempt 2 passed on `c3c2563`, with independently validated complete
+storage/cleanup evidence and an identical merged tree. Each artifact name now
+includes source and run attempt, preserving prior evidence under distinct names.
+The unchanged-app comparison and later full `35ba837` baseline both pass, while
+earlier exact-main/recovery/day-review attempts fail first warm Help. Those mixed
+results cannot substitute for the integrated current-source recovery acceptance.
 
 The storage harness is restricted to the disposable macOS Actions runner and the
 explicit booted `CampusFlowIosQa` UUID. It creates its own SCRAM-protected, loopback

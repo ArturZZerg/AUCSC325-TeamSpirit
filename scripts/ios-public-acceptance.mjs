@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const markers = ['INITIAL_PID', 'FIRST_WARM_HELP', 'SINGLE_BACK', 'IN_APP_HELP', 'LEGACY_HELP_SEARCH', 'ACCOUNT_AND_CONTINUATION', 'COLD_HELP'];
+const markers = ['INITIAL_PID', 'FIRST_WARM_HELP', 'SINGLE_BACK', 'IN_APP_HELP', 'LEGACY_HELP_SEARCH', 'ACCOUNT_AND_CONTINUATION', 'COLD_HELP', 'UNAVAILABLE_WARM', 'UNAVAILABLE_COLD'];
 
 /** A green build or zero discovered tests cannot substitute for native execution. */
 export function verifyPublicAcceptance(log, commit, udid, runId, attempt) {
@@ -24,17 +24,20 @@ export function verifyPublicAcceptance(log, commit, udid, runId, attempt) {
     assert.ok(Number.isSafeInteger(pid) && pid > 0, 'Actual positive native PID required.');
     return pid;
   });
-  assert.ok(pids.slice(0, -1).every(pid => pid === pids[0]), 'All warm actions must retain the initial process.');
-  assert.notEqual(pids.at(-1), pids[0], 'Cold Help must use a new process after termination.');
+  assert.ok(pids.slice(0, 6).every(pid => pid === pids[0]), 'All warm Help actions must retain the initial process.');
+  assert.notEqual(pids[6], pids[0], 'Cold Help must use a new process after termination.');
+  assert.equal(pids[7], pids[6], 'Warm unavailable recovery must retain the cold Help process.');
+  assert.ok(pids[8] !== pids[6] && pids[8] !== pids[0], 'Cold unavailable recovery must use a new process.');
   const complete = [...log.matchAll(/^CAMPUSFLOW_PUBLIC_ACCEPTANCE_COMPLETE$/gm)];
   assert.equal(complete.length, 1); assert.ok(complete[0].index > previous);
   assert.match(log, /Test Case '-\[PublicAcceptanceTests\.NativePublicAcceptanceTests testPublicLinksAndNavigation\]' passed \(/);
   assert.match(log, /Executed 1 test, with 0 failures \(0 unexpected\)/);
   assert.match(log, /\*\* TEST SUCCEEDED \*\*/);
   assert.doesNotMatch(log, /Test Case .* failed \(|\*\* TEST FAILED \*\*/);
-  return { commit, udid, runId, attempt, result: 'passed', warmPid: pids[0], coldPid: pids.at(-1),
+  return { commit, udid, runId, attempt, result: 'passed', warmPid: pids[0], coldPid: pids[6], recoveryColdPid: pids[8],
     checks: ['first warm Help before in-app navigation', 'single Back and in-app Help',
-      'legacy Help, search, answer and clear', 'protected Account and ignored continuation', 'cold Help after termination'] };
+      'legacy Help, search, answer and clear', 'protected Account and ignored continuation', 'cold Help after termination',
+      'warm unavailable recovery and ignored parameters', 'cold unavailable recovery to Help'] };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
