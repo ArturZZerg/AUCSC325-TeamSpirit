@@ -65,15 +65,15 @@ function Chip({ icon, label, disabled, onPress }: { icon: IconName; label: strin
 
 const styles = StyleSheet.create({
   row: { backgroundColor: colors.card, borderRadius: 16, padding: 14, gap: 10, borderWidth: 1, borderColor: colors.line },
-  main: { borderColor: '#E3C46A', backgroundColor: '#FFFBEF' },
+  main: { borderColor: colors.goldLine, backgroundColor: colors.goldSurface },
   top: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   check: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   badge: { borderRadius: 10 }, dim: { opacity: .45 }, pressed: { opacity: .7 },
   body: { flex: 1, gap: 4 }, labels: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4 }, kind: { fontSize: 11, fontWeight: '800', letterSpacing: .6 },
-  star: { color: '#8A6A00', fontSize: 11, fontWeight: '800', letterSpacing: .6 },
+  star: { color: colors.gold, fontSize: 11, fontWeight: '800', letterSpacing: .6 },
   chip: { fontSize: 11, fontWeight: '700', color: colors.muted, backgroundColor: colors.canvas, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden' },
-  overdue: { color: '#fff', backgroundColor: colors.coral }, high: { color: colors.danger, backgroundColor: '#F8E6E1' },
+  overdue: { color: '#fff', backgroundColor: colors.coral }, high: { color: colors.danger, backgroundColor: colors.dangerSurface },
   title: { color: colors.ink, fontSize: 16, lineHeight: 22, fontWeight: '700' }, done: { color: colors.muted, textDecorationLine: 'line-through' },
   meta: { color: colors.muted, fontSize: 13 }, overdueText: { color: colors.coral, fontWeight: '600' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 42 },

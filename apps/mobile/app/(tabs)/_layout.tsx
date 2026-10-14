@@ -20,7 +20,8 @@ export default function TabsLayout() {
     // Each tab draws its own large title inside the safe area.
     headerShown: false,
     tabBarActiveTintColor: colors.moss,
-    tabBarStyle: { backgroundColor: '#fff' },
+    tabBarInactiveTintColor: colors.muted,
+    tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.line },
     tabBarIcon: ({ color, size }) => <Ionicons name={icons[route.name] ?? 'ellipse-outline'} color={color} size={size} />,
   })}>
     <Tabs.Screen name="today" options={{ title: 'Today' }}/>

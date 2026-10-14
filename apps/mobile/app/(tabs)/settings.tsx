@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   icon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   rowText: { flex: 1, gap: 2 }, rowTitle: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '600' },
   action: { color: colors.moss, fontWeight: '700' }, muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
-  badge: { color: '#725700', backgroundColor: '#FFF3D4', fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9, overflow: 'hidden' },
+  badge: { color: colors.warnText, backgroundColor: colors.warnSurface, fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9, overflow: 'hidden' },
   track: { width: 46, height: 28, borderRadius: 14, backgroundColor: colors.line, padding: 3 }, trackOn: { backgroundColor: colors.moss },
   knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' }, knobOn: { transform: [{ translateX: 18 }] },
   signOut: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 50, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },

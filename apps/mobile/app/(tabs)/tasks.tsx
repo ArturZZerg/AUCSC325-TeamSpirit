@@ -137,9 +137,9 @@ const styles = StyleSheet.create({
   count: { color: colors.muted, fontWeight: '700', backgroundColor: colors.sage, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 1, overflow: 'hidden', fontSize: 12 },
   empty: { alignItems: 'center', gap: 6, padding: 24, borderRadius: 18, backgroundColor: colors.sage },
   academic: { flexDirection: 'row', gap: 12, backgroundColor: colors.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.line },
-  academicIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#E3EBF2', alignItems: 'center', justifyContent: 'center' }, academicBody: { flex: 1, gap: 4 },
-  main: { borderColor: '#E3C46A', backgroundColor: '#FFFBEF' }, star: { color: '#8A6A00', fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  academicIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: colors.blueSurface, alignItems: 'center', justifyContent: 'center' }, academicBody: { flex: 1, gap: 4 },
+  main: { borderColor: colors.goldLine, backgroundColor: colors.goldSurface }, star: { color: colors.gold, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   item: { fontSize: 16, fontWeight: '700', color: colors.ink }, done: { textDecorationLine: 'line-through', color: colors.muted }, meta: { color: colors.muted },
   error: { color: colors.coral }, pressed: { opacity: 0.75 }, dim: { opacity: 0.5 }, spacer: { height: 24 },
-  confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.35)' },
+  confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.scrim },
 });

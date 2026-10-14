@@ -78,18 +78,18 @@ export function Chip({ icon, label, disabled, danger, onPress }: { icon: IconNam
 
 const styles = StyleSheet.create({
   row: { backgroundColor: colors.card, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14, gap: 10, borderWidth: 1, borderColor: colors.line },
-  main: { borderColor: '#E3C46A', backgroundColor: '#FFFBEF' },
+  main: { borderColor: colors.goldLine, backgroundColor: colors.goldSurface },
   top: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   check: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   repeat: { borderWidth: 0, backgroundColor: colors.canvas, borderRadius: 9 },
   body: { flex: 1, gap: 4 }, chevron: { marginTop: 4 },
-  star: { color: '#8A6A00', fontSize: 11, fontWeight: '800', letterSpacing: .6 },
+  star: { color: colors.gold, fontSize: 11, fontWeight: '800', letterSpacing: .6 },
   title: { color: colors.ink, fontSize: 16, lineHeight: 22, fontWeight: '700' }, done: { color: colors.muted, textDecorationLine: 'line-through' },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 }, dot: { width: 7, height: 7, borderRadius: 4 },
   metaText: { color: colors.muted, fontSize: 13 }, high: { color: colors.danger, fontWeight: '700' },
   details: { gap: 6, paddingLeft: 40 }, description: { color: colors.ink, lineHeight: 21 }, detail: { color: colors.muted, fontSize: 13 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 34, paddingHorizontal: 11, borderRadius: 17, backgroundColor: colors.sage },
-  dangerChip: { backgroundColor: '#F8E6E1' }, chipText: { color: colors.ink, fontSize: 13, fontWeight: '700' }, dangerText: { color: colors.danger },
+  dangerChip: { backgroundColor: colors.dangerSurface }, chipText: { color: colors.ink, fontSize: 13, fontWeight: '700' }, dangerText: { color: colors.danger },
   pressed: { opacity: .7 }, dim: { opacity: .45 },
 });

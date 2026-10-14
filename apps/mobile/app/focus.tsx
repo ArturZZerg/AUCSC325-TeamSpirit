@@ -187,5 +187,5 @@ const styles = StyleSheet.create({
   track: { height: 6, borderRadius: 3, backgroundColor: colors.card, overflow: 'hidden' }, fill: { height: '100%', backgroundColor: colors.moss },
   choices: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' }, choice: { minHeight: 46, borderRadius: 12, backgroundColor: colors.card, padding: 14, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
   selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: '#fff' }, disabled: { opacity: .5 }, error: { color: colors.coral },
-  confirm: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,.25)' },
+  confirm: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: colors.scrim },
 });

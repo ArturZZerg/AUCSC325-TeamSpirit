@@ -50,7 +50,7 @@ export function HabitCard({ goal, disabled, pending, expanded, onToggleExpanded,
       </View>
       {streak && <View style={[styles.streak, streak.current > 0 && styles.streakOn]} accessible
         accessibilityLabel={`Current streak ${streak.current} ${streak.unit === 'day' ? (streak.current === 1 ? 'day' : 'days') : (streak.current === 1 ? 'week' : 'weeks')}, best ${streak.best}`}>
-        <Ionicons name="flame" size={16} color={streak.current > 0 ? '#D9772B' : colors.muted}/>
+        <Ionicons name="flame" size={16} color={streak.current > 0 ? colors.streak : colors.muted}/>
         <Text style={[styles.streakText, streak.current > 0 && styles.streakTextOn]}>{streak.current}{streak.unit === 'week' ? 'w' : ''}</Text>
       </View>}
     </View>
@@ -85,7 +85,7 @@ export function HabitCard({ goal, disabled, pending, expanded, onToggleExpanded,
 
 const dotStyles = StyleSheet.create({
   done: { backgroundColor: colors.plum, borderColor: colors.plum }, skipped: { backgroundColor: colors.line, borderColor: colors.line },
-  missed: { backgroundColor: '#F8E6E1', borderColor: '#E9B8AA' }, open: { borderColor: colors.plum, borderStyle: 'dashed' },
+  missed: { backgroundColor: colors.dangerSurface, borderColor: colors.dangerLine }, open: { borderColor: colors.plum, borderStyle: 'dashed' },
   rest: { borderColor: colors.line }, before: { borderColor: 'transparent' },
 });
 const styles = StyleSheet.create({
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: 2 }, title: { color: colors.ink, fontSize: 17, fontWeight: '700' }, meta: { color: colors.muted }, small: { color: colors.muted, fontSize: 12 },
   status: { color: colors.plum, fontWeight: '700', fontSize: 13 },
   streak: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 9, minHeight: 30, borderRadius: 15, backgroundColor: colors.canvas },
-  streakOn: { backgroundColor: '#FCEBD9' }, streakText: { color: colors.muted, fontWeight: '800', fontVariant: ['tabular-nums'] }, streakTextOn: { color: '#A4521A' },
+  streakOn: { backgroundColor: colors.streakSurface }, streakText: { color: colors.muted, fontWeight: '800', fontVariant: ['tabular-nums'] }, streakTextOn: { color: colors.streakText },
   days: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 }, day: { alignItems: 'center', gap: 4, minWidth: 30 },
   letter: { color: colors.muted, fontSize: 11, fontWeight: '700' }, letterToday: { color: colors.plum },
   dot: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },

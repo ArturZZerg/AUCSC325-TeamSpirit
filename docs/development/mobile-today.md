@@ -118,3 +118,11 @@ records actual offline background rollover, overdue recalculation and cold
 restoration on Pixel 10 Pro XL. Continue the remaining foreground/iOS and
 integration gates listed in the linked native reports. Web export and Jest cannot
 prove native notification delivery or phone lifecycle behavior.
+
+## Appearance
+
+`src/components/ui.tsx` defines light and dark palettes with semantic tokens
+(surfaces, accents, warning/danger/gold/streak surfaces, scrim). The palette is
+chosen from the system appearance when the app starts; StyleSheets read it once
+at module load, so a system change applies on the next launch. Screens use
+tokens rather than literal colors; white is reserved for content on accent fills.

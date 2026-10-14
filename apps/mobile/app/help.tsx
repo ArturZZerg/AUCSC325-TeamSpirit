@@ -32,7 +32,7 @@ export default function HelpScreen() {
     </View>
     <View style={styles.search}><Text style={styles.label}>Search help</Text><TextInput testID="help-search" accessibilityLabel="Search help" style={styles.input} value={search}
       onChangeText={value => { setSearch(value); setExpanded(undefined); }} maxLength={100} autoCapitalize="none" autoCorrect={false} returnKeyType="search"
-      placeholder="Try offline, reminders or coursework"/>
+      placeholder="Try offline, reminders or coursework" placeholderTextColor={colors.muted}/>
       {!!search && <Button title="Clear search" tone="plain" onPress={() => { setSearch(''); setExpanded(undefined); }}/>}</View>
     <View style={styles.filters}>{[undefined, ...helpTopics].map(value => <Pressable key={value ?? 'all'} accessibilityRole="button"
       accessibilityLabel={`Help topic: ${value ?? 'All'}`} accessibilityState={{ selected: topic === value }} onPress={() => { setTopic(value); setExpanded(undefined); }}

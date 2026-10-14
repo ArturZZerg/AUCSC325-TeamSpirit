@@ -154,5 +154,5 @@ const styles = StyleSheet.create({
   track: { height: 8, backgroundColor: colors.sage, borderRadius: 4, overflow: 'hidden' }, fill: { height: '100%', backgroundColor: colors.moss },
   next: { padding: 14, backgroundColor: colors.sage, borderRadius: 12, gap: 8 }, sessions: { gap: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.line }, session: { gap: 10 },
   notice: { color: colors.ink, backgroundColor: colors.sage, padding: 12, borderRadius: 12, lineHeight: 21 }, attention: { color: colors.coral, lineHeight: 21 }, error: { color: colors.coral },
-  overlay: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: 'rgba(0,0,0,.25)' }, rename: { width: '100%', maxWidth: 600, alignSelf: 'center' },
+  overlay: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: colors.scrim }, rename: { width: '100%', maxWidth: 600, alignSelf: 'center' },
 });

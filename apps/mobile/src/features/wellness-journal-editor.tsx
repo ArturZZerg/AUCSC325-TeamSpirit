@@ -94,7 +94,7 @@ export function WellnessJournalEditor({ date, entry, action, onClose, onSaved }:
         {attempt.current && <Button title={busy ? 'Checking or saving…' : 'Check saved entry'} tone="plain" disabled={disabled} onPress={() => { void reconcile(); }}/>}
         {latest && <View style={styles.review}><Text style={styles.label}>Latest saved version</Text>
           {latest.entry ? <><Text style={styles.meta}>Mood: {ratingLabel('mood', latest.entry.mood)} · Energy: {ratingLabel('energy', latest.entry.energy)} · Stress: {ratingLabel('stress', latest.entry.stress)}</Text>
-            <Text>{latest.entry.note || 'No note recorded.'}</Text></> : <Text>No saved entry for this day.</Text>}
+            <Text style={{ color: colors.ink }}>{latest.entry.note || 'No note recorded.'}</Text></> : <Text style={{ color: colors.ink }}>No saved entry for this day.</Text>}
           <Text style={styles.meta}>Using this version replaces your unsaved draft. Review it before editing again.</Text>
           <Button title="Use saved version" tone="plain" disabled={disabled} onPress={() => { setBase(latest.entry); setValues(journalFields(latest.entry));
             setLatest(undefined); setDeleting(false); attempt.current = undefined; }}/>

@@ -159,5 +159,5 @@ const styles = StyleSheet.create({
   selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: '#fff' },
   section: { color: colors.ink, fontSize: 19, fontWeight: '800' }, group: { gap: 12 },
   item: { color: colors.ink, fontSize: 17, fontWeight: '700' }, finished: { color: colors.muted, textDecorationLine: 'line-through' }, attention: { color: colors.coral },
-  confirm: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,.25)' },
+  confirm: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: colors.scrim },
 });

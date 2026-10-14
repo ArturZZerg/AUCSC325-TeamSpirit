@@ -116,5 +116,5 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 6, padding: 24, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   error: { color: colors.coral }, pressed: { opacity: 0.75 }, dim: { opacity: 0.5 },
-  safe: { flex: 1, backgroundColor: colors.canvas }, confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.35)' },
+  safe: { flex: 1, backgroundColor: colors.canvas }, confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.scrim },
 });

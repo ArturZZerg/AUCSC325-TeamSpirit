@@ -67,7 +67,7 @@ export default function Auth() {
         <View style={styles.brand}><Text style={styles.logo}>CampusFlow</Text><Text style={styles.subtitle}>Your student day, in one calm place.</Text></View>
         <View style={styles.form}>
           <Text style={styles.title}>{verification ? 'Check your email' : registering ? 'Create your account' : next === 'account' ? 'Sign in to manage your account' : 'Welcome back'}</Text>
-          {accountDeleted && <Text accessibilityRole="alert">Your account was deleted. All sessions have lost server access.</Text>}
+          {accountDeleted && <Text accessibilityRole="alert" style={{ color: colors.ink }}>Your account was deleted. All sessions have lost server access.</Text>}
           {sessionUnavailable && <Text accessibilityRole="alert" style={styles.body}>Your session is no longer available. Sign in again to continue. Your server-saved student data is retained. Unsaved device drafts aren’t kept when signing in again.</Text>}
           {cleanupError && <><Text accessibilityRole="alert" style={styles.error}>{cleanupError}</Text><Button title="Retry device cleanup" tone="plain" onPress={() => void retryCleanup()}/></>}
           {verification ? <>
