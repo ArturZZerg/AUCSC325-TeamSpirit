@@ -10,9 +10,25 @@ occurrenceKey, which can differ from the displayed date because the goal has
 its own timezone. A goal missing its occurrence date asks the user to refresh
 instead of submitting an invented date.
 
-Today and Coming up cards display the read model's deadline and scheduled-work
-values separately. Timed values use shared account-local formatting; date-only
-values stay calendar dates and missing values have no invented timestamp.
+## Dashboard layout
+
+Today opens with the date, a greeting in the account time zone, and a progress
+card ("3 of 7 done") with a Review this day action. Progress counts tasks,
+routines and coursework in the derived plan; events are excluded and skipped
+routines leave the denominator. Six icon shortcuts (Focus, Week, Courses, Study
+plans, Workload, Weekly review) replace the former button wall, keeping their
+original accessible names. A floating Add task button opens the existing editor
+with the displayed date as its schedule. The plan is a checklist: open work
+first (main goals, then overdue, then server order), finished/skipped work in a
+collapsible Done group. Each row shows a kind color and label, meaningful states
+only (Overdue, Snoozed, Done…) and human timing relative to the displayed day.
+Grouping, progress and labels live in `src/features/today-plan.ts`; the row UI
+in `src/features/plan-row.tsx`. Nothing about this layout is persisted.
+
+Today and Coming up rows display the read model's deadline and scheduled-work
+values separately ("Planned 3:00 PM · Due tomorrow"). Timed values are formatted
+in the account zone relative to the displayed day; date-only values stay
+calendar dates and missing values have no invented timestamp.
 Saved-event schedule values are labeled Starts. Recurring tasks use the supplied
 occurrence timing without recalculating from a template. Cached timing remains
 visible during refresh failure, and changed server deadlines update after refresh.

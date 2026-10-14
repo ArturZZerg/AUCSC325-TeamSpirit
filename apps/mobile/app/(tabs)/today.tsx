@@ -1,37 +1,51 @@
-import { useRef, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState, type ComponentProps } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { localDateAt } from '@campusflow/domain';
-import { Button, Card, Screen, State, colors } from '@/components/ui';
+import { Card, Screen, State, colors } from '@/components/ui';
 import { useAction, useToday } from '@/features/queries';
-import { taskTimingLabel } from '@/features/task-form';
 import type { PlanItem } from '@/lib/types';
 import { DayAgenda } from '@/features/day-agenda';
 import { TaskEditor } from '@/features/task-editor';
 import type { TaskFormValues } from '@/features/task-form';
 import { FocusRecoveryCard } from '@/features/focus-recovery-card';
+import { PlanRow, kindColors, type PlanAction } from '@/features/plan-row';
+import { greeting, groupPlan, isAccountToday, planProgress, planTimingLabel } from '@/features/today-plan';
+import { useSessionStore } from '@/store/session';
 
-type PlanAction = 'complete' | 'uncomplete' | 'skip' | 'snooze';
+type MutationAction = Exclude<PlanAction, 'focus'>;
+type IconName = ComponentProps<typeof Ionicons>['name'];
+const shortcuts: { label: string; title: string; icon: IconName; path: '/focus' | '/planner' | '/academics' | '/study-plans' | '/workload' | '/review' }[] = [
+  { label: 'Focus space', title: 'Focus', icon: 'timer-outline', path: '/focus' },
+  { label: 'Plan your week', title: 'Week', icon: 'calendar-outline', path: '/planner' },
+  { label: 'Coursework', title: 'Courses', icon: 'school-outline', path: '/academics' },
+  { label: 'My study plans', title: 'Study plans', icon: 'layers-outline', path: '/study-plans' },
+  { label: 'Organise my workload', title: 'Workload', icon: 'file-tray-full-outline', path: '/workload' },
+  { label: 'Review your week', title: 'Weekly review', icon: 'stats-chart-outline', path: '/review' },
+];
 
 export default function TodayScreen() {
   const selectedDate = useLocalSearchParams<{ date?: string }>().date;
   const query = useToday(selectedDate === undefined ? undefined : String(selectedDate));
+  const name = useSessionStore(state => state.session?.user.displayName);
   const date = query.date;
-  const isCurrentDay = date === localDateAt(new Date(Date.now()).toISOString(), query.timeZone);
+  const isCurrentDay = isAccountToday(date, query.timeZone, Date.now());
   const action = useAction();
   const busy = useRef(false);
-  const [pending, setPending] = useState<{ key: string; action: PlanAction }>();
+  const [pending, setPending] = useState<{ key: string; action: MutationAction }>();
   const [failure, setFailure] = useState<{ key: string; message: string }>();
   const [taskDraft, setTaskDraft] = useState<Partial<TaskFormValues>>();
+  const [showDone, setShowDone] = useState(false);
 
   const run = async (item: PlanItem, selected: PlanAction) => {
+    if (selected === 'focus') { router.push({ pathname: '/focus', params: { taskId: item.entityId } }); return; }
     if (busy.current || action.isPending || !item.allowedActions.includes(selected)) return;
     busy.current = true;
     setPending({ key: item.key, action: selected });
     setFailure(undefined);
     try {
       if (selected === 'snooze' && (item.kind === 'personalTask' || item.kind === 'goal')) {
-        if (date !== localDateAt(new Date(Date.now()).toISOString(), query.timeZone)) throw new Error('Open today’s plan before snoozing.');
+        if (!isAccountToday(date, query.timeZone, Date.now())) throw new Error('Open today’s plan before snoozing.');
         if (item.kind === 'goal' && !item.occurrenceKey) throw new Error('Refresh your plan before changing this goal.');
         await action.mutateAsync({ path: `/${item.kind === 'goal' ? 'goals' : 'tasks'}/${item.entityId}/snooze`, body: {
           until: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
@@ -58,77 +72,119 @@ export default function TodayScreen() {
     }
   };
 
-  return <Screen><ScrollView contentContainerStyle={styles.content}
+  const items = query.data?.items ?? [];
+  const groups = groupPlan(items), progress = planProgress(items);
+  const blocked = !!pending || action.isPending;
+  const row = (item: PlanItem) => <PlanRow key={item.key} item={item} timeZone={query.timeZone} date={date} isCurrentDay={isCurrentDay}
+    disabled={blocked} pendingAction={pending?.key === item.key ? pending.action : undefined}
+    error={failure?.key === item.key ? failure.message : undefined} onAction={selected => { void run(item, selected); }}/>;
+
+  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}
     aria-hidden={!!taskDraft} accessibilityElementsHidden={!!taskDraft} importantForAccessibility={taskDraft ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
-    <Text style={styles.kicker}>{new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}</Text>
-    <View style={styles.heading}><Text style={styles.title}>Your daily flow</Text>
-      <Button title="Get started" tone="plain" onPress={() => router.push('/get-started')}/></View>
-    <Button testID="today-add-task" title="Add a task to this day" disabled={!!pending || action.isPending || !!taskDraft}
-      onPress={() => setTaskDraft({ scheduledMode: 'date', scheduledDate: date })}/>
-    <Button title="Review this day" tone="plain" onPress={() => router.push({ pathname: '/day-review', params: { date } })}/>
-    <View style={styles.actions}><Button title="Organise my workload" tone="plain" onPress={() => router.push('/workload')}/><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/><Button title="My study plans" tone="plain" onPress={() => router.push('/study-plans')}/><Button title="Focus space" tone="plain" onPress={() => router.push('/focus')}/></View>
+    <View style={styles.heading}>
+      <View style={styles.headingCopy}>
+        <Text style={styles.kicker}>{new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' })}</Text>
+        <Text accessibilityRole="header" style={styles.title}>Your daily flow</Text>
+        {isCurrentDay && <Text style={styles.greeting}>{greeting(Date.now(), query.timeZone)}{name ? `, ${name.trim().split(/\s+/)[0]}` : ''}.</Text>}
+      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Get started" onPress={() => router.push('/get-started')} style={styles.setup} hitSlop={6}>
+        <Ionicons name="sparkles-outline" size={16} color={colors.moss}/><Text style={styles.setupText}>Get started</Text>
+      </Pressable>
+    </View>
+
+    <View style={styles.hero}>
+      <View style={styles.heroRow}>
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroValue}>{progress.total ? `${progress.done} of ${progress.total}` : 'Clear'}</Text>
+          <Text style={styles.heroLabel}>{!progress.total ? 'Nothing planned yet' : progress.done === progress.total ? 'Everything done. Nice work.' : 'done in this day’s plan'}</Text>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Review this day" onPress={() => router.push({ pathname: '/day-review', params: { date } })} style={styles.review}>
+          <Ionicons name="moon-outline" size={16} color={colors.ink}/><Text style={styles.reviewText}>Review this day</Text>
+        </Pressable>
+      </View>
+      {progress.total > 0 && <View style={styles.track} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: progress.total, now: progress.done }}>
+        <View style={[styles.fill, { width: `${Math.round(progress.ratio * 100)}%` }]}/></View>}
+    </View>
+
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcuts}>
+      {shortcuts.map(item => <Pressable key={item.path} accessibilityRole="button" accessibilityLabel={item.label} onPress={() => router.push(item.path)}
+        style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
+        <View style={styles.shortcutIcon}><Ionicons name={item.icon} size={22} color={colors.moss}/></View>
+        <Text style={styles.shortcutText} numberOfLines={1}>{item.title}</Text>
+      </Pressable>)}
+    </ScrollView>
+
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <FocusRecoveryCard/>
     <State loading={query.isLoading} error={query.error}/>
-    <DayAgenda compact date={date} timeZone={query.timeZone} onPlan={setTaskDraft}/>
-    {query.data && !query.data.items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>
+
+    {query.data && !items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>
       <Text style={styles.meta}>Add a task, keep a deadline in sight, or choose one small routine.</Text>
-      <Button title="Build my daily plan" onPress={() => router.push('/get-started')}/></Card>}
-    {query.data?.items.map(item => <PlanCard key={item.key} item={item} timeZone={query.timeZone} isCurrentDay={isCurrentDay} disabled={!!pending || action.isPending}
-      pendingAction={pending?.key === item.key ? pending.action : undefined}
-      error={failure?.key === item.key ? failure.message : undefined}
-      onAction={selected => { void run(item, selected); }}/>) }
-    {query.data?.campusEvents.length ? <><Text style={styles.section}>Campus today</Text>
-      {query.data.campusEvents.map(event => <Card key={event.id}><Text style={styles.item}>{event.title}</Text><Text style={styles.meta}>{event.timing.kind === 'timed' ? new Date(event.timing.startsAt).toLocaleTimeString([], { timeZone: query.timeZone, hour: 'numeric', minute: '2-digit' }) : event.timing.startDate} · {event.location ?? 'Campus'}</Text></Card>)}
+      <Pressable accessibilityRole="button" onPress={() => router.push('/get-started')} style={styles.primary}><Text style={styles.primaryText}>Build my daily plan</Text></Pressable></Card>}
+    {groups.open.length > 0 && <Section title="To do" count={groups.open.length}/>}
+    {groups.open.map(row)}
+    {items.length > 0 && !groups.open.length && <View style={styles.cleared}><Ionicons name="checkmark-done-circle" size={34} color={colors.moss}/>
+      <Text style={styles.item}>All clear for this day.</Text><Text style={styles.meta}>Add something new or review how it went.</Text></View>}
+    {groups.done.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel={`${showDone ? 'Hide' : 'Show'} ${groups.done.length} done`}
+      accessibilityState={{ expanded: showDone }} onPress={() => setShowDone(value => !value)} style={styles.doneToggle}>
+      <Text style={styles.section}>Done</Text><Text style={styles.count}>{groups.done.length}</Text>
+      <Ionicons name={showDone ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted}/>
+    </Pressable>}
+    {showDone && groups.done.map(row)}
+
+    <DayAgenda compact date={date} timeZone={query.timeZone} onPlan={setTaskDraft}/>
+
+    {query.data?.campusEvents.length ? <><Section title="Campus today" count={query.data.campusEvents.length}/>
+      {query.data.campusEvents.map(event => <View key={event.id} style={styles.compact}><View style={[styles.stripe, { backgroundColor: kindColors.event }]}/>
+        <View style={styles.compactBody}><Text style={styles.item}>{event.title}</Text><Text style={styles.meta}>{event.timing.kind === 'timed' ? new Date(event.timing.startsAt).toLocaleTimeString([], { timeZone: query.timeZone, hour: 'numeric', minute: '2-digit' }) : event.timing.startDate} · {event.location ?? 'Campus'}</Text></View></View>)}
     </> : null}
-    {query.data?.upcoming.length ? <><Text style={styles.section}>Coming up</Text>
-      {query.data.upcoming.map(item => <Card key={item.key}><Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.state}</Text><PlanTiming item={item} timeZone={query.timeZone}/></Card>)}
+    {query.data?.upcoming.length ? <><Section title="Coming up" count={query.data.upcoming.length}/>
+      {query.data.upcoming.map(item => <View key={item.key} style={styles.compact}><View style={[styles.stripe, { backgroundColor: kindColors[item.kind] }]}/>
+        <View style={styles.compactBody}><Text style={styles.item}>{item.title}</Text>
+          <Text style={styles.meta}>{planTimingLabel(item, query.timeZone, date) ?? 'No date'}</Text></View></View>)}
     </> : null}
-  </ScrollView>{taskDraft && <TaskEditor task={null} timeZone={query.timeZone} initialValues={taskDraft} onClose={() => setTaskDraft(undefined)}/>}</Screen>;
+    <View style={styles.spacer}/>
+  </ScrollView>
+  {!taskDraft && <Pressable testID="today-add-task" accessibilityRole="button" accessibilityLabel="Add a task to this day" accessibilityState={{ disabled: blocked }} disabled={blocked}
+    onPress={() => setTaskDraft({ scheduledMode: 'date', scheduledDate: date })} style={({ pressed }) => [styles.fab, pressed && styles.pressed, blocked && styles.dim]}>
+    <Ionicons name="add" size={24} color="#fff"/><Text style={styles.fabText}>Add task</Text>
+  </Pressable>}
+  {taskDraft && <TaskEditor task={null} timeZone={query.timeZone} initialValues={taskDraft} onClose={() => setTaskDraft(undefined)}/>}</Screen>;
 }
 
-function PlanCard({ item, timeZone, isCurrentDay, disabled, pendingAction, error, onAction }: {
-  item: PlanItem; timeZone: string; isCurrentDay: boolean; disabled: boolean; pendingAction?: PlanAction; error?: string; onAction: (action: PlanAction) => void;
-}) {
-  const canComplete = (item.kind === 'personalTask' || item.kind === 'goal') && item.allowedActions.includes('complete');
-  const canUndo = item.kind === 'personalTask' && item.allowedActions.includes('uncomplete');
-  const canSkip = item.kind === 'goal' && item.allowedActions.includes('skip');
-  const canSnooze = isCurrentDay && (item.kind === 'personalTask' || item.kind === 'goal') && item.allowedActions.includes('snooze');
-  return <Card>
-    <View style={styles.details}>
-      <Text style={styles.kind}>{item.isMainGoal ? '★ MAIN GOAL' : item.kind === 'academic' ? 'UNIVERSITY' : item.kind === 'personalTask' ? 'TASK' : item.kind.toUpperCase()}</Text>
-      <Text style={[styles.item, (item.state === 'completed' || item.state === 'submitted') && styles.done]}>{item.title}</Text>
-      <Text style={styles.meta}>{item.state}</Text>
-      <PlanTiming item={item} timeZone={timeZone}/>
-    </View>
-    {(canComplete || canUndo || canSkip || canSnooze) && <View style={styles.actions}>
-      {canComplete && <Button title={pendingAction === 'complete' ? 'Saving…' : 'Complete'} disabled={disabled} onPress={() => onAction('complete')}/>}
-      {canComplete && item.kind === 'personalTask' && item.occurrenceKey === null && <Button title="Focus on this" tone="plain" disabled={disabled}
-        onPress={() => router.push({ pathname: '/focus', params: { taskId: item.entityId } })}/>}
-      {canUndo && <Button title={pendingAction === 'uncomplete' ? 'Saving…' : 'Undo completion'} tone="plain" disabled={disabled} onPress={() => onAction('uncomplete')}/>}
-      {canSkip && <Button title={pendingAction === 'skip' ? 'Saving…' : 'Skip today'} tone="plain" disabled={disabled} onPress={() => onAction('skip')}/>}
-      {canSnooze && <Button title={pendingAction === 'snooze' ? 'Saving…' : 'Snooze 1 hour'} tone="plain" disabled={disabled} onPress={() => onAction('snooze')}/>}
-    </View>}
-    {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-  </Card>;
-}
-
-function PlanTiming({ item, timeZone }: { item: PlanItem; timeZone: string }) {
-  return <>
-    {item.due && <Text style={styles.meta}>Due: {taskTimingLabel(item.due, timeZone)}</Text>}
-    {item.schedule && <Text style={styles.meta}>{item.kind === 'event' ? 'Starts' : 'Scheduled'}: {taskTimingLabel(item.schedule, timeZone)}</Text>}
-  </>;
+function Section({ title, count }: { title: string; count: number }) {
+  return <View style={styles.sectionRow}><Text accessibilityRole="header" style={styles.section}>{title}</Text><Text style={styles.count}>{count}</Text></View>;
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' }, kicker: { color: colors.muted, fontWeight: '700' },
-  heading: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  title: { fontSize: 29, color: colors.ink, fontWeight: '800', marginBottom: 6 },
-  section: { fontSize: 18, color: colors.ink, fontWeight: '800', marginTop: 10 },
-  details: { gap: 4 }, actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  kind: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: .6 },
-  item: { color: colors.ink, fontSize: 17, fontWeight: '700' }, done: { color: colors.muted, textDecorationLine: 'line-through' },
-  meta: { color: colors.muted }, error: { color: colors.coral },
+  content: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }, headingCopy: { flex: 1, gap: 2 },
+  kicker: { color: colors.muted, fontWeight: '700', fontSize: 13, letterSpacing: .3 },
+  title: { fontSize: 29, color: colors.ink, fontWeight: '800' }, greeting: { color: colors.muted, fontSize: 16 },
+  setup: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, minHeight: 36, borderRadius: 18, backgroundColor: colors.sage, marginTop: 4 },
+  setupText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
+  hero: { backgroundColor: colors.moss, borderRadius: 22, padding: 18, gap: 14 },
+  heroRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, heroCopy: { gap: 2, flexShrink: 1 },
+  heroValue: { color: '#fff', fontSize: 30, fontWeight: '800', fontVariant: ['tabular-nums'] }, heroLabel: { color: colors.sage, fontSize: 14 },
+  review: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 14, minHeight: 40 },
+  reviewText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
+  track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' }, fill: { height: 8, borderRadius: 4, backgroundColor: '#fff' },
+  shortcuts: { gap: 10, paddingVertical: 2 },
+  shortcut: { width: 84, alignItems: 'center', gap: 6, paddingVertical: 10, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  shortcutIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.sage, alignItems: 'center', justifyContent: 'center' },
+  shortcutText: { color: colors.ink, fontSize: 12, fontWeight: '700' },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  section: { fontSize: 18, color: colors.ink, fontWeight: '800' },
+  count: { color: colors.muted, fontWeight: '700', backgroundColor: colors.sage, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 1, overflow: 'hidden', fontSize: 12 },
+  doneToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, minHeight: 40 },
+  cleared: { alignItems: 'center', gap: 6, padding: 20, borderRadius: 18, backgroundColor: colors.sage },
+  compact: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  stripe: { width: 4 }, compactBody: { padding: 12, gap: 3, flex: 1 },
+  item: { color: colors.ink, fontSize: 16, fontWeight: '700' }, meta: { color: colors.muted },
+  primary: { minHeight: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.moss }, primaryText: { color: '#fff', fontWeight: '700' },
   offline: { backgroundColor: '#FFF3D4', color: '#725700', padding: 12, borderRadius: 12 },
+  fab: { position: 'absolute', right: 18, bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.moss, borderRadius: 28, paddingHorizontal: 18, minHeight: 54,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
+  fabText: { color: '#fff', fontWeight: '800', fontSize: 15 }, pressed: { opacity: 0.75 }, dim: { opacity: 0.5 }, spacer: { height: 72 },
 });

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import TodayScreen from '../app/(tabs)/today';
 import { useAction, useToday } from '../src/features/queries';
 
+jest.mock('@expo/vector-icons/Ionicons', () => () => null);
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({}), router: { push: jest.fn() } }));
 jest.mock('../src/features/day-agenda', () => ({ DayAgenda: () => null }));
 jest.mock('../src/features/focus-recovery-card', () => ({ FocusRecoveryCard: () => null }));

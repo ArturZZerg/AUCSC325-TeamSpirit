@@ -58,11 +58,11 @@ beforeEach(() => {
 describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
   it.each(['switch', 'sign-out', 'relogin'])('discards a Today capture draft on %s', transition => {
     mockRoute = 'today'; render(<TabsLayout/>);
-    fireEvent.press(screen.getByText('Add a task to this day'));
+    fireEvent.press(screen.getByRole('button', { name: 'Add a task to this day' }));
     fireEvent.changeText(screen.getByLabelText('Title'), 'Private captured draft');
     session(transition === 'switch' ? second : transition === 'sign-out' ? null : { ...first, accessToken: 'new-login' });
     expect(screen.queryByLabelText('Title')).toBeNull(); expect(save).not.toHaveBeenCalled();
-    session(first); fireEvent.press(screen.getByText('Add a task to this day'));
+    session(first); fireEvent.press(screen.getByRole('button', { name: 'Add a task to this day' }));
     expect(screen.getByLabelText('Title')).toHaveDisplayValue('');
   });
   it.each(['switch', 'relogin'])('discards a private study-window draft on %s', transition => {
@@ -130,7 +130,7 @@ describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
     mockRoute = 'today'; let reject!: (reason: Error) => void;
     save.mockReturnValueOnce(new Promise((_resolve, fail) => { reject = fail; }));
     render(<TabsLayout/>);
-    fireEvent.press(screen.getByText('Complete'));
+    fireEvent.press(screen.getByRole('button', { name: 'Complete' }));
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
     session(second);
     expect(screen.getByRole('button', { name: 'Complete' })).toBeEnabled();
