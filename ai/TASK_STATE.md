@@ -45,8 +45,10 @@ than constructing a Homebrew interpreter/gem path. The comparison uses public
 `XCUIDevice.shared.system.open` for incoming delivery to the default URL handler,
 retaining the unchanged-PID check; application launch-by-URL is not assumed to
 preserve a warm process. Actual compilation remains required. Native baseline
-`38620875376` is still running; preserve it before
-publishing this correction. A transient automatic approval-review usage failure
+`38620875376` is still running. This temporary branch disables native preview's
+cancel-in-progress behavior, preserving the running baseline while queuing the
+follow-up; the separate corrected comparison can then execute concurrently.
+All original acceptance assertions remain. A transient automatic approval-review usage failure
 has recovered without bypass. The owner now explicitly prioritizes finishing
 the three open PRs; complete recovery #84 and day-review #85 in dependency order,
 and retire/close the temporary #86 after its evidence informs the permanent fix.

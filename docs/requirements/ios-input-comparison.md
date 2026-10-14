@@ -28,6 +28,9 @@ original public/cold/API/cache/logout/recovery/day-review gate. In particular, i
 does not establish system confirmation, search, Account or cold-link behavior.
 Retire this fixed-artifact diagnostic after it informs a reviewed permanent fix;
 its seven-day artifact dependency is intentionally not a production workflow.
+On this temporary branch, native preview concurrency queues the next baseline
+instead of cancelling a live one, so the corrected comparison can run in parallel
+with the existing baseline. This changes scheduling only; all assertions remain.
 
 Primary API references:
 - [Opening a URL in its default application](https://developer.apple.com/documentation/xcuiautomation/xcuisystem/open(_:))
