@@ -9,8 +9,10 @@ retain Xcode's local ad-hoc signature and declare an app-private Keychain namesp
 only for the explicit simulator build. The gate inspects the compiled simulated
 entitlement section in every executable architecture. A disposable API/database flow checks authenticated
 storage; it never treats simulator signing as Apple device/store signing.
-It uses the existing GitHub Actions infrastructure and the architecture's Maestro
-test tool; it does not deploy CampusFlow to the owner's server.
+It uses the existing GitHub Actions infrastructure, public XCTest input for
+public navigation and the existing Maestro private-account flows; it does not
+deploy CampusFlow to the owner's server. The [input comparison](ios-input-comparison.md)
+records the observed failure and actual unchanged-app evidence for this choice.
 
 ## Requirements and verification
 
@@ -19,8 +21,8 @@ test tool; it does not deploy CampusFlow to the owner's server.
 | IOS-PREVIEW-01 | Build native iOS with the installed supported toolchain and embedded Release JS, without Metro or signing credentials | `build-ios-simulator.sh`; actual Xcode job and archive |
 | IOS-PREVIEW-02 | Inspect the product's simulator platform, identity, executable architectures, incoming-link scheme and selected API in the actual bundle | `ios-preview.mjs`; positive and invalid/stale artifact tests; generated product record |
 | IOS-PREVIEW-03 | Avoid unused sensitive capability prompts and arbitrary insecure HTTP access | Native Info.plist gate; installed Expo plugin introspection; Face ID/global cleartext regressions |
-| IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public-first-warm.yaml` sequentially requires `ios-public-link-request.yaml` then `ios-public.yaml` in one XCTest session on the same installed app/UUID; whole-flow JUnit and screenshots |
-| IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | `ios-public.yaml` must finish by terminating the app, then `ios-public-cold.yaml` opens the link without launching first; all CLI/JUnit results and cold Help screenshot required |
+| IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public-acceptance.swift` requires all actions in order with an unchanged warm process, single Back taps and actual public XCTest input; named-test success, stage proof and public screenshot attachments |
+| IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | The same native test explicitly terminates the app, opens cold Help without launch/reset, and requires a new PID; source-bound `public-native.json`, full execution log and public XCTest result |
 | IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 60-minute whole-job budget and seven-day artifacts |
 | IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
 | IOS-STORAGE-01 | Verify the actual app's local host signature and compiled simulator Keychain capabilities in every architecture, without invented team IDs or shared groups | Strict signature verification; actual Mach-O `__TEXT,__entitlements` extraction; negative host/device/slice artifact tests |
@@ -39,7 +41,9 @@ Credentials and Maestro private screenshots/dumps/logs stay in a restrictive ign
 directory and are not uploaded; only a bounded redacted assertion and sanitized
 stage/check record are published. Public native logs/screenshots are collected before
 creating the synthetic account. The initial storage run remains unverified until
-actual exact-head native acceptance succeeds.
+actual exact-head native acceptance succeeds. The older Maestro public flows
+remain as manual reproductions; the following investigations describe historical
+attempts, not substitutes for the current full public and private gates.
 
 At `ab46128` (native run `38472473944`), the original first warm Help assertion
 fails again. The system delivers `UIOpenURLAction` about six seconds after the

@@ -2,6 +2,36 @@
 
 Updated: 2026-10-14
 
+### Current: finish the open PRs with complete native acceptance
+
+The owner explicitly requests finishing the three open PRs. The fixed-source
+public XCTest comparison `35ba837` / `38623494563` passes one actual test with
+zero failures in 17.675 seconds. Native PID 7707 survives the first warm Help URL,
+one Back, in-app Help and one Back. Extracted/installed app executable and JS
+hashes match before/after, and owned cleanup passes. This is a tested subset,
+not acceptance of search, Account, cold links or private storage.
+
+PR #86 now retires the fixed-artifact experiment and implements a permanent full
+public native gate on each current build. A separate XCTest host retains ordinary
+sign-in, first-warm ordering, single Back actions, in-app/legacy Help, search/
+answer/clear, protected Account, ignored continuation and cold Help after explicit
+termination. Source-bound verification rejects zero tests, missing/duplicate/
+reordered stages, changed warm processes, reused cold processes and failed native
+execution. Compiled test context also binds the source, simulator, run and attempt,
+rejecting replay under a different valid identity. The application and existing
+private API/cache/logout flows are unchanged. Six new verifier cases bring local
+iOS tooling to 34 passing tests;
+lint, YAML and shell syntax checks pass. Full actual native execution is required.
+
+Recovery #84 remains at published `71e8082`; local `ca6b2be` records the accepted
+storage parent and current release gates, without application changes. Day-review
+#85 remains at `9df62cc`, stacked on #84. Both have passing standard checks but
+failed earlier public native assertions, so neither is ready to merge. Integrate
+the accepted permanent gate into both, retain every added recovery/day-review
+assertion, obtain exact-head full acceptance and author review, then merge with
+matched heads in dependency order and verify main. No physical device or server
+source is operated on. The entries below retain historical proposals and results.
+
 ### Current state: accepted storage gate and isolated public-input comparison
 
 PR #83 merged as `c08a0987222c3940bc59cd187f03e0e9e47aadea` after its final

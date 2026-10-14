@@ -41,23 +41,32 @@ jobs:
           echo '5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a  .local/maestro.zip' | shasum -a 256 -c -
           unzip -q .local/maestro.zip -d .local
           .local/maestro/bin/maestro --version
-      - name: Boot only this job's iPhone simulator and run public flows
+      - name: Boot only this job's iPhone simulator and run public native acceptance
+        env:
+          CAMPUSFLOW_BUILD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           if lsof -nP -iTCP:3000 -sTCP:LISTEN >/dev/null; then echo 'Public offline acceptance requires no loopback API/Metro listener.' >&2; exit 1; fi
           bash scripts/boot-ios-simulator.sh
           udid="$(node -p "require('./artifacts/ios/evidence/boot.json').udid")"
+          export IOS_SIMULATOR_UDID="$udid"
           xcrun simctl ui "$udid" appearance light
           xcrun simctl status_bar "$udid" override --time '9:41' --batteryState charged --batteryLevel 100
           xcrun simctl install "$udid" .local/ios-derived-data/Build/Products/Release-iphonesimulator/CampusFlow.app
           xcrun simctl launch "$udid" com.campusflow.mobile > artifacts/ios/evidence/launch.txt
           xcrun simctl terminate "$udid" com.campusflow.mobile
-          .local/maestro/bin/maestro --device "$udid" test --format JUNIT \
-            --output artifacts/ios/evidence/public-flow.xml --debug-output artifacts/ios/evidence/maestro \
-            --test-output-dir "$PWD/artifacts/ios/evidence/screenshots" .maestro/ios-public-first-warm.yaml
-          # The preceding flow must terminate the app before this cold request.
-          .local/maestro/bin/maestro --device "$udid" test --no-reinstall-driver --format JUNIT \
-            --output artifacts/ios/evidence/public-cold.xml --debug-output artifacts/ios/evidence/maestro-cold \
-            --test-output-dir "$PWD/artifacts/ios/evidence/screenshots-cold" .maestro/ios-public-cold.yaml
+          ruby --version
+          ruby -r xcodeproj -e 'puts "Existing xcodeproj: #{Gem.loaded_specs.fetch("xcodeproj").version}"'
+          ruby -c scripts/ios-public-acceptance.rb
+          ruby scripts/ios-public-acceptance.rb
+          set -euo pipefail
+          xcodebuild test -project .local/ios-public-project/PublicAcceptance.xcodeproj -scheme PublicAcceptanceTests \
+            -configuration Release -sdk iphonesimulator -destination "platform=iOS Simulator,id=$udid" \
+            -parallel-testing-enabled NO -derivedDataPath "$PWD/.local/ios-public-derived" \
+            -resultBundlePath "$PWD/artifacts/ios/evidence/public.xcresult" \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
+            2>&1 | tee artifacts/ios/evidence/public-native.log
+          node scripts/ios-public-acceptance.mjs artifacts/ios/evidence/public-native.log \
+            "$CAMPUSFLOW_BUILD_SHA" "$udid" artifacts/ios/evidence/public-native.json
       - name: Collect public simulator diagnostics
         if: always() && env.IOS_SIMULATOR_UDID != ''
         run: |
@@ -78,14 +87,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always() && steps.build.outcome == 'success'
         with:
-          name: campusflow-ios-simulator-${{ github.event.pull_request.head.sha || github.sha }}
+          name: campusflow-ios-simulator-${{ github.event.pull_request.head.sha || github.sha }}-attempt-${{ github.run_attempt }}
           path: artifacts/ios/campusflow-simulator.zip
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: campusflow-ios-evidence-${{ github.event.pull_request.head.sha || github.sha }}
+          name: campusflow-ios-evidence-${{ github.event.pull_request.head.sha || github.sha }}-attempt-${{ github.run_attempt }}
           path: artifacts/ios/evidence
           if-no-files-found: warn
           retention-days: 7
