@@ -6,7 +6,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createServer } from 'node:net';
-import { sessionSchema, personalTaskSchema } from '@campusflow/contracts';
+import { sessionSchema, personalTaskSchema, createPersonalTaskSchema, dateSchema, saveFocusSessionSchema, focusSessionSchema } from '@campusflow/contracts';
+import { addCalendarDays } from '@campusflow/domain';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const apiUrl = 'http://127.0.0.1:3000';
@@ -19,7 +20,9 @@ export function assertStorageAcceptanceProof(value, commit) {
   if (!/^[0-9a-f]{40}$/i.test(commit ?? '') || !value || value.commit !== commit || value.api !== apiUrl
     || value.result !== 'passed' || value.cleanup !== 'passed' || Object.hasOwn(value, 'failedStage')
     || !Array.isArray(value.checks) || value.checks.length !== requiredChecks.length
-    || !value.checks.every((check, index) => check === requiredChecks[index]))
+    || !value.checks.every((check, index) => check === requiredChecks[index])
+    || value.dayReview?.cancel !== 'unchanged' || value.dayReview?.save !== 'tomorrow with deadline retained'
+    || value.dayReview?.taskCount !== 2 || value.dayReview?.studySeconds !== 1500 || value.dayReview?.studyBlocks !== 1)
     throw new Error('Incomplete iOS storage acceptance proof for this source commit.');
 }
 
@@ -62,6 +65,28 @@ export function assertOwnedTask(values, title, date) {
   return task;
 }
 
+/** Both original capture and explicit review editing must survive unchanged rules. */
+export function assertDayReviewTasks(values, capturedValue, reviewValue, date, outcome) {
+  dateSchema.parse(date);
+  const captured = personalTaskSchema.parse(capturedValue), review = personalTaskSchema.parse(reviewValue);
+  assert.notEqual(captured.id, review.id);
+  assert.equal(values.length, 2);
+  const tasks = values.map(value => personalTaskSchema.parse(value));
+  assert.deepEqual(tasks.map(task => task.id).sort(), [captured.id, review.id].sort());
+  assert.deepEqual(tasks.find(task => task.id === captured.id), captured);
+  assert.deepEqual(review.due, { kind: 'date', date });
+  assert.deepEqual(review.scheduled, { kind: 'date', date });
+  assert.equal(review.recurrence, null); assert.equal(review.completedAt, null);
+  const saved = tasks.find(task => task.id === review.id);
+  if (outcome === 'cancelled') assert.deepEqual(saved, review);
+  else {
+    assert.equal(outcome, 'saved');
+    assert.deepEqual(saved, { ...review, scheduled: { kind: 'date', date: addCalendarDays(date, 1) }, updatedAt: saved.updatedAt });
+    assert.notEqual(saved.updatedAt, review.updatedAt);
+  }
+  return saved;
+}
+
 export function publicFlowFailure(log, privateValues) {
   const clean = log.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g'), '');
   const match = clean.match(/(?:Assertion is false:|Element not found:|Unable to find element:)[^\r\n]*/);
@@ -89,7 +114,8 @@ export function privateViewSummary(hierarchy) {
   const known = { auth: 'Welcome back', today: 'Your daily flow', editor: 'New task', capture: 'today-add-task',
     titleInput: 'task-title', save: 'Save task', cleanupRetry: 'Retry device cleanup',
     savePassword: 'Save Password', notNow: 'Not Now', passwords: 'Passwords',
-    settingsTab: 'Settings, tab, 5 of 5', settings: 'Settings', signOut: 'Sign out', unavailable: 'This page isn’t available.' };
+    settingsTab: 'Settings, tab, 5 of 5', settings: 'Settings', signOut: 'Sign out', unavailable: 'This page isn’t available.',
+    dayReview: 'Leave the day a little lighter.', existingEditor: 'Edit task' };
   const result = Object.fromEntries(Object.keys(known).map(name => [name, false]));
   function visit(value, depth) {
     if (depth > 40 || value === null || typeof value !== 'object') return;
@@ -138,8 +164,9 @@ async function run() {
   mkdirSync(runDir, { recursive: true, mode: 0o700 });
   const pg = name => path.join(config.pgBin, name);
   const dbPassword = randomBytes(24).toString('hex'), password = randomBytes(24).toString('hex');
-  const email = `ios-${randomUUID()}@example.test`, title = `iOS study ${randomUUID().slice(0, 8)}`;
-  for (const value of [dbPassword, password, email]) console.log(`::add-mask::${value}`);
+  const email = `ios-${randomUUID()}@example.test`, title = `iOS study ${randomUUID().slice(0, 8)}`,
+    reviewTitle = `iOS review ${randomUUID().slice(0, 8)}`;
+  for (const value of [dbPassword, password, email, title, reviewTitle]) console.log(`::add-mask::${value}`);
   writeFileSync(path.join(runDir, 'pg-password'), dbPassword, { mode: 0o600 });
   const env = { ...process.env, DATABASE_URL: `postgresql://campusflow_ios:${dbPassword}@127.0.0.1:55439/campusflow_ios_test`,
     PGPASSWORD: dbPassword, NODE_ENV: 'development', PORT: '3000', HOST: '127.0.0.1', REGISTRATION_MODE: 'preview',
@@ -157,7 +184,7 @@ async function run() {
       if (name.startsWith('ios-session-')) saveFlowTimeline(path.join(runDir, name), path.join(root, `artifacts/ios/evidence/${name}-timeline.json`));
       if (code === 0) return resolve();
       // Publish only a bounded assertion summary, never raw Maestro commands/UI dumps.
-      const failed = publicFlowFailure(readFileSync(path.join(runDir, `${name}.log`), 'utf8'), [email, password, dbPassword]);
+      const failed = publicFlowFailure(readFileSync(path.join(runDir, `${name}.log`), 'utf8'), [email, password, dbPassword, title, reviewTitle]);
       if (failed) console.error(failed);
       reject(new Error(`Acceptance command failed: ${name}. Private diagnostics stay on the runner.`));
     });
@@ -182,6 +209,7 @@ async function run() {
     const cli = path.join(root, '.local/maestro/bin/maestro');
     try {
       await command(cli, ['--device', config.udid, 'test', '-e', `IOS_QA_EMAIL=${email}`, '-e', `IOS_QA_PASSWORD=${password}`, '-e', `IOS_QA_TASK=${title}`,
+        '-e', `IOS_QA_REVIEW_TASK=${reviewTitle}`,
         '--debug-output', path.join(runDir, name), '--test-output-dir', path.join(runDir, name), `.maestro/${name}.yaml`], name);
     } catch (error) {
       try {
@@ -229,6 +257,39 @@ async function run() {
     };
     assert.ok(cachedCount() > 0, 'The account must have persisted cache rows before offline restoration.');
     check('ordinary native sign-in, Secure Store write, and API-confirmed task capture');
+
+    // A second owned disposable task preserves every original capture/cache gate.
+    // Its deadline stays today, so scheduling it tomorrow must not move that deadline.
+    stage = 'day-review fixture creation';
+    const reviewDate = new Date().toISOString().slice(0, 10);
+    const reviewResponse = await fetch(`${apiUrl}/tasks`, { method: 'POST',
+      headers: { Authorization: `Bearer ${session.accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(createPersonalTaskSchema.parse({ title: reviewTitle, category: 'university', priority: 'medium',
+        due: { kind: 'date', date: reviewDate }, scheduled: { kind: 'date', date: reviewDate }, estimatedMinutes: 25 })),
+      signal: AbortSignal.timeout(5000) });
+    assert.equal(reviewResponse.status, 201);
+    const reviewTask = personalTaskSchema.parse(await reviewResponse.json());
+    const endedAt = new Date().toISOString();
+    const focusResponse = await fetch(`${apiUrl}/focus-sessions`, { method: 'POST',
+      headers: { Authorization: `Bearer ${session.accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(saveFocusSessionSchema.parse({ requestKey: `ios-review-${randomUUID()}`, taskId: reviewTask.id,
+        title: reviewTitle, startedAt: new Date(Date.parse(endedAt) - 1500_000).toISOString(), endedAt,
+        plannedMinutes: 25, focusedSeconds: 1500, outcome: 'completed' })), signal: AbortSignal.timeout(5000) });
+    assert.equal(focusResponse.status, 201);
+    const focus = focusSessionSchema.parse(await focusResponse.json());
+    assert.equal(focus.taskId, reviewTask.id); assert.equal(focus.focusedSeconds, 1500);
+    assert.equal(await prisma.focusSession.count({ where: { userId: session.user.id, id: focus.id, taskId: reviewTask.id } }), 1);
+    const readTasks = async () => {
+      const response = await fetch(`${apiUrl}/tasks`, { headers: { Authorization: `Bearer ${session.accessToken}` }, signal: AbortSignal.timeout(5000) });
+      assert.equal(response.status, 200); return response.json();
+    };
+    stage = 'native day-review cancellation'; await flow('ios-session-day-review-cancel');
+    assertDayReviewTasks(await readTasks(), task, reviewTask, reviewDate, 'cancelled');
+    stage = 'native day-review tomorrow save'; await flow('ios-session-day-review-save');
+    assertDayReviewTasks(await readTasks(), task, reviewTask, reviewDate, 'saved');
+    assert.equal(await prisma.personalTask.count({ where: { userId: session.user.id } }), 2);
+    proof.dayReview = { cancel: 'unchanged', save: 'tomorrow with deadline retained', taskCount: 2, studySeconds: 1500, studyBlocks: 1 };
+
     stage = 'offline cold restoration'; await stopApi(); await unusedPort(3000);
     await flow('ios-session-offline');
     check('cold session and owned SQLite task restoration with no API listener');
@@ -239,6 +300,7 @@ async function run() {
     }
     assert.equal(await prisma.session.count({ where: { userId: session.user.id, revokedAt: null } }), 1);
     assert.equal(await prisma.personalTask.count({ where: { userId: session.user.id, id: task.id } }), 1);
+    assert.equal(await prisma.personalTask.count({ where: { userId: session.user.id, id: reviewTask.id } }), 1);
     assert.equal(cachedCount(), 0);
     check('native sign-out revocation, zero owned SQLite rows, and retained server task');
     stage = 'offline cold signed-out state'; await stopApi(); await unusedPort(3000);

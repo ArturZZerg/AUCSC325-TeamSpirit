@@ -43,6 +43,10 @@ beforeEach(() => {
   jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-10-03T18:00:00Z').getTime());
 });
 afterEach(() => { jest.restoreAllMocks(); });
+it('opens the day-end review for the displayed calendar day without a mutation', () => {
+  render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Review this day' }));
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/day-review', params: { date } }); expect(mutate).not.toHaveBeenCalled();
+});
 
 describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
   it('opens the workload inbox from Today', () => {

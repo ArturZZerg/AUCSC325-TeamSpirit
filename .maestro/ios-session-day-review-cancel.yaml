@@ -1,0 +1,14 @@
+appId: com.campusflow.mobile
+name: iOS day-review cancellation preserves the server task
+---
+- runFlow: ios-day-review-open.yaml
+- scrollUntilVisible:
+    element:
+      text: Cancel
+    direction: DOWN
+- tapOn: Cancel
+- extendedWaitUntil:
+    visible: Plan ${IOS_QA_REVIEW_TASK} for tomorrow
+    timeout: 30000
+- assertNotVisible: 'Task saved[.].*'
+- stopApp

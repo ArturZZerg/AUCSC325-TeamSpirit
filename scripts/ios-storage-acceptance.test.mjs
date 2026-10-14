@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { once, EventEmitter } from 'node:events';
 import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary, saveFlowTimeline,
-  stopOwnedApiProcess, assertStorageAcceptanceProof } from './ios-storage-acceptance.mjs';
+  stopOwnedApiProcess, assertStorageAcceptanceProof, assertDayReviewTasks } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
 
 test('stops an owned real child and makes repeated cleanup after a signal exit idempotent', { timeout: 5000 }, async t => {
@@ -37,7 +37,8 @@ test('a synchronous termination does not retain escalation timers or listeners',
   assert.equal(child.listenerCount('exit'), 0);
 });
 const commit = 'a'.repeat(40);
-const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed', cleanup: 'passed', checks: [
+const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed', cleanup: 'passed',
+  dayReview: { cancel: 'unchanged', save: 'tomorrow with deadline retained', taskCount: 2, studySeconds: 1500, studyBlocks: 1 }, checks: [
   'ordinary native sign-in, Secure Store write, and API-confirmed task capture',
   'cold session and owned SQLite task restoration with no API listener',
   'native sign-out revocation, zero owned SQLite rows, and retained server task',
@@ -49,7 +50,12 @@ test('rejects missing, partial, replayed and failed proof without echoing privat
   const privateValue = 'private-token-must-not-appear';
   for (const value of [undefined, {}, { ...complete(), result: 'failed' }, { ...complete(), cleanup: undefined },
     { ...complete(), commit: 'b'.repeat(40) }, { ...complete(), api: privateValue }, { ...complete(), failedStage: privateValue },
-    { ...complete(), checks: complete().checks.slice(0, 3) }, { ...complete(), checks: complete().checks.toReversed() }]) {
+    { ...complete(), checks: complete().checks.slice(0, 3) }, { ...complete(), checks: complete().checks.toReversed() },
+    { ...complete(), dayReview: undefined }, { ...complete(), dayReview: { ...complete().dayReview, cancel: 'changed' } },
+    { ...complete(), dayReview: { ...complete().dayReview, save: undefined } },
+    { ...complete(), dayReview: { ...complete().dayReview, taskCount: 3 } },
+    { ...complete(), dayReview: { ...complete().dayReview, studySeconds: 0 } },
+    { ...complete(), dayReview: { ...complete().dayReview, studyBlocks: undefined } }]) {
     assert.throws(() => assertStorageAcceptanceProof(value, commit), error => !error.message.includes(privateValue) && /Incomplete iOS storage/.test(error.message));
   }
 });
@@ -117,7 +123,8 @@ test('private screen diagnostics output fixed label-presence booleans only', () 
   const result = privateViewSummary({ children: [{ attributes: { text: 'Your daily flow', id: 'today-add-task' } },
     { attributes: { text: 'private@example.test', input: 'secret-password', token: 'private-token' } }] });
   assert.deepEqual(result, { auth: false, today: true, editor: false, capture: true, titleInput: false, save: false, cleanupRetry: false,
-    savePassword: false, notNow: false, passwords: false, settingsTab: false, settings: false, signOut: false, unavailable: false });
+    savePassword: false, notNow: false, passwords: false, settingsTab: false, settings: false, signOut: false, unavailable: false,
+    dayReview: false, existingEditor: false });
   assert.ok(Object.values(result).every(value => typeof value === 'boolean'));
   assert.ok(!JSON.stringify(result).includes('private'));
   const overlay = privateViewSummary({ children: [{ attributes: { text: 'Save Password' } },
@@ -133,6 +140,8 @@ test('private screen diagnostics output fixed label-presence booleans only', () 
   assert.equal(settings.signOut, true);
   assert.ok(!JSON.stringify(settings).includes('private@example.test'));
   assert.equal(privateViewSummary({ attributes: { text: 'This page isn’t available.' } }).unavailable, true);
+  const review = privateViewSummary({ children: [{ attributes: { text: 'Leave the day a little lighter.' } }, { attributes: { text: 'Edit task' } }] });
+  assert.equal(review.dayReview, true); assert.equal(review.existingEditor, true);
 });
 
 const task = { id: '11111111-2222-4333-8444-555555555555', title: 'Synthetic study', description: null,
@@ -147,4 +156,29 @@ test('rejects duplicates, missing tasks, different titles and deadline/schedule 
     [{ ...task, due: task.scheduled }], [{ ...task, reminder: { kind: 'instant', at: '2026-10-13T13:00:00Z' } }]])
     assert.throws(() => assertOwnedTask(values, task.title, '2026-10-13'));
   assert.throws(() => assertOwnedTask([task], task.title, '2026-10-14'));
+});
+
+const reviewTask = { ...task, id: '22222222-3333-4444-8555-666666666666', title: 'Synthetic review', due: task.scheduled, estimatedMinutes: 25 };
+const savedReview = () => ({ ...reviewTask, scheduled: { kind: 'date', date: '2026-10-14' }, updatedAt: '2026-10-13T13:00:00Z' });
+test('native review cancellation preserves both the original captured task and the complete review task', () => {
+  assert.deepEqual(assertDayReviewTasks([reviewTask, task], task, reviewTask, '2026-10-13', 'cancelled'), reviewTask);
+});
+test('native review save changes only the schedule/version and preserves the due date and original task', () => {
+  assert.deepEqual(assertDayReviewTasks([task, savedReview()], task, reviewTask, '2026-10-13', 'saved'), savedReview());
+});
+test('native review cancellation rejects a covert change, duplicate, missing or additional task', () => {
+  for (const rows of [[task, { ...reviewTask, updatedAt: '2026-10-13T13:00:00Z' }], [task, savedReview()],
+    [task, task], [reviewTask], [task, reviewTask, savedReview()], [{ ...task, title: 'Changed original' }, reviewTask]])
+    assert.throws(() => assertDayReviewTasks(rows, task, reviewTask, '2026-10-13', 'cancelled'));
+});
+test('native review save rejects deadline movement, no scheduling, completion and unrelated edits', () => {
+  for (const changed of [{ ...savedReview(), due: savedReview().scheduled }, reviewTask, { ...savedReview(), completedAt: '2026-10-13T13:00:00Z' },
+    { ...savedReview(), estimatedMinutes: 50 }, { ...savedReview(), title: 'Changed title' }, { ...savedReview(), updatedAt: reviewTask.updatedAt }])
+    assert.throws(() => assertDayReviewTasks([task, changed], task, reviewTask, '2026-10-13', 'saved'));
+});
+test('native review assertions reject an unusable date, shared task identity or unsupported outcome', () => {
+  for (const date of ['invalid', '2026-02-30', '2026-10-14'])
+    assert.throws(() => assertDayReviewTasks([task, reviewTask], task, reviewTask, date, 'cancelled'));
+  assert.throws(() => assertDayReviewTasks([task, task], task, { ...reviewTask, id: task.id }, '2026-10-13', 'cancelled'));
+  assert.throws(() => assertDayReviewTasks([task, reviewTask], task, reviewTask, '2026-10-13', 'unknown'));
 });

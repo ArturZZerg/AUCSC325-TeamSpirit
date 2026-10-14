@@ -2,6 +2,21 @@
 
 Updated: 2026-10-14
 
+### Current day-review parent integration
+
+Day-review integrates recovery `bf804d5`, which contains full public-input parent
+`846b105` (#86), including one-key/visible-prefix search verification after the
+observed bulk-input mismatch. The feature's application code, native private Cancel/Save flows
+and independent real-API task/focus assertions are byte-identical to `9df62cc`.
+All parent public warm/search/Account/cold and mandatory warm/cold unavailable-link
+checks remain, alongside the feature's deadline-preserving tomorrow schedule and
+all original login/cache/logout cleanup checks. Local integrated iOS tooling
+passes 40 cases, including replay/zero-test/process-stage rejection and unchanged
+Cancel/Save API behavior. Root lint passes. No schema, dependencies or app behavior
+changes are added during this integration; current standard CI and actual full
+native execution remain required. Keep draft, review final source and merge
+#86, #84, #85 with matched heads preserving ancestry, then verify main.
+
 ### Current open-PR completion task
 
 The owner explicitly requests finishing open PRs. Recovery #84 at `71e8082`
@@ -899,3 +914,84 @@ All 1,128 integrated mobile tests, 28 iOS tooling cases, lint and mobile types p
 Its earlier native fixture evidence remains tied to app source `72a1395`; final
 integrated feature acceptance is still required. Backups and unrelated user files
 are preserved. No physical phone or server source transfer is performed.
+
+### Guided day-end review, 2026-10-14
+
+The next substantive student workflow connects Today to recorded task/routine
+progress, saved study time, explicit tomorrow scheduling and the existing wellness
+journal. It reuses the weekly review and study-report projections and account-scoped
+query/cache boundaries. No API/schema, persisted review or offline write queue is
+added. See [day-end requirements](../docs/requirements/day-end-review.md).
+
+The existing task editor first loads current detail, then prefills a one-off open
+task's schedule for the next current account day, retaining its fresh deadline and
+requiring explicit Save. Failed saves retain the draft, cancellation writes nothing,
+and owner/credential changes suppress late acknowledgments. Missing/foreign records
+remain unavailable; recorded completions are separate from the latest saved plan.
+
+All 1,128 mobile tests pass; root lint/boundary/schema checks, strict mobile types
+and fresh web export pass. Synthetic loopback browser QA verifies one actual PATCH,
+the unchanged deadline, zero writes on cancellation, visible save feedback, connected
+navigation and 320/1280-pixel layouts plus 150% CSS zoom. The fixture journal endpoint
+is absent and native dynamic type is untested. No real account or phone was used.
+
+Native acceptance and exact-head PR/main CI remain required. PR #83's final
+uninstrumented simulator/storage proof is still running, and draft PR #84 awaits
+that accepted parent before rebasing. Unrelated IDE/coursework/output files and
+the explicitly owned feature backup stash are preserved. Source remains local.
+
+### Day-review PR and native fixture acceptance, 2026-10-14
+
+Draft [PR #85](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/85) contains
+app source `72a13956b49c5af110cb6e78f5939fc339c0e481`, its requirements and 41 new
+mobile behavior cases. Both standard checks pass all 2,157 tests. Author reviews
+identify themselves as self-review; no independent approval or merge is claimed.
+
+The current x86 APK builds after using the documented short Gradle cache and
+clearing only validated generated x86 CMake/Ninja dependency data retaining the
+old long path. Actual signature/ABI/permission/feature/private-fixture checks pass.
+Native fixture sign-in, review, fresh editor, zero-write cancellation and one
+explicit PATCH pass, preserving the deadline and showing visible confirmation.
+An API-disconnected cold restart restores encrypted session and saved progress/
+study reads; fresh editing stays blocked offline. Actual Android 150% font size
+at 320 logical pixels fits the observed system-bar bounds. See the updated
+[acceptance record](../docs/requirements/day-end-review.md) for the APK hash and
+the explicit synthetic-fixture limits. This does not prove PostgreSQL writes or
+real authentication. All owned test processes are stopped, the AVD's data remains,
+its original display is restored, and the ARM phone artifact is unchanged.
+
+Native feature run `38606848891` fails public Help visibility before the private
+feature. PR #83's uninstrumented `c3c2563` run also fails its first Help assertion;
+the OS delivers its URL only after automation shuts down, and the final frame is
+Help. One unchanged exact-head retry of `38603642902` is running. No assertion,
+action or storage/cleanup proof is weakened. Neither #83, #84 nor #85 is merged.
+
+Next: inspect the current retry and require a complete exact-source storage proof.
+After its accepted matched-SHA merge/main checks, rebase the dependent work,
+preserving Button's test identifier and the feature's accessibility label, then
+review and run all current native/standard gates. No phone or server source
+transfer is performed; unrelated files and the earlier owned stash are preserved.
+
+### Real API gate for native day review, 2026-10-14
+
+Day review is prepared on recovery head `71e8082`, retaining its safe-link routes,
+attempt-specific artifact names and the accepted complete storage/cleanup guard.
+The repository permits merge commits; preserving recovery's history will keep the
+dependent PR scoped without rewriting already-tested app source for ancestry.
+
+The iOS harness now creates a second disposable owned task due/scheduled today
+and a real API-persisted 25-minute focus fixture. Two native flows must display
+saved study time, load fresh task detail, cancel without server changes, then
+explicitly save tomorrow while preserving the deadline. Independent API/schema
+and SQL assertions protect both tasks, prevent duplicates and retain the original
+Today-capture/cold-cache/logout gates. Final proof rejects missing review/study
+results as well as incomplete common storage checks. Private UI/logs remain local
+to the runner, and only bounded fixed metadata is published.
+
+All 1,140 integrated mobile tests, 33 iOS tooling cases, lint, mobile types and
+thirteen native flow documents pass locally. Current native acceptance is pending.
+Main `c08a098` standard checks pass; native `38612589080` is live. PR #84's two
+standard checks pass on `71e8082`; native `38613496910` is live. Neither feature
+is merged. Use the exact main source's proof validator for its legacy four-check
+record; the feature's stricter validator intentionally requires the added review
+results. No phone or VPS transfer is performed; unrelated files/backups remain.

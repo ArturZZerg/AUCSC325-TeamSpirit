@@ -66,6 +66,7 @@ export default function TodayScreen() {
       <Button title="Get started" tone="plain" onPress={() => router.push('/get-started')}/></View>
     <Button testID="today-add-task" title="Add a task to this day" disabled={!!pending || action.isPending || !!taskDraft}
       onPress={() => setTaskDraft({ scheduledMode: 'date', scheduledDate: date })}/>
+    <Button title="Review this day" tone="plain" onPress={() => router.push({ pathname: '/day-review', params: { date } })}/>
     <View style={styles.actions}><Button title="Organise my workload" tone="plain" onPress={() => router.push('/workload')}/><Button title="Plan your week" tone="plain" onPress={() => router.push('/planner')}/><Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/><Button title="Coursework" tone="plain" onPress={() => router.push('/academics')}/><Button title="My study plans" tone="plain" onPress={() => router.push('/study-plans')}/><Button title="Focus space" tone="plain" onPress={() => router.push('/focus')}/></View>
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <FocusRecoveryCard/>

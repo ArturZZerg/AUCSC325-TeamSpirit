@@ -1,0 +1,26 @@
+appId: com.campusflow.mobile
+name: iOS day-review explicit tomorrow save preserves the deadline
+---
+- runFlow: ios-day-review-open.yaml
+- scrollUntilVisible:
+    element:
+      text: Save task
+    direction: DOWN
+- tapOn: Save task
+- extendedWaitUntil:
+    visible: 'Task saved[.].*'
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: Back to Today
+    direction: UP
+- tapOn: Back to Today
+- extendedWaitUntil:
+    visible: Your daily flow
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: ${IOS_QA_TASK}
+    direction: DOWN
+- assertVisible: ${IOS_QA_TASK}
+- stopApp
