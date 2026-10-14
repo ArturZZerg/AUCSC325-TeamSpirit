@@ -1,0 +1,7 @@
+appId: com.campusflow.mobile
+name: iOS first warm public Help and account navigation
+---
+# Keep the original request and all navigation checks in one XCTest session.
+# Neither subflow is retried, skipped or preceded by in-app Help navigation.
+- runFlow: ios-public-link-request.yaml
+- runFlow: ios-public.yaml

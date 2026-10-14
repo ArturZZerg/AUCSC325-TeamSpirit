@@ -129,7 +129,7 @@ export function TaskEditorForm({ task, onClose, timeZone = 'UTC', initialValues,
           <Text style={styles.meta}>Dates and times follow your account time zone: {timeZone}.</Text>
           {stale && <><Text accessibilityRole="alert">{freshnessMessage ?? 'Task changed. Reload before saving; your draft will be kept.'}</Text>
             <Button title="Reload task" onPress={reload!} disabled={isSubmitting || loading}/></>}
-          <Controller name="title" control={control} render={({ field }) => <Field label="Title" value={field.value} onChangeText={field.onChange} editable={!blocked}/>}/>
+          <Controller name="title" control={control} render={({ field }) => <Field testID="task-title" label="Title" value={field.value} onChangeText={field.onChange} editable={!blocked}/>}/>
           <Controller name="description" control={control} render={({ field }) => <Field label="Description" value={field.value} onChangeText={field.onChange} editable={!blocked} multiline/>}/>
           <Controller name="estimatedMinutes" control={control} render={({ field }) => <Field label="Estimated minutes (optional)" value={field.value} onChangeText={field.onChange} keyboardType="number-pad" placeholder="e.g. 30" editable={!blocked}/>}/>
           <Text style={styles.meta}>Use 1–1440 whole minutes. Leave blank to remove the estimate.</Text>

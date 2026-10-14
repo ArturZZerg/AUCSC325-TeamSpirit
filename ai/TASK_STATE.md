@@ -1,6 +1,59 @@
 # Current development state
 
-Updated: 2026-10-12
+Updated: 2026-10-13
+
+Current iOS correction: `50a2546`/`38503168076` passes three public JUnit flows,
+native ordinary login/API capture and cold encrypted-session/SQLite restoration,
+then is cancelled at the 40-minute workflow boundary during logout testing.
+Recovery `7160802`/`38503469756` passes four public flows and owned offline recovery
+but fails the bare Settings selector before sign-out; process cleanup passes.
+Installed React Navigation's iOS label is `Settings, tab, 5 of 5`, and Maestro
+matches the whole label. Cleanup now targets that exact tab once; fixed-label
+booleans remain the only private hierarchy output. The full job budget is 60
+minutes, with screen/API/cache/logout assertions preserved. Verified Maestro
+2.11.0/flat-artifact compatibility is integrated from isolated `d3ec781` (2,132
+standard CI cases pass; its separate native comparison remains live). Fresh
+exact-head acceptance remains required; no logout or production readiness claim.
+
+Prepared native-tool update: official Maestro 2.11.0 ZIP/version/test-help checks
+pass locally with Java 17 and verified release SHA-256. Its upstream changes cover
+stop/start timeouts and post-scroll tap positions relevant to observed failures;
+no root cause or native success is inferred. Diagnostic compatibility accepts
+legacy and flat command files while excluding private inputs/artifact metadata;
+22 tooling/privacy tests and lint pass. The 2.6.1 remote runs at `50a2546` and
+`7160802` remain live; do not replace them merely because observation is slow.
+The reviewed update is isolated on `codex/ios-driver-211` for ordinary exact-source
+native comparison, preserving both live PR attempts. It may be integrated only
+after actual acceptance; no app/architecture or private-output scope changes.
+
+Latest iOS observation: `854b846` standard checks pass; native `38500933706`
+fails in the first request phase because the system Open dialog remains visible.
+The trace records one correctly positioned tap despite unchanged-screen retry;
+no URL delivery or second CLI follows. The split-session hypothesis is untested.
+The helper now settles and conditionally re-taps that exact visible system dialog
+once, still requiring dismissal. Original Help order, all storage requirements and
+single application actions remain intact. Recovery `e787af9` standard checks pass
+2,142 tests and actual Android emulator warm/cold/malformed/offline recovery,
+cached-task preservation and 320px/150% native text pass. Display/data cleanup is
+verified; no physical device or VPS transfer occurs. Its iOS request phase passes,
+then first Help (681ms), Back/in-app Help/search/Account assertions pass. Immediate
+cold Help opening after termination fails with OS timeout code 60 before recovery
+or storage scenarios. The public navigation CLI now ends after required stopApp;
+a separate non-reinstalling session opens/asserts cold Help without app launch,
+reset or command retry. All three phases must pass. This positive first-link
+result does not prove a root cause; native cold/storage acceptance remains pending.
+
+Current iOS gate correction: `ab46128` passes standard PR/push checks
+(`38472473844`, `38472473258`) but native run `38472473944` fails its original
+first warm Help assertion before private storage testing. System URL delivery
+arrives about six seconds after failure. Recovery PR #84 (`bf1aa34`) repeats this
+earlier-flow failure (`38472721279`); its standard checks pass. A diagnostic splits
+the original link request/OS confirmation and required Help observation into two
+CLI sessions on the same installed app/UUID. The second disables driver reinstall;
+there is no app relaunch/reset/intervening navigation or extra sleep. Both results
+must pass before private testing. Observation-related delay remains a hypothesis,
+not a confirmed cause. Task save, cold offline restoration and logout remain
+unverified; neither PR may merge without fresh exact-head native success.
 
 Reminder center and native notification taps: Settings exposes saved
 reminder browsing/search, effective quiet-hour times and subject-specific existing
@@ -17,13 +70,95 @@ and [native evidence](../docs/requirements/android-reminder-center-2026-10-12.md
 PR #79 passed author self-review and both exact-head CI runs, merged as
 `ffba4dd9726aa7b8921e402abd95700c66ea6031`, and its exact-main CI passed.
 
-Current release task: discard invalid queued reminder taps before navigation
+Previous release task: discard invalid queued reminder taps before navigation
 mounts. Four behavior regressions reproduce confirmed sign-out/different-owner/
 changed-token replay across delayed navigation and verify future owned deliveries
 remain usable. The adapter now rejects restored incompatible context immediately,
 while valid cold-start taps still wait for navigation. All 1,087 mobile tests,
-mobile types and root lint pass. Exact-head CI/PR delivery is in progress; no API,
-schema or auth-continuation change is introduced.
+mobile types and root lint pass. PR #82 merged as
+`f99ac8ab18984cb25b8c93957effcdb41b54aef9` after author self-review and exact-head
+PR/push/native success (`38369172330`, `38369165671`, `38369172371`); standard
+checks pass 2,116 tests. Exact-main standard check `38371477411` passes; native
+`38371477582` fails the Back-to-sign-in assertion after its first Help link.
+Its driver log targets an in-button point, but the final frame remains Help;
+the precise cause is unproven. The new flow waits for Help animation settlement,
+captures that first frame and gives Back a bounded visible-screen wait. It keeps
+the original first-link order and required behavior. Actual acceptance remains
+required. No API/schema/auth-continuation change is introduced.
+
+Current release task: replace the unsigned iOS simulator build's missing Keychain
+capability gap with Xcode-managed simulator entitlements and actual compiled-section
+inspection. The first signed `751c960` gate inspects only the host signature and
+rejects its empty dump; that alone does not prove simulator capability absence.
+Manual signing in `9be7a3e`/`a61c0c6` puts iOS entitlements in the host signature.
+After healthy boot, `a61c0c6` cannot launch (spawn error 162, no JavaScript). The
+correction removes manual re-signing, supplies the private namespace as Expo/Xcode
+input only for simulator builds, and checks every compiled Mach-O slice. Device
+builds receive no simulator override; no Apple team/profile is invented.
+Disposable real PostgreSQL/NestJS acceptance exercises ordinary sign-in, Today capture,
+API-confirmed task state, API-disconnected cold encrypted session/SQLite restoration,
+native logout revocation and cache removal. Private credentials/UI dumps remain on the
+disposable runner; public diagnostics precede account creation. No app authentication
+behavior, schema, server deployment or physical-device interaction changes. Local
+artifact/harness tests pass twenty cases, 49 Today/editor/capture cases, root lint
+and mobile types pass. Prior
+head `9be7a3e` passes standard PR/push CI (`38375810030`, `38375803905`, 2,122 tests)
+and actual native signature/entitlement/product verification. Its native run
+`38375810149` reports failed simulator data migration, then cannot launch the app;
+public navigation and private storage are unverified. The workflow now rejects that
+actual boot-log failure even with a zero exit/Booted inventory, can replace only its
+own fresh failed UUID once, and preflights native launch. Logout cold restoration now
+requires an absent API, preventing 401 cleanup from masking a stale local credential.
+`a61c0c6` standard PR/push checks pass (`38379422589`, `38379418278`), but native
+`38379422576` proves healthy boot and rejects direct app launch. New exact-head
+native/standard acceptance is required before merge.
+
+`fea92e5` standard PR/push checks pass (`38452499240`, `38452490757`). Its native
+`38452499305` verifies both compiled simulator slices, launches and passes the
+original public flow (140 seconds, zero failures). Ordinary API login reaches Today;
+capture then fails its New task assertion. Task persistence, cold offline restoration
+and logout remain unverified. The revised flow settles navigation and targets the
+actual capture Pressable by stable ID, retaining a single tap and bounded New task
+assertion. Private diagnostic summaries publish only fixed label-presence booleans
+and command/status/timing; raw private dumps remain excluded. New exact-head checks
+remain required. The next unavailable-link screen/gate is isolated in `.local` and
+passes 16 draft cases; it is not part of the active PR.
+
+`b9a8377` passes standard PR/push checks (`38456972034`, `38456965578`). Native
+`38456971969` needs its second fresh UUID after failed migration; healthy boot
+and app launch pass. The first system Open tap targets the correct button, but
+the final frame still shows `Open in CampusFlow?`, with no app incoming URL.
+Private acceptance is skipped. A common confirmation subflow now waits for dialog
+settlement and retries only the unchanged idempotent system Open gesture using
+the documented Maestro option. Dialog dismissal is required within ten seconds;
+original app routes and single Back/capture/save actions remain required. New
+exact-head native/standard checks are pending. The isolated recovery draft also
+type-checks against current generated routes, with the exact public allowlist intact.
+
+At `019f64c`, standard PR/push runs (`38460730956`, `38460722234`) pass 2,130
+tests. Native run `38460731027` passes build/capabilities/launch and public flow
+(120 seconds, zero failures); private login reaches Today, but capture's ID is not
+found before its tap. Its downloaded archive hash and selector presence match the
+actual CI product. Capture now scrolls to that control before the single tap.
+Failure diagnostics skip Maestro's default driver reinstall and publish only the
+existing fixed-label booleans, including known password-dialog labels. A fresh
+exact-head run must still prove native task save, cold offline restoration and
+logout cleanup before PR #83 can merge. Local twenty tooling/privacy cases and
+root lint pass; no application behavior, API, schema or deployment change is added.
+
+`a85fa8e` passes both standard checks (`38468138308`, `38468131011`). Native
+`38468138262` builds/launches and passes public navigation (131 seconds), then
+fails capture scrolling. The preserved failure hierarchy reports exact `Not Now`
+with app screen labels absent. This label is absent from CampusFlow source,
+supporting a system prompt obstruction without establishing its full identity.
+The flow now conditionally declines this observed prompt, requires disappearance
+and Today again, then retains one capture/save tap and every storage requirement.
+New native/standard exact-head acceptance remains required; do not merge yet.
+The recovery feature is committed locally as `25443bf` on
+`codex/native-link-recovery`: twelve new cases, complete available local checks,
+fresh web export and reviewed 320px/150%-zoom/1280px browser layouts pass. Its
+native scenarios and PR wait for this storage branch; no rejected deployment or
+physical-device operation occurs. Local API checks skipped 256 DB-dependent cases.
 
 PR #81's native iOS simulator gate merged as
 `2c5fff3df80553313ebc005a0eeb3214c0d15339`. Standard CI
@@ -593,3 +728,74 @@ APK hashes, final signature/architecture/permission/private-fixture proof and li
 The separate synthetic Today account and all credentials/evidence remain local.
 Next: author review, exact-head PR/push CI, merge and exact post-main proof;
 then mounted native incoming-link/lifecycle acceptance. Source stays local.
+
+### iOS public navigation diagnostic, 2026-10-13
+
+PR #83 (`6c36838`, native `38508047049`) and dependent PR #84 (`b536252`,
+native `38508800285`) fail the first Back-to-sign-in assertion after Help arrives.
+Their standard PR/push checks pass; neither current native result permits merge.
+Public logs confirm an enabled in-bounds tap and UIKit delivery to CampusFlow,
+but do not establish the React Native callback or completed route replacement.
+Parallel read-only app/driver investigations find no confirmed root cause.
+
+The scoped successor enables fixed, bounded public navigation breadcrumbs only
+in the CI simulator build. Help observes press-in/out/onPress without retrying;
+the original replacement remains unchanged. Root route categories and auth mount
+identify the next boundary. No credentials, links, parameters or state objects
+are logged. Normal builds are silent; logging failure cannot interrupt an action.
+All public, native capture, independent API, cold-cache and logout gates remain.
+Four new cases plus existing scoped tests pass (34 total); 22 iOS tooling cases,
+mobile typecheck, lint and diff checks pass. No dependency/lockfile change.
+
+Next: publish this diagnostic on PR #83, review its exact head and inspect the
+native event sequence before selecting a fix. Keep #84 draft until its dependency
+and its own required native gates pass. Physical devices and source transfers
+remain excluded by the owner's current instructions; unrelated files are preserved.
+
+### iOS runner handoff comparison, 2026-10-14
+
+At `3b0a827`, both standard checks pass all 2,136 tests. Native run `38511768603`
+fails the original Back assertion, with consecutive same-process public markers
+showing press-in/out but no onPress/replacement. Direct BackBoard evidence records
+an active CampusFlow touch cancelled when its virtual digitizer is removed; the
+successful system Open control has an ordinary release before cleanup. This is
+native input cancellation, not evidence that the app replacement callback failed.
+
+Pinned-source and actual PID review show both CLIs already start fresh XCTest
+processes, even with no-reinstall-driver. Changing only that flag would not test
+a new pre-Back condition. Help arrives before the first CLI ends in the diagnostic
+run. The next scoped comparison uses one ordered wrapper for both existing warm
+subflows, avoiding the second runner handoff. Original sign-in/first-link/Back,
+in-app Help, search, protected Account, termination, cold and all private gates
+remain required, with no action retry or assertion expansion. App code is unchanged.
+
+Next: validate/publish the wrapper and inspect exact-head native touch/navigation
+evidence. Remove temporary app probes and require final uninstrumented native and
+standard success before merging #83; #84 remains draft. No phone/server transfer
+or account deletion is performed.
+
+### Completed native checks and fail-closed cleanup proof, 2026-10-14
+
+The `69732c4` comparison passes both standard checks and all original warm/cold
+public navigation. Its native helper records all four real capture/cache/logout/
+cold-signed-out checks. Final artifact inspection finds no `storage.json`, so the
+job's nominal success is not accepted as complete cleanup. An already signalled
+API child has null exitCode; awaiting its second exit lets Node finish without
+publishing the final record.
+
+The fix makes stopping the owned API child idempotent for normal and signal
+termination, bounds escalation/confirmation and fails on unconfirmed shutdown.
+The workflow requires a complete exact-source summary independently after the
+helper returns. Six new process/proof cases pass, bringing iOS tooling to 28.
+Temporary public app diagnostics are removed, retaining all original actions and
+API/cache/logout assertions. Final uninstrumented exact-head native success,
+author review and matched-SHA merge/main verification remain required.
+
+A separate day-end feature is implemented locally on `codex/day-review`, with
+explicit fresh-editor scheduling, preserved deadlines, saved/missing-state
+distinctions and account isolation. Its scoped tests pass117 cases; the earlier
+full mobile run passed1,127 before the last acknowledgment change. Exact owned
+stash `2ce9944872143540b41ab74e86e99a85482099d1` safely holds those named feature
+files while this cleanup fix is published. Its synthetic loopback visual preview
+is still open; this is not native/production acceptance. No existing user files,
+phone, retained account or server source are operated on.

@@ -18,7 +18,7 @@
     "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
     "lint": "eslint apps packages scripts && node scripts/check-boundaries.mjs && node scripts/schema-manifest.mjs --check",
     "test": "npm run build:shared && npm run test --workspaces --if-present && npm run test:android-build && npm run test:ios-preview && npm run test:release",
-    "test:ios-preview": "node --test scripts/ios-preview.test.mjs",
+    "test:ios-preview": "node --test scripts/ios-preview.test.mjs scripts/ios-storage-acceptance.test.mjs",
     "test:release": "node --test scripts/release-smoke.test.mjs scripts/restore-rehearsal.test.mjs scripts/dependency-compat.test.mjs scripts/runtime-dependencies.test.mjs",
     "release:smoke": "node scripts/release-smoke.mjs",
     "release:restore-rehearsal": "node scripts/restore-rehearsal.mjs",

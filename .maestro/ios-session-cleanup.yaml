@@ -1,0 +1,18 @@
+appId: com.campusflow.mobile
+name: iOS online sign-out and private cleanup
+---
+- launchApp
+- extendedWaitUntil:
+    visible: Your daily flow
+    timeout: 30000
+- tapOn: Settings, tab, 5 of 5
+- scrollUntilVisible:
+    element:
+      text: Sign out
+    direction: DOWN
+- tapOn: Sign out
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
+- assertNotVisible: Retry device cleanup
+- stopApp

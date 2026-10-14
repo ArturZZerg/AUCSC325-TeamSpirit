@@ -1,30 +1,22 @@
 appId: com.campusflow.mobile
 name: iOS public offline Help and account navigation
 ---
-- launchApp:
-    clearState: true
-    permissions:
-      all: deny
-- extendedWaitUntil:
-    visible: Welcome back
-    timeout: 30000
-- waitForAnimationToEnd
-- takeScreenshot: ios-auth
-- openLink: campusflow:///help
-- runFlow:
-    when:
-      visible: 'Open in.*CampusFlow.*'
-    commands:
-      - tapOn: Open
-      - waitForAnimationToEnd
+# Continue the request flow in the same app state, without relaunch or reset.
 - extendedWaitUntil:
     visible: A little help for your day.
     timeout: 45000
+- waitForAnimationToEnd
+- takeScreenshot: ios-help-first-link
 - tapOn: Back to sign in
-- assertVisible: Welcome back
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
 - tapOn: Help & data
 - assertVisible: A little help for your day.
 - tapOn: Back to sign in
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
 - openLink: campusflow://help
 - assertVisible: A little help for your day.
 - assertVisible: Search help
@@ -50,8 +42,3 @@ name: iOS public offline Help and account navigation
 - openLink: campusflow:///help?next=https%3A%2F%2Funtrusted.test
 - assertVisible: A little help for your day.
 - stopApp
-- openLink: campusflow:///help
-- extendedWaitUntil:
-    visible: A little help for your day.
-    timeout: 30000
-- takeScreenshot: ios-help-cold
