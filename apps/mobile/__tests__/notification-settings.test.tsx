@@ -53,21 +53,21 @@ describe('notification Settings (ToR 13)', () => {
     view.rerender(<Settings/>); expect(screen.getByText('Quiet hours: 22:00–07:00 · America/Edmonton')).toBeOnTheScreen();
   });
   it.each([['Academic', 'academicEnabled'], ['Personal', 'personalEnabled'], ['Goal', 'goalEnabled'], ['Event', 'eventEnabled']])('toggles %s through validated preferences', async (label, key) => {
-    render(<Settings/>);
-    await act(async () => { fireEvent.press(screen.getByRole('button', { name: `${label} reminders: on` })); });
+    render(<Settings/>); expect(screen.getByRole('switch', { name: `${label} reminders` })).toBeChecked();
+    await act(async () => { fireEvent.press(screen.getByRole('switch', { name: `${label} reminders` })); });
     expect(save).toHaveBeenCalledWith({ path: '/notification-preferences', method: 'PATCH', body: { [key]: false } });
-    expect(screen.getByRole('button', { name: `${label} reminders: on` })).toBeEnabled();
+    expect(screen.getByRole('switch', { name: `${label} reminders` })).toBeEnabled();
   });
   it('reports a failed category update and permits retry without claiming success', async () => {
     save.mockRejectedValueOnce(new Error('Offline')); render(<Settings/>);
-    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Personal reminders: on' })); });
+    await act(async () => { fireEvent.press(screen.getByRole('switch', { name: 'Personal reminders' })); });
     expect(screen.getByRole('alert')).toHaveTextContent('Offline');
-    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Personal reminders: on' })); });
+    await act(async () => { fireEvent.press(screen.getByRole('switch', { name: 'Personal reminders' })); });
     expect(save).toHaveBeenCalledTimes(2); expect(screen.queryByRole('alert')).toBeNull();
   });
   it('blocks repeated preference taps during the request', async () => {
     let release!: () => void; save.mockReturnValueOnce(new Promise<void>(done => { release = done; })); render(<Settings/>);
-    const button = screen.getByRole('button', { name: 'Personal reminders: on' });
+    const button = screen.getByRole('switch', { name: 'Personal reminders' });
     act(() => { fireEvent.press(button); fireEvent.press(button); });
     expect(save).toHaveBeenCalledTimes(1); expect(button).toBeDisabled();
     await act(async () => { release(); }); expect(button).toBeEnabled();

@@ -42,7 +42,7 @@ function CampusContent({ timeZone }: { timeZone: string }) {
     catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the change. Please try again.'); }
     finally { guard.current = false; setPending(undefined); }
   };
-  return <Screen><ScrollView contentContainerStyle={styles.content}>
+  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}>
     <View style={styles.hero}><Text style={styles.eyebrow}>BEYOND THE DESK</Text><Text style={styles.title}>Campus</Text><Text style={styles.sub}>Make room for something you’ll look forward to.</Text></View>
     <View style={styles.choices}>{([['week', 'Next 7 days'], ['month', 'Next 30 days'], ['saved', 'Saved']] as const).map(([key, label]) =>
       <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: view === key }} onPress={() => setView(key)} style={[styles.choice, view === key && styles.selected]}><Text style={[styles.choiceText, view === key && styles.selectedText]}>{label}</Text></Pressable>)}</View>
