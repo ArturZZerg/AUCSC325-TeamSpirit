@@ -1,6 +1,100 @@
 # Current development state
 
-Updated: 2026-10-13
+Updated: 2026-10-14
+
+### Current: finish the open PRs with complete native acceptance
+
+Full successor `4d0192e` / `38626385344` fails at the expected offline FAQ after
+passing first-warm/single-Back/in-app Help in PID 34998. Its native frame shows
+query `one` despite requested `offline` plus Return, so the FAQ absence is not
+accepted as an application search defect. The test now sends each ordinary key
+once with a visible-prefix assertion, verifies the complete query after Return
+and captures the filtered screen. There is no retyping, clear/retry or app change.
+All 34 tooling cases and the previous standard checks retain their stated scope;
+fresh full native acceptance remains required. Preserve the existing feature
+runs, integrate this scoped parent correction into #84/#85, and finish the stack.
+
+The owner explicitly requests finishing the three open PRs. The fixed-source
+public XCTest comparison `35ba837` / `38623494563` passes one actual test with
+zero failures in 17.675 seconds. Native PID 7707 survives the first warm Help URL,
+one Back, in-app Help and one Back. Extracted/installed app executable and JS
+hashes match before/after, and owned cleanup passes. This is a tested subset,
+not acceptance of search, Account, cold links or private storage.
+
+PR #86 now retires the fixed-artifact experiment and implements a permanent full
+public native gate on each current build. A separate XCTest host retains ordinary
+sign-in, first-warm ordering, single Back actions, in-app/legacy Help, search/
+answer/clear, protected Account, ignored continuation and cold Help after explicit
+termination. Source-bound verification rejects zero tests, missing/duplicate/
+reordered stages, changed warm processes, reused cold processes and failed native
+execution. Compiled test context also binds the source, simulator, run and attempt,
+rejecting replay under a different valid identity. The application and existing
+private API/cache/logout flows are unchanged. Six new verifier cases bring local
+iOS tooling to 34 passing tests;
+lint, YAML and shell syntax checks pass. Full actual native execution is required.
+
+Recovery #84 remains at published `71e8082`; local `ca6b2be` records the accepted
+storage parent and current release gates, without application changes. Day-review
+#85 remains at `9df62cc`, stacked on #84. Both have passing standard checks but
+failed earlier public native assertions, so neither is ready to merge. Integrate
+the accepted permanent gate into both, retain every added recovery/day-review
+assertion, obtain exact-head full acceptance and author review, then merge with
+matched heads in dependency order and verify main. No physical device or server
+source is operated on. The entries below retain historical proposals and results.
+
+### Current state: accepted storage gate and isolated public-input comparison
+
+PR #83 merged as `c08a0987222c3940bc59cd187f03e0e9e47aadea` after its final
+uninstrumented source `c3c2563` passed standard checks and native run
+`38603642902` attempt 2. The downloaded exact-source `storage.json` independently
+passes all four real API/cold-cache/logout/cold-signed-out proof requirements.
+Its tree equals merged main. Exact-main standard run `38612589071` passes, while
+native `38612589080` fails the first warm Help observation. Recovery PR #84 at
+`71e8082` and day-review PR #85 at `9df62cc` have passing standard checks, but
+their native runs `38613496910` and `38615841433` fail that same earlier public
+assertion. Private recovery/day-review/storage phases therefore remain untested
+at those heads. Neither feature is accepted for merge or production release.
+
+An isolated diagnostic uses the unchanged main simulator artifact from
+`38612589080` on a fresh job-owned simulator and a separate minimal XCTest host.
+It compares Apple's public URL/tap APIs, requires the same native app process
+before/after the first Help URL and each single Back action, and hashes the app
+executable/JS before/after. Missing PID evidence or a replacement process fails.
+The original acceptance workflow, application code, API and dependencies remain
+unchanged. Local YAML/tooling/lint validation and actual macOS execution are
+required. Even success covers only this public subset; it cannot waive existing
+system confirmation/search/Account/cold/private acceptance. Retire the temporary
+fixed-artifact diagnostic after it informs a reviewed permanent correction.
+
+The day-review feature is published on #85, stacked on #84. Its native Android
+emulator evidence covers explicit prefill, Cancel without mutation, one Save
+preserving the deadline, API-disconnected cold reads and 320px/150% text. Its
+expanded iOS gate adds independent real-API cancellation/save/deadline checks
+and recorded study totals, preserving all prior cleanup assertions. Source tests
+pass 1,140 mobile cases and 33 iOS tooling cases. Real execution of the additional
+iOS cases is still required. No physical device or server source is operated on.
+
+Diagnostic PR #86 is published at `0337bbaec1aa1c370e9dc0563c5ee24eaf1a3b93`.
+Local 28-case iOS tooling, lint, YAML and diff checks pass. Standard runs
+`38620875045` / `38620866592` pass. Comparison `38620875306` fails before test
+generation: the guessed Homebrew Ruby executable is absent. Artifact source,
+installation, extracted/installed executable and JS byte checks, and owned
+simulator shutdown pass. No application URL/tap evidence is produced. Use the
+runner's documented default Ruby and require its existing xcodeproj gem rather
+than constructing a Homebrew interpreter/gem path. The comparison uses public
+`XCUIDevice.shared.system.open` for incoming delivery to the default URL handler,
+retaining the unchanged-PID check; application launch-by-URL is not assumed to
+preserve a warm process. Actual compilation remains required. Native baseline
+`38620875376` is still running. This temporary branch disables native preview's
+cancel-in-progress behavior, preserving the running baseline while queuing the
+follow-up; the separate corrected comparison can then execute concurrently.
+All original acceptance assertions remain. A transient automatic approval-review usage failure
+has recovered without bypass. The owner now explicitly prioritizes finishing
+the three open PRs; complete recovery #84 and day-review #85 in dependency order,
+and retire/close the temporary #86 after its evidence informs the permanent fix.
+
+The entries below retain earlier investigations; they are historical rather
+than the current merge/acceptance state.
 
 Current iOS correction: `50a2546`/`38503168076` passes three public JUnit flows,
 native ordinary login/API capture and cold encrypted-session/SQLite restoration,
