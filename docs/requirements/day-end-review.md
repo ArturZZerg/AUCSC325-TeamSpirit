@@ -120,3 +120,18 @@ review results and the four original storage checks with successful cleanup.
 Fresh actual native success is still required; local test passes do not establish
 the integrated iOS behavior. The API-created focus fixture does not test a native
 timer or establish production/hardware acceptance.
+
+## Full public native parent integration
+
+The feature now inherits #86 through recovery #84. Its full public XCTest gate
+retains first-warm order, single Back actions, in-app/legacy Help, search/answer/
+clear, protected Account, ignored continuation, cold Help and mandatory warm/cold
+unavailable-link recovery, with compiled source/device/run/attempt binding and
+explicit process transitions. All 40 integrated iOS tooling/privacy cases and
+root lint pass locally. The 1,140-case application source, native private review
+flows and independent real-API deadline/Cancel/Save assertions are unchanged.
+
+This integration does not accept the feature from the earlier subset comparison
+or fixture UI. Fresh complete source-bound native public, private review and
+storage/cleanup evidence, current standard checks and author review remain
+required before matched-head merge and post-main verification.

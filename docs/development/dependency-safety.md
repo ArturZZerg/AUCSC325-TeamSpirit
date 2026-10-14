@@ -43,6 +43,12 @@ blindly across a major ORM migration.
 
 ## Unresolved advisories
 
+Primary advisory records refreshed on 2026-10-14 still list no patched version
+for braces, node-forge or sprintf-js. The decoder fix remains 0.5.0, and uuid
+lists 11.1.1/12.0.1/13.0.1 as patched versions. This refresh does not establish
+a compatible upgrade through the locked Expo/Xcode parents or resolve any of
+the five release dispositions below. No dependency or lockfile is changed.
+
 | Package/path | Current evidence | Release implication |
 | --- | --- | --- |
 | `braces` 3.0.3 through micromatch/Jest/Metro | [Upstream advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) lists no patched version; registry latest remains 3.0.3 | Deeply nested untrusted glob patterns can exhaust a tool process. App source exposes no glob-pattern endpoint. Keep build/test tools private and continue tracking a supported upstream fix. |

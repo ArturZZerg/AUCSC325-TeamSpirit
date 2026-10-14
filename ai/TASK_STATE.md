@@ -1,6 +1,65 @@
 # Current development state
 
-Updated: 2026-10-13
+Updated: 2026-10-14
+
+### Current day-review parent integration
+
+Day-review integrates recovery `77c0ac3`, which contains full public-input parent
+`4d0192e` (#86). The feature's application code, native private Cancel/Save flows
+and independent real-API task/focus assertions are byte-identical to `9df62cc`.
+All parent public warm/search/Account/cold and mandatory warm/cold unavailable-link
+checks remain, alongside the feature's deadline-preserving tomorrow schedule and
+all original login/cache/logout cleanup checks. Local integrated iOS tooling
+passes 40 cases, including replay/zero-test/process-stage rejection and unchanged
+Cancel/Save API behavior. Root lint passes. No schema, dependencies or app behavior
+changes are added during this integration; current standard CI and actual full
+native execution remain required. Keep draft, review final source and merge
+#86, #84, #85 with matched heads preserving ancestry, then verify main.
+
+### Current open-PR completion task
+
+The owner explicitly requests finishing open PRs. Recovery #84 at `71e8082`
+and dependent day-review #85 at `9df62cc` have passing standard checks, but
+their native runs `38613496910` and `38615841433` fail first warm public Help
+before private recovery/day-review/storage checks. Keep both draft until the
+required current-source native checks pass; finish them in dependency order.
+Use a matched-head merge preserving the recovery ancestry needed by day-review.
+
+Storage PR #83 is merged as `c08a0987222c3940bc59cd187f03e0e9e47aadea`. Its
+tree exactly equals final uninstrumented source `c3c2563`, accepted by native
+`38603642902` attempt 2 and independently validated source-bound `storage.json`
+with all four real API/cache/logout/cold-signed-out checks and cleanup. Main's
+standard check passes, but native `38612589080` fails first warm Help. This
+distinction is now reflected in the production-readiness record.
+
+The public XCTest comparison `35ba837` / `38623494563` passes its actual one-test
+subset in 17.675 seconds with unchanged PID 7707 and unchanged installed/extracted
+app bytes. Its separate baseline `38623494445` also finishes successfully before
+retirement; no cancellation is issued. Downloaded `storage.json` independently
+passes all four source-bound private checks and cleanup for `35ba837`. The older
+baseline `38620875376` fails first Help at 19:24:28 UTC, with actual native URL
+delivery at 19:24:30.943 in PID 30152. These mixed outcomes establish input-path
+evidence, not a precise upstream root cause or a current feature acceptance.
+
+PR #86 at `4d0192e` retires the fixed-artifact experiment and implements a complete
+public XCTest gate against each current build, with private Maestro/API checks
+unchanged. Its full native run `38626385344` remains required. The compiled test
+context binds source/device/run/attempt, requires actual named-test success, and
+rejects missing/reordered/duplicate stages and wrong warm/cold process transitions.
+
+This recovery integration preserves all parent warm/search/Account/cold checks,
+then requires warm unavailable-link recovery with ignored private parameters and
+cold unavailable-link recovery to Help. Strict proof requires both new stages,
+retains the cold Help PID for warm recovery and requires a third distinct PID for
+terminated recovery. All original private offline recovery/retained-task and
+API/cache/logout checks remain unchanged. Actual current-source native and
+standard checks, author review and matched-head merges remain required. Keep
+the stacked PR dependency order #86, #84, #85; preserve ancestry for later merges.
+
+No physical-device operations, server source transfer, new account deletion or
+dependency change is performed. The five advisory records are refreshed, with
+no compatible repair or production-release disposition inferred. Historical
+investigations below are retained and do not supersede this current state.
 
 Current iOS correction: `50a2546`/`38503168076` passes three public JUnit flows,
 native ordinary login/API capture and cold encrypted-session/SQLite restoration,
