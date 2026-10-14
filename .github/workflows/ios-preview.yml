@@ -35,6 +35,8 @@ jobs:
       - run: bash scripts/build-ios-simulator.sh --check
       - run: npm run build:ios:simulator
         id: build
+        env:
+          EXPO_PUBLIC_IOS_PUBLIC_DIAGNOSTICS: '1'
       - name: Install pinned local Maestro CLI
         run: |
           curl --fail --location --retry 2 https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.11.0/maestro.zip -o .local/maestro.zip

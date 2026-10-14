@@ -89,7 +89,9 @@ retrieval fixes relevant to observed failures. This is not a confirmed diagnosis
 The verified local ZIP runs version/test-help commands with installed Java 17;
 no local device command is used. The separate exact-source comparison at `d3ec781`
 keeps the original 2.6.1 attempts intact; its standard CI passes all 2,132 tests
-and native testing is live.
+and its native run `38506104393` fails the required dismissal of the observed
+Not Now control before task capture. Process cleanup passes; that comparison
+does not establish storage or driver correctness.
 
 Newer driver bundles use flat `commands.json` and capture additional step images,
 hierarchies and device logs. Private output roots remain inside the restrictive
@@ -118,6 +120,27 @@ to accommodate provisioning, separate public driver phases and all private
 stages; the existing screen assertion bounds and every API/cache/logout check
 remain required. Neither cancelled/failed run accepts logout. Fresh exact-head
 standard/native success is required before merge.
+
+The current `6c36838` storage run (`38508047049`) and `b536252` recovery run
+(`38508800285`) both fail the first Back-to-sign-in assertion before private
+testing. The first Help link arrives, the button is enabled, and XCTest taps
+inside its bounds. UIKit dispatches corresponding events to CampusFlow's window;
+the final native frame remains Help. Neither the callback nor navigation dispatch
+is proven by the driver's completed tap status. Source inspection finds no
+confirmed app-guard or stack-replacement defect.
+
+The next diagnostic leaves every application action and assertion unchanged.
+Only the CI simulator build enables `EXPO_PUBLIC_IOS_PUBLIC_DIAGNOSTICS=1`.
+Signed-out Help logs press-in/out/onPress and the fixed auth replacement target;
+the root logs only `help`, `auth` or `other` route categories, and auth logs its
+mount. Output is capped at 64 fixed enum events per process. URLs, route objects,
+parameters, form values and account identifiers are never accepted, and logger
+failure cannot interrupt navigation. Ordinary builds are silent. Public logs
+are still collected before the synthetic account exists. These temporary probes
+distinguish responder, dispatch and presentation failures; they do not fix or
+accept the failed flow. Four new diagnostic/component cases and the existing
+navigation cases pass (34 scoped tests), along with 22 iOS tooling cases,
+mobile types and lint. Fresh exact-head native acceptance remains required.
 
 At `019f64c` (`38460731027`), build, effective simulator capabilities, healthy
 launch and the public flow pass (120 seconds, zero failures). Ordinary native
@@ -219,7 +242,7 @@ policy disables arbitrary HTTP, retaining local networking for development.
 On macOS with Xcode 26+ and CocoaPods, install from the root lockfile with `npm ci`,
 then run `npm run build:ios:simulator`. The script supports `--check` when invoked
 directly. Windows cannot compile this native target. The checked-in workflow uses
-macOS 15/Xcode 26.2 and a checksum-verified Maestro CLI 2.6.1; it runs locally on
+macOS 15/Xcode 26.2 and a checksum-verified Maestro CLI 2.11.0; it runs locally on
 its runner, without a Maestro Cloud account or EAS/store upload.
 
 The simulator API is deliberately `http://127.0.0.1:3000`. The public phase requires

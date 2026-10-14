@@ -2,12 +2,14 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Linking } from 'react-native';
 import Help from '../app/help';
 import { findHelp } from '../src/features/help-content';
+import { publicNavigationDiagnostic } from '../src/lib/ios-public-navigation-diagnostic';
 
 let mockSession: object | null = null, mockReady = true;
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
 jest.mock('../src/store/session', () => ({ useSessionStore: () => ({ session: mockSession, ready: mockReady }) }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
+jest.mock('../src/lib/ios-public-navigation-diagnostic', () => ({ publicNavigationDiagnostic: jest.fn() }));
 const priorPrivacy = process.env.EXPO_PUBLIC_PRIVACY_URL, priorSupport = process.env.EXPO_PUBLIC_SUPPORT_URL;
 beforeEach(() => { jest.clearAllMocks(); mockSession = null; mockReady = true; delete process.env.EXPO_PUBLIC_PRIVACY_URL; delete process.env.EXPO_PUBLIC_SUPPORT_URL; });
 afterAll(() => {
@@ -26,6 +28,19 @@ it('searches questions, answers and student vocabulary locally', () => {
   expect(findHelp('  WIFI  queued ').map(article => article.id)).toEqual(['offline']);
   expect(findHelp('wellness stress', 'Your data').map(article => article.id)).toEqual(['saved-data']);
   expect(findHelp('WIFI', 'Study & planning')).toEqual([]);
+});
+it('observes one signed-out Back press without retrying or changing its destination', () => {
+  const view = render(<Help/>), back = screen.getByRole('button', { name: 'Back to sign in' });
+  fireEvent(back, 'pressIn'); fireEvent(back, 'pressOut'); fireEvent.press(back);
+  expect(jest.mocked(publicNavigationDiagnostic).mock.calls).toEqual([
+    ['help-back-in'], ['help-back-out'], ['help-back-press'], ['replace-auth'],
+  ]);
+  expect(mockRouter.replace.mock.calls).toEqual([['/auth']]);
+  jest.mocked(publicNavigationDiagnostic).mockClear(); mockSession = {};
+  view.rerender(<Help/>); const signedInBack = screen.getByRole('button', { name: 'Back to CampusFlow' });
+  fireEvent(signedInBack, 'pressIn'); fireEvent(signedInBack, 'pressOut'); fireEvent.press(signedInBack);
+  expect(publicNavigationDiagnostic).not.toHaveBeenCalled();
+  expect(mockRouter.replace).toHaveBeenLastCalledWith('/today');
 });
 it('combines topic/search filters and restores usable answers after an empty result', () => {
   render(<Help/>); fireEvent.press(screen.getByRole('button', { name: 'Help topic: Your data' }));

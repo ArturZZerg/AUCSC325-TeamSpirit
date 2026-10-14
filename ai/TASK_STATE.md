@@ -728,3 +728,26 @@ APK hashes, final signature/architecture/permission/private-fixture proof and li
 The separate synthetic Today account and all credentials/evidence remain local.
 Next: author review, exact-head PR/push CI, merge and exact post-main proof;
 then mounted native incoming-link/lifecycle acceptance. Source stays local.
+
+### iOS public navigation diagnostic, 2026-10-13
+
+PR #83 (`6c36838`, native `38508047049`) and dependent PR #84 (`b536252`,
+native `38508800285`) fail the first Back-to-sign-in assertion after Help arrives.
+Their standard PR/push checks pass; neither current native result permits merge.
+Public logs confirm an enabled in-bounds tap and UIKit delivery to CampusFlow,
+but do not establish the React Native callback or completed route replacement.
+Parallel read-only app/driver investigations find no confirmed root cause.
+
+The scoped successor enables fixed, bounded public navigation breadcrumbs only
+in the CI simulator build. Help observes press-in/out/onPress without retrying;
+the original replacement remains unchanged. Root route categories and auth mount
+identify the next boundary. No credentials, links, parameters or state objects
+are logged. Normal builds are silent; logging failure cannot interrupt an action.
+All public, native capture, independent API, cold-cache and logout gates remain.
+Four new cases plus existing scoped tests pass (34 total); 22 iOS tooling cases,
+mobile typecheck, lint and diff checks pass. No dependency/lockfile change.
+
+Next: publish this diagnostic on PR #83, review its exact head and inspect the
+native event sequence before selecting a fix. Keep #84 draft until its dependency
+and its own required native gates pass. Physical devices and source transfers
+remain excluded by the owner's current instructions; unrelated files are preserved.
