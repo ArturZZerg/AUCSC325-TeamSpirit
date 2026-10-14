@@ -20,6 +20,17 @@ name: iOS ordinary sign-in and owned task capture
     visible: Your daily flow
     timeout: 30000
 - waitForAnimationToEnd
+# iOS may offer to save the password. The sheet can ignore a tap made during
+# its presentation animation, so settle, tap, and tap once more if it remains.
+- runFlow:
+    when:
+      visible: '^Not Now$'
+    commands:
+      - waitForAnimationToEnd
+      - tapOn:
+          text: '^Not Now$'
+          retryTapIfNoChange: true
+      - waitForAnimationToEnd
 - runFlow:
     when:
       visible: '^Not Now$'
@@ -27,9 +38,9 @@ name: iOS ordinary sign-in and owned task capture
       - tapOn:
           text: '^Not Now$'
           retryTapIfNoChange: true
-      - extendedWaitUntil:
-          notVisible: '^Not Now$'
-          timeout: 10000
+- extendedWaitUntil:
+    notVisible: '^Not Now$'
+    timeout: 20000
 - extendedWaitUntil:
     visible: Your daily flow
     timeout: 10000
