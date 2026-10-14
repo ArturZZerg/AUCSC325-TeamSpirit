@@ -11,3 +11,13 @@ export function reminderResponseTarget(response: NotificationResponse, defaultAc
   if (!account.success || !reminder.success || (data.reminderId !== undefined && data.reminderId !== reminder.data)) return;
   return { accountId: account.data, reminderId: reminder.data };
 }
+
+/** Morning overview taps open Today for their own account only. */
+export function overviewResponseTarget(response: NotificationResponse, defaultAction: string): { accountId: string } | undefined {
+  if (response.actionIdentifier !== defaultAction) return;
+  const request = response.notification.request, data = request.content.data;
+  if (data?.campusFlowOverview !== true || typeof data.accountId !== 'string' || typeof data.stableId !== 'string' || data.stableId.length > 100) return;
+  const match = /^campusflow:([^:]+):overview-(\d{4}-\d{2}-\d{2})$/.exec(data.stableId);
+  if (!match || match[1] !== data.accountId || request.identifier !== data.stableId || !idSchema.safeParse(match[1]).success) return;
+  return { accountId: match[1] };
+}

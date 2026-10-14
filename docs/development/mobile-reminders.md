@@ -110,3 +110,16 @@ Task/goal snooze postpones active explicit intent while preserving configuration
 and leaving completed/paused targets inactive. Weekly-target progress and optional
 task duration controls and Today deadline/schedule details are implemented. Next,
 continue the unverified native scenarios listed in the linked acceptance reports.
+
+## Morning overview
+
+The existing `dailyOverviewEnabled` preference now has behavior. When it is on
+and notification permission is granted, each reconcile schedules a local
+"Your plan for today" notification at 08:00 account-zone wall time for the
+next seven account days (quiet hours delay it; times already passed are
+skipped). Identities are `campusflow:<account>:overview-<date>`, so repeated
+reconciles keep them without duplicates and turning the preference off removes
+them. The content is deliberately generic: it is scheduled in advance and must
+not claim counts that may change. Tapping it opens Today for the same signed-in
+account only; other accounts, mismatched identities and malformed dates are
+ignored. Opening the app at least weekly keeps the window filled.

@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Screen, State, colors } from '@/components/ui';
 import { useAction, usePreferences, useReminders } from '@/features/queries';
 import { useSessionStore } from '@/store/session';
-import { ensureNotificationPermission, reconcileReminders } from '@/services/reminders';
+import { ensureNotificationPermission, overviewTime, reconcileReminders } from '@/services/reminders';
 import { QuietHoursEditor } from '@/features/quiet-hours-editor';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -79,6 +79,14 @@ export default function SettingsScreen() {
           <Text style={styles.rowTitle}>{category.label} reminders</Text>
           <View style={[styles.track, on && styles.trackOn, disabled && styles.dim]}><View style={[styles.knob, on && styles.knobOn]}/></View>
         </Pressable>; })}
+      {preferences.data && <Pressable accessibilityRole="switch" accessibilityLabel="Morning overview" accessibilityState={{ checked: preferences.data.dailyOverviewEnabled, disabled }}
+        disabled={disabled} onPress={() => { void run(async () => { await action.mutateAsync({ path: '/notification-preferences', method: 'PATCH', body: { dailyOverviewEnabled: !preferences.data!.dailyOverviewEnabled } }); }); }}
+        style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+        <View style={[styles.icon, { backgroundColor: colors.streak }]}><Ionicons name="sunny-outline" size={17} color={colors.onAccent}/></View>
+        <View style={styles.rowText}><Text style={styles.rowTitle}>Morning overview</Text>
+          <Text style={styles.muted}>A nudge at {new Date(`2000-01-01T${overviewTime}:00Z`).toLocaleTimeString([], { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' })} in {session?.user.timeZone ?? 'your time zone'} that opens Today</Text></View>
+        <View style={[styles.track, preferences.data.dailyOverviewEnabled && styles.trackOn, disabled && styles.dim]}><View style={[styles.knob, preferences.data.dailyOverviewEnabled && styles.knobOn]}/></View>
+      </Pressable>}
       {preferences.data && <Row icon="moon-outline" tint={colors.plum} title={quiet} action="Edit quiet hours" disabled={disabled} onPress={() => setEditingQuietHours(true)}/>}
       <Row icon="phone-portrait-outline" tint={colors.muted} title="Allow device notifications" disabled={disabled} onPress={() => { void run(async () => {
         const granted = await ensureNotificationPermission();

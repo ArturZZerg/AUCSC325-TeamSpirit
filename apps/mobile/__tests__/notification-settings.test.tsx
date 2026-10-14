@@ -6,7 +6,7 @@ import { ensureNotificationPermission, reconcileReminders } from '../src/service
 import type { Session } from '../src/lib/types';
 
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), usePreferences: jest.fn(), useReminders: jest.fn() }));
-jest.mock('../src/services/reminders', () => ({ ensureNotificationPermission: jest.fn(), reconcileReminders: jest.fn(), clearScheduledReminders: jest.fn() }));
+jest.mock('../src/services/reminders', () => ({ overviewTime: '08:00', ensureNotificationPermission: jest.fn(), reconcileReminders: jest.fn(), clearScheduledReminders: jest.fn() }));
 jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn() }));
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
@@ -57,6 +57,12 @@ describe('notification Settings (ToR 13)', () => {
     await act(async () => { fireEvent.press(screen.getByRole('switch', { name: `${label} reminders` })); });
     expect(save).toHaveBeenCalledWith({ path: '/notification-preferences', method: 'PATCH', body: { [key]: false } });
     expect(screen.getByRole('switch', { name: `${label} reminders` })).toBeEnabled();
+  });
+  it('toggles the morning overview and explains its account-zone time', async () => {
+    render(<Settings/>); const overview = screen.getByRole('switch', { name: 'Morning overview' });
+    expect(overview).not.toBeChecked(); expect(screen.getByText(/^A nudge at 8:00\sAM in America\/Edmonton that opens Today$/)).toBeOnTheScreen();
+    await act(async () => { fireEvent.press(overview); });
+    expect(save).toHaveBeenCalledWith({ path: '/notification-preferences', method: 'PATCH', body: { dailyOverviewEnabled: true } });
   });
   it('reports a failed category update and permits retry without claiming success', async () => {
     save.mockRejectedValueOnce(new Error('Offline')); render(<Settings/>);

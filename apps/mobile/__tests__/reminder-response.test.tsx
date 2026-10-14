@@ -95,3 +95,19 @@ it('retains live tap handling after the native startup read fails and removes th
   const view = render(<ReminderResponseSync/>); act(() => listener(response())); expect(mockRouter.push).toHaveBeenCalledTimes(1);
   view.unmount(); expect(remove).toHaveBeenCalledTimes(1); act(() => listener(response())); expect(mockRouter.push).toHaveBeenCalledTimes(1);
 });
+describe('morning overview taps', () => {
+  const overview = (data: Record<string, unknown> = {}, identifier = `campusflow:${accountId}:overview-2025-03-10`) => ({ actionIdentifier: 'default',
+    notification: { date: 99, request: { identifier, trigger: null, content: { data: { campusFlowOverview: true, accountId, stableId: identifier, ...data } } } } }) as unknown as Notifications.NotificationResponse;
+  it('opens Today for the signed-in owner', () => {
+    render(<ReminderResponseSync/>); act(() => listener(overview()));
+    expect(mockRouter.push).toHaveBeenCalledWith('/today'); expect(Notifications.clearLastNotificationResponse).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    ['another account', { accountId: '10000000-0000-4000-8000-000000000002' }, undefined],
+    ['a mismatched identity', { stableId: `campusflow:${accountId}:overview-2025-03-11` }, undefined],
+    ['a malformed date', { stableId: `campusflow:${accountId}:overview-tomorrow` }, `campusflow:${accountId}:overview-tomorrow`],
+  ])('ignores %s', (_label, data, identifier) => {
+    render(<ReminderResponseSync/>); act(() => listener(overview(data, identifier)));
+    expect(mockRouter.push).not.toHaveBeenCalled();
+  });
+});
