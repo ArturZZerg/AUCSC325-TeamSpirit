@@ -17,7 +17,9 @@ name: iOS ordinary sign-in and owned task capture
 - inputText: ${IOS_QA_PASSWORD}
 - pressKey: Enter
 - extendedWaitUntil:
-    visible: Your daily flow
+    # The system password sheet can hide the app's accessibility tree. Requiring
+    # Today before dismissing that sheet deadlocks this valid sign-in outcome.
+    visible: '^(Your daily flow|Not Now)$'
     timeout: 30000
 - waitForAnimationToEnd
 # iOS may offer to save the password. The sheet can ignore a tap made during

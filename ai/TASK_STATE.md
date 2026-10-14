@@ -2,6 +2,36 @@
 
 Updated: 2026-10-14
 
+### Current open-PR review and native login correction
+
+PRs #86, #84 and #85 are now merged; main is `18b1694` after the API
+lock-wait regression correction (#94). Day-review source `692fb3e` has a complete
+passing native run `38631725799`, independently checked against downloaded
+public/process, real-API Cancel/Save, four storage checks and cleanup proofs.
+This does not turn recovery's failed `bf804d5` attempts or main's failed native
+runs into passes. The new feature stack #87–#100 and auth correction #101 remain
+open and need review plus current integrated acceptance.
+
+Main `7b983db` native run `38635693551` passes the public gate, then fails its
+first Today assertion with the known system `Not Now` prompt still present.
+The existing flow handles that prompt only after requiring Today, so an obscured
+app tree cannot reach dismissal. The scoped correction first waits for either
+Today or that exact prompt, uses the existing conditional dismissal, and still
+requires Today before task capture. Every API, cache, logout, focus, Cancel/Save
+and source-bound proof assertion remains mandatory. PR #101's keyboard Return
+chaining is retained. No app, API, schema or dependency change is added here.
+
+Work is isolated in the managed `open-pr-acceptance` worktree; the shared
+checkout's separate UI work is preserved. All Maestro YAML parses, all 40 native
+tooling/privacy cases and 10 auth-entry cases pass, including keyboard-submit
+validation, pending-request deduplication and explicit registration. Lint,
+generated schema validation and mobile TypeScript pass. The fresh worktree's
+Prisma engine uses the Windows system CA store; TLS verification stays enabled.
+Actual full current-source native execution remains required. Review
+the latest feature heads and their combined behavior; cancelled or failed native
+checks are not successful acceptance. Historical investigation below remains
+dated evidence and is superseded by this current status where they differ.
+
 ### Current day-review parent integration
 
 Day-review integrates recovery `bf804d5`, which contains full public-input parent
