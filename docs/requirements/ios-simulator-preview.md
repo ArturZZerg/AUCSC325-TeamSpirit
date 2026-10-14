@@ -81,6 +81,25 @@ Selectors, typed values, variables, private paths, tokens and full UI hierarchie
 remain in the ignored runner directory. A raw hierarchy or log is never a fallback.
 These summaries diagnose the flow; label presence alone is not visibility proof.
 
+The next driver update pins official Maestro 2.11.0 and its verified release ZIP
+SHA-256 `5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a`.
+The [upstream changes since 2.6.1](https://github.com/mobile-dev-inc/Maestro/blob/cli-2.11.0/CHANGELOG.md#270)
+include stop/start timeout handling, tap positions after scrolling and hierarchy
+retrieval fixes relevant to observed failures. This is not a confirmed diagnosis.
+The verified local ZIP runs version/test-help commands with installed Java 17;
+no local device command is used. Current remote `50a2546`/`7160802` attempts still
+use 2.6.1 and must reach terminal state before replacement.
+
+Newer driver bundles use flat `commands.json` and capture additional step images,
+hierarchies and device logs. Private output roots remain inside the restrictive
+ignored runner directory. The diagnostic reader accepts both legacy and flat
+command filenames and emits the same whitelisted action/status/numeric record;
+it never copies manifests, screenshots, hierarchies, artifact paths or raw logs.
+Two new file-based regressions prove private contents are excluded and malformed
+JSON does not trigger a raw/manifest fallback. Twenty-two local tooling/privacy
+cases, lint and YAML checks pass. Required public/storage assertions are unchanged;
+fresh exact-head native acceptance of the updated driver remains required.
+
 At `019f64c` (`38460731027`), build, effective simulator capabilities, healthy
 launch and the public flow pass (120 seconds, zero failures). Ordinary native
 sign-in reaches Today, but the capture ID is not found before its tap. The actual
@@ -251,5 +270,5 @@ artifacts. A diagnostic build is not a production or signing claim.
 
 - [SDK 55 toolchain requirements](https://expo.dev/changelog/sdk-55)
 - [macOS 15 runner toolchain inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md)
-- [Pinned Maestro release](https://github.com/mobile-dev-inc/Maestro/releases/tag/cli-2.6.1)
+- [Pinned Maestro release](https://github.com/mobile-dev-inc/Maestro/releases/tag/cli-2.11.0)
 - [Local Maestro CLI reference](https://docs.maestro.dev/maestro-cli/maestro-cli-commands-and-options.md)

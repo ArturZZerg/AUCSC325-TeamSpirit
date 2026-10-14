@@ -39,7 +39,7 @@ export function publicFlowFailure(log, privateValues) {
 /** Diagnostic structure only: omit selectors, inputs, variables and UI hierarchy. */
 export function privateFlowTimeline(records) {
   const actions = new Set(['launchAppCommand', 'openLinkCommand', 'runFlowCommand', 'tapOnElement', 'inputTextCommand',
-    'hideKeyboardCommand', 'assertConditionCommand', 'waitForAnimationToEndCommand', 'scrollUntilVisibleCommand',
+    'hideKeyboardCommand', 'assertConditionCommand', 'waitForAnimationToEndCommand', 'scrollUntilVisible', 'scrollUntilVisibleCommand',
     'stopAppCommand', 'applyConfigurationCommand', 'defineVariablesCommand', 'takeScreenshotCommand']);
   const states = new Set(['COMPLETED', 'FAILED', 'RUNNING', 'PENDING']);
   if (!Array.isArray(records)) return [];
@@ -69,14 +69,14 @@ export function privateViewSummary(hierarchy) {
   return result;
 }
 
-function saveFlowTimeline(directory, output, depth = 0) {
+export function saveFlowTimeline(directory, output, depth = 0) {
   if (depth > 3) return false;
   let entries;
   try { entries = readdirSync(directory, { withFileTypes: true }); } catch { return false; }
   for (const entry of entries.slice(0, 50)) {
     const file = path.join(directory, entry.name);
     if (entry.isDirectory() && saveFlowTimeline(file, output, depth + 1)) return true;
-    if (entry.isFile() && /^commands-.*\.json$/.test(entry.name)) {
+    if (entry.isFile() && /^(commands|commands-.*)\.json$/.test(entry.name)) {
       try { writeFileSync(output, `${JSON.stringify(privateFlowTimeline(JSON.parse(readFileSync(file, 'utf8'))), null, 2)}\n`); return true; }
       catch { /* No raw data fallback; the generic failure stage remains visible. */ }
     }

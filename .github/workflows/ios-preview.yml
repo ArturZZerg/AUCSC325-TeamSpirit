@@ -37,8 +37,8 @@ jobs:
         id: build
       - name: Install pinned local Maestro CLI
         run: |
-          curl --fail --location --retry 2 https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.6.1/maestro.zip -o .local/maestro.zip
-          echo '3440825f514f537c6a96bcf5de995780c2a4a7f83a43208fdc95d4f1fecfad3b  .local/maestro.zip' | shasum -a 256 -c -
+          curl --fail --location --retry 2 https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.11.0/maestro.zip -o .local/maestro.zip
+          echo '5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a  .local/maestro.zip' | shasum -a 256 -c -
           unzip -q .local/maestro.zip -d .local
           .local/maestro/bin/maestro --version
       - name: Boot only this job's iPhone simulator and run public flows

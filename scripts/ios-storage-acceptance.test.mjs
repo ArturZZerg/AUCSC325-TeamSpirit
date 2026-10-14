@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary } from './ios-storage-acceptance.mjs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync, realpathSync, rmSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary, saveFlowTimeline } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
 
 test('requires an explicit disposable macOS runner and UUID, without an external API', () => {
@@ -28,6 +31,39 @@ test('private flow timeline publishes only known actions, states and numeric tim
   assert.ok(!JSON.stringify(result).includes(privateText));
   assert.deepEqual(privateFlowTimeline(undefined), []);
 });
+
+const fixtureRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.local/ios-timeline-tests');
+function withTimelineFixture(run) {
+  mkdirSync(fixtureRoot, { recursive: true });
+  const directory = mkdtempSync(path.join(fixtureRoot, 'run-'));
+  try { run(directory); }
+  finally {
+    const resolved = realpathSync(directory), parent = realpathSync(fixtureRoot);
+    assert.equal(path.dirname(resolved), parent);
+    assert.ok(path.basename(resolved).startsWith('run-'));
+    rmSync(resolved, { recursive: true });
+  }
+}
+test('publishes sanitized timelines from both legacy and flat driver bundles', () => {
+  for (const filename of ['commands-(login).json', 'commands.json']) withTimelineFixture(directory => {
+    const flow = path.join(directory, 'flow'); mkdirSync(flow);
+    const privateText = 'student@example.test secret-password';
+    writeFileSync(path.join(flow, filename), JSON.stringify([{ command: { scrollUntilVisible: { selector: privateText } },
+      metadata: { status: 'FAILED', sequenceNumber: 3, duration: 42, error: privateText, artifacts: [{ path: privateText }] } }]));
+    const output = path.join(directory, 'sanitized.json');
+    assert.equal(saveFlowTimeline(flow, output), true);
+    const text = readFileSync(output, 'utf8');
+    assert.deepEqual(JSON.parse(text), [{ sequence: 3, action: 'scrollUntilVisible', status: 'FAILED', durationMs: 42 }]);
+    assert.ok(!text.includes(privateText));
+  });
+});
+test('malformed command bundles do not publish raw diagnostics or use manifest fallback', () => withTimelineFixture(directory => {
+  writeFileSync(path.join(directory, 'commands.json'), '{"private":"secret-password",');
+  writeFileSync(path.join(directory, 'manifest.json'), '{"private":"student@example.test"}');
+  const output = path.join(directory, 'sanitized.json');
+  assert.equal(saveFlowTimeline(directory, output), false);
+  assert.equal(existsSync(output), false);
+}));
 
 test('private screen diagnostics output fixed label-presence booleans only', () => {
   const result = privateViewSummary({ children: [{ attributes: { text: 'Your daily flow', id: 'today-add-task' } },

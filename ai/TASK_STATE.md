@@ -2,6 +2,17 @@
 
 Updated: 2026-10-13
 
+Prepared native-tool update: official Maestro 2.11.0 ZIP/version/test-help checks
+pass locally with Java 17 and verified release SHA-256. Its upstream changes cover
+stop/start timeouts and post-scroll tap positions relevant to observed failures;
+no root cause or native success is inferred. Diagnostic compatibility accepts
+legacy and flat command files while excluding private inputs/artifact metadata;
+22 tooling/privacy tests and lint pass. The 2.6.1 remote runs at `50a2546` and
+`7160802` remain live; do not replace them merely because observation is slow.
+The reviewed update is isolated on `codex/ios-driver-211` for ordinary exact-source
+native comparison, preserving both live PR attempts. It may be integrated only
+after actual acceptance; no app/architecture or private-output scope changes.
+
 Latest iOS observation: `854b846` standard checks pass; native `38500933706`
 fails in the first request phase because the system Open dialog remains visible.
 The trace records one correctly positioned tap despite unchanged-screen retry;
