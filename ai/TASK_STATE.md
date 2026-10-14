@@ -4,6 +4,16 @@ Updated: 2026-10-14
 
 ### Current: finish the open PRs with complete native acceptance
 
+Full successor `4d0192e` / `38626385344` fails at the expected offline FAQ after
+passing first-warm/single-Back/in-app Help in PID 34998. Its native frame shows
+query `one` despite requested `offline` plus Return, so the FAQ absence is not
+accepted as an application search defect. The test now sends each ordinary key
+once with a visible-prefix assertion, verifies the complete query after Return
+and captures the filtered screen. There is no retyping, clear/retry or app change.
+All 34 tooling cases and the previous standard checks retain their stated scope;
+fresh full native acceptance remains required. Preserve the existing feature
+runs, integrate this scoped parent correction into #84/#85, and finish the stack.
+
 The owner explicitly requests finishing the three open PRs. The fixed-source
 public XCTest comparison `35ba837` / `38623494563` passes one actual test with
 zero failures in 17.675 seconds. Native PID 7707 survives the first warm Help URL,
