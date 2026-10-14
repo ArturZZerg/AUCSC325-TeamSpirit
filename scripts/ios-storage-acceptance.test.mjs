@@ -3,8 +3,56 @@ import test from 'node:test';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary, saveFlowTimeline } from './ios-storage-acceptance.mjs';
+import { spawn } from 'node:child_process';
+import { once, EventEmitter } from 'node:events';
+import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary, saveFlowTimeline,
+  stopOwnedApiProcess, assertStorageAcceptanceProof } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
+
+test('stops an owned real child and makes repeated cleanup after a signal exit idempotent', { timeout: 5000 }, async t => {
+  const child = spawn(process.execPath, ['-e', "setInterval(() => {}, 1000); process.send('ready');"], { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+  t.after(async () => { if (child.exitCode === null && child.signalCode === null) { child.kill('SIGKILL'); await once(child, 'exit'); } });
+  await once(child, 'message');
+  await stopOwnedApiProcess(child, { termMs: 500, killMs: 500 });
+  assert.equal(child.exitCode, null); assert.ok(child.signalCode);
+  await stopOwnedApiProcess(child, { termMs: 500, killMs: 500 });
+  assert.equal(child.listenerCount('exit'), 0);
+});
+test('cleanup also returns for a child that already exited normally', { timeout: 5000 }, async () => {
+  const child = spawn(process.execPath, ['-e', 'process.exit(0)'], { stdio: 'ignore' });
+  await once(child, 'exit'); await stopOwnedApiProcess(child);
+  assert.equal(child.exitCode, 0); assert.equal(child.listenerCount('exit'), 0);
+});
+test('an owned process that never confirms termination fails within both shutdown bounds', { timeout: 1000 }, async () => {
+  const child = Object.assign(new EventEmitter(), { pid: 123, exitCode: null, signalCode: null, kill: () => false });
+  await assert.rejects(stopOwnedApiProcess(child, { termMs: 10, killMs: 10 }), /Owned loopback API did not stop/);
+  assert.equal(child.listenerCount('exit'), 0); assert.equal(child.listenerCount('error'), 0);
+});
+test('a synchronous termination does not retain escalation timers or listeners', async () => {
+  const child = Object.assign(new EventEmitter(), { pid: 123, exitCode: null, signalCode: null });
+  let signals = 0;
+  child.kill = () => { signals++; child.emit('exit', 0); return true; };
+  await stopOwnedApiProcess(child, { termMs: 10, killMs: 10 });
+  await new Promise(resolve => setTimeout(resolve, 30)); assert.equal(signals, 1);
+  assert.equal(child.listenerCount('exit'), 0);
+});
+const commit = 'a'.repeat(40);
+const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed', cleanup: 'passed', checks: [
+  'ordinary native sign-in, Secure Store write, and API-confirmed task capture',
+  'cold session and owned SQLite task restoration with no API listener',
+  'native sign-out revocation, zero owned SQLite rows, and retained server task',
+  'cold signed-out state without API revocation fallback'] });
+test('accepts only completed native and process-cleanup evidence for the exact source', () => {
+  assert.doesNotThrow(() => assertStorageAcceptanceProof(complete(), commit));
+});
+test('rejects missing, partial, replayed and failed proof without echoing private values', () => {
+  const privateValue = 'private-token-must-not-appear';
+  for (const value of [undefined, {}, { ...complete(), result: 'failed' }, { ...complete(), cleanup: undefined },
+    { ...complete(), commit: 'b'.repeat(40) }, { ...complete(), api: privateValue }, { ...complete(), failedStage: privateValue },
+    { ...complete(), checks: complete().checks.slice(0, 3) }, { ...complete(), checks: complete().checks.toReversed() }]) {
+    assert.throws(() => assertStorageAcceptanceProof(value, commit), error => !error.message.includes(privateValue) && /Incomplete iOS storage/.test(error.message));
+  }
+});
 
 test('requires an explicit disposable macOS runner and UUID, without an external API', () => {
   assert.equal(storageAcceptanceConfig(env, 'darwin').apiUrl, 'http://127.0.0.1:3000');

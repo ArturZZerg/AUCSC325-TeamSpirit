@@ -35,8 +35,6 @@ jobs:
       - run: bash scripts/build-ios-simulator.sh --check
       - run: npm run build:ios:simulator
         id: build
-        env:
-          EXPO_PUBLIC_IOS_PUBLIC_DIAGNOSTICS: '1'
       - name: Install pinned local Maestro CLI
         run: |
           curl --fail --location --retry 2 https://github.com/mobile-dev-inc/Maestro/releases/download/cli-2.11.0/maestro.zip -o .local/maestro.zip
@@ -73,6 +71,7 @@ jobs:
           brew install postgresql@17
           export IOS_PG_BIN="$(brew --prefix postgresql@17)/bin"
           node scripts/ios-storage-acceptance.mjs
+          node scripts/ios-storage-acceptance.mjs --verify-proof
       - name: Stop only this job's simulator
         if: always() && env.IOS_SIMULATOR_UDID != ''
         run: xcrun simctl shutdown "$IOS_SIMULATOR_UDID"

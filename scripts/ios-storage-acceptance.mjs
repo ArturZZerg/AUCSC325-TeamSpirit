@@ -10,6 +10,39 @@ import { sessionSchema, personalTaskSchema } from '@campusflow/contracts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const apiUrl = 'http://127.0.0.1:3000';
+const requiredChecks = ['ordinary native sign-in, Secure Store write, and API-confirmed task capture',
+  'cold session and owned SQLite task restoration with no API listener',
+  'native sign-out revocation, zero owned SQLite rows, and retained server task',
+  'cold signed-out state without API revocation fallback'];
+
+export function assertStorageAcceptanceProof(value, commit) {
+  if (!/^[0-9a-f]{40}$/i.test(commit ?? '') || !value || value.commit !== commit || value.api !== apiUrl
+    || value.result !== 'passed' || value.cleanup !== 'passed' || Object.hasOwn(value, 'failedStage')
+    || !Array.isArray(value.checks) || value.checks.length !== requiredChecks.length
+    || !value.checks.every((check, index) => check === requiredChecks[index]))
+    throw new Error('Incomplete iOS storage acceptance proof for this source commit.');
+}
+
+/** Only stop the child created by this harness. Signal exits are terminal too. */
+export async function stopOwnedApiProcess(child, { termMs = 10_000, killMs = 5_000 } = {}) {
+  if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
+  if (![termMs, killMs].every(value => Number.isSafeInteger(value) && value > 0 && value <= 60_000))
+    throw new Error('Invalid API shutdown bounds.');
+  await new Promise((resolve, reject) => {
+    let termTimer, killTimer, settled = false;
+    const clear = () => { clearTimeout(termTimer); clearTimeout(killTimer); child.removeListener('exit', done); child.removeListener('error', failed); };
+    const done = () => { settled = true; clear(); resolve(); };
+    const failed = () => { settled = true; clear(); reject(new Error('Owned loopback API did not stop.')); };
+    child.once('exit', done); child.once('error', failed);
+    try {
+      child.kill('SIGTERM');
+      if (!settled) termTimer = setTimeout(() => {
+        try { child.kill('SIGKILL'); if (!settled) killTimer = setTimeout(failed, killMs); }
+        catch { failed(); }
+      }, termMs);
+    } catch { failed(); }
+  });
+}
 export function storageAcceptanceConfig(env, platform) {
   if (platform !== 'darwin' || env.GITHUB_ACTIONS !== 'true' || env.RUNNER_OS !== 'macOS')
     throw new Error('Storage acceptance requires the disposable macOS Actions runner.');
@@ -129,14 +162,7 @@ async function run() {
       reject(new Error(`Acceptance command failed: ${name}. Private diagnostics stay on the runner.`));
     });
   });
-  const stopApi = async () => {
-    if (!apiProcess?.pid || apiProcess.exitCode !== null) return;
-    const child = apiProcess;
-    const done = new Promise(resolve => child.once('exit', resolve));
-    child.kill('SIGTERM');
-    const timeout = setTimeout(() => child.kill('SIGKILL'), 10_000);
-    try { await done; } finally { clearTimeout(timeout); }
-  };
+  const stopApi = () => stopOwnedApiProcess(apiProcess);
   const startApi = async () => {
     const log = openSync(path.join(runDir, 'api.log'), 'a', 0o600);
     apiProcess = spawn(process.execPath, ['apps/api/dist/src/main.js'], { cwd: root, env, stdio: ['ignore', log, log] });
@@ -232,7 +258,15 @@ async function run() {
     if (failed) failure = new Error('iOS storage acceptance process cleanup failed.');
   }
   if (failure) throw failure;
+  assertStorageAcceptanceProof(proof, process.env.CAMPUSFLOW_BUILD_SHA ?? process.env.GITHUB_SHA);
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  run().catch(error => { console.error(error.message); process.exitCode = 1; });
+  if (process.argv[2] === '--verify-proof') {
+    try {
+      const proof = JSON.parse(readFileSync(path.join(root, 'artifacts/ios/evidence/storage.json'), 'utf8'));
+      assertStorageAcceptanceProof(proof, process.env.CAMPUSFLOW_BUILD_SHA ?? process.env.GITHUB_SHA);
+      console.log('Complete source-matched native storage and process-cleanup proof verified.');
+    } catch { console.error('Complete source-matched iOS storage proof is missing or invalid.'); process.exitCode = 1; }
+  } else if (process.argv[2]) { console.error('Unsupported storage acceptance argument.'); process.exitCode = 1; }
+  else run().catch(error => { console.error(error.message); process.exitCode = 1; });
 }

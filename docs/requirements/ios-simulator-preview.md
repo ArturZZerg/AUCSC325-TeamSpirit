@@ -162,6 +162,25 @@ and every private API/session/cache/logout gate. Temporary app markers remain
 for comparison and must be removed before final uninstrumented acceptance.
 This is a diagnostic lifecycle experiment, not a confirmed fix or a waived gate.
 
+At `69732c4` (`38597508153`), the ordered warm flow passes all assertions in
+147 seconds, and the separate cold Help flow passes in 21 seconds. Masked helper
+logs and sanitized timelines show all four actual native storage checks passing:
+ordinary capture, offline cold restoration, online session/cache cleanup and
+offline cold signed-out startup. This is positive instrumented native evidence;
+the nominally successful job is not accepted as completed process cleanup.
+
+Artifact review finds no `storage.json`: repeated cleanup waits for an `exit`
+event from an API child already terminated by a signal (`exitCode=null`,
+`signalCode=SIGTERM`). Its unresolved promise can outlive the last timer, allowing
+Node to exit zero before final publication. Shutdown now treats normal and signal
+exits as terminal, is idempotent, and has bounded SIGTERM/SIGKILL confirmation.
+An unconfirmed stop fails. The workflow independently requires a complete proof
+with all four checks, passed process cleanup and the exact source commit; a green
+process exit or missing summary is insufficient. Six new real-process/bounded/
+privacy-proof regressions pass (28 iOS tooling tests total). Temporary app probes
+and their CI flag are removed. Final uninstrumented native acceptance with the
+published summary remains required before merging and verifying main.
+
 At `019f64c` (`38460731027`), build, effective simulator capabilities, healthy
 launch and the public flow pass (120 seconds, zero failures). Ordinary native
 sign-in reaches Today, but the capture ID is not found before its tap. The actual

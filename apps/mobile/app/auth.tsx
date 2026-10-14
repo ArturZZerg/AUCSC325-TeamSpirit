@@ -9,7 +9,6 @@ import { api, ApiError, json } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
 import { Button, Field, colors } from '@/components/ui';
 import { authFormSchema, type AuthFormValues } from '@/features/auth-form';
-import { publicNavigationDiagnostic } from '@/lib/ios-public-navigation-diagnostic';
 
 export default function Auth() {
   const { next } = useLocalSearchParams<{ next?: string }>();
@@ -26,7 +25,6 @@ export default function Auth() {
   });
   const isCurrent = (epoch: number) => mounted.current && epoch === revision.current && !useSessionStore.getState().session;
   useEffect(() => {
-    if (!session) publicNavigationDiagnostic('auth-mounted');
     mounted.current = true; ++revision.current; busy.current = false; setPending(false); setVerification(null); setValue('password', '');
     return () => { mounted.current = false; ++revision.current; request.current?.abort(); };
   }, [session?.accessToken, setValue]);

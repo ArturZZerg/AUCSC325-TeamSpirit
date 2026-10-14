@@ -773,3 +773,29 @@ Next: validate/publish the wrapper and inspect exact-head native touch/navigatio
 evidence. Remove temporary app probes and require final uninstrumented native and
 standard success before merging #83; #84 remains draft. No phone/server transfer
 or account deletion is performed.
+
+### Completed native checks and fail-closed cleanup proof, 2026-10-14
+
+The `69732c4` comparison passes both standard checks and all original warm/cold
+public navigation. Its native helper records all four real capture/cache/logout/
+cold-signed-out checks. Final artifact inspection finds no `storage.json`, so the
+job's nominal success is not accepted as complete cleanup. An already signalled
+API child has null exitCode; awaiting its second exit lets Node finish without
+publishing the final record.
+
+The fix makes stopping the owned API child idempotent for normal and signal
+termination, bounds escalation/confirmation and fails on unconfirmed shutdown.
+The workflow requires a complete exact-source summary independently after the
+helper returns. Six new process/proof cases pass, bringing iOS tooling to 28.
+Temporary public app diagnostics are removed, retaining all original actions and
+API/cache/logout assertions. Final uninstrumented exact-head native success,
+author review and matched-SHA merge/main verification remain required.
+
+A separate day-end feature is implemented locally on `codex/day-review`, with
+explicit fresh-editor scheduling, preserved deadlines, saved/missing-state
+distinctions and account isolation. Its scoped tests pass117 cases; the earlier
+full mobile run passed1,127 before the last acknowledgment change. Exact owned
+stash `2ce9944872143540b41ab74e86e99a85482099d1` safely holds those named feature
+files while this cleanup fix is published. Its synthetic loopback visual preview
+is still open; this is not native/production acceptance. No existing user files,
+phone, retained account or server source are operated on.

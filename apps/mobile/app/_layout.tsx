@@ -7,16 +7,11 @@ import { queryClient } from '@/lib/query-client';
 import { FocusRecoverySync } from '@/features/focus-recovery-sync';
 import { SessionAccessSync } from '@/features/session-access-sync';
 import { ReminderResponseSync } from '@/features/reminder-response-sync';
-import { publicNavigationDiagnostic } from '@/lib/ios-public-navigation-diagnostic';
 function Gate() {
   const router = useRouter(), segments = useSegments();
   const { next } = useGlobalSearchParams<{ next?: string }>();
   const { session, ready, restore } = useSessionStore();
   useEffect(() => { void restore(); }, [restore]);
-  useEffect(() => {
-    if (!session) publicNavigationDiagnostic(segments.length === 1 && segments[0] === 'help' ? 'route-help'
-      : segments[0] === 'auth' ? 'route-auth' : 'route-other');
-  }, [session, segments]);
   useEffect(() => {
     if (!ready) return;
     const atAuth = segments[0] === 'auth' || segments[0] === 'recover' || segments[0] === 'verify';

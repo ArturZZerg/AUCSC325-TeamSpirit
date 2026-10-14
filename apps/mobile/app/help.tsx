@@ -4,7 +4,6 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fro
 import { Button, Card, Screen, colors } from '@/components/ui';
 import { findHelp, helpTopics, type HelpTopic } from '@/features/help-content';
 import { useSessionStore } from '@/store/session';
-import { publicNavigationDiagnostic } from '@/lib/ios-public-navigation-diagnostic';
 import { publishedLink } from '../config/published-links.cjs';
 
 export default function HelpScreen() {
@@ -24,12 +23,7 @@ export default function HelpScreen() {
   }
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <View style={styles.heading}><Button title={session ? 'Back to CampusFlow' : 'Back to sign in'} tone="plain" disabled={!ready}
-      onPressIn={() => { if (!session) publicNavigationDiagnostic('help-back-in'); }}
-      onPressOut={() => { if (!session) publicNavigationDiagnostic('help-back-out'); }}
-      onPress={() => {
-        if (!session) { publicNavigationDiagnostic('help-back-press'); publicNavigationDiagnostic('replace-auth'); }
-        router.replace(session ? '/today' : '/auth');
-      }}/><Text style={styles.kicker}>HELP & DATA</Text></View>
+      onPress={() => router.replace(session ? '/today' : '/auth')}/><Text style={styles.kicker}>HELP & DATA</Text></View>
     <Text accessibilityRole="header" style={styles.title}>A little help for your day.</Text>
     <Text style={styles.copy}>Find an answer, understand your saved information, or jump back into your student tools. These guides work offline.</Text>
     <View style={styles.actions}>
