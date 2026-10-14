@@ -24,7 +24,7 @@ export default function TabsLayout() {
     tabBarIcon: ({ color, size }) => <Ionicons name={icons[route.name] ?? 'ellipse-outline'} color={color} size={size} />,
   })}>
     <Tabs.Screen name="today" options={{ title: 'Today', headerShown: false }}/>
-    <Tabs.Screen name="tasks" options={{ title: 'Tasks' }}/>
+    <Tabs.Screen name="tasks" options={{ title: 'Tasks', headerShown: false }}/>
     <Tabs.Screen name="campus" options={{ title: 'Campus' }}/>
     <Tabs.Screen name="wellness" options={{ title: 'Wellness' }}/>
     <Tabs.Screen name="settings" options={{ title: 'Settings' }}/>

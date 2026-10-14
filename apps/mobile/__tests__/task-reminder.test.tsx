@@ -15,6 +15,7 @@ beforeEach(() => {
   jest.mocked(useTasks).mockReturnValue({ data: [task], isLoading: false } as ReturnType<typeof useTasks>);
 });
 afterEach(() => { jest.useRealTimers(); });
+const expandFirst = (index = 0) => fireEvent.press(screen.getAllByRole('button', { name: /^Show details for / })[index]);
 describe('explicit task reminder boundary (ToR 7, 13)', () => {
   it('sends only the reminder field, converting account-local input to UTC', () => {
     expect(taskReminderRequest(values, task, zone)).toEqual({ path: `/tasks/${task.id}`, method: 'PATCH', body: { reminder: { kind: 'instant', at: '2025-03-09T00:00:00Z' } } });
@@ -77,10 +78,10 @@ describe('task reminder controls', () => {
     expect(screen.getByLabelText('Reminder date')).toHaveDisplayValue('2025-03-09'); expect(screen.getByLabelText('Reminder time')).toHaveDisplayValue('');
   });
   it('opens from Tasks in the account zone and shows only refreshed reminder values', async () => {
-    const view = render(<Tasks/>); fireEvent.press(screen.getByText('Set reminder')); expect(screen.getByText(/One reminder at/)).toHaveTextContent(/America\/Edmonton/);
+    const view = render(<Tasks/>); expandFirst(); fireEvent.press(screen.getByRole('button', { name: 'Set reminder' })); expect(screen.getByText(/One reminder at/)).toHaveTextContent(/America\/Edmonton/);
     fill(); fireEvent.press(screen.getByText('Save reminder')); await waitFor(() => expect(screen.queryByText('Task reminder')).toBeNull());
     expect(screen.queryByText(/^Reminder:/)).toBeNull();
     jest.mocked(useTasks).mockReturnValue({ data: [{ ...task, reminder: { kind: 'instant', at: '2025-03-09T00:00:00Z' } }], isLoading: false } as ReturnType<typeof useTasks>);
-    view.rerender(<Tasks/>); expect(screen.getByText('Reminder: 2025-03-08 17:00 · America/Edmonton')).toBeOnTheScreen(); expect(screen.getByText('Edit reminder')).toBeOnTheScreen();
+    view.rerender(<Tasks/>); expect(screen.getByText('Reminder: 2025-03-08 17:00 · America/Edmonton')).toBeOnTheScreen(); expect(screen.getByRole('button', { name: 'Edit reminder' })).toBeOnTheScreen();
   });
 });

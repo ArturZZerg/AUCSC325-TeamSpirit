@@ -133,3 +133,18 @@ Today and Coming up display existing deadline/schedule values in the account
 timezone. The [native editor report](../requirements/android-native-editors-2026-10-04.md)
 records task duration, scheduling, recurrence, failed saves and DST input checks
 on Pixel 10 Pro XL. Continue the remaining native calendar and iOS acceptance.
+
+## Grouped task list
+
+The Tasks tab groups the filtered list into Overdue, Today, Tomorrow, Next 7
+days, Later, No date, Repeating and Completed (`src/features/task-groups.ts`).
+A passed deadline is overdue (timed deadlines compare to the current instant;
+date-only deadlines to the account day); otherwise the earlier of the scheduled
+day and deadline decides the bucket. Rows sort by timing, then priority, then
+title; completed rows show newest first. Grouping is presentation only.
+
+Each row (`src/features/task-row.tsx`) has a completion control for one-time
+tasks, category color, priority flag, human timing, reminder/estimate hints and
+an expandable panel with exact deadline/schedule values and the Focus, Main
+Goal, Edit, Reminder and Delete actions. Search, an All/Open/Done segmented
+control and horizontal category chips keep their previous accessible names.

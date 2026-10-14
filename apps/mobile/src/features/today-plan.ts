@@ -47,7 +47,7 @@ function when(value: NonNullable<PlanItem['due']>, timeZone: string, date: strin
 }
 
 /** Short human timing for one row, relative to the displayed plan date in the account zone. */
-export function planTimingLabel(item: PlanItem, timeZone: string, date: string): string | undefined {
+export function planTimingLabel(item: Pick<PlanItem, 'kind' | 'schedule' | 'due'>, timeZone: string, date: string): string | undefined {
   const parts: string[] = [];
   if (item.schedule && !(item.schedule.kind === 'date' && item.schedule.date === date)) {
     parts.push(`${item.kind === 'event' ? 'Starts' : 'Planned'} ${when(item.schedule, timeZone, date)}`);

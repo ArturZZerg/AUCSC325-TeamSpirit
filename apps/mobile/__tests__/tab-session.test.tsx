@@ -55,6 +55,11 @@ beforeEach(() => {
   jest.mocked(useToday).mockReturnValue({ date: plan.date, timeZone: plan.timeZone, data: plan, isLoading: false, isRefetching: false } as unknown as ReturnType<typeof useToday>);
 });
 
+function taskAction(name: string) {
+  const collapsed = screen.queryAllByRole('button', { name: /^Show details for / });
+  if (collapsed.length) fireEvent.press(collapsed[0]);
+  fireEvent.press(screen.getByRole('button', { name }));
+}
 describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
   it.each(['switch', 'sign-out', 'relogin'])('discards a Today capture draft on %s', transition => {
     mockRoute = 'today'; render(<TabsLayout/>);
@@ -73,23 +78,23 @@ describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
   });
   it.each(['switch', 'sign-out', 'relogin'])('discards a task draft on %s', async transition => {
     render(<TabsLayout/>);
-    fireEvent.press(screen.getByText('Edit'));
+    taskAction('Edit');
     await screen.findByLabelText('Title');
     fireEvent.changeText(screen.getByLabelText('Title'), 'Private draft');
     session(transition === 'switch' ? second : transition === 'sign-out' ? null : { ...first, accessToken: 'new-login' });
     expect(screen.queryByLabelText('Title')).toBeNull();
     expect(save).not.toHaveBeenCalled();
     session(first);
-    fireEvent.press(screen.getByText('Edit'));
+    taskAction('Edit');
     await screen.findByLabelText('Title');
     expect(screen.getByLabelText('Title')).toHaveDisplayValue(task.title);
   });
 
   it('discards task deletion and reminder selections at the boundary', () => {
     render(<TabsLayout/>);
-    fireEvent.press(screen.getByText('Delete')); session(second);
+    taskAction('Delete'); session(second);
     expect(screen.queryByText('Delete task?')).toBeNull();
-    fireEvent.press(screen.getByText('Set reminder')); session(first);
+    taskAction('Set reminder'); session(first);
     expect(screen.queryByText('Task reminder')).toBeNull();
     expect(save).not.toHaveBeenCalled();
   });
@@ -143,8 +148,8 @@ describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
     let resolve!: () => void;
     save.mockReturnValueOnce(new Promise<void>(done => { resolve = done; }));
     render(<TabsLayout/>);
-    fireEvent.press(screen.getByText('Delete')); fireEvent.press(screen.getByText('Delete task'));
-    session(second); fireEvent.press(screen.getByText('Delete'));
+    taskAction('Delete'); fireEvent.press(screen.getByText('Delete task'));
+    session(second); taskAction('Delete');
     await act(async () => { resolve(); });
     expect(screen.getByText('Delete task?')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Delete task' })).toBeEnabled();

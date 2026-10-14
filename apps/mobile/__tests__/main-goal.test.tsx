@@ -24,12 +24,13 @@ beforeEach(() => {
   jest.mocked(useTodayClock).mockReturnValue({ date, resumeCount: 0 }); show([task]);
 });
 
+const expand = (title: string) => fireEvent.press(screen.getByRole('button', { name: `Show details for ${title}` }));
 describe('Main Goal selection (ToR 6)', () => {
   it('selects an undated task for the account day without changing its deadline', async () => {
-    render(<Tasks/>); await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
+    render(<Tasks/>); expand(task.title); await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
     await waitFor(() => expect(save).toHaveBeenCalledWith({ path: `/tasks/${task.id}/main-goal`, body: { date } }));
     expect(useTodayClock).toHaveBeenCalledWith('America/Edmonton');
-    expect(screen.getByText(/No deadline/)).toBeOnTheScreen();
+    expect(screen.queryByText(/^Deadline:/)).toBeNull();
     expect(screen.queryByText('★ MAIN GOAL TODAY')).toBeNull();
   });
   it('uses PATCH for academic work and supports clearing the selection', async () => {
@@ -43,12 +44,12 @@ describe('Main Goal selection (ToR 6)', () => {
     await waitFor(() => expect(save).toHaveBeenLastCalledWith({ path: `/academic-items/${academic.id}/main-goal`, method: 'PATCH', body: { date: null } }));
   });
   it('can remove a completed personal task selection', async () => {
-    show([{ ...task, mainGoalDate: date, completedAt: '2025-03-09T15:00:00Z' }]); render(<Tasks/>);
+    show([{ ...task, mainGoalDate: date, completedAt: '2025-03-09T15:00:00Z' }]); render(<Tasks/>); expand(task.title);
     await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Remove Main Goal' })); });
     await waitFor(() => expect(save).toHaveBeenCalledWith({ path: `/tasks/${task.id}/main-goal`, body: { date: null } }));
   });
   it('keeps failed selection unchanged and supports retry', async () => {
-    save.mockRejectedValueOnce(new Error('Network unavailable')); render(<Tasks/>);
+    save.mockRejectedValueOnce(new Error('Network unavailable')); render(<Tasks/>); expand(task.title);
     await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
     await screen.findByText('Network unavailable');
     expect(screen.queryByText('★ MAIN GOAL TODAY')).toBeNull();
@@ -56,7 +57,7 @@ describe('Main Goal selection (ToR 6)', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull()); expect(save).toHaveBeenCalledTimes(2);
   });
   it('guards repeated selection and disables unrelated writes while pending', async () => {
-    let resolve!: () => void; save.mockReturnValueOnce(new Promise<void>(done => { resolve = done; })); render(<Tasks/>);
+    let resolve!: () => void; save.mockReturnValueOnce(new Promise<void>(done => { resolve = done; })); render(<Tasks/>); expand(task.title);
     const select = screen.getByRole('button', { name: 'Make Main Goal today' });
     act(() => { fireEvent.press(select); fireEvent.press(select); fireEvent.press(screen.getByRole('button', { name: 'Complete' })); });
     expect(save).toHaveBeenCalledTimes(1); expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
@@ -66,13 +67,14 @@ describe('Main Goal selection (ToR 6)', () => {
   it('only permits a recurring task scheduled for the selected account day', () => {
     const onDay = { ...task, title: 'Daily task', due: { kind: 'date' as const, date: '2025-03-08' }, recurrence: { frequency: 'daily' as const, interval: 1 } };
     const offDay = { ...onDay, id: '20000000-0000-4000-8000-000000000002', title: 'Monday task', recurrence: { frequency: 'weekly' as const, weekdays: [1], interval: 1 } };
-    show([onDay, offDay]); render(<Tasks/>);
+    show([onDay, offDay]); render(<Tasks/>); expand('Daily task');
     expect(screen.getAllByRole('button', { name: 'Make Main Goal today' })).toHaveLength(1);
+    expand('Monday task'); expect(screen.queryByRole('button', { name: 'Make Main Goal today' })).toBeNull();
   });
   it('does not offer new selections for completed, submitted or graded work', () => {
     show([{ ...task, completedAt: '2025-03-09T15:00:00Z' }], [
       { ...academic, submissionState: 'submitted' }, { ...academic, id: '50000000-0000-4000-8000-000000000002', submissionState: 'graded' },
-    ]); render(<Tasks/>); expect(screen.queryByRole('button', { name: 'Make Main Goal today' })).toBeNull();
+    ]); render(<Tasks/>); expand(task.title); expect(screen.queryByRole('button', { name: 'Make Main Goal today' })).toBeNull();
   });
   it('renders only the refreshed server selection when replacing a Main Goal', async () => {
     show([{ ...task, mainGoalDate: date }], [academic]); const view = render(<Tasks/>);

@@ -352,7 +352,10 @@ it.each(['Tasks', 'Study Plans', 'Workload'])('requires the shared authoritative
   if (surface === 'Study Plans') {
     fireEvent.press(await screen.findByText('Show sessions'));
     fireEvent.press(screen.getAllByText('Edit session')[0]);
-  } else fireEvent.press(await screen.findByText(surface === 'Tasks' ? 'Edit' : 'Schedule task'));
+  } else if (surface === 'Tasks') {
+    fireEvent.press(await screen.findByRole('button', { name: /^Show details for / }));
+    fireEvent.press(screen.getByRole('button', { name: 'Edit' }));
+  } else fireEvent.press(await screen.findByText('Schedule task'));
   expect(screen.queryByLabelText('Title')).toBeNull(); expect(screen.queryByText('Save task')).toBeNull();
   await waitFor(() => expect(api).toHaveBeenCalledWith(`/tasks/${row.id}`, expect.objectContaining({ cache: 'no-store', headers: { Authorization: `Bearer ${owner.accessToken}` } })));
   await act(async () => { detail.resolve({ ...row, title: 'Authoritative detail' }); });
