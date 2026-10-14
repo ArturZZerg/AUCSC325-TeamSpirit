@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
@@ -28,8 +28,9 @@ function CalendarContent({ timeZone }: { timeZone: string }) {
   const [selected, setSelected] = useState(today);
   const [draft, setDraft] = useState<Partial<TaskFormValues>>();
   const tasks = useTasks(), academic = useAcademic(), events = useEvents();
-  const grid = monthGrid(month, today);
-  const days = calendarEntries({ tasks: tasks.data, academic: academic.data, events: events.data, from: grid.start, through: grid.end, timeZone });
+  const grid = useMemo(() => monthGrid(month, today), [month, today]);
+  const days = useMemo(() => calendarEntries({ tasks: tasks.data, academic: academic.data, events: events.data, from: grid.start, through: grid.end, timeZone }),
+    [tasks.data, academic.data, events.data, grid.start, grid.end, timeZone]);
   const entries = days.get(selected) ?? [];
   const loading = tasks.isLoading || academic.isLoading;
   const missing = (!tasks.data && !!tasks.error) || (!academic.data && !!academic.error);

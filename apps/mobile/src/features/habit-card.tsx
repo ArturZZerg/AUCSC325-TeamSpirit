@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { goalOccursOn, goalRecentDays, goalStreak, localDateAt, weeklyGoalProgress, type GoalDayStatus } from '@campusflow/domain';
 import { State, colors } from '@/components/ui';
@@ -26,9 +27,10 @@ export function HabitCard({ goal, disabled, pending, expanded, onToggleExpanded,
   const { date } = useTodayClock(goal.timeZone);
   const history = useGoalHistory(goal.id);
   const since = localDateAt(goal.createdAt, goal.timeZone);
-  const progress = history.data === undefined ? undefined : weeklyGoalProgress(goal, history.data, date);
-  const streak = history.data === undefined ? undefined : goalStreak(goal, history.data, date, since);
-  const days = history.data === undefined ? undefined : goalRecentDays(goal, history.data, date, since);
+  // Streak walks can cover months of goal-local days; recompute only when inputs change.
+  const { progress, streak, days } = useMemo(() => history.data === undefined ? { progress: undefined, streak: undefined, days: undefined } : {
+    progress: weeklyGoalProgress(goal, history.data, date), streak: goalStreak(goal, history.data, date, since), days: goalRecentDays(goal, history.data, date, since),
+  }, [goal, history.data, date, since]);
   const completion = history.data?.find(row => row.occurrenceKey === date);
   const onDay = goal.schedule.kind === 'weeklyTarget' || goalOccursOn({ id: goal.id, title: goal.title, schedule: goal.schedule, timeZone: goal.timeZone }, date);
   const canComplete = history.data !== undefined && !goal.pausedAt && onDay && !completion;
