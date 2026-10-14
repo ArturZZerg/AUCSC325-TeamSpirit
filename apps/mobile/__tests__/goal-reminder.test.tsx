@@ -23,6 +23,10 @@ function fill() {
   fireEvent.press(screen.getByRole('radio', { name: 'Choose date and time' }));
   fireEvent.changeText(screen.getByLabelText('Reminder date'), values.date); fireEvent.changeText(screen.getByLabelText('Reminder time'), values.time);
 }
+function openReminder() {
+  screen.queryAllByRole('button', { name: /^More options for / }).slice(0, 1).forEach(more => fireEvent.press(more));
+  fireEvent.press(screen.getByRole('button', { name: 'Set reminder' }));
+}
 describe('goal reminder boundary (ToR 3.4, 13)', () => {
   it('converts using the goal timezone and sends only reminder configuration', () => { expect(goalReminderRequest(values, goal)).toEqual(expected); });
   it('removes configuration explicitly without changing pause or schedule', () => { expect(goalReminderRequest({ ...values, mode: 'none' }, { ...goal, pausedAt: goal.createdAt }).body).toEqual({ reminder: null }); });
@@ -75,14 +79,14 @@ describe('goal reminder controls', () => {
     await act(async () => { resolve(); }); expect(close).toHaveBeenCalledTimes(1);
   });
   it('opens from Wellness and displays only refreshed configuration, including paused status', async () => {
-    const view = render(<Wellness/>); fireEvent.press(screen.getByText('Set reminder')); fill(); fireEvent.press(screen.getByText('Save reminder')); await waitFor(() => expect(screen.queryByText('Goal reminder')).toBeNull());
+    const view = render(<Wellness/>); openReminder(); fill(); fireEvent.press(screen.getByText('Save reminder')); await waitFor(() => expect(screen.queryByText('Goal reminder')).toBeNull());
     expect(screen.queryByText(/^Reminder:/)).toBeNull();
     jest.mocked(useGoals).mockReturnValue({ data: [{ ...goal, reminder: expected.body.reminder, pausedAt: goal.createdAt }], isLoading: false } as ReturnType<typeof useGoals>);
     view.rerender(<Wellness/>); expect(screen.getByText('Reminder: 2025-03-08 17:00 · Pacific/Honolulu · Inactive while paused')).toBeOnTheScreen();
-    expect(screen.getByText('Edit reminder')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Edit reminder' })).toBeOnTheScreen();
   });
   it('discards cancelled drafts when reopened', async () => {
-    render(<Wellness/>); fireEvent.press(screen.getByText('Set reminder')); fill(); fireEvent.press(screen.getByText('Cancel'));
-    fireEvent.press(screen.getByText('Set reminder')); expect(screen.getByRole('radio', { name: 'No reminder' })).toBeChecked(); expect(screen.queryByLabelText('Reminder time')).toBeNull(); expect(save).not.toHaveBeenCalled();
+    render(<Wellness/>); openReminder(); fill(); fireEvent.press(screen.getByText('Cancel'));
+    openReminder(); expect(screen.getByRole('radio', { name: 'No reminder' })).toBeChecked(); expect(screen.queryByLabelText('Reminder time')).toBeNull(); expect(save).not.toHaveBeenCalled();
   });
 });

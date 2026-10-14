@@ -143,3 +143,20 @@ Historical placement is a projection rather than a record of the former screen:
 a Tokyo October 5 occurrence shown during Edmonton October 4 can appear under
 October 5 once Edmonton October 4 becomes historical. The stored key stays
 October 5 throughout.
+
+## Habit tracker
+
+Each routine on the Wellness tab is a habit card (`src/features/habit-card.tsx`):
+a large check that records today's goal-local occurrence, the schedule, a flame
+streak badge, a seven-day strip and, for weekly targets, a progress bar. Skip,
+Pause/Resume, Edit, History, Reminder and Delete sit behind "More options".
+Paused routines are listed separately.
+
+Streak rules live in `packages/domain/src/goal-streaks.ts` and use the goal's
+own calendar: consecutive completed scheduled occurrences; skips are neutral;
+today's unrecorded occurrence never breaks a streak; weekly targets count
+consecutive weeks reaching the target, with the current week counting only once
+reached. The walk starts at goal creation (or an earlier record) and is capped
+at 730 days. The seven-day strip marks done, skipped, missed, open (today),
+rest (not scheduled) and before-creation days; weekly-target days are never
+"missed". Streaks are derived from completion history and are not stored.

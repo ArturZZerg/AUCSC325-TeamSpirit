@@ -18,7 +18,11 @@ beforeEach(() => {
   jest.mocked(useWellnessJournal).mockReturnValue({ data: { entries: [] }, isLoading: false } as unknown as ReturnType<typeof useWellnessJournal>);
   jest.mocked(useTodayClock).mockImplementation(zone => ({ date: zone === goal.timeZone ? '2025-03-08' : '2025-03-09', resumeCount: 0 }));
 });
-const press = async (name: string) => { await act(async () => { fireEvent.press(screen.getByRole('button', { name })); }); };
+const press = async (name: string) => {
+  // Secondary routine controls live behind each card's More options toggle.
+  if (!screen.queryByRole('button', { name })) screen.queryAllByRole('button', { name: /^More options for / }).slice(0, 1).forEach(more => fireEvent.press(more));
+  await act(async () => { fireEvent.press(screen.getByRole('button', { name })); });
+};
 it('opens the routine library from Wellness', async () => {
   render(<Wellness/>); await press('Browse routine ideas'); expect(router.push).toHaveBeenCalledWith('/routines');
 });
@@ -30,22 +34,22 @@ it('completes and skips using the goal day rather than the account day', async (
 });
 it('hides completion when history already records the goal day', () => {
   jest.mocked(useGoalHistory).mockReturnValue({ data: snapshotFixture().goalCompletions, isLoading: false } as ReturnType<typeof useGoalHistory>);
-  render(<Wellness/>); expect(screen.getByText('Skipped today')).toBeOnTheScreen(); expect(screen.queryByText('Complete today')).toBeNull();
+  render(<Wellness/>); expect(screen.getByText('Skipped today')).toBeOnTheScreen(); expect(screen.queryByRole('button', { name: 'Complete today' })).toBeNull();
 });
 it('does not invent completion eligibility when history is unavailable', () => {
   jest.mocked(useGoalHistory).mockReturnValue({ data: undefined, isLoading: false, error: new Error('Offline history') } as ReturnType<typeof useGoalHistory>);
-  render(<Wellness/>); expect(screen.getByText(/Couldn’t refresh/)).toBeOnTheScreen(); expect(screen.queryByText('Complete today')).toBeNull();
+  render(<Wellness/>); expect(screen.getByText(/Couldn’t refresh/)).toBeOnTheScreen(); expect(screen.queryByRole('button', { name: 'Complete today' })).toBeNull();
 });
 it.each([
   { schedule: { kind: 'weekly' as const, weekdays: [1] }, pausedAt: null },
   { schedule: { kind: 'daily' as const }, pausedAt: '2025-03-08T15:00:00Z' },
 ])('does not complete paused or off-day goals', extra => {
   jest.mocked(useGoals).mockReturnValue({ data: [{ ...goal, ...extra }], isLoading: false } as ReturnType<typeof useGoals>);
-  render(<Wellness/>); expect(screen.queryByText('Complete today')).toBeNull();
+  render(<Wellness/>); expect(screen.queryByRole('button', { name: 'Complete today' })).toBeNull();
 });
 it('permits a weekly target on any day and supports pausing and resuming', async () => {
   jest.mocked(useGoals).mockReturnValue({ data: [{ ...goal, schedule: { kind: 'weeklyTarget', target: 3 } }], isLoading: false } as ReturnType<typeof useGoals>);
-  const view = render(<Wellness/>); expect(screen.getByText('Complete today')).toBeOnTheScreen(); await press('Pause');
+  const view = render(<Wellness/>); expect(screen.getByRole('button', { name: 'Complete today' })).toBeOnTheScreen(); await press('Pause');
   expect(save).toHaveBeenCalledWith({ path: `/goals/${goal.id}/pause`, body: { paused: true } });
   jest.mocked(useGoals).mockReturnValue({ data: [{ ...goal, pausedAt: '2025-03-08T15:00:00Z' }], isLoading: false } as ReturnType<typeof useGoals>);
   view.rerender(<Wellness/>); await press('Resume'); expect(save).toHaveBeenLastCalledWith({ path: `/goals/${goal.id}/pause`, body: { paused: false } });
@@ -63,7 +67,7 @@ it('uses a fresh editor after cancelling and shows completion history with refre
 });
 it('blocks repeated writes while completion is pending', async () => {
   let resolve!: () => void; save.mockReturnValueOnce(new Promise<void>(done => { resolve = done; })); render(<Wellness/>);
-  const button = screen.getByText('Complete today'); act(() => { fireEvent.press(button); fireEvent.press(button); });
+  const button = screen.getByRole('button', { name: 'Complete today' }); act(() => { fireEvent.press(button); fireEvent.press(button); });
   expect(save).toHaveBeenCalledTimes(1); expect(screen.getByRole('button', { name: 'Add goal' })).toBeDisabled();
   await act(async () => { resolve(); }); expect(screen.getByRole('button', { name: 'Add goal' })).toBeEnabled();
 });

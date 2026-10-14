@@ -101,7 +101,7 @@ describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
 
   it('preserves an active goal draft during rerenders but clears it for a new login of the same account', () => {
     mockRoute = 'wellness'; const view = render(<TabsLayout/>);
-    fireEvent.press(screen.getByText('Edit goal'));
+    fireEvent.press(screen.getByRole('button', { name: /^More options for / })); fireEvent.press(screen.getByRole('button', { name: 'Edit goal' }));
     fireEvent.changeText(screen.getByLabelText('Goal title'), 'Private goal draft');
     view.rerender(<TabsLayout/>);
     expect(screen.getByLabelText('Goal title')).toHaveDisplayValue('Private goal draft');
@@ -113,7 +113,7 @@ describe('retained tab session boundaries (ToR 7, 15, 19)', () => {
 
   it('dismisses goal editor drafts when the account changes', () => {
     mockRoute = 'wellness'; render(<TabsLayout/>);
-    fireEvent.press(screen.getByText('Edit goal'));
+    fireEvent.press(screen.getByRole('button', { name: /^More options for / })); fireEvent.press(screen.getByRole('button', { name: 'Edit goal' }));
     fireEvent.changeText(screen.getByLabelText('Goal title'), 'Private goal draft');
     session(second);
     expect(screen.queryByLabelText('Goal title')).toBeNull();
