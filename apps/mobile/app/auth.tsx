@@ -3,7 +3,7 @@ import { authCapabilitySchema, authResultSchema } from '@campusflow/contracts';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, ApiError, json } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
@@ -14,6 +14,7 @@ export default function Auth() {
   const { next } = useLocalSearchParams<{ next?: string }>();
   const router = useRouter(), navigation = useNavigation();
   const [registering, setRegistering] = useState(false);
+  const passwordInput = useRef<TextInput>(null);
   const [message, setMessage] = useState<string>();
   const [capability, setCapability] = useState<'preview' | 'verified' | 'closed' | 'loading' | 'error'>('loading');
   const [capabilityRetry, setCapabilityRetry] = useState(0), [verification, setVerification] = useState<{ codeRequested: boolean } | null>(null);
@@ -76,9 +77,11 @@ export default function Auth() {
             <Button title="Continue to verify email" onPress={openVerification}/>
             <Button title="Back to sign in" tone="plain" onPress={() => { setVerification(null); setRegistering(false); setMessage(undefined); }}/>
           </> : <>
-          <Controller control={control} name="email" render={({ field }) => <Field testID="auth-email" label="Email" value={field.value} onChangeText={field.onChange} placeholder="you@ualberta.ca" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} editable={!pending}/>}/>
+          <Controller control={control} name="email" render={({ field }) => <Field testID="auth-email" label="Email" value={field.value} onChangeText={field.onChange} placeholder="you@ualberta.ca" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} editable={!pending}
+            returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => passwordInput.current?.focus()}/>}/>
           {registering && <Controller control={control} name="displayName" render={({ field }) => <Field label="Name" value={field.value} onChangeText={field.onChange} placeholder="Your name" editable={!pending}/>}/>}
-          <Controller control={control} name="password" render={({ field }) => <Field testID="auth-password" label="Password" value={field.value} onChangeText={field.onChange} placeholder={registering ? 'At least 12 characters' : 'Your password'} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!pending}/>}/>
+          <Controller control={control} name="password" render={({ field }) => <Field testID="auth-password" label="Password" value={field.value} onChangeText={field.onChange} placeholder={registering ? 'At least 12 characters' : 'Your password'} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!pending}
+            inputRef={passwordInput} returnKeyType={registering ? 'done' : 'go'} onSubmitEditing={() => { if (!registering) void handleSubmit(submit)(); }}/>}/>
           {registering && <Controller control={control} name="timeZone" render={({ field }) => <Field label="Time zone" value={field.value} onChangeText={field.onChange} placeholder="America/Edmonton" autoCapitalize="none" autoCorrect={false} editable={!pending}/>}/>}
           {registering && <Text style={styles.body}>{capability === 'preview' ? 'Preview accounts don’t verify email. Use a test address.' : capability === 'verified' ? 'Verify your email before signing in. Your student data stays private.' : capability === 'closed' ? 'New accounts are currently unavailable. Existing users can still sign in.' : capability === 'error' ? 'Couldn’t check signup availability. Retry or sign in to an existing account.' : 'Checking signup availability…'}</Text>}
           {registering && capability === 'error' && <Button title="Check again" tone="plain" onPress={() => setCapabilityRetry(value => value + 1)}/>}

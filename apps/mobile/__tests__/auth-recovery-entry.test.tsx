@@ -38,3 +38,9 @@ it('keeps Help unavailable during sign-in, then permits it after a failed reques
   fireEvent.press(screen.getByRole('button', { name: 'Help & data' })); expect(mockRouter.push).toHaveBeenCalledWith('/help');
   expect(screen.getByLabelText('Password')).toHaveDisplayValue('');
 });
+it('signs in from the password keyboard Return key without tapping the button', async () => {
+  render(<Auth/>); await act(async () => {});
+  fireEvent.changeText(screen.getByLabelText('Email'), 'return-key@example.test'); fireEvent.changeText(screen.getByLabelText('Password'), 'a-long-test-password');
+  await act(async () => { fireEvent(screen.getByLabelText('Password'), 'submitEditing'); });
+  expect(api).toHaveBeenCalledWith('/auth/login', expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'return-key@example.test', password: 'a-long-test-password' }) }));
+});
