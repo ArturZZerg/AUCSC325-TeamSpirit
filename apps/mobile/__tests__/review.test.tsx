@@ -65,7 +65,7 @@ describe('Weekly review interactions', () => {
     render(<ReviewScreen/>); fireEvent.press(screen.getByText('Open Tasks')); expect(mockPush).toHaveBeenLastCalledWith('/tasks');
     fireEvent.press(screen.getByText('Open Wellness')); expect(mockPush).toHaveBeenLastCalledWith('/wellness');
     fireEvent.press(screen.getByText('Open Coursework')); expect(mockPush).toHaveBeenLastCalledWith('/academics');
-    fireEvent.press(screen.getByText('Back to Today')); expect(mockReplace).toHaveBeenCalledWith('/today');
+    fireEvent.press(screen.getByRole('button', { name: 'Back to Today' })); expect(mockReplace).toHaveBeenCalledWith('/today');
   });
   it('allows a student to expand a longer completion list', () => {
     const snapshot = fixture(); snapshot.personalTasks = Array.from({ length: 7 }, (_, i) => ({ ...snapshot.personalTasks[0], id: `20000000-0000-4000-8000-00000000000${i + 1}`, title: `Finished task ${i + 1}` }));

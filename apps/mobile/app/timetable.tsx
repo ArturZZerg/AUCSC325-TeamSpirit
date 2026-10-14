@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ClassSchedule } from '@campusflow/contracts';
 import { addCalendarDays, classConflicts, classesOnDay, dayBounds } from '@campusflow/domain';
-import { Button, Card, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Screen, State, colors, BackLink } from '@/components/ui';
 import { ClassEditor, classDays, classPalette } from '@/features/class-editor';
 import { useAction, useClasses } from '@/features/queries';
 import { calendarLabel, weekStart } from '@/features/weekly-planner';
@@ -40,7 +40,7 @@ function TimetableContent({ timeZone }: { timeZone: string }) {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
     aria-hidden={editing !== undefined} accessibilityElementsHidden={editing !== undefined} importantForAccessibility={editing !== undefined ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>CLASS TIMETABLE</Text></View>
+    <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>CLASS TIMETABLE</Text></View>
     <View style={styles.hero}><Ionicons name="school-outline" size={28} color={colors.moss}/>
       <Text style={styles.title}>Know where to be.</Text><Text style={styles.copy}>Your classes, rooms and weekly rhythm in one place.</Text></View>
     <Button title="Add a class" disabled={!!removing} onPress={() => setEditing(null)}/>

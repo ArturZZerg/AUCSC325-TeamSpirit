@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, Scrol
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { idSchema, updateStudyPlanSchema, type StudyPlan } from '@campusflow/contracts';
-import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Field, Screen, State, colors, BackLink } from '@/components/ui';
 import { useAction, useStudyPlans } from '@/features/queries';
 import { filterStudyPlans, sessionNeedsMoving, studyPlanProgress, type StudyPlanView } from '@/features/preparation-progress';
 import { useTodayClock } from '@/features/today-clock';
@@ -60,7 +60,7 @@ function StudyPlansContent() {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={plans.isRefetching} onRefresh={refresh}/>}>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" disabled={disabled} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>MY STUDY PLANS</Text></View>
+    <View style={styles.heading}><BackLink to="Today" disabled={disabled} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>MY STUDY PLANS</Text></View>
     <Text style={styles.title}>Make steady progress.</Text><Text style={styles.meta}>Your preparation, one session at a time.</Text>
     {plans.data && <View style={styles.summary}><Metric value={active.length} label="active plans"/><Metric value={openCount} label="sessions left"/><Metric value={earlierCount} label="to revisit"/></View>}
     <Button title="Plan from coursework" tone="plain" disabled={disabled} onPress={() => router.push('/academics')}/>

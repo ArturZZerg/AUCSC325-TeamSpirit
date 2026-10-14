@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { addCalendarDays } from '@campusflow/domain';
-import { Button, Card, Screen, colors } from '@/components/ui';
+import { Button, Card, Screen, colors, BackLink } from '@/components/ui';
 import { useFocusHistory } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { weekStart } from '@/features/weekly-planner';
@@ -21,7 +21,7 @@ function HistoryContent({ timeZone }: { timeZone: string }) {
   const rows = history.data?.sessions;
   const format = (instant: string) => new Intl.DateTimeFormat(undefined, { timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(instant));
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content}>
-    <Button title="Back to focus" tone="plain" onPress={() => router.replace('/focus')}/>
+    <BackLink to="focus" onPress={() => router.replace('/focus')}/>
     <Text style={styles.kicker}>YOUR STUDY TIME</Text><Text style={styles.title}>My focus history</Text>
     <Text style={styles.meta}>A record of the time you chose to save. Task completion stays separate.</Text>
     <Button title="Weekly study report" tone="plain" onPress={() => router.push('/study-report')}/>

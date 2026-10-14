@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { addCalendarDays } from '@campusflow/domain';
-import { Button, Card, Field, Screen, colors } from '@/components/ui';
+import { Button, Card, Field, Screen, colors, BackLink } from '@/components/ui';
 import { useWellnessJournal, useWellnessJournalAction } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { calendarLabel } from '@/features/weekly-planner';
@@ -36,7 +36,7 @@ function JournalContent({ accountId, timeZone }: { accountId: string; timeZone: 
   const window = (end?: string) => { setAnchor(end); setSelected(undefined); setSearch(''); setMessage(undefined); setConfirmed(undefined); };
   return <Screen safeArea><View style={styles.fill} aria-hidden={!!editing} accessibilityElementsHidden={!!editing} importantForAccessibility={editing ? 'no-hide-descendants' : 'auto'}>
     <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/>}>
-      <View style={styles.heading}><Button title="Back to Wellness" tone="plain" disabled={action.isPending} onPress={() => router.replace('/wellness')}/><Text style={styles.kicker}>CHECK-IN JOURNAL</Text></View>
+      <View style={styles.heading}><BackLink to="Wellness" disabled={action.isPending} onPress={() => router.replace('/wellness')}/><Text style={styles.kicker}>CHECK-IN JOURNAL</Text></View>
       <Text style={styles.title}>A moment for yourself.</Text><Text style={styles.copy}>Keep a short record of how your days feel. Choose what to record and leave the rest blank.</Text>
       {message && <Text accessibilityRole="alert" style={styles.notice}>{message}</Text>}
       {action.cacheWarning && <Card><Text accessibilityRole="alert" style={styles.error}>{action.cacheWarning}</Text>

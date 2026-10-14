@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { focusSessionSchema, idSchema } from '@campusflow/contracts';
-import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Field, Screen, State, colors, BackLink } from '@/components/ui';
 import { useAction, useTasks } from '@/features/queries';
 import { focusClockLabel } from '@/features/focus-timer';
 import { useFocusTimer } from '@/features/use-focus-timer';
@@ -94,7 +94,7 @@ function FocusContent() {
   };
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     accessibilityElementsHidden={confirmEnd} importantForAccessibility={confirmEnd ? 'no-hide-descendants' : 'auto'} aria-hidden={confirmEnd}>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" disabled={saving} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>FOCUS SPACE</Text></View>
+    <View style={styles.heading}><BackLink to="Today" disabled={saving} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>FOCUS SPACE</Text></View>
     <Text style={styles.title}>One thing at a time.</Text>
     <Text style={styles.meta}>Give yourself a little space to make progress.</Text>
     <Button title="My focus history" tone="plain" disabled={saving} onPress={() => router.push('/focus-history')}/>

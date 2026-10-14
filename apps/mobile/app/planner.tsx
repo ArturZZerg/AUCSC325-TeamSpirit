@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { addCalendarDays } from '@campusflow/domain';
-import { Button, Card, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Screen, State, colors, BackLink } from '@/components/ui';
 import { usePlanningSnapshot } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { buildPlannerWeek, calendarLabel, isFinished, weekStart } from '@/features/weekly-planner';
@@ -35,7 +35,7 @@ function PlannerContent() {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
     aria-hidden={!!studyDraft} accessibilityElementsHidden={!!studyDraft} importantForAccessibility={studyDraft ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
-    <View style={styles.top}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/>
+    <View style={styles.top}><BackLink to="Today" onPress={() => router.replace('/today')}/>
       <Text style={styles.kicker}>PLAN AHEAD</Text></View>
     <Text style={styles.title}>Your week, in view.</Text>
     <Text style={styles.muted}>See busy days before they sneak up.</Text>

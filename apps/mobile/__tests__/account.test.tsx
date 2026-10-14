@@ -54,7 +54,7 @@ it('blocks duplicate deletion and dismissal, then signs out only after acknowled
   render(<AccountScreen/>); confirm();
   await act(async () => fireEvent.press(screen.getByText('Permanently delete my account')));
   fireEvent.press(screen.getByText('Deleting account…')); expect(api).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('Keep my account')).toBeDisabled(); expect(screen.getByText('Back to Settings')).toBeDisabled();
+  expect(screen.getByText('Keep my account')).toBeDisabled(); expect(screen.getByRole('button', { name: 'Back to Settings' })).toBeDisabled();
   const preventDefault = jest.fn(); mockBeforeRemove({ preventDefault }); expect(preventDefault).toHaveBeenCalled(); expect(mockSignOut).not.toHaveBeenCalled();
   await act(async () => finish({ deleted: true })); expect(mockSignOut).toHaveBeenCalledWith({ deleted: true });
   preventDefault.mockClear(); mockBeforeRemove({ preventDefault }); expect(preventDefault).not.toHaveBeenCalled();

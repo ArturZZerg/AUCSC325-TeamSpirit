@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { idSchema } from '@campusflow/contracts';
 import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Field, Screen, State, colors, BackLink } from '@/components/ui';
 import { useAcademic, useEvents, useGoals, usePreferences, useReminders, useTasks } from '@/features/queries';
 import { reminderRows, type ReminderRow, type ReminderSubject } from '@/features/reminder-center';
 import { TaskEditor } from '@/features/task-editor';
@@ -80,7 +80,7 @@ function ReminderCenter({ owner, params }: { owner: Session; params: { reminderI
     </Card>;
   }
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>YOUR REMINDERS</Text></View>
+    <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>YOUR REMINDERS</Text></View>
     <Text accessibilityRole="header" style={styles.title}>A nudge, then a next step.</Text>
     <Text style={styles.copy}>Review saved reminders and open the work behind them. Times reflect your account zone and available quiet-hour settings.</Text>
     <View style={styles.actions}><View style={styles.action}><Button title={refreshing ? 'Refreshing…' : 'Refresh reminders'} disabled={refreshing} onPress={refresh}/></View>

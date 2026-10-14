@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Field, Screen, State, colors, BackLink } from '@/components/ui';
 import { useAcademic, useStudyPlans, useTasks } from '@/features/queries';
 import { filterWorkload, workloadInbox, type WorkloadRow, type WorkloadSection, type WorkloadView } from '@/features/workload-inbox';
 import { useTodayClock } from '@/features/today-clock';
@@ -51,7 +51,7 @@ function WorkloadContent() {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={tasks.isRefetching || academic.isRefetching || plans.isRefetching} onRefresh={refresh}/> }>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>WORKLOAD INBOX</Text></View>
+    <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>WORKLOAD INBOX</Text></View>
     <Text style={styles.title}>Clear your next step.</Text><Text style={styles.meta}>Bring loose tasks and coursework into a plan you can follow.</Text>
     {available && <View style={styles.summary}>
       <Metric value={inbox.attention} label="to revisit"/><Metric value={tasks.data === undefined ? undefined : inbox.unscheduled} label="tasks to schedule"/>

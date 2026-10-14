@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Button, Card, Field, Screen, colors } from '@/components/ui';
+import { Button, Card, Field, Screen, colors, BackLink } from '@/components/ui';
 import { useGoals } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { GoalEditor } from '@/features/goal-editor';
@@ -40,7 +40,7 @@ function RoutinesContent({ timeZone }: { timeZone: string }) {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={editing !== undefined} accessibilityElementsHidden={editing !== undefined} importantForAccessibility={editing !== undefined ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={!!goals.isRefetching} onRefresh={() => { void goals.refetch(); }}/>}>
-    <View style={styles.heading}><Button title="Back to Wellness" tone="plain" onPress={() => router.replace('/wellness')}/><Text style={styles.kicker}>ROUTINE LIBRARY</Text></View>
+    <View style={styles.heading}><BackLink to="Wellness" onPress={() => router.replace('/wellness')}/><Text style={styles.kicker}>ROUTINE LIBRARY</Text></View>
     <Text style={styles.title}>{'Small steps.\nYour rhythm.'}</Text>
     <Text style={styles.copy}>Start with an idea that fits your week. Make the title and schedule your own before adding it to your routines.</Text>
     <View style={styles.tip}><Ionicons name="sparkles-outline" size={20} color={colors.moss}/><Text style={styles.tipText}>One routine is enough to start. You can pause it whenever life gets busy.</Text></View>

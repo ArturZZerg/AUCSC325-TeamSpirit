@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { manualAcademicSource } from '@campusflow/contracts';
 import { useRouter } from 'expo-router';
 import { localDateAt } from '@campusflow/domain';
-import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Field, Screen, State, colors, BackLink } from '@/components/ui';
 import { useAcademic, useAction, useCourses, usePlanningSnapshot } from '@/features/queries';
 import { academicAttention, academicFinished, academicOverview, type AcademicView } from '@/features/academic-overview';
 import { AcademicReminderEditor } from '@/features/academic-reminder-editor';
@@ -66,7 +66,7 @@ function AcademicsContent() {
   const fixtureData = academic.data?.some(item => item.source.includes('fixture'));
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={academic.isRefetching || courses.isRefetching || snapshot.isRefetching} onRefresh={refresh}/> }>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>COURSEWORK</Text></View>
+    <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>COURSEWORK</Text></View>
     <Text style={styles.title}>Stay ahead of deadlines.</Text>
     <Text style={styles.meta}>Find your next assignment and make time to work on it.</Text>
     <Button title="Add coursework" disabled={disabled} onPress={() => { setSavedMessage(undefined); setEditing(null); }}/>

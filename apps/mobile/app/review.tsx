@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { addCalendarDays } from '@campusflow/domain';
-import { Button, Card, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Screen, State, colors, BackLink } from '@/components/ui';
 import { usePlanningSnapshot } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { calendarLabel, weekStart } from '@/features/weekly-planner';
@@ -25,7 +25,7 @@ function ReviewContent({ accountId, timeZone }: { accountId: string; timeZone: s
   const finished = expandedWeek === start ? review?.taskCompletions : review?.taskCompletions.slice(0, 6);
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/>}>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>WEEKLY REVIEW</Text></View>
+    <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>WEEKLY REVIEW</Text></View>
     <Text style={styles.title}>{'A little progress\nadds up.'}</Text>
     <Text style={styles.copy}>See the work you’ve recorded, then choose a small step for the week ahead.</Text>
     <Button title="See my study time" tone="plain" onPress={() => router.push('/study-report')}/>
