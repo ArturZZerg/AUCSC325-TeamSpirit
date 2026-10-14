@@ -50,11 +50,12 @@ are 69px high. Frames are local in
 loopback server are stopped. The recovery screen has no console errors; ordinary
 sign-in's capability fetch reports the expected absent-API connection error.
 Browser zoom does not establish native font scaling, system insets or lifecycle.
-Actual iOS warm/cold/owned-cache recovery remains pending. Android evidence follows.
+Actual iOS warm/cold/owned-cache recovery now passes on the recorded sources below;
+the complete native gate still requires logout acceptance. Android evidence follows.
 
 The first feature native run (`bf1aa34`, `38472721279`) fails the original first
 Help assertion before recovery scenarios. Standard PR/push checks pass. The feature
-now inherits PR #83's split-session native-link diagnostic (`50a2546`), retaining
+now inherits PR #83's corrected native storage gate (`6c36838`), retaining
 the installed app/UUID and every original public/private requirement. A passing
 fresh exact-head native run is required; later correct Help frames alone do not
 accept the earlier timed-out assertion.
@@ -66,6 +67,25 @@ storage scenarios. Public cold Help and unknown-link phases now each use a separ
 driver session after required termination, without an intervening app launch or
 command retry. All four public results/JUnit reports and private acceptance remain
 required; no successful later screenshot can waive a failed command.
+
+## iOS simulator verification, 2026-10-13
+
+At `7160802` (`38503469756`), all four required public JUnit flows pass with zero
+failures, including original first Help/Back/search/Account/cold behavior and both
+warm/cold unavailable links. Reviewed actual warm/cold recovery images show readable
+copy and both fixed actions. Ordinary native sign-in captures exactly one task
+confirmed independently through the API. Cold encrypted-session/owned SQLite
+restoration succeeds with no API listener; the unavailable-link action returns to
+the same cached task. Private screen contents are not uploaded.
+
+The full run fails later during sign-out testing because its bare Settings
+selector does not match the installed iOS tab's `Settings, tab, 5 of 5` label.
+Process cleanup passes, but logout revocation/cache removal and final signed-out
+startup are not accepted. The feature now inherits the exact tab selector,
+verified Maestro 2.11.0/flat-artifact privacy handling and a bounded 60-minute
+whole-job budget. All application assertions remain required. These integration
+changes leave feature application sources identical to the exercised `7160802`
+and Android artifacts; fresh exact-head full native acceptance remains mandatory.
 
 ## Android emulator verification, 2026-10-13
 

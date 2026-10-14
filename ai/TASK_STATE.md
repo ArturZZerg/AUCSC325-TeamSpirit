@@ -180,13 +180,16 @@ clear recovery path. Production hosting/email, contact/operator details,
 signing/privacy and physical acceptance remain pending; source stays local.
 
 Next feature branch `codex/native-link-recovery` implements branded unavailable-link
-recovery atop PR #83's `50a2546` bounded system-dialog/cold-link diagnostic. Both prior
+recovery atop PR #83's `6c36838` corrected accessible-tab/driver/storage gate. Both prior
 `ab46128` and feature `bf1aa34` native runs fail the original Help assertion before
 new recovery/private scenarios, despite passing standard checks. PR #84 is draft;
 fresh exact-head standard/native acceptance is required. `e787af9` subsequently
 passes first Help/Back/search/Account before a cold-link OS timeout; fresh Android
 warm/cold/malformed/offline and native 320px/150% text acceptance pass with data
-preserved. The rebased feature retains all recovery assertions in required cold
+preserved. `7160802` then passes all four iOS public flows, native API-confirmed
+capture and owned cold offline recovery, but fails the bare Settings selector
+before logout; process cleanup passes. Reviewed native warm/cold frames are
+readable. The rebased feature retains all recovery assertions in required cold
 phases; application sources match the exercised Android artifacts. The feature
 uses fixed Today/sign-in/Help recovery actions after restoration, ignores incoming
 path/query values, and permits only the exact generic `+not-found` public leaf.
