@@ -55,8 +55,10 @@ describe('quick add parsing', () => {
 
   it('builds a valid create request in the account zone, including across DST', () => {
     expect(request('Essay due fri 5pm #uni')).toMatchObject({ title: 'Essay', category: 'university', due: { kind: 'instant', at: '2026-10-16T23:00:00Z' } });
-    // Edmonton falls back on 1 Nov 2026: 9am is 16:00Z (MST) rather than 15:00Z.
-    expect(request('Clocks nov 2 9am')).toMatchObject({ scheduled: { kind: 'instant', at: '2026-11-02T16:00:00Z' } });
+    // New York falls back on 1 Nov 2026: 9am is 14:00Z (EST) rather than 13:00Z. (Edmonton's
+    // future rules differ between tz-data releases, so it isn't used for this boundary.)
+    expect(request('Clocks nov 2 9am', 'America/New_York')).toMatchObject({ scheduled: { kind: 'instant', at: '2026-11-02T14:00:00Z' } });
+    expect(request('Clocks oct 31 9am', 'America/New_York')).toMatchObject({ scheduled: { kind: 'instant', at: '2026-10-31T13:00:00Z' } });
     expect(() => request('#uni !high')).toThrow(/Enter a title/);
   });
 });
