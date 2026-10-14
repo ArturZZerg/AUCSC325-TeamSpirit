@@ -8,8 +8,9 @@ Repeated blind retries do not resolve that boundary.
 
 Download the exact existing main simulator product from run `38612589080`, verify
 its source, signature and identity, and install it on a fresh job-owned simulator.
-Generate a separate minimal XCTest host using the existing CocoaPods xcodeproj
-tooling. CampusFlow's application binary, JS, source, entitlement namespace and
+Generate a separate minimal XCTest host using the runner's default Ruby and its
+existing CocoaPods xcodeproj gem, with explicit runtime/gem capability checks.
+CampusFlow's application binary, JS, source, entitlement namespace and
 API configuration are not modified. Hash both executable and JS before/after.
 
 The public-only test requires the ordinary sign-in screen, an active app, then the first

@@ -34,6 +34,20 @@ and recorded study totals, preserving all prior cleanup assertions. Source tests
 pass 1,140 mobile cases and 33 iOS tooling cases. Real execution of the additional
 iOS cases is still required. No physical device or server source is operated on.
 
+Diagnostic PR #86 is published at `0337bbaec1aa1c370e9dc0563c5ee24eaf1a3b93`.
+Local 28-case iOS tooling, lint, YAML and diff checks pass. Standard runs
+`38620875045` / `38620866592` pass. Comparison `38620875306` fails before test
+generation: the guessed Homebrew Ruby executable is absent. Artifact source,
+installation, extracted/installed executable and JS byte checks, and owned
+simulator shutdown pass. No application URL/tap evidence is produced. Use the
+runner's documented default Ruby and require its existing xcodeproj gem rather
+than constructing a Homebrew interpreter/gem path. Actual compilation remains
+required. Native baseline `38620875376` is still building; preserve it before
+publishing this correction. A transient automatic approval-review usage failure
+has recovered without bypass. The owner now explicitly prioritizes finishing
+the three open PRs; complete recovery #84 and day-review #85 in dependency order,
+and retire/close the temporary #86 after its evidence informs the permanent fix.
+
 The entries below retain earlier investigations; they are historical rather
 than the current merge/acceptance state.
 

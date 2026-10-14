@@ -57,10 +57,10 @@ jobs:
           cmp artifacts/ios-input-comparison/app-before.sha256 artifacts/ios-input-comparison/installed-before.sha256
       - name: Generate the isolated XCTest project with existing CocoaPods tooling
         run: |
-          export GEM_HOME="$(brew --prefix cocoapods)/libexec"
-          export GEM_PATH="$GEM_HOME"
-          "$(brew --prefix ruby)/bin/ruby" -c scripts/ios-input-comparison.rb
-          "$(brew --prefix ruby)/bin/ruby" scripts/ios-input-comparison.rb
+          ruby --version
+          ruby -r xcodeproj -e 'puts "Existing xcodeproj: #{Gem.loaded_specs.fetch("xcodeproj").version}"'
+          ruby -c scripts/ios-input-comparison.rb
+          ruby scripts/ios-input-comparison.rb
       - name: Compare public URL and tap input with a required unchanged app process
         run: |
           set -euo pipefail
