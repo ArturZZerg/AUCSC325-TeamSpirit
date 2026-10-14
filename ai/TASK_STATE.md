@@ -2,6 +2,19 @@
 
 Updated: 2026-10-13
 
+Current iOS correction: `50a2546`/`38503168076` passes three public JUnit flows,
+native ordinary login/API capture and cold encrypted-session/SQLite restoration,
+then is cancelled at the 40-minute workflow boundary during logout testing.
+Recovery `7160802`/`38503469756` passes four public flows and owned offline recovery
+but fails the bare Settings selector before sign-out; process cleanup passes.
+Installed React Navigation's iOS label is `Settings, tab, 5 of 5`, and Maestro
+matches the whole label. Cleanup now targets that exact tab once; fixed-label
+booleans remain the only private hierarchy output. The full job budget is 60
+minutes, with screen/API/cache/logout assertions preserved. Verified Maestro
+2.11.0/flat-artifact compatibility is integrated from isolated `d3ec781` (2,132
+standard CI cases pass; its separate native comparison remains live). Fresh
+exact-head acceptance remains required; no logout or production readiness claim.
+
 Prepared native-tool update: official Maestro 2.11.0 ZIP/version/test-help checks
 pass locally with Java 17 and verified release SHA-256. Its upstream changes cover
 stop/start timeouts and post-scroll tap positions relevant to observed failures;

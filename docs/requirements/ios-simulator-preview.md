@@ -21,7 +21,7 @@ test tool; it does not deploy CampusFlow to the owner's server.
 | IOS-PREVIEW-03 | Avoid unused sensitive capability prompts and arbitrary insecure HTTP access | Native Info.plist gate; installed Expo plugin introspection; Face ID/global cleartext regressions |
 | IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public-link-request.yaml` then `ios-public.yaml` on the same installed app/UUID; both CLI results, JUnit and screenshots |
 | IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | `ios-public.yaml` must finish by terminating the app, then `ios-public-cold.yaml` opens the link without launching first; all CLI/JUnit results and cold Help screenshot required |
-| IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 40-minute timeout and seven-day artifacts |
+| IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 60-minute whole-job budget and seven-day artifacts |
 | IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
 | IOS-STORAGE-01 | Verify the actual app's local host signature and compiled simulator Keychain capabilities in every architecture, without invented team IDs or shared groups | Strict signature verification; actual Mach-O `__TEXT,__entitlements` extraction; negative host/device/slice artifact tests |
 | IOS-STORAGE-02 | Ordinary native sign-in writes Secure Store and Today capture creates exactly one date-scheduled task through the real API | Disposable PostgreSQL 17 and NestJS preview API; native flow plus independent contract-validated API read |
@@ -87,8 +87,9 @@ The [upstream changes since 2.6.1](https://github.com/mobile-dev-inc/Maestro/blo
 include stop/start timeout handling, tap positions after scrolling and hierarchy
 retrieval fixes relevant to observed failures. This is not a confirmed diagnosis.
 The verified local ZIP runs version/test-help commands with installed Java 17;
-no local device command is used. Current remote `50a2546`/`7160802` attempts still
-use 2.6.1 and must reach terminal state before replacement.
+no local device command is used. The separate exact-source comparison at `d3ec781`
+keeps the original 2.6.1 attempts intact; its standard CI passes all 2,132 tests
+and native testing is live.
 
 Newer driver bundles use flat `commands.json` and capture additional step images,
 hierarchies and device logs. Private output roots remain inside the restrictive
@@ -99,6 +100,24 @@ Two new file-based regressions prove private contents are excluded and malformed
 JSON does not trigger a raw/manifest fallback. Twenty-two local tooling/privacy
 cases, lint and YAML checks pass. Required public/storage assertions are unchanged;
 fresh exact-head native acceptance of the updated driver remains required.
+
+The `50a2546` native run (`38503168076`) passes all three public JUnit flows
+(83/53/14 seconds), ordinary native sign-in/API-confirmed capture and cold session/
+SQLite restoration with no API listener. The workflow is cancelled at its
+40-minute boundary during sign-out testing, leaving logout unverified and no
+completed storage record. Boot required its second fresh UUID. The `7160802`
+recovery run (`38503469756`) passes all four public flows and the same private
+capture/offline checks, including owned recovery, then fails the bare Settings
+selector before sign-out. Its sanitized process-cleanup result passes.
+
+The installed five-tab navigator gives iOS the label `Settings, tab, 5 of 5`;
+the pinned driver's text filter matches the whole label. Cleanup now taps that
+exact accessible tab once. Fixed Settings/tab/sign-out presence booleans improve
+diagnosis without exposing account content. The whole job budget is 60 minutes
+to accommodate provisioning, separate public driver phases and all private
+stages; the existing screen assertion bounds and every API/cache/logout check
+remain required. Neither cancelled/failed run accepts logout. Fresh exact-head
+standard/native success is required before merge.
 
 At `019f64c` (`38460731027`), build, effective simulator capabilities, healthy
 launch and the public flow pass (120 seconds, zero failures). Ordinary native

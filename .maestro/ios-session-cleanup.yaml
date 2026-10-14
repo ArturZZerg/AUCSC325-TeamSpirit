@@ -5,7 +5,7 @@ name: iOS online sign-out and private cleanup
 - extendedWaitUntil:
     visible: Your daily flow
     timeout: 30000
-- tapOn: Settings
+- tapOn: Settings, tab, 5 of 5
 - scrollUntilVisible:
     element:
       text: Sign out

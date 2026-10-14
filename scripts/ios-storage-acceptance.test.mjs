@@ -69,7 +69,7 @@ test('private screen diagnostics output fixed label-presence booleans only', () 
   const result = privateViewSummary({ children: [{ attributes: { text: 'Your daily flow', id: 'today-add-task' } },
     { attributes: { text: 'private@example.test', input: 'secret-password', token: 'private-token' } }] });
   assert.deepEqual(result, { auth: false, today: true, editor: false, capture: true, titleInput: false, save: false, cleanupRetry: false,
-    savePassword: false, notNow: false, passwords: false });
+    savePassword: false, notNow: false, passwords: false, settingsTab: false, settings: false, signOut: false });
   assert.ok(Object.values(result).every(value => typeof value === 'boolean'));
   assert.ok(!JSON.stringify(result).includes('private'));
   const overlay = privateViewSummary({ children: [{ attributes: { text: 'Save Password' } },
@@ -78,6 +78,12 @@ test('private screen diagnostics output fixed label-presence booleans only', () 
   assert.equal(overlay.notNow, true);
   assert.equal(overlay.passwords, false);
   assert.ok(!JSON.stringify(overlay).includes('secret-password'));
+  const settings = privateViewSummary({ children: [{ attributes: { accessibilityText: 'Settings, tab, 5 of 5' } },
+    { attributes: { text: 'Settings' } }, { attributes: { text: 'Sign out', email: 'private@example.test' } }] });
+  assert.equal(settings.settingsTab, true);
+  assert.equal(settings.settings, true);
+  assert.equal(settings.signOut, true);
+  assert.ok(!JSON.stringify(settings).includes('private@example.test'));
 });
 
 const task = { id: '11111111-2222-4333-8444-555555555555', title: 'Synthetic study', description: null,
