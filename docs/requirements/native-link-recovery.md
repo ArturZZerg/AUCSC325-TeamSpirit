@@ -51,3 +51,10 @@ loopback server are stopped. The recovery screen has no console errors; ordinary
 sign-in's capability fetch reports the expected absent-API connection error.
 Browser zoom does not establish native font scaling, system insets or lifecycle.
 Actual native warm/cold/owned-cache recovery remains pending.
+
+The first feature native run (`bf1aa34`, `38472721279`) fails the original first
+Help assertion before recovery scenarios. Standard PR/push checks pass. The feature
+now inherits PR #83's split-session first-link diagnostic (`854b846`), retaining
+the installed app/UUID and every original public/private requirement. A passing
+fresh exact-head native run is required; later correct Help frames alone do not
+accept the earlier timed-out assertion.

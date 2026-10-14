@@ -180,9 +180,10 @@ clear recovery path. Production hosting/email, contact/operator details,
 signing/privacy and physical acceptance remain pending; source stays local.
 
 Next feature branch `codex/native-link-recovery` implements branded unavailable-link
-recovery atop PR #83's corrected `ab46128` system-prompt flow. Its previous
-`a85fa8e` native run failed with preserved `Not Now` evidence; fresh exact-head
-standard/native checks are running. The feature
+recovery atop PR #83's `854b846` split-session first-link diagnostic. Both prior
+`ab46128` and feature `bf1aa34` native runs fail the original Help assertion before
+new recovery/private scenarios, despite passing standard checks. PR #84 is draft;
+fresh exact-head standard/native acceptance is required. The feature
 uses fixed Today/sign-in/Help recovery actions after restoration, ignores incoming
 path/query values, and permits only the exact generic `+not-found` public leaf.
 Known private routes and Account continuation remain guarded. Twelve new behavior
@@ -192,7 +193,7 @@ to the same cached task with the API absent. Full local checks and fresh web exp
 pass (256 API database cases skipped locally). Actual browser recovery/Help and
 keyboard sign-in pass; reviewed 320px/150%-zoom/1280px frames show no horizontal
 overflow. The task-owned browser/server are stopped. Native evidence, review and
-feature PR remain pending. See
+acceptance remain pending. See
 [requirements](../docs/requirements/native-link-recovery.md). No API/schema or
 deployment change is introduced. Do not merge this feature ahead of PR #83.
 
