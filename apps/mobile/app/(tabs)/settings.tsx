@@ -80,7 +80,12 @@ export default function SettingsScreen() {
           <View style={[styles.track, on && styles.trackOn, disabled && styles.dim]}><View style={[styles.knob, on && styles.knobOn]}/></View>
         </Pressable>; })}
       {preferences.data && <Pressable accessibilityRole="switch" accessibilityLabel="Morning overview" accessibilityState={{ checked: preferences.data.dailyOverviewEnabled, disabled }}
-        disabled={disabled} onPress={() => { void run(async () => { await action.mutateAsync({ path: '/notification-preferences', method: 'PATCH', body: { dailyOverviewEnabled: !preferences.data!.dailyOverviewEnabled } }); }); }}
+        disabled={disabled} onPress={() => { void run(async () => {
+          const enabling = !preferences.data!.dailyOverviewEnabled;
+          await action.mutateAsync({ path: '/notification-preferences', method: 'PATCH', body: { dailyOverviewEnabled: enabling } });
+          // The preference is saved either way; delivery also needs device permission.
+          if (enabling && !(await ensureNotificationPermission())) setMessage('Morning overview is on, but device notifications are disabled. You can enable them in your device settings.');
+        }); }}
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
         <View style={[styles.icon, { backgroundColor: colors.streak }]}><Ionicons name="sunny-outline" size={17} color={colors.onAccent}/></View>
         <View style={styles.rowText}><Text style={styles.rowTitle}>Morning overview</Text>

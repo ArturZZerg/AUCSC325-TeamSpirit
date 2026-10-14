@@ -63,6 +63,12 @@ describe('notification Settings (ToR 13)', () => {
     expect(overview).not.toBeChecked(); expect(screen.getByText(/^A nudge at 8:00\sAM in America\/Edmonton that opens Today$/)).toBeOnTheScreen();
     await act(async () => { fireEvent.press(overview); });
     expect(save).toHaveBeenCalledWith({ path: '/notification-preferences', method: 'PATCH', body: { dailyOverviewEnabled: true } });
+    expect(ensureNotificationPermission).toHaveBeenCalledTimes(1); expect(screen.queryByRole('alert')).toBeNull();
+  });
+  it('keeps the overview preference but explains denied device permission', async () => {
+    jest.mocked(ensureNotificationPermission).mockResolvedValue(false); render(<Settings/>);
+    await act(async () => { fireEvent.press(screen.getByRole('switch', { name: 'Morning overview' })); });
+    expect(save).toHaveBeenCalledTimes(1); expect(screen.getByRole('alert')).toHaveTextContent(/device notifications are disabled/);
   });
   it('reports a failed category update and permits retry without claiming success', async () => {
     save.mockRejectedValueOnce(new Error('Offline')); render(<Settings/>);
