@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Temporal } from '@js-temporal/polyfill';
-import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { localDateAt } from '@campusflow/domain';
+import { Button, Screen, State, colors } from '@/components/ui';
+import { Chip } from '@/features/task-row';
 import { useAction, useCampusSources, useEvents } from '@/features/queries';
 import { campusDayLabel, campusGroups, campusSourceAvailability, campusWebsite } from '@/features/campus-discovery';
 import { useTodayClock } from '@/features/today-clock';
@@ -46,7 +49,8 @@ function CampusContent({ timeZone }: { timeZone: string }) {
     <View style={styles.hero}><Text style={styles.eyebrow}>BEYOND THE DESK</Text><Text style={styles.title}>Campus</Text><Text style={styles.sub}>Make room for something you’ll look forward to.</Text></View>
     <View style={styles.choices}>{([['week', 'Next 7 days'], ['month', 'Next 30 days'], ['saved', 'Saved']] as const).map(([key, label]) =>
       <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: view === key }} onPress={() => setView(key)} style={[styles.choice, view === key && styles.selected]}><Text style={[styles.choiceText, view === key && styles.selectedText]}>{label}</Text></Pressable>)}</View>
-    <Field label="Filter events" value={filter} onChangeText={setFilter} placeholder="Search events, places or interests"/>
+    <View style={styles.search}><Ionicons name="search" size={18} color={colors.muted}/>
+      <TextInput accessibilityLabel="Filter events" value={filter} onChangeText={setFilter} placeholder="Search events, places or interests" placeholderTextColor={colors.muted} style={styles.input} autoCorrect={false}/></View>
     <View style={styles.sourcePanel}>
       <Pressable accessibilityRole="button" accessibilityLabel="Calendar sources" accessibilityState={{ expanded: showSources }} onPress={() => setShowSources(value => !value)} style={styles.sourceControl}>
         <Text style={styles.sourceTitle}>Calendar sources {showSources ? '−' : '+'}</Text>
@@ -63,27 +67,61 @@ function CampusContent({ timeZone }: { timeZone: string }) {
     {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
     <Text style={styles.result}>{view === 'saved' ? 'Your saved events' : events.data === undefined ? 'Upcoming events' : `${visibleCount} ${visibleCount === 1 ? 'event' : 'events'} to explore`}<Text style={styles.detail}> · Times in {timeZone}</Text></Text>
     <State loading={events.isLoading} error={events.error} empty={events.data !== undefined && !visibleCount ? filter ? 'No events match this filter. Try a different interest or place.' : view === 'saved' ? 'Save an event to keep it here, then add it to your daily plan.' : 'No upcoming events in this range. Try the next 30 days or check calendar updates.' : undefined}/>
-    {groups.map(group => <View key={group.date} style={styles.group}><Text accessibilityRole="header" style={styles.day}>{campusDayLabel(group.date, date)}</Text>{group.events.map(event => <Card key={event.id}>
-      {(event.category || event.saved) && <Text style={styles.eyebrow}>{[event.category, event.saved ? 'Saved' : null, event.includedInPlan ? 'In your plan' : null].filter(Boolean).join(' · ')}</Text>}
-      <Text style={styles.event}>{event.title}</Text>
-      <Text style={styles.meta}>{event.timing.kind === 'timed' ? taskTimingLabel({ kind: 'instant', at: event.timing.startsAt }, timeZone) : `${event.timing.startDate} · All day`} · {event.location ?? 'Campus'}</Text>
-      {sourceStatus?.find(source => source.source === event.source) && <Text style={styles.detail}>{sourceStatus.find(source => source.source === event.source)?.name}</Text>}
-      {event.description && <><Pressable accessibilityRole="button" accessibilityLabel={`Details: ${event.title}`} accessibilityState={{ expanded: details === event.id }} style={styles.detailsControl} onPress={() => setDetails(details === event.id ? undefined : event.id)}><Text style={styles.meta}>{details === event.id ? 'Hide details' : 'Read details'}</Text></Pressable>{details === event.id && <Text style={styles.detail}>{event.description}</Text>}</>}
-      {(campusWebsite(event.url) || (details === event.id && sourceStatus?.find(source => source.source === event.source))) && <Button title="Organiser website" tone="plain" onPress={() => { const url = campusWebsite(event.url) ?? sourceStatus?.find(source => source.source === event.source)?.website; if (url) void open(url); }}/>}
+    {groups.map(group => <View key={group.date} style={styles.group}><Text accessibilityRole="header" style={styles.day}>{campusDayLabel(group.date, date)}</Text>{group.events.map(event => { const source = sourceStatus?.find(row => row.source === event.source), website = campusWebsite(event.url);
+      const day = event.timing.kind === 'timed' ? localDateAt(event.timing.startsAt, timeZone) : event.timing.startDate;
+      const clock = (at: string) => new Date(at).toLocaleTimeString([], { timeZone, hour: 'numeric', minute: '2-digit' });
+      const timing = event.timing.kind === 'timed' ? `${clock(event.timing.startsAt)}${event.timing.endsAt ? ` – ${clock(event.timing.endsAt)}` : ''}` : 'All day';
+      return <View key={event.id} style={[styles.card, event.saved && styles.savedCard]}>
+      <View style={styles.cardTop}>
+        <View style={[styles.badge, event.saved && styles.badgeSaved]}>
+          <Text style={[styles.badgeMonth, event.saved && styles.badgeTextSaved]}>{new Date(`${day}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short' }).toUpperCase()}</Text>
+          <Text style={[styles.badgeDay, event.saved && styles.badgeTextSaved]}>{Number(day.slice(8))}</Text>
+        </View>
+        <View style={styles.cardBody}>
+          {(event.category || event.saved) && <Text style={styles.eyebrow}>{[event.category, event.saved ? 'Saved' : null, event.includedInPlan ? 'In your plan' : null].filter(Boolean).join(' · ')}</Text>}
+          <Text style={styles.event}>{event.title}</Text>
+          <View style={styles.metaRow}><Ionicons name="time-outline" size={14} color={colors.moss}/><Text style={styles.meta}>{timing}</Text></View>
+          <View style={styles.metaRow}><Ionicons name="location-outline" size={14} color={colors.muted}/><Text style={styles.detail}>{event.location ?? 'Campus'}</Text></View>
+          {source && <Text style={styles.small}>{source.name}</Text>}
+        </View>
+      </View>
+      {event.description && <><Pressable accessibilityRole="button" accessibilityLabel={`Details: ${event.title}`} accessibilityState={{ expanded: details === event.id }} style={styles.detailsControl} onPress={() => setDetails(details === event.id ? undefined : event.id)}>
+        <Text style={styles.link}>{details === event.id ? 'Hide details' : 'Read details'}</Text><Ionicons name={details === event.id ? 'chevron-up' : 'chevron-down'} size={14} color={colors.moss}/></Pressable>
+        {details === event.id && <Text style={styles.detail}>{event.description}</Text>}</>}
       {event.saved === undefined && <Text style={styles.detail}>Saved status unavailable. Refresh events before changing it.</Text>}
       {event.saved && event.savedReminder === undefined && <Text style={styles.detail}>Reminder details unavailable. Refresh events before editing.</Text>}
       {event.saved && event.savedReminder && <Text style={styles.detail}>Reminder: {taskTimingLabel(event.savedReminder, timeZone)}{event.savedReminder.kind === 'date' ? ' · Delivery time needed' : ''}</Text>}
       <View style={styles.buttons}>
-        <Button title={pending === `/events/${event.id}/saved` ? 'Saving…' : event.saved ? 'Remove saved' : 'Save event'} tone="plain" disabled={disabled || event.saved === undefined}
+        <Chip icon={event.saved ? 'bookmark' : 'bookmark-outline'} label={pending === `/events/${event.id}/saved` ? 'Saving…' : event.saved ? 'Remove saved' : 'Save event'} disabled={disabled || event.saved === undefined}
           onPress={() => { void run({ path: `/events/${event.id}/saved`, method: event.saved ? 'DELETE' : 'PUT', ...(event.saved ? {} : { body: { includedInPlan: false } }) }); }}/>
-        {event.saved && <><Button title={event.includedInPlan ? 'In my plan' : 'Add to plan'} disabled={disabled || event.includedInPlan === undefined}
+        {event.saved && <><Chip icon={event.includedInPlan ? 'checkmark-circle' : 'add-circle-outline'} label={event.includedInPlan ? 'In my plan' : 'Add to plan'} disabled={disabled || event.includedInPlan === undefined}
           onPress={() => { void run({ path: `/events/${event.id}/saved`, method: 'PATCH', body: { includedInPlan: !event.includedInPlan } }); }}/>
-          <Button title={event.savedReminder ? 'Edit reminder' : 'Set reminder'} tone="plain" disabled={disabled || event.savedReminder === undefined} onPress={() => setReminding(event)}/></>}
+          <Chip icon="notifications-outline" label={event.savedReminder ? 'Edit reminder' : 'Set reminder'} disabled={disabled || event.savedReminder === undefined} onPress={() => setReminding(event)}/></>}
+        {(website || (details === event.id && source)) && <Chip icon="open-outline" label="Organiser website" onPress={() => { const url = website ?? source?.website; if (url) void open(url); }}/>}
       </View>
-    </Card>)}</View>)}
+    </View>; })}</View>)}
     {visibleCount > 0 && <Text style={styles.footer}>Plans can change. Check the organiser’s calendar before you go, especially for saved events.</Text>}
   </ScrollView>
     {reminding && <EventReminderEditor key={reminding.id} event={reminding} timeZone={timeZone} onClose={() => setReminding(undefined)}/>}
   </Screen>;
 }
-const styles = StyleSheet.create({ content: { padding: 16, gap: 16, maxWidth: 760, width: '100%', alignSelf: 'center' }, hero: { gap: 7, paddingVertical: 10 }, eyebrow: { color: colors.moss, fontSize: 12, fontWeight: '700', letterSpacing: 1 }, title: { fontSize: 32, fontWeight: '800', color: colors.ink }, sub: { color: colors.muted, fontSize: 16, lineHeight: 23 }, choices: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' }, choice: { minHeight: 46, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: colors.line }, selected: { backgroundColor: colors.sage, borderColor: colors.moss }, choiceText: { color: colors.muted, fontWeight: '600' }, selectedText: { color: colors.ink }, sourcePanel: { borderWidth: 1, borderColor: colors.line, padding: 12, borderRadius: 16, gap: 8 }, sourceControl: { minHeight: 46, gap: 5 }, sourceTitle: { color: colors.ink, fontWeight: '700' }, sourceItem: { gap: 8, paddingVertical: 8 }, result: { color: colors.ink, fontWeight: '700' }, group: { gap: 12 }, day: { color: colors.ink, fontWeight: '800', fontSize: 20 }, event: { color: colors.ink, fontSize: 18, lineHeight: 25, fontWeight: '800' }, meta: { color: colors.moss, fontWeight: '600', lineHeight: 21 }, detail: { color: colors.muted, fontWeight: '400', lineHeight: 21 }, detailsControl: { minHeight: 46, justifyContent: 'center' }, buttons: { gap: 8 }, error: { color: colors.coral }, footer: { color: colors.muted, lineHeight: 21, paddingBottom: 16 } });
+const styles = StyleSheet.create({
+  content: { padding: 16, gap: 14, maxWidth: 760, width: '100%', alignSelf: 'center' }, hero: { gap: 6, paddingTop: 6 },
+  eyebrow: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }, title: { fontSize: 30, fontWeight: '800', color: colors.ink }, sub: { color: colors.muted, fontSize: 15, lineHeight: 22 },
+  choices: { flexDirection: 'row', backgroundColor: colors.sage, borderRadius: 12, padding: 3 },
+  choice: { flex: 1, minHeight: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }, selected: { backgroundColor: colors.card },
+  choiceText: { color: colors.muted, fontWeight: '700', fontSize: 13 }, selectedText: { color: colors.ink },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 46, borderRadius: 14, paddingHorizontal: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  input: { flex: 1, minHeight: 44, color: colors.ink, fontSize: 15 },
+  sourcePanel: { borderWidth: 1, borderColor: colors.line, padding: 12, borderRadius: 16, gap: 8, backgroundColor: colors.card }, sourceControl: { minHeight: 40, gap: 4 },
+  sourceTitle: { color: colors.ink, fontWeight: '700' }, sourceItem: { gap: 8, paddingVertical: 8 },
+  result: { color: colors.ink, fontWeight: '700' }, group: { gap: 10 }, day: { color: colors.ink, fontWeight: '800', fontSize: 19, marginTop: 4 },
+  card: { backgroundColor: colors.card, borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: colors.line }, savedCard: { borderColor: colors.coral },
+  cardTop: { flexDirection: 'row', gap: 14 }, cardBody: { flex: 1, gap: 4 },
+  badge: { width: 54, borderRadius: 14, backgroundColor: colors.sage, alignItems: 'center', paddingVertical: 8, alignSelf: 'flex-start' }, badgeSaved: { backgroundColor: colors.coral },
+  badgeMonth: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }, badgeDay: { color: colors.ink, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] }, badgeTextSaved: { color: colors.onAccent },
+  event: { color: colors.ink, fontSize: 17, lineHeight: 23, fontWeight: '800' }, metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  meta: { color: colors.moss, fontWeight: '700', lineHeight: 20 }, detail: { color: colors.muted, lineHeight: 20, flexShrink: 1 }, small: { color: colors.muted, fontSize: 12 },
+  detailsControl: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32, alignSelf: 'flex-start' }, link: { color: colors.moss, fontWeight: '700' },
+  buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, error: { color: colors.coral }, footer: { color: colors.muted, lineHeight: 21, paddingBottom: 16 },
+});
