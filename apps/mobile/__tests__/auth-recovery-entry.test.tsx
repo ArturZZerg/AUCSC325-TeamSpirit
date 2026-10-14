@@ -44,3 +44,31 @@ it('signs in from the password keyboard Return key without tapping the button', 
   await act(async () => { fireEvent(screen.getByLabelText('Password'), 'submitEditing'); });
   expect(api).toHaveBeenCalledWith('/auth/login', expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'return-key@example.test', password: 'a-long-test-password' }) }));
 });
+it('validates sign-in values before a keyboard Return can send credentials', async () => {
+  render(<Auth/>); await act(async () => {});
+  fireEvent.changeText(screen.getByLabelText('Email'), 'not-an-email');
+  fireEvent.changeText(screen.getByLabelText('Password'), 'a-long-test-password');
+  await act(async () => fireEvent(screen.getByLabelText('Password'), 'submitEditing'));
+  expect(api).not.toHaveBeenCalledWith('/auth/login', expect.anything());
+});
+it('does not send a second sign-in when Return is pressed again during a request', async () => {
+  render(<Auth/>); await act(async () => {});
+  let reject!: (error: Error) => void;
+  jest.mocked(api).mockImplementationOnce(() => new Promise((_resolve, failed) => { reject = failed; }));
+  fireEvent.changeText(screen.getByLabelText('Email'), 'pending-return@example.test');
+  fireEvent.changeText(screen.getByLabelText('Password'), 'a-long-test-password');
+  await act(async () => fireEvent(screen.getByLabelText('Password'), 'submitEditing'));
+  await act(async () => fireEvent(screen.getByLabelText('Password'), 'submitEditing'));
+  expect(jest.mocked(api).mock.calls.filter(([route]) => route === '/auth/login')).toHaveLength(1);
+  await act(async () => reject(new Error('unavailable')));
+});
+it('keeps registration explicit when Return is pressed on its password field', async () => {
+  render(<Auth/>); await act(async () => {});
+  await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Create an account' })));
+  fireEvent.changeText(screen.getByLabelText('Email'), 'register-return@example.test');
+  fireEvent.changeText(screen.getByLabelText('Name'), 'Return check');
+  fireEvent.changeText(screen.getByLabelText('Password'), 'a-long-test-password');
+  await act(async () => fireEvent(screen.getByLabelText('Password'), 'submitEditing'));
+  expect(api).not.toHaveBeenCalledWith('/auth/login', expect.anything());
+  expect(api).not.toHaveBeenCalledWith('/auth/register', expect.anything());
+});
