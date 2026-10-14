@@ -18,18 +18,29 @@ with all four real API/cache/logout/cold-signed-out checks and cleanup. Main's
 standard check passes, but native `38612589080` fails first warm Help. This
 distinction is now reflected in the production-readiness record.
 
-Temporary diagnostic #86 at `35ba837` compares public native system URL/tap input
-against the unchanged main artifact, retaining a same-process warm guard.
-Its first run fails before test generation because a guessed Homebrew Ruby path
-is absent; app source/install/byte checks and owned-simulator cleanup pass. The
-correction uses the documented default Ruby and existing xcodeproj gem. Current
-comparison `38623494563` and baseline `38623494445` are live. The preserved older
-baseline `38620875376` is terminal failure: the first Help assertion fails at
-19:24:28 UTC; native iOS sends/receives its URL at 19:24:30.936/.943 in CampusFlow
-PID 30152. No application routing defect is inferred from that delayed delivery.
-Inspect the comparison before selecting a permanent correction; close/retire
-the fixed-artifact experiment after its evidence is integrated, without waiving
-any public/cold/real-API/cache/logout/recovery/day-review requirement.
+The public XCTest comparison `35ba837` / `38623494563` passes its actual one-test
+subset in 17.675 seconds with unchanged PID 7707 and unchanged installed/extracted
+app bytes. Its separate baseline `38623494445` also finishes successfully before
+retirement; no cancellation is issued. Downloaded `storage.json` independently
+passes all four source-bound private checks and cleanup for `35ba837`. The older
+baseline `38620875376` fails first Help at 19:24:28 UTC, with actual native URL
+delivery at 19:24:30.943 in PID 30152. These mixed outcomes establish input-path
+evidence, not a precise upstream root cause or a current feature acceptance.
+
+PR #86 at `4d0192e` retires the fixed-artifact experiment and implements a complete
+public XCTest gate against each current build, with private Maestro/API checks
+unchanged. Its full native run `38626385344` remains required. The compiled test
+context binds source/device/run/attempt, requires actual named-test success, and
+rejects missing/reordered/duplicate stages and wrong warm/cold process transitions.
+
+This recovery integration preserves all parent warm/search/Account/cold checks,
+then requires warm unavailable-link recovery with ignored private parameters and
+cold unavailable-link recovery to Help. Strict proof requires both new stages,
+retains the cold Help PID for warm recovery and requires a third distinct PID for
+terminated recovery. All original private offline recovery/retained-task and
+API/cache/logout checks remain unchanged. Actual current-source native and
+standard checks, author review and matched-head merges remain required. Keep
+the stacked PR dependency order #86, #84, #85; preserve ancestry for later merges.
 
 No physical-device operations, server source transfer, new account deletion or
 dependency change is performed. The five advisory records are refreshed, with

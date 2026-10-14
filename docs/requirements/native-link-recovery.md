@@ -132,3 +132,21 @@ identities are checked. All 1,099 mobile tests, 28 iOS tooling cases, lint and
 strict mobile types pass after integration. Fresh exact-head native and standard checks, final source
 review and post-merge main verification remain required; earlier partial runs
 cannot substitute for the integrated recovery gate.
+
+## Full native public-input parent integration
+
+PR #86's complete public XCTest gate replaces the earlier public Maestro phase
+after an actual unchanged-app comparison. Recovery retains every parent warm,
+single-Back, in-app/legacy Help, search/answer/clear, protected Account, ignored
+continuation and terminated-process Help assertion. It additionally requires the
+same cold-Help process for the warm unavailable-link/ignored-parameter/sign-in
+case, followed by a third distinct process for cold unavailable-link recovery to
+Help. Both recovery stages are mandatory in the compiled-context-bound proof;
+omitting either or substituting processes fails local verifier regressions.
+
+The existing private Maestro/API-disconnected unavailable-link recovery to the
+same owned task remains unchanged, along with every native login/capture/cache/
+logout and SQL/cleanup assertion. Application files match the prior reviewed
+recovery source. Fresh full current-source native and standard acceptance are
+required before merging this integration; the successful subset comparison is
+not sufficient. No physical-device or server source transfer is performed.
