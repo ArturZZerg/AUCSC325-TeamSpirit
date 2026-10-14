@@ -1,6 +1,40 @@
 # Current development state
 
-Updated: 2026-10-13
+Updated: 2026-10-14
+
+### Current open-PR completion task
+
+The owner explicitly requests finishing open PRs. Recovery #84 at `71e8082`
+and dependent day-review #85 at `9df62cc` have passing standard checks, but
+their native runs `38613496910` and `38615841433` fail first warm public Help
+before private recovery/day-review/storage checks. Keep both draft until the
+required current-source native checks pass; finish them in dependency order.
+Use a matched-head merge preserving the recovery ancestry needed by day-review.
+
+Storage PR #83 is merged as `c08a0987222c3940bc59cd187f03e0e9e47aadea`. Its
+tree exactly equals final uninstrumented source `c3c2563`, accepted by native
+`38603642902` attempt 2 and independently validated source-bound `storage.json`
+with all four real API/cache/logout/cold-signed-out checks and cleanup. Main's
+standard check passes, but native `38612589080` fails first warm Help. This
+distinction is now reflected in the production-readiness record.
+
+Temporary diagnostic #86 at `35ba837` compares public native system URL/tap input
+against the unchanged main artifact, retaining a same-process warm guard.
+Its first run fails before test generation because a guessed Homebrew Ruby path
+is absent; app source/install/byte checks and owned-simulator cleanup pass. The
+correction uses the documented default Ruby and existing xcodeproj gem. Current
+comparison `38623494563` and baseline `38623494445` are live. The preserved older
+baseline `38620875376` is terminal failure: the first Help assertion fails at
+19:24:28 UTC; native iOS sends/receives its URL at 19:24:30.936/.943 in CampusFlow
+PID 30152. No application routing defect is inferred from that delayed delivery.
+Inspect the comparison before selecting a permanent correction; close/retire
+the fixed-artifact experiment after its evidence is integrated, without waiving
+any public/cold/real-API/cache/logout/recovery/day-review requirement.
+
+No physical-device operations, server source transfer, new account deletion or
+dependency change is performed. The five advisory records are refreshed, with
+no compatible repair or production-release disposition inferred. Historical
+investigations below are retained and do not supersede this current state.
 
 Current iOS correction: `50a2546`/`38503168076` passes three public JUnit flows,
 native ordinary login/API capture and cold encrypted-session/SQLite restoration,
