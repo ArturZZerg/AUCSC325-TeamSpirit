@@ -1,0 +1,14 @@
+appId: com.campusflow.mobile
+name: iOS first warm public Help link request
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible: Welcome back
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: ios-auth
+- openLink: campusflow:///help
+- runFlow: ios-confirm-link.yaml

@@ -2,6 +2,18 @@
 
 Updated: 2026-10-13
 
+Current iOS gate correction: `ab46128` passes standard PR/push checks
+(`38472473844`, `38472473258`) but native run `38472473944` fails its original
+first warm Help assertion before private storage testing. System URL delivery
+arrives about six seconds after failure. Recovery PR #84 (`bf1aa34`) repeats this
+earlier-flow failure (`38472721279`); its standard checks pass. A diagnostic splits
+the original link request/OS confirmation and required Help observation into two
+CLI sessions on the same installed app/UUID. The second disables driver reinstall;
+there is no app relaunch/reset/intervening navigation or extra sleep. Both results
+must pass before private testing. Observation-related delay remains a hypothesis,
+not a confirmed cause. Task save, cold offline restoration and logout remain
+unverified; neither PR may merge without fresh exact-head native success.
+
 Reminder center and native notification taps: Settings exposes saved
 reminder browsing/search, effective quiet-hour times and subject-specific existing
 editors. Default taps wait for restored session/navigation, validate owned stable

@@ -19,7 +19,7 @@ test tool; it does not deploy CampusFlow to the owner's server.
 | IOS-PREVIEW-01 | Build native iOS with the installed supported toolchain and embedded Release JS, without Metro or signing credentials | `build-ios-simulator.sh`; actual Xcode job and archive |
 | IOS-PREVIEW-02 | Inspect the product's simulator platform, identity, executable architectures, incoming-link scheme and selected API in the actual bundle | `ios-preview.mjs`; positive and invalid/stale artifact tests; generated product record |
 | IOS-PREVIEW-03 | Avoid unused sensitive capability prompts and arbitrary insecure HTTP access | Native Info.plist gate; installed Expo plugin introspection; Face ID/global cleartext regressions |
-| IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public.yaml`; actual Maestro assertions, JUnit and screenshots |
+| IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public-link-request.yaml` then `ios-public.yaml` on the same installed app/UUID; both CLI results, JUnit and screenshots |
 | IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | Actual Maestro assertions and cold Help screenshot |
 | IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 40-minute timeout and seven-day artifacts |
 | IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
@@ -40,6 +40,19 @@ directory and are not uploaded; only a bounded redacted assertion and sanitized
 stage/check record are published. Public native logs/screenshots are collected before
 creating the synthetic account. The initial storage run remains unverified until
 actual exact-head native acceptance succeeds.
+
+At `ab46128` (native run `38472473944`), the original first warm Help assertion
+fails again. The system delivers `UIOpenURLAction` about six seconds after the
+failure screenshot, despite the 45-second assertion. The recovery branch repeats
+this before any recovery scenario. Later frames show Help; this does not pass the
+required timely assertion or establish an app routing defect. The next diagnostic
+splits requesting/confirming that original link from observing its result into two
+CLI sessions. The first CLI must succeed; the second skips driver reinstallation
+and immediately requires Help within the original bound. There is no app relaunch,
+reset, intervening navigation or additional sleep. Both JUnit reports are retained.
+This tests possible observation-related delivery delay; only a fresh native result
+can confirm whether the change helps, and every subsequent public/storage assertion
+remains required.
 
 Private-flow diagnostics publish only whitelisted command kinds, status enums and
 numeric duration/sequence, plus fixed known-label presence booleans on failure.

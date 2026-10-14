@@ -52,6 +52,11 @@ jobs:
           xcrun simctl launch "$udid" com.campusflow.mobile > artifacts/ios/evidence/launch.txt
           xcrun simctl terminate "$udid" com.campusflow.mobile
           .local/maestro/bin/maestro --device "$udid" test --format JUNIT \
+            --output artifacts/ios/evidence/public-link-request.xml --debug-output artifacts/ios/evidence/maestro-request \
+            --test-output-dir "$PWD/artifacts/ios/evidence/screenshots-request" .maestro/ios-public-link-request.yaml
+          # Release the observing driver before checking the OS-confirmed first link.
+          # Keep the installed app and simulator state; both CLI results are required.
+          .local/maestro/bin/maestro --device "$udid" test --no-reinstall-driver --format JUNIT \
             --output artifacts/ios/evidence/public-flow.xml --debug-output artifacts/ios/evidence/maestro \
             --test-output-dir "$PWD/artifacts/ios/evidence/screenshots" .maestro/ios-public.yaml
       - name: Collect public simulator diagnostics
