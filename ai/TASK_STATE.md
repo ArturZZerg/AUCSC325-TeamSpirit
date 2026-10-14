@@ -1,6 +1,41 @@
 # Current development state
 
-Updated: 2026-10-13
+Updated: 2026-10-14
+
+### Current state: accepted storage gate and isolated public-input comparison
+
+PR #83 merged as `c08a0987222c3940bc59cd187f03e0e9e47aadea` after its final
+uninstrumented source `c3c2563` passed standard checks and native run
+`38603642902` attempt 2. The downloaded exact-source `storage.json` independently
+passes all four real API/cold-cache/logout/cold-signed-out proof requirements.
+Its tree equals merged main. Exact-main standard run `38612589071` passes, while
+native `38612589080` fails the first warm Help observation. Recovery PR #84 at
+`71e8082` and day-review PR #85 at `9df62cc` have passing standard checks, but
+their native runs `38613496910` and `38615841433` fail that same earlier public
+assertion. Private recovery/day-review/storage phases therefore remain untested
+at those heads. Neither feature is accepted for merge or production release.
+
+An isolated diagnostic uses the unchanged main simulator artifact from
+`38612589080` on a fresh job-owned simulator and a separate minimal XCTest host.
+It compares Apple's public URL/tap APIs, requires the same native app process
+before/after the first Help URL and each single Back action, and hashes the app
+executable/JS before/after. Missing PID evidence or a replacement process fails.
+The original acceptance workflow, application code, API and dependencies remain
+unchanged. Local YAML/tooling/lint validation and actual macOS execution are
+required. Even success covers only this public subset; it cannot waive existing
+system confirmation/search/Account/cold/private acceptance. Retire the temporary
+fixed-artifact diagnostic after it informs a reviewed permanent correction.
+
+The day-review feature is published on #85, stacked on #84. Its native Android
+emulator evidence covers explicit prefill, Cancel without mutation, one Save
+preserving the deadline, API-disconnected cold reads and 320px/150% text. Its
+expanded iOS gate adds independent real-API cancellation/save/deadline checks
+and recorded study totals, preserving all prior cleanup assertions. Source tests
+pass 1,140 mobile cases and 33 iOS tooling cases. Real execution of the additional
+iOS cases is still required. No physical device or server source is operated on.
+
+The entries below retain earlier investigations; they are historical rather
+than the current merge/acceptance state.
 
 Current iOS correction: `50a2546`/`38503168076` passes three public JUnit flows,
 native ordinary login/API capture and cold encrypted-session/SQLite restoration,

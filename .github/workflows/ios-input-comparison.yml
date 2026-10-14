@@ -1,0 +1,96 @@
+name: iOS public input comparison
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['scripts/ios-input-comparison.*', '.github/workflows/ios-input-comparison.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: ios-input-comparison-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  compare:
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      SOURCE_RUN_ID: '38612589080'
+      SOURCE_APP_SHA: c08a0987222c3940bc59cd187f03e0e9e47aadea
+      CI: 'true'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify the fixed comparison artifact source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" --jq .head_sha)" = "$SOURCE_APP_SHA"
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 38612589080
+          name: campusflow-ios-simulator-c08a0987222c3940bc59cd187f03e0e9e47aadea
+          path: .local/ios-input-artifact
+      - name: Install the unchanged app on this job's fresh simulator
+        run: |
+          if lsof -nP -iTCP:3000 -sTCP:LISTEN >/dev/null; then echo 'Comparison requires no API listener.' >&2; exit 1; fi
+          mkdir -p artifacts/ios-input-comparison .local/ios-input-app
+          ditto -x -k .local/ios-input-artifact/campusflow-simulator.zip .local/ios-input-app
+          app="$PWD/.local/ios-input-app/CampusFlow.app"
+          test "$(plutil -extract CFBundleIdentifier raw "$app/Info.plist")" = com.campusflow.mobile
+          codesign --verify --deep --strict "$app"
+          (cd "$app" && shasum -a 256 CampusFlow main.jsbundle) > artifacts/ios-input-comparison/app-before.sha256
+          printf 'app-source=%s\ndiagnostic-source=%s\n' "$SOURCE_APP_SHA" "$(git rev-parse HEAD)" > artifacts/ios-input-comparison/source.txt
+          bash scripts/boot-ios-simulator.sh
+          udid="$(node -p "require('./artifacts/ios/evidence/boot.json').udid")"
+          xcrun simctl install "$udid" "$app"
+          installed="$(xcrun simctl get_app_container "$udid" com.campusflow.mobile app)"
+          (cd "$installed" && shasum -a 256 CampusFlow main.jsbundle) > artifacts/ios-input-comparison/installed-before.sha256
+          cmp artifacts/ios-input-comparison/app-before.sha256 artifacts/ios-input-comparison/installed-before.sha256
+      - name: Generate the isolated XCTest project with existing CocoaPods tooling
+        run: |
+          export GEM_HOME="$(brew --prefix cocoapods)/libexec"
+          export GEM_PATH="$GEM_HOME"
+          "$(brew --prefix ruby)/bin/ruby" -c scripts/ios-input-comparison.rb
+          "$(brew --prefix ruby)/bin/ruby" scripts/ios-input-comparison.rb
+      - name: Compare public URL and tap input with a required unchanged app process
+        run: |
+          set -euo pipefail
+          xcodebuild test -project .local/ios-input-project/InputComparison.xcodeproj -scheme InputComparisonTests \
+            -configuration Release -sdk iphonesimulator -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID" \
+            -parallel-testing-enabled NO \
+            -derivedDataPath "$PWD/.local/ios-input-derived" \
+            -resultBundlePath "$PWD/artifacts/ios-input-comparison/result.xcresult" \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
+            2>&1 | tee artifacts/ios-input-comparison/xcodebuild.log
+      - name: Preserve diagnostics and verify the app bytes were not replaced
+        if: always() && env.IOS_SIMULATOR_UDID != ''
+        run: |
+          app="$PWD/.local/ios-input-app/CampusFlow.app"
+          (cd "$app" && shasum -a 256 CampusFlow main.jsbundle) > artifacts/ios-input-comparison/app-after.sha256
+          cmp artifacts/ios-input-comparison/app-before.sha256 artifacts/ios-input-comparison/app-after.sha256
+          installed="$(xcrun simctl get_app_container "$IOS_SIMULATOR_UDID" com.campusflow.mobile app)"
+          (cd "$installed" && shasum -a 256 CampusFlow main.jsbundle) > artifacts/ios-input-comparison/installed-after.sha256
+          cmp artifacts/ios-input-comparison/app-before.sha256 artifacts/ios-input-comparison/installed-after.sha256
+          xcrun simctl spawn "$IOS_SIMULATOR_UDID" log show --last 5m --style compact --info --debug \
+            --predicate 'process == "CampusFlow" OR ((process == "SpringBoard" OR process == "runningboardd") AND eventMessage CONTAINS "com.campusflow.mobile")' \
+            > artifacts/ios-input-comparison/native-system.log
+          xcrun simctl io "$IOS_SIMULATOR_UDID" screenshot artifacts/ios-input-comparison/final-frame.png
+      - name: Stop only this job's simulator
+        if: always() && env.IOS_SIMULATOR_UDID != ''
+        run: xcrun simctl shutdown "$IOS_SIMULATOR_UDID"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: campusflow-input-comparison-${{ github.event.pull_request.head.sha || github.sha }}-attempt-${{ github.run_attempt }}
+          path: artifacts/ios-input-comparison
+          if-no-files-found: warn
+          retention-days: 7
