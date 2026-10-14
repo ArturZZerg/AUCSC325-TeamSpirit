@@ -875,3 +875,35 @@ Native acceptance and exact-head PR/main CI remain required. PR #83's final
 uninstrumented simulator/storage proof is still running, and draft PR #84 awaits
 that accepted parent before rebasing. Unrelated IDE/coursework/output files and
 the explicitly owned feature backup stash are preserved. Source remains local.
+
+### Day-review PR and native fixture acceptance, 2026-10-14
+
+Draft [PR #85](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/85) contains
+app source `72a13956b49c5af110cb6e78f5939fc339c0e481`, its requirements and 41 new
+mobile behavior cases. Both standard checks pass all 2,157 tests. Author reviews
+identify themselves as self-review; no independent approval or merge is claimed.
+
+The current x86 APK builds after using the documented short Gradle cache and
+clearing only validated generated x86 CMake/Ninja dependency data retaining the
+old long path. Actual signature/ABI/permission/feature/private-fixture checks pass.
+Native fixture sign-in, review, fresh editor, zero-write cancellation and one
+explicit PATCH pass, preserving the deadline and showing visible confirmation.
+An API-disconnected cold restart restores encrypted session and saved progress/
+study reads; fresh editing stays blocked offline. Actual Android 150% font size
+at 320 logical pixels fits the observed system-bar bounds. See the updated
+[acceptance record](../docs/requirements/day-end-review.md) for the APK hash and
+the explicit synthetic-fixture limits. This does not prove PostgreSQL writes or
+real authentication. All owned test processes are stopped, the AVD's data remains,
+its original display is restored, and the ARM phone artifact is unchanged.
+
+Native feature run `38606848891` fails public Help visibility before the private
+feature. PR #83's uninstrumented `c3c2563` run also fails its first Help assertion;
+the OS delivers its URL only after automation shuts down, and the final frame is
+Help. One unchanged exact-head retry of `38603642902` is running. No assertion,
+action or storage/cleanup proof is weakened. Neither #83, #84 nor #85 is merged.
+
+Next: inspect the current retry and require a complete exact-source storage proof.
+After its accepted matched-SHA merge/main checks, rebase the dependent work,
+preserving Button's test identifier and the feature's accessibility label, then
+review and run all current native/standard gates. No phone or server source
+transfer is performed; unrelated files and the earlier owned stash are preserved.

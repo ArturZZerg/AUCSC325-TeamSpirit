@@ -62,6 +62,36 @@ issues zero PATCH requests. Screens and controls fit 320 and 1280 pixels and
 implemented; its navigation is verified, while journal loading remains covered
 by the existing journal tests. Browser CSS zoom is not native dynamic type.
 
-Native build/interaction acceptance, exact-head CI, review and merge remain
-separate gates. This browser fixture does not establish real API persistence,
-device cache/lifecycle behavior, notification delivery or production readiness.
+## Android fixture acceptance, 2026-10-14
+
+Unchanged app source `72a13956b49c5af110cb6e78f5939fc339c0e481` also builds a
+locally signed x86 preview, SHA-256
+`1B787526277A32BF14C4F923DB6667BE9E3DE5C6CCD347AABD5E786283BCF545`.
+Its actual v2 signature, x86_64 inventory, 25-permission policy, feature/API
+presence and exclusion of eleven known QA credential values pass. The separate
+ARM phone artifact is unchanged; no physical phone is used.
+
+Only the marked project-owned API 36 AVD and isolated ADB port 5039 are used.
+Ordinary native sign-in and Today's review action reach the new workspace.
+Current task detail prefills October 15 as the schedule and retains October 14
+as the deadline. Cancellation issues no PATCH; one explicit native Save issues
+exactly one. An independent fixture GET confirms both dates, and the native
+acknowledgment is visible beside the next-step controls.
+
+With only the fixture API reverse removed, a force-stop and ordinary cold launch
+restore the native encrypted session and SQLite-backed review reads. Recorded
+progress and the 25-minute block remain visible with saved-data notices. The
+offline editor requires fresh detail and offers Reload/Cancel without Save;
+no extra PATCH occurs. At 320 logical pixels and actual Android font scale 1.5,
+the review viewport and observed Back/planning controls fit system bars. The
+layout is entered through Today after configuration changes, not accepted as an
+incoming-link restoration test. Screenshots are inspected, original display
+settings are restored, and the owned emulator/browser/fixture processes stop
+with AVD data retained.
+
+This establishes native UI/cache behavior using synthetic responses. It does
+not establish PostgreSQL persistence, real account authentication, physical
+hardware behavior or production readiness. Both standard PR/push checks pass
+all 2,157 tests on the app source above. The feature's iOS run fails a public
+Help-visible assertion before this private workspace is exercised. Final current
+iOS acceptance, review, matched-head merge and post-main checks remain required.
