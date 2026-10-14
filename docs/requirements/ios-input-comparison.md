@@ -14,7 +14,7 @@ CampusFlow's application binary, JS, source, entitlement namespace and
 API configuration are not modified. Hash both executable and JS before/after.
 
 The public-only test requires the ordinary sign-in screen, an active app, then the first
-three-slash Help URL through Apple's public `XCUIApplication.open` API before any
+three-slash Help URL through Apple's public `XCUISystem.open` API before any
 in-app Help action. It requires the same observed native process ID after Help
 opens and after exactly one public XCTest Back tap. An API that silently relaunches
 the app must fail this comparison. Then exercise in-app Help and one Back action.
@@ -30,5 +30,5 @@ Retire this fixed-artifact diagnostic after it informs a reviewed permanent fix;
 its seven-day artifact dependency is intentionally not a production workflow.
 
 Primary API references:
-- [Opening an application by URL](https://developer.apple.com/documentation/xcuiautomation/xcuiapplication/open(_:))
+- [Opening a URL in its default application](https://developer.apple.com/documentation/xcuiautomation/xcuisystem/open(_:))
 - [Native tap events](https://developer.apple.com/documentation/xcuiautomation/xcuielement/tap())

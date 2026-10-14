@@ -30,7 +30,7 @@ final class InputComparisonTests: XCTestCase {
         print("CAMPUSFLOW_PUBLIC_PID_BEFORE=\(initialPID)")
 
         // First incoming Help link precedes every in-app Help action.
-        app.open(try XCTUnwrap(URL(string: "campusflow:///help")))
+        XCUIDevice.shared.system.open(try XCTUnwrap(URL(string: "campusflow:///help")))
         XCTAssertTrue(label("A little help for your day.", in: app).waitForExistence(timeout: 45))
         XCTAssertEqual(try processID(app), initialPID, "A cold replacement cannot pass the warm-link comparison.")
         let back = app.buttons["Back to sign in"]

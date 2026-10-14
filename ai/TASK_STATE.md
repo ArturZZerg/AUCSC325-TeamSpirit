@@ -41,8 +41,11 @@ generation: the guessed Homebrew Ruby executable is absent. Artifact source,
 installation, extracted/installed executable and JS byte checks, and owned
 simulator shutdown pass. No application URL/tap evidence is produced. Use the
 runner's documented default Ruby and require its existing xcodeproj gem rather
-than constructing a Homebrew interpreter/gem path. Actual compilation remains
-required. Native baseline `38620875376` is still building; preserve it before
+than constructing a Homebrew interpreter/gem path. The comparison uses public
+`XCUIDevice.shared.system.open` for incoming delivery to the default URL handler,
+retaining the unchanged-PID check; application launch-by-URL is not assumed to
+preserve a warm process. Actual compilation remains required. Native baseline
+`38620875376` is still running; preserve it before
 publishing this correction. A transient automatic approval-review usage failure
 has recovered without bypass. The owner now explicitly prioritizes finishing
 the three open PRs; complete recovery #84 and day-review #85 in dependency order,
