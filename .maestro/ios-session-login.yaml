@@ -7,13 +7,27 @@ name: iOS ordinary sign-in and owned task capture
 - extendedWaitUntil:
     visible: Welcome back
     timeout: 45000
+# The keyboard can cover the next field or the Sign in button on the simulator,
+# and hideKeyboard does not always settle first. Dismiss it, then bring each
+# target into view before tapping; scrolling is a no-op when already visible.
 - tapOn:
     id: auth-email
 - inputText: ${IOS_QA_EMAIL}
+- hideKeyboard
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: auth-password
+    direction: DOWN
 - tapOn:
     id: auth-password
 - inputText: ${IOS_QA_PASSWORD}
 - hideKeyboard
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: '^Sign in$'
+    direction: DOWN
 - tapOn:
     text: '^Sign in$'
 - extendedWaitUntil:
