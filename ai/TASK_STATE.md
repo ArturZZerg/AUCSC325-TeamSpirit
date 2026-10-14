@@ -850,3 +850,28 @@ All 1,128 integrated mobile tests, 28 iOS tooling cases, lint and mobile types p
 Its earlier native fixture evidence remains tied to app source `72a1395`; final
 integrated feature acceptance is still required. Backups and unrelated user files
 are preserved. No physical phone or server source transfer is performed.
+
+### Guided day-end review, 2026-10-14
+
+The next substantive student workflow connects Today to recorded task/routine
+progress, saved study time, explicit tomorrow scheduling and the existing wellness
+journal. It reuses the weekly review and study-report projections and account-scoped
+query/cache boundaries. No API/schema, persisted review or offline write queue is
+added. See [day-end requirements](../docs/requirements/day-end-review.md).
+
+The existing task editor first loads current detail, then prefills a one-off open
+task's schedule for the next current account day, retaining its fresh deadline and
+requiring explicit Save. Failed saves retain the draft, cancellation writes nothing,
+and owner/credential changes suppress late acknowledgments. Missing/foreign records
+remain unavailable; recorded completions are separate from the latest saved plan.
+
+All 1,128 mobile tests pass; root lint/boundary/schema checks, strict mobile types
+and fresh web export pass. Synthetic loopback browser QA verifies one actual PATCH,
+the unchanged deadline, zero writes on cancellation, visible save feedback, connected
+navigation and 320/1280-pixel layouts plus 150% CSS zoom. The fixture journal endpoint
+is absent and native dynamic type is untested. No real account or phone was used.
+
+Native acceptance and exact-head PR/main CI remain required. PR #83's final
+uninstrumented simulator/storage proof is still running, and draft PR #84 awaits
+that accepted parent before rebasing. Unrelated IDE/coursework/output files and
+the explicitly owned feature backup stash are preserved. Source remains local.

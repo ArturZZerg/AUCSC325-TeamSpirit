@@ -3,23 +3,25 @@ import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { categorySchema, personalTaskSchema, prioritySchema } from '@campusflow/contracts';
+import { categorySchema, dateSchema, personalTaskSchema, prioritySchema } from '@campusflow/contracts';
 import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import { taskFormDefaults, taskFormRequest, taskFormSchema, taskTimingLabel, type TaskFormValues } from '@/features/task-form';
 import type { PersonalTask } from '@/lib/types';
 import { api, ApiError } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
-import { taskCredentialsGeneration, taskEditBaseline, taskEditBaselineCurrent, useTaskEditRevision, type TaskEditBaseline } from './task-edit-freshness';
+import { taskCredentialsGeneration, taskOwnershipGeneration, taskOwnerCurrent, taskEditBaseline, taskEditBaselineCurrent, useTaskEditRevision, type TaskEditBaseline } from './task-edit-freshness';
 
 type EditorProps = {
   task: PersonalTask | null; onClose: () => void; timeZone?: string; initialValues?: Partial<TaskFormValues>;
+  initialScheduledDate?: string;
+  onSaved?: () => void;
 };
 export function TaskEditor(props: EditorProps) {
   return props.task ? <ExistingTaskEditor {...props} task={props.task}/> : <TaskEditorForm {...props}/>;
 }
 
-function ExistingTaskEditor({ task, onClose }: EditorProps & { task: PersonalTask }) {
+function ExistingTaskEditor({ task, onClose, initialScheduledDate, onSaved }: EditorProps & { task: PersonalTask }) {
   const owner = useSessionStore(state => state.session);
   useTaskEditRevision();
   const [loaded, setLoaded] = useState<{ task: PersonalTask; baseline: TaskEditBaseline }>();
@@ -67,21 +69,30 @@ function ExistingTaskEditor({ task, onClose }: EditorProps & { task: PersonalTas
     <Button title="Cancel" onPress={onClose}/>
   </SafeAreaView></Modal>;
   return <TaskEditorForm task={loaded.task} onClose={onClose} timeZone={owner?.user.timeZone ?? 'UTC'}
-    baseline={loaded.baseline} stale={!fresh || loading} freshnessMessage={message} reload={() => { void reload(); }} loading={loading}/>;
+    initialScheduledDate={initialScheduledDate} onSaved={onSaved} baseline={loaded.baseline} stale={!fresh || loading} freshnessMessage={message} reload={() => { void reload(); }} loading={loading}/>;
 }
 
 // The form is separate so field validation tests can isolate it from the online
 // gate. Production existing-task entry points always use TaskEditor above.
-export function TaskEditorForm({ task, onClose, timeZone = 'UTC', initialValues, baseline, stale = false, freshnessMessage, reload, loading }: EditorProps & {
+export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initialValues, initialScheduledDate, baseline, stale = false, freshnessMessage, reload, loading }: EditorProps & {
   baseline?: TaskEditBaseline; stale?: boolean; freshnessMessage?: string; reload?: () => void; loading?: boolean;
 }) {
   const action = useAction();
   const saving = useRef(false);
   const [message, setMessage] = useState<string>();
-  const { control, handleSubmit, watch, reset, getValues, formState: { errors, isSubmitting, dirtyFields } } = useForm<TaskFormValues>({
+  const { control, handleSubmit, watch, reset, getValues, setValue, formState: { errors, isSubmitting, dirtyFields } } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema(task, timeZone)),
     defaultValues: { ...taskFormDefaults(task, timeZone), ...(!task ? initialValues : undefined) },
   });
+  const schedulePrefilled = useRef(false);
+  useEffect(() => {
+    if (!schedulePrefilled.current && initialScheduledDate && task && !task.completedAt && !task.recurrence && dateSchema.safeParse(initialScheduledDate).success) {
+      schedulePrefilled.current = true;
+      setValue('scheduledMode', 'date', { shouldDirty: true });
+      setValue('scheduledDate', initialScheduledDate, { shouldDirty: true });
+      setValue('scheduledTime', '', { shouldDirty: true });
+    }
+  }, [initialScheduledDate, task, setValue]);
   // Preserve controls belonging to one DTO field together, but rebase deadline,
   // schedule and recurrence independently so unchanged server fields survive.
   const appliedBaseline = useRef(baseline);
@@ -105,9 +116,14 @@ export function TaskEditorForm({ task, onClose, timeZone = 'UTC', initialValues,
   const close = () => { if (!isSubmitting && !saving.current) onClose(); };
   const save = async (values: TaskFormValues) => {
     setMessage(undefined);
+    const confirmationOwner = onSaved ? useSessionStore.getState().session : null;
+    const confirmationOwnership = taskOwnershipGeneration(), confirmationCredentials = taskCredentialsGeneration();
     try {
       if (baseline && !taskEditBaselineCurrent(baseline)) throw new Error('Reload the task before saving.');
-      await action.mutateAsync({ ...taskFormRequest(values, task, timeZone), ...(baseline ? { taskEditBaseline: baseline } : {}) }); onClose();
+      await action.mutateAsync({ ...taskFormRequest(values, task, timeZone), ...(baseline ? { taskEditBaseline: baseline } : {}) });
+      if (confirmationOwner && taskOwnerCurrent(confirmationOwner) && taskOwnershipGeneration() === confirmationOwnership
+        && taskCredentialsGeneration() === confirmationCredentials) onSaved?.();
+      onClose();
     }
     catch (error) { setMessage(error instanceof TypeError ? 'Couldn’t confirm the save. Check your connection and saved tasks before retrying.'
       : error instanceof Error ? error.message : 'Could not save the task. Please try again.'); }
@@ -126,6 +142,10 @@ export function TaskEditorForm({ task, onClose, timeZone = 'UTC', initialValues,
       <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>{task ? 'Edit task' : 'New task'}</Text>
+          {initialScheduledDate && task && <Text style={styles.meta}>{task.completedAt || task.recurrence
+            ? 'This task is now complete or repeating. Review its current state before changing the schedule.'
+            : dateSchema.safeParse(initialScheduledDate).success ? 'Your chosen day is prefilled as a schedule. Review it before saving; the deadline stays separate.'
+              : 'The chosen day could not be prefilled. Select a scheduled date before saving.'}</Text>}
           <Text style={styles.meta}>Dates and times follow your account time zone: {timeZone}.</Text>
           {stale && <><Text accessibilityRole="alert">{freshnessMessage ?? 'Task changed. Reload before saving; your draft will be kept.'}</Text>
             <Button title="Reload task" onPress={reload!} disabled={isSubmitting || loading}/></>}

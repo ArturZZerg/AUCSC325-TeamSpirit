@@ -37,6 +37,25 @@ beforeEach(() => {
   jest.mocked(api).mockReset().mockResolvedValue(task);
 });
 
+it('prefills an explicit date only after reading the fresh unfinished one-off task, without saving', async () => {
+  const fresh = { ...task, recurrence: null, due: { kind: 'date' as const, date: '2025-03-12' } };
+  jest.mocked(api).mockResolvedValue(fresh);
+  render(<TaskEditor task={{ ...fresh, due: { kind: 'date', date: '2025-03-01' } }} initialScheduledDate="2025-03-10" onClose={jest.fn()}/>, { wrapper: Wrapper });
+  await screen.findByLabelText('Scheduled date');
+  expect(screen.getByLabelText('Scheduled date')).toHaveDisplayValue('2025-03-10');
+  expect(screen.getByLabelText('Due date')).toHaveDisplayValue('2025-03-12');
+  expect(jest.mocked(api).mock.calls.every(([, init]) => !init?.method)).toBe(true);
+});
+it.each(['completed', 'recurring'])('keeps the fresh %s task schedule when its state changed before planning', async state => {
+  const fresh = { ...task, scheduled: null, recurrence: state === 'recurring' ? { frequency: 'daily' as const, interval: 1 } : null,
+    completedAt: state === 'completed' ? '2025-03-09T18:00:00Z' : null };
+  jest.mocked(api).mockResolvedValue(fresh);
+  render(<TaskEditor task={{ ...fresh, recurrence: null, completedAt: null }} initialScheduledDate="2025-03-10" onClose={jest.fn()}/>, { wrapper: Wrapper });
+  await screen.findByLabelText('Title'); expect(screen.queryByLabelText('Scheduled date')).toBeNull();
+  expect(screen.getByText(/This task is now complete or repeating/)).toBeOnTheScreen();
+  expect(jest.mocked(api).mock.calls.every(([, init]) => !init?.method)).toBe(true);
+});
+
 it('invalidates an open draft at write start, waits for overlapping writes, and explicitly rebases unchanged fields', async () => {
   const one = deferred<typeof task>(), two = deferred<typeof task>(); let server = { ...task };
   jest.mocked(api).mockImplementation((_path, init) => init?.method === 'PATCH' ? one.promise
