@@ -38,3 +38,15 @@ it('keeps Help unavailable during sign-in, then permits it after a failed reques
   fireEvent.press(screen.getByRole('button', { name: 'Help & data' })); expect(mockRouter.push).toHaveBeenCalledWith('/help');
   expect(screen.getByLabelText('Password')).toHaveDisplayValue('');
 });
+it('reveals and re-hides the password without changing it, and hides it again when switching to sign-up', async () => {
+  render(<Auth/>); await act(async () => {});
+  fireEvent.changeText(screen.getByLabelText('Password'), 'a-long-test-password');
+  expect(screen.getByLabelText('Password')).toHaveProp('secureTextEntry', true);
+  fireEvent.press(screen.getByRole('button', { name: 'Show password' }));
+  expect(screen.getByLabelText('Password')).toHaveProp('secureTextEntry', false); expect(screen.getByLabelText('Password')).toHaveDisplayValue('a-long-test-password');
+  fireEvent.press(screen.getByRole('button', { name: 'Hide password' })); expect(screen.getByLabelText('Password')).toHaveProp('secureTextEntry', true);
+  fireEvent.press(screen.getByRole('button', { name: 'Show password' }));
+  await act(async () => fireEvent.press(screen.getByText('Create an account')));
+  expect(screen.getByLabelText('Password')).toHaveProp('secureTextEntry', true);
+  expect(screen.getByText('Gentle routines with streaks and check-ins')).toBeOnTheScreen();
+});
