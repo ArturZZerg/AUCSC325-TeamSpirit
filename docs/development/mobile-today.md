@@ -126,3 +126,17 @@ prove native notification delivery or phone lifecycle behavior.
 chosen from the system appearance when the app starts; StyleSheets read it once
 at module load, so a system change applies on the next launch. Screens use
 tokens rather than literal colors; white is reserved for content on accent fills.
+
+## Quick add
+
+The Today quick-add bar (`src/features/quick-add-bar.tsx`) turns one line into a
+task. `src/features/quick-add.ts` recognises: today/tonight/tomorrow, weekdays
+(on or after today; "next" adds a week), "in N days/weeks", month-day dates
+(rolling past dates to next year, rejecting impossible days), times (5pm, 7:30am,
+17:00, noon, midnight), `due`/`by`/`before` for a deadline (otherwise a planned
+day), `!high`/`!low`, `#tag` categories with aliases and estimates (45m, 1.5h).
+Unrecognised text stays in the title. Without a date the task is planned for the
+displayed day. Recognised details preview as chips before saving. Saving reuses
+the editor's `taskFormRequest`, so title rules, account-zone conversion and
+missing/repeated DST time rejection are identical; Details opens the full editor
+with the parsed draft.

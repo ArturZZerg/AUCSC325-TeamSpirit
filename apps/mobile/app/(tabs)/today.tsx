@@ -9,6 +9,8 @@ import { DayAgenda } from '@/features/day-agenda';
 import { TaskEditor } from '@/features/task-editor';
 import type { TaskFormValues } from '@/features/task-form';
 import { FocusRecoveryCard } from '@/features/focus-recovery-card';
+import { QuickAddBar } from '@/features/quick-add-bar';
+import { localDateAt } from '@campusflow/domain';
 import { PlanRow, kindColors, type PlanAction } from '@/features/plan-row';
 import { greeting, groupPlan, isAccountToday, planProgress, planTimingLabel } from '@/features/today-plan';
 import { useSessionStore } from '@/store/session';
@@ -120,6 +122,8 @@ export default function TodayScreen() {
     <FocusRecoveryCard/>
     <State loading={query.isLoading} error={query.error}/>
 
+    <QuickAddBar today={localDateAt(new Date(Date.now()).toISOString(), query.timeZone)} planDate={date} timeZone={query.timeZone} disabled={blocked || !!taskDraft}
+      onOpenEditor={values => setTaskDraft(values)}/>
     {query.data && !items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>
       <Text style={styles.meta}>Add a task, keep a deadline in sight, or choose one small routine.</Text>
       <Pressable accessibilityRole="button" onPress={() => router.push('/get-started')} style={styles.primary}><Text style={styles.primaryText}>Build my daily plan</Text></Pressable></Card>}
