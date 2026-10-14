@@ -2,6 +2,23 @@
 
 Updated: 2026-10-13
 
+Latest iOS observation: `854b846` standard checks pass; native `38500933706`
+fails in the first request phase because the system Open dialog remains visible.
+The trace records one correctly positioned tap despite unchanged-screen retry;
+no URL delivery or second CLI follows. The split-session hypothesis is untested.
+The helper now settles and conditionally re-taps that exact visible system dialog
+once, still requiring dismissal. Original Help order, all storage requirements and
+single application actions remain intact. Recovery `e787af9` standard checks pass
+2,142 tests and actual Android emulator warm/cold/malformed/offline recovery,
+cached-task preservation and 320px/150% native text pass. Display/data cleanup is
+verified; no physical device or VPS transfer occurs. Its iOS request phase passes,
+then first Help (681ms), Back/in-app Help/search/Account assertions pass. Immediate
+cold Help opening after termination fails with OS timeout code 60 before recovery
+or storage scenarios. The public navigation CLI now ends after required stopApp;
+a separate non-reinstalling session opens/asserts cold Help without app launch,
+reset or command retry. All three phases must pass. This positive first-link
+result does not prove a root cause; native cold/storage acceptance remains pending.
+
 Current iOS gate correction: `ab46128` passes standard PR/push checks
 (`38472473844`, `38472473258`) but native run `38472473944` fails its original
 first warm Help assertion before private storage testing. System URL delivery

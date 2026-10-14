@@ -20,7 +20,7 @@ test tool; it does not deploy CampusFlow to the owner's server.
 | IOS-PREVIEW-02 | Inspect the product's simulator platform, identity, executable architectures, incoming-link scheme and selected API in the actual bundle | `ios-preview.mjs`; positive and invalid/stale artifact tests; generated product record |
 | IOS-PREVIEW-03 | Avoid unused sensitive capability prompts and arbitrary insecure HTTP access | Native Info.plist gate; installed Expo plugin introspection; Face ID/global cleartext regressions |
 | IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public-link-request.yaml` then `ios-public.yaml` on the same installed app/UUID; both CLI results, JUnit and screenshots |
-| IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | Actual Maestro assertions and cold Help screenshot |
+| IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | `ios-public.yaml` must finish by terminating the app, then `ios-public-cold.yaml` opens the link without launching first; all CLI/JUnit results and cold Help screenshot required |
 | IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 40-minute timeout and seven-day artifacts |
 | IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
 | IOS-STORAGE-01 | Verify the actual app's local host signature and compiled simulator Keychain capabilities in every architecture, without invented team IDs or shared groups | Strict signature verification; actual Mach-O `__TEXT,__entitlements` extraction; negative host/device/slice artifact tests |
@@ -53,6 +53,27 @@ reset, intervening navigation or additional sleep. Both JUnit reports are retain
 This tests possible observation-related delivery delay; only a fresh native result
 can confirm whether the change helps, and every subsequent public/storage assertion
 remains required.
+
+The split-session run at `854b846` (`38500933706`) fails in the request phase:
+the system confirmation remains visible, and the observation phase never starts.
+Its trace records one Open tap at 270,461 points, inside the observed native
+button, despite `retryTapIfNoChange`. The final full frame still contains the
+dialog and no incoming URL is delivered. This leaves the handoff hypothesis
+untested. The confirmation helper now settles animation, checks that exact
+dialog again and permits one additional idempotent Open tap only while it is
+still visible. Required dismissal and every application assertion remain intact;
+application Back/capture/save taps are not retried. Native acceptance is pending.
+
+The dependent recovery run at `e787af9` (`38501083746`) does exercise the handoff:
+its request phase passes; observation immediately finds Help (681ms), and both
+Back actions, in-app Help, two-slash linking, search/answer/reset, Account protection
+and ignored Help continuation pass. This is one positive result, not a root-cause
+proof. The next cold Help `openLink`, immediately after `stopApp`, fails with
+native `NSPOSIXErrorDomain` code 60 / operation timeout before its Help assertion.
+Later Help frames do not accept that failed command. The flow now ends its driver
+session after required termination, then requests/asserts cold Help in a separate
+session without any intervening app launch/reset or command retry. All three
+public phases must pass before private acceptance; every JUnit report is retained.
 
 Private-flow diagnostics publish only whitelisted command kinds, status enums and
 numeric duration/sequence, plus fixed known-label presence booleans on failure.

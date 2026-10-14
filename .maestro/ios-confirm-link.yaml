@@ -9,6 +9,16 @@ name: Settle and confirm the iOS system incoming-link dialog
       - tapOn:
           text: '^Open$'
           retryTapIfNoChange: true
+      - waitForAnimationToEnd
+      # A changed hierarchy can suppress the driver's unchanged-screen retry.
+      # Re-tap once only if the same system confirmation is still observed.
+      - runFlow:
+          when:
+            visible: 'Open in.*CampusFlow.*'
+          commands:
+            - tapOn:
+                text: '^Open$'
+                retryTapIfNoChange: true
       - extendedWaitUntil:
           notVisible: 'Open in.*CampusFlow.*'
           timeout: 10000

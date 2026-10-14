@@ -59,6 +59,10 @@ jobs:
           .local/maestro/bin/maestro --device "$udid" test --no-reinstall-driver --format JUNIT \
             --output artifacts/ios/evidence/public-flow.xml --debug-output artifacts/ios/evidence/maestro \
             --test-output-dir "$PWD/artifacts/ios/evidence/screenshots" .maestro/ios-public.yaml
+          # The preceding flow must terminate the app before this cold request.
+          .local/maestro/bin/maestro --device "$udid" test --no-reinstall-driver --format JUNIT \
+            --output artifacts/ios/evidence/public-cold.xml --debug-output artifacts/ios/evidence/maestro-cold \
+            --test-output-dir "$PWD/artifacts/ios/evidence/screenshots-cold" .maestro/ios-public-cold.yaml
       - name: Collect public simulator diagnostics
         if: always() && env.IOS_SIMULATOR_UDID != ''
         run: |

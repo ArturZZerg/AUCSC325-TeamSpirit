@@ -42,8 +42,3 @@ name: iOS public offline Help and account navigation
 - openLink: campusflow:///help?next=https%3A%2F%2Funtrusted.test
 - assertVisible: A little help for your day.
 - stopApp
-- openLink: campusflow:///help
-- extendedWaitUntil:
-    visible: A little help for your day.
-    timeout: 30000
-- takeScreenshot: ios-help-cold

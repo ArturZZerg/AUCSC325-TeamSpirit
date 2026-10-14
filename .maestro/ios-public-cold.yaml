@@ -1,0 +1,10 @@
+appId: com.campusflow.mobile
+name: iOS public cold Help link after termination
+---
+# The preceding public flow terminates the app; do not launch it before this link.
+- openLink: campusflow:///help
+- runFlow: ios-confirm-link.yaml
+- extendedWaitUntil:
+    visible: A little help for your day.
+    timeout: 30000
+- takeScreenshot: ios-help-cold
