@@ -1,0 +1,33 @@
+appId: com.campusflow.mobile
+name: iOS review loads the current owned task
+---
+- launchApp
+- extendedWaitUntil:
+    visible: Your daily flow
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: Review this day
+    direction: UP
+- tapOn: Review this day
+- extendedWaitUntil:
+    visible: Leave the day a little lighter.
+    timeout: 30000
+- extendedWaitUntil:
+    visible: Refresh day
+    timeout: 30000
+- tapOn: Refresh day
+- scrollUntilVisible:
+    element:
+      text: '1 saved block.*1 finished.*0 ended early'
+    direction: DOWN
+- assertVisible: '^25m$'
+- scrollUntilVisible:
+    element:
+      text: Plan ${IOS_QA_REVIEW_TASK} for tomorrow
+    direction: DOWN
+- tapOn: Plan ${IOS_QA_REVIEW_TASK} for tomorrow
+- extendedWaitUntil:
+    visible: Edit task
+    timeout: 30000
+- assertVisible: Your chosen day is prefilled as a schedule.*

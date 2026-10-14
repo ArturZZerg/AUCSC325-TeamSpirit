@@ -95,3 +95,28 @@ hardware behavior or production readiness. Both standard PR/push checks pass
 all 2,157 tests on the app source above. The feature's iOS run fails a public
 Help-visible assertion before this private workspace is exercised. Final current
 iOS acceptance, review, matched-head merge and post-main checks remain required.
+
+## Integrated iOS API acceptance gate
+
+The final feature is stacked on recovery PR #84 and its accepted storage parent.
+All 1,140 integrated mobile tests and 33 iOS tooling cases pass, along with lint,
+strict mobile types and thirteen native YAML documents.
+
+The disposable macOS gate now creates a second owned task with both schedule and
+deadline set to the current UTC account day through the ordinary API, plus one
+25-minute saved focus record through the real focus endpoint. It retains the
+original native Today-captured task and all original cold/cache/logout assertions.
+The native review must display that saved study block, load the current review
+task, cancel, and later explicitly save its default tomorrow schedule. Independent
+contract-validated API reads require cancellation to leave both task records
+unchanged, and save to change only the review task's schedule/version while keeping
+its deadline and the original task intact. Duplicate, missing or extra tasks fail.
+SQL verifies owned task/focus persistence and retention through logout.
+
+Only the synthetic disposable account is used. Private screenshots, selectors,
+variables and logs remain on the runner; published timelines contain only fixed
+action/status/timing fields. The final source-bound proof must include these new
+review results and the four original storage checks with successful cleanup.
+Fresh actual native success is still required; local test passes do not establish
+the integrated iOS behavior. The API-created focus fixture does not test a native
+timer or establish production/hardware acceptance.

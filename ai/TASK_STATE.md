@@ -907,3 +907,27 @@ After its accepted matched-SHA merge/main checks, rebase the dependent work,
 preserving Button's test identifier and the feature's accessibility label, then
 review and run all current native/standard gates. No phone or server source
 transfer is performed; unrelated files and the earlier owned stash are preserved.
+
+### Real API gate for native day review, 2026-10-14
+
+Day review is prepared on recovery head `71e8082`, retaining its safe-link routes,
+attempt-specific artifact names and the accepted complete storage/cleanup guard.
+The repository permits merge commits; preserving recovery's history will keep the
+dependent PR scoped without rewriting already-tested app source for ancestry.
+
+The iOS harness now creates a second disposable owned task due/scheduled today
+and a real API-persisted 25-minute focus fixture. Two native flows must display
+saved study time, load fresh task detail, cancel without server changes, then
+explicitly save tomorrow while preserving the deadline. Independent API/schema
+and SQL assertions protect both tasks, prevent duplicates and retain the original
+Today-capture/cold-cache/logout gates. Final proof rejects missing review/study
+results as well as incomplete common storage checks. Private UI/logs remain local
+to the runner, and only bounded fixed metadata is published.
+
+All 1,140 integrated mobile tests, 33 iOS tooling cases, lint, mobile types and
+thirteen native flow documents pass locally. Current native acceptance is pending.
+Main `c08a098` standard checks pass; native `38612589080` is live. PR #84's two
+standard checks pass on `71e8082`; native `38613496910` is live. Neither feature
+is merged. Use the exact main source's proof validator for its legacy four-check
+record; the feature's stricter validator intentionally requires the added review
+results. No phone or VPS transfer is performed; unrelated files/backups remain.
