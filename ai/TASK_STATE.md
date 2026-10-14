@@ -824,3 +824,29 @@ stash `2ce9944872143540b41ab74e86e99a85482099d1` safely holds those named featur
 files while this cleanup fix is published. Its synthetic loopback visual preview
 is still open; this is not native/production acceptance. No existing user files,
 phone, retained account or server source are operated on.
+
+### Accepted iOS storage parent and recovery integration, 2026-10-14
+
+PR #83 is merged at `c08a0987222c3940bc59cd187f03e0e9e47aadea`. Both standard
+checks and final uninstrumented native `38603642902` attempt 2 pass on reviewed
+head `c3c2563`. Downloaded final product/JUnit/storage records match that source;
+the proof validator confirms all four ordered API/cache/logout checks and passed
+cleanup. Earlier failed-attempt artifacts are preserved locally with hashes and
+only their duplicate remote upload slots were cleared. The merged tree matches
+the reviewed tree. Main standard `38612589071` passes; native `38612589080` is running.
+
+The queued recovery feature is rebased onto accepted main. Its recovery/root-gate
+file hashes match the previously exercised Android/partial iOS feature code.
+It retains the parent's full final-proof guard, original warm wrapper and exact
+Settings-tab selection; all added warm/cold/offline recovery assertions remain.
+Artifact names now include source and run attempt, preserving evidence on retries.
+All 1,099 integrated mobile tests and 28 iOS tooling cases pass, along with lint,
+strict mobile types and all ten native YAML flows. Exact-head PR/native/main
+checks remain required.
+
+The separate day-review feature is also prepared locally on the accepted main;
+Button retains both native testID and its task-specific accessibility label.
+All 1,128 integrated mobile tests, 28 iOS tooling cases, lint and mobile types pass.
+Its earlier native fixture evidence remains tied to app source `72a1395`; final
+integrated feature acceptance is still required. Backups and unrelated user files
+are preserved. No physical phone or server source transfer is performed.

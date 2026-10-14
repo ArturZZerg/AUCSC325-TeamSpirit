@@ -114,3 +114,21 @@ density and font are read back after restoration. The owned emulator is stopped
 with data retained; no other devices are attached to its isolated server, so that
 unused server is also stopped. Native proofs/images remain in ignored `.local`
 as `recovery-android-*`; physical/older Android and iOS acceptance remain separate.
+
+## Integration after accepted storage parent, 2026-10-14
+
+PR #83 merges at `c08a0987222c3940bc59cd187f03e0e9e47aadea` after final source
+`c3c2563` passes both standard checks, original warm/cold public navigation and
+all four native API/cache/logout checks with an independently validated final
+storage/cleanup record. Recovery is rebased onto that accepted tree; its actual
+`+not-found` and root-gate file hashes match the earlier exercised `e787af9` code.
+The parent retains its complete-proof guard, exact Settings tab selector and
+uninstrumented one-session first-warm wrapper. All added recovery flows remain
+required, including returning to the same cached task while the API is absent.
+
+Native artifact names now include source and run attempt so retries retain earlier
+evidence without duplicate uploads. YAML structure and both distinct artifact
+identities are checked. All 1,099 mobile tests, 28 iOS tooling cases, lint and
+strict mobile types pass after integration. Fresh exact-head native and standard checks, final source
+review and post-merge main verification remain required; earlier partial runs
+cannot substitute for the integrated recovery gate.

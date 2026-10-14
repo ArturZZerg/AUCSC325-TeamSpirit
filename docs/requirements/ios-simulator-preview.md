@@ -21,12 +21,25 @@ test tool; it does not deploy CampusFlow to the owner's server.
 | IOS-PREVIEW-03 | Avoid unused sensitive capability prompts and arbitrary insecure HTTP access | Native Info.plist gate; installed Expo plugin introspection; Face ID/global cleartext regressions |
 | IOS-PREVIEW-04 | Start on ordinary sign-in, follow the first warm three-slash Help link, then exercise in-app Help, two-slash linking, search and an offline guide | `ios-public-first-warm.yaml` sequentially requires `ios-public-link-request.yaml` then `ios-public.yaml` in one XCTest session on the same installed app/UUID; whole-flow JUnit and screenshots |
 | IOS-PREVIEW-05 | Require sign-in for Account, ignore Help's untrusted continuation and reopen Help after process termination | `ios-public.yaml` must finish by terminating the app, then `ios-public-cold.yaml` opens the link without launching first; all CLI/JUnit results and cold Help screenshot required |
-| IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 60-minute whole-job budget and seven-day artifacts |
+| IOS-PREVIEW-06 | Bound and retain reproducible evidence without private student data | Read-only workflow permissions, fixed loopback API, public-only flow, explicit simulator identity, 60-minute whole-job budget and seven-day artifacts named by source and run attempt |
 | IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
 | IOS-STORAGE-01 | Verify the actual app's local host signature and compiled simulator Keychain capabilities in every architecture, without invented team IDs or shared groups | Strict signature verification; actual Mach-O `__TEXT,__entitlements` extraction; negative host/device/slice artifact tests |
 | IOS-STORAGE-02 | Ordinary native sign-in writes Secure Store and Today capture creates exactly one date-scheduled task through the real API | Disposable PostgreSQL 17 and NestJS preview API; native flow plus independent contract-validated API read |
 | IOS-STORAGE-03 | Terminated-process startup restores the encrypted session and owned SQLite task with no API/Metro listener | Explicit API shutdown/port guard and native cold offline flow |
 | IOS-STORAGE-04 | Native sign-out revokes its actual API session, removes owned SQLite rows, and cold startup stays signed out without an API while the server task survives | Before/after session/cache counts, online logout and separate API-disconnected cold signed-out flow; a server 401 cannot mask stale Secure Store |
+
+PR #83 is merged at `c08a0987222c3940bc59cd187f03e0e9e47aadea` after both
+standard checks and final uninstrumented native run `38603642902` attempt 2 pass
+on `c3c25638596df891c1a5dfe6e757b603dd3f0567`. The final `storage.json` is
+downloaded and independently validated for that exact source, all four checks
+and passed process cleanup. Warm/cold public JUnit reports each have zero failures.
+The merged tree matches the reviewed tree; exact post-main checks are still required.
+
+Each artifact name includes the source commit and `github.run_attempt`. Retrying
+must preserve prior evidence and upload new evidence under a distinct name. In
+the accepted parent retry, the two failed-attempt artifacts were preserved locally
+with hashes before clearing their duplicate remote names; failed run logs remain.
+The following documentation records the earlier investigation chronologically.
 
 The storage harness is restricted to the disposable macOS Actions runner and the
 explicit booted `CampusFlowIosQa` UUID. It creates its own SCRAM-protected, loopback
