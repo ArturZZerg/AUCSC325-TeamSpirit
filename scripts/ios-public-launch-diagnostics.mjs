@@ -70,7 +70,10 @@ export const sampleReportLimit = 16_777_216;
 // macOS may report a firmlinked (/private/...) or symlinked spelling of the same installed file.
 const resolved = file => { try { return realpathSync(file); } catch { return file; } };
 const spelling = file => resolved(file).replace(/^\/private(?=\/)/, '');
-const samePath = (left, right) => left === right || spelling(left) === spelling(right);
+// sample anonymizes the account's home folder as /Users/USER; the rest (device UDID, container) must still match.
+const anonymous = file => file.replace(/^\/Users\/[^/]+\//, '/Users/USER/');
+const samePath = (left, right) => left === right || spelling(left) === spelling(right)
+  || (left.startsWith('/Users/USER/') && left === anonymous(spelling(right)));
 /** The report's executable path, for evidence when it does not match. */
 export const reportedPath = report => typeof report === 'string'
   ? report.split(/\r?\n/).find(line => /^Path:\s+/.test(line))?.replace(/^Path:\s+/, '').trim().slice(0, 400) : undefined;

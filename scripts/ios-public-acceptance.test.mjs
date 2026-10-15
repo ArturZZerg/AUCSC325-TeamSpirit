@@ -109,6 +109,10 @@ test('a captured report must identify this new process and its exact installed e
   assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report.replaceAll('\n', '\r\n'), executable));
   assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report.replace(`Path: ${executable}`, `Path: /private${executable}`), executable));
   assert.throws(() => assertPublicLaunchSample(launchSample(), launchContext, report.replace('Call graph:', ''), executable), /call graph/);
+  // sample's anonymized home folder is accepted only for the same device and container.
+  assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report.replace('/Users/runner/', '/Users/USER/'), executable));
+  assert.throws(() => assertPublicLaunchSample(launchSample(), launchContext, report.replace('/Users/runner/', '/Users/USER/').replace('fixture', 'other'), executable), /path line/);
+  assert.throws(() => assertPublicLaunchSample(launchSample(), launchContext, report.replace('/Users/runner/', '/Users/someone/'), executable), /path line/);
 });
 test('partial, replayed, foreign-process and oversized samples cannot satisfy the diagnostic gate', () => {
   for (const value of [{ ...launchSample(), result: 'sample-failed' }, { ...launchSample(), cleanup: 'failed' },
