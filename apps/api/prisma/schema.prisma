@@ -204,6 +204,8 @@ model Course {
   code String?
   active Boolean @default(true)
   color String?
+  assessments Json @default("[]")
+  targetGrade Int?
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   academicItems AcademicItem[]
   @@unique([userId, source, externalId])
