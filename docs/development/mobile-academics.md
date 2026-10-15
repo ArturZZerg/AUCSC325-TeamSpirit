@@ -55,3 +55,29 @@ fixture QA checked search, Finished filtering, reminder selection and Cancel at
 320px/390px, plus a 1100px layout; there was no page horizontal overflow.
 The temporary preview route was removed before checks/export. No authorized
 ADB device was connected, so native interaction/delivery remains unverified.
+
+## Courses
+
+Coursework links to **Courses** (`app/courses.tsx`): students add a course with a
+name, optional code and one of eight colours, edit or archive it, and delete it
+after confirmation (its coursework stays, with no course). Imported Canvas
+courses show their source and accept only a colour. Course colours appear as a
+dot beside coursework. Creates reuse their client ID on retry (ADR 015).
+
+## Course grades
+
+Each course opens a detail screen (`app/course/[id].tsx`) with the current
+weighted grade, graded share, a target (presets or a custom whole number) and
+what average is needed on the remaining work, plus the course's assessments and
+coursework. Assessments are added and scored in `assessment-editor.tsx`; weights
+and scores accept `30`, `7,5` or `88%`. Calculation: `gradeSummary` in the domain
+package (ADR 016).
+
+## Exams
+
+Manual coursework can be an **Exam** (contracts `kind: 'exam'`; Canvas mapping is
+unchanged). Exam study plans default to five revision sessions over up to two
+weeks, ending the day before the exam. Today shows **Exams ahead**: unfinished
+exams from today through 14 days in the account zone (timed exams drop off once
+they start), soonest first, with course code/colour and a countdown that turns
+coral within two days (`src/features/exams.ts`, `exam-countdown.tsx`).

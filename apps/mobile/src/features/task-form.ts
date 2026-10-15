@@ -13,6 +13,8 @@ export function taskFormSchema(task: PersonalTask | null, timeZone = 'UTC') {
     scheduledMode: timingMode, scheduledDate: z.string(), scheduledTime: z.string(),
     recurrenceMode: z.enum(['none', 'daily', 'weekly']), interval: z.string(), weekdays: z.array(z.number().int().min(1).max(7)),
     category: categorySchema,
+    /** '' means no course. */
+    courseId: z.string(),
     priority: prioritySchema,
   }).superRefine((values, context) => {
     if (task?.completedAt && !task.recurrence && values.recurrenceMode !== 'none') context.addIssue({ code: 'custom', path: ['recurrenceMode'], message: 'Undo completion before making this task repeat.' });
@@ -62,7 +64,7 @@ export function taskFormDefaults(task: PersonalTask | null, timeZone = 'UTC'): T
     dueMode: due.mode, dueDate: due.date, dueTime: due.time,
     scheduledMode: scheduled.mode, scheduledDate: scheduled.date, scheduledTime: scheduled.time,
     recurrenceMode: task?.recurrence?.frequency ?? 'none', interval: String(task?.recurrence?.interval ?? 1), weekdays: task?.recurrence?.frequency === 'weekly' ? task.recurrence.weekdays : [],
-    category: task?.category ?? 'personal', priority: task?.priority ?? 'medium',
+    category: task?.category ?? 'personal', priority: task?.priority ?? 'medium', courseId: task?.courseId ?? '',
   };
 }
 
@@ -83,6 +85,7 @@ export function taskFormRequest(values: TaskFormValues, task: PersonalTask | nul
     title: valid.title, description: valid.description || null, category: valid.category, priority: valid.priority,
     due: timing(valid.dueMode, valid.dueDate, valid.dueTime, task?.due ?? null),
     ...(estimatedMinutes !== (task?.estimatedMinutes ?? null) ? { estimatedMinutes } : {}),
+    ...((valid.courseId || null) !== (task?.courseId ?? null) ? { courseId: valid.courseId || null } : {}),
     ...(changed(scheduled, task?.scheduled) ? { scheduled } : {}),
     ...(!sameRecurrence ? { recurrence } : {}),
   };

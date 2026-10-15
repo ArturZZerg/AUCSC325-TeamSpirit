@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import TimetableScreen from '../app/timetable';
-import { useAction, useClasses } from '../src/features/queries';
+import { useAction, useClasses, useCourses } from '../src/features/queries';
 import { classFixture } from './class-fixture';
 const mockPush = jest.fn(), mockReplace = jest.fn(); let mockToken = 'first'; const save = jest.fn(), refetch = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }));
-jest.mock('../src/features/queries', () => ({ useClasses: jest.fn(), useAction: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useClasses: jest.fn(), useCourses: jest.fn(), useAction: jest.fn() }));
+const psy = { id: '60000000-0000-4000-8000-000000000001', externalId: 'p', name: 'Cognitive Psychology', code: 'PSY 223', active: true, source: 'manual', color: 'plum' };
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: () => ({ date: '2025-03-10', resumeCount: 0 }) }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { accessToken: mockToken, user: { id: '10000000-0000-4000-8000-000000000001', timeZone: 'America/Edmonton' } } }) }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
@@ -12,7 +13,8 @@ jest.mock('@expo/vector-icons/Ionicons', () => 'Icon');
 function show(fields = {}) {
   jest.mocked(useClasses).mockReturnValue({ data: [classFixture()], isLoading: false, isRefetching: false, refetch, ...fields } as unknown as ReturnType<typeof useClasses>);
 }
-beforeEach(() => { jest.clearAllMocks(); mockToken = 'first'; show(); save.mockReset().mockResolvedValue({}); jest.mocked(useAction).mockReturnValue({ mutateAsync: save } as unknown as ReturnType<typeof useAction>); });
+beforeEach(() => { jest.clearAllMocks(); mockToken = 'first'; show(); save.mockReset().mockResolvedValue({}); jest.mocked(useAction).mockReturnValue({ mutateAsync: save } as unknown as ReturnType<typeof useAction>);
+  jest.mocked(useCourses).mockReturnValue({ data: [psy] } as unknown as ReturnType<typeof useCourses>); });
 it('shows a real weekly timetable with room details and selected-day navigation', () => {
   render(<TimetableScreen/>); expect(screen.getByText('3 meetings · 3 class hours this week')).toBeTruthy();
   expect(screen.getByText('Library 204 · Dr Green')).toBeTruthy();
@@ -45,4 +47,9 @@ it('discards a private editor and selected date when the session changes', async
   const view = render(<TimetableScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Next week' })); fireEvent.press(screen.getByText('Add a class'));
   await screen.findByText('Save class'); mockToken = 'second'; await act(async () => view.rerender(<TimetableScreen/>));
   expect(screen.queryByText('Save class')).toBeNull(); expect(screen.getByText('Monday, Mar 10')).toBeTruthy();
+});
+it('labels a meeting with its course and opens the course', () => {
+  show({ data: [classFixture({ courseId: psy.id })] }); render(<TimetableScreen/>);
+  fireEvent.press(screen.getByRole('link', { name: 'Open Cognitive Psychology' }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/course/[id]', params: { id: psy.id } });
 });

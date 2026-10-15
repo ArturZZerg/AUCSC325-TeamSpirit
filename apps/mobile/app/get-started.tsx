@@ -9,6 +9,7 @@ import { useTodayClock } from '@/features/today-clock';
 import { TaskEditor } from '@/features/task-editor';
 import { AcademicItemEditor } from '@/features/academic-item-editor';
 import { GoalEditor } from '@/features/goal-editor';
+import { CourseEditor } from '@/features/course-editor';
 import { setupProgress, type SetupStatus } from '@/features/setup-progress';
 import { useSessionStore } from '@/store/session';
 
@@ -21,9 +22,9 @@ function GetStartedContent({ timeZone }: { timeZone: string }) {
   const router = useRouter();
   const tasks = useTasks(); const academic = useAcademic(); const goals = useGoals(); const courses = useCourses();
   const { date, resumeCount } = useTodayClock(timeZone);
-  const [editing, setEditing] = useState<'task' | 'coursework' | 'routine'>();
+  const [editing, setEditing] = useState<'course' | 'task' | 'coursework' | 'routine'>();
   const lastResume = useRef(resumeCount);
-  const progress = setupProgress(tasks.data, academic.data, goals.data);
+  const progress = setupProgress(tasks.data, academic.data, goals.data, courses.data);
   const refreshing = tasks.isRefetching || academic.isRefetching || goals.isRefetching || courses.isRefetching;
   const refresh = () => { void Promise.all([tasks.refetch(), academic.refetch(), goals.refetch(), courses.refetch()]); };
   useEffect(() => {
@@ -32,7 +33,7 @@ function GetStartedContent({ timeZone }: { timeZone: string }) {
     void tasks.refetch({ cancelRefetch: false }); void academic.refetch({ cancelRefetch: false });
     void goals.refetch({ cancelRefetch: false }); void courses.refetch({ cancelRefetch: false });
   }, [resumeCount, tasks.refetch, academic.refetch, goals.refetch, courses.refetch]);
-  const failed = tasks.error || academic.error || goals.error;
+  const failed = tasks.error || academic.error || goals.error || courses.error;
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={!!editing} accessibilityElementsHidden={!!editing} importantForAccessibility={editing ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={!!refreshing} onRefresh={refresh}/>}>
@@ -41,21 +42,24 @@ function GetStartedContent({ timeZone }: { timeZone: string }) {
       <View style={styles.heroIcon}><Ionicons name="leaf-outline" size={28} color={colors.moss}/></View>
       <Text style={styles.title}>{'A little structure.\nA lighter day.'}</Text>
       <Text style={styles.copy}>Put the things that matter in one place. Start with one small step and build a plan that fits you.</Text>
-      <View style={styles.heading}><Text style={styles.progressLabel}>{progress.added} of 3 foundations added</Text><Text style={styles.meta}>At your pace</Text></View>
-      <View style={styles.progress} accessibilityRole="progressbar" accessibilityLabel="Setup progress" accessibilityValue={{ min: 0, max: 3, now: progress.added }}>
-        {[1, 2, 3].map(step => <View key={step} style={[styles.segment, step <= progress.added && styles.segmentDone]}/>)}
+      <View style={styles.heading}><Text style={styles.progressLabel}>{progress.added} of 4 foundations added</Text><Text style={styles.meta}>At your pace</Text></View>
+      <View style={styles.progress} accessibilityRole="progressbar" accessibilityLabel="Setup progress" accessibilityValue={{ min: 0, max: 4, now: progress.added }}>
+        {[1, 2, 3, 4].map(step => <View key={step} style={[styles.segment, step <= progress.added && styles.segmentDone]}/>)}
       </View>
-      {progress.added === 3 && <Text style={styles.copy}>Your foundations are in place. Open Today to choose what comes next.</Text>}
+      {progress.added === 4 && <Text style={styles.copy}>Your foundations are in place. Open Today to choose what comes next.</Text>}
     </View>
     {failed && <Card><Text accessibilityRole="alert" style={styles.copy}>Couldn’t refresh your setup. Progress uses saved information where available.</Text><Button title="Refresh setup" tone="plain" disabled={!!refreshing} onPress={refresh}/></Card>}
-    {!failed && progress.known < 3 && <Text style={styles.meta}>Checking your saved tasks, coursework and routines…</Text>}
-    <Step number="01" icon="checkbox-outline" title="Make space for one task" status={progress.task}
+    {!failed && progress.known < 4 && <Text style={styles.meta}>Checking your saved courses, tasks, coursework and routines…</Text>}
+    <Step number="01" icon="color-palette-outline" title="Add your courses" status={progress.course}
+      description="Name this term’s courses and give each a colour. Coursework, grades and deadlines then group by course."
+      action={progress.course === 'added' ? 'View my courses' : 'Add a course'} onPress={() => progress.course === 'added' ? router.push('/courses') : setEditing('course')}/>
+    <Step number="02" icon="checkbox-outline" title="Make space for one task" status={progress.task}
       description="Something on your mind? Give it a name and a day. A quick task starts in today’s plan; you can change the date."
       action={progress.task === 'added' ? 'View my tasks' : 'Add a task for today'} onPress={() => progress.task === 'added' ? router.push('/tasks') : setEditing('task')}/>
-    <Step number="02" icon="school-outline" title="Keep a deadline in sight" status={progress.coursework}
+    <Step number="03" icon="school-outline" title="Keep a deadline in sight" status={progress.coursework}
       description="Add an assignment or quiz from your syllabus. You can start with your own coursework while Canvas is optional."
       action={progress.coursework === 'added' ? 'View my coursework' : 'Add coursework'} onPress={() => progress.coursework === 'added' ? router.push('/academics') : setEditing('coursework')}/>
-    <Step number="03" icon="repeat-outline" title="Find a steady rhythm" status={progress.routine}
+    <Step number="04" icon="repeat-outline" title="Find a steady rhythm" status={progress.routine}
       description="Choose one small routine: a weekday study block, a walk, or a weekly activity. Set a pace you can keep."
       action={progress.routine === 'added' ? 'View my routines' : 'Create a routine'} onPress={() => progress.routine === 'added' ? router.push('/wellness') : setEditing('routine')}
       secondaryAction={{ label: 'Browse routine ideas', onPress: () => router.push('/routines') }}/>
@@ -66,6 +70,7 @@ function GetStartedContent({ timeZone }: { timeZone: string }) {
     <Button title="Open my daily plan" onPress={() => router.replace('/today')}/>
     <Text style={styles.footnote}>This guide is always available from Today. You choose what to add; nothing is created automatically.</Text>
   </ScrollView>
+    {editing === 'course' && <CourseEditor course={null} onClose={() => setEditing(undefined)}/>}
     {editing === 'task' && <TaskEditor task={null} timeZone={timeZone} initialValues={{ scheduledMode: 'date', scheduledDate: date }} onClose={() => setEditing(undefined)}/>}
     {editing === 'coursework' && <AcademicItemEditor item={null} courses={courses.data ?? []} timeZone={timeZone} onClose={() => setEditing(undefined)} onSaved={() => setEditing(undefined)}/>}
     {editing === 'routine' && <GoalEditor goal={null} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}

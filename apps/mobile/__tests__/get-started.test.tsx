@@ -25,32 +25,36 @@ beforeEach(() => {
 
 describe('guided setup (ToR 4, 7, 15, 19)', () => {
   it('creates nothing on arrival or cancellation, and updates progress from actual records', () => {
-    const ui = render(<GetStartedScreen/>); expect(screen.getByText('0 of 3 foundations added')).toBeOnTheScreen();
+    const ui = render(<GetStartedScreen/>); expect(screen.getByText('0 of 4 foundations added')).toBeOnTheScreen();
     fireEvent.press(screen.getByText('Add a task for today')); fireEvent.press(screen.getByText('Cancel'));
-    expect(save).not.toHaveBeenCalled(); expect(screen.getByText('0 of 3 foundations added')).toBeOnTheScreen();
+    expect(save).not.toHaveBeenCalled(); expect(screen.getByText('0 of 4 foundations added')).toBeOnTheScreen();
     jest.mocked(useTasks).mockReturnValue({ data: snapshot.personalTasks, refetch: refresh } as unknown as ReturnType<typeof useTasks>);
     jest.mocked(useAcademic).mockReturnValue({ data: [{ ...essay, source: 'manual' }], refetch: refresh } as unknown as ReturnType<typeof useAcademic>);
     jest.mocked(useGoals).mockReturnValue({ data: snapshot.goals, refetch: refresh } as unknown as ReturnType<typeof useGoals>);
-    ui.rerender(<GetStartedScreen/>); expect(screen.getByText('3 of 3 foundations added')).toBeOnTheScreen();
+    ui.rerender(<GetStartedScreen/>); expect(screen.getByText('3 of 4 foundations added')).toBeOnTheScreen();
+    jest.mocked(useCourses).mockReturnValue({ data: [{ id: '60000000-0000-4000-8000-000000000001', externalId: 'x', name: 'Ethics', code: null, active: true, source: 'manual', color: 'teal' }], refetch: refresh } as unknown as ReturnType<typeof useCourses>);
+    ui.rerender(<GetStartedScreen/>); expect(screen.getByText('4 of 4 foundations added')).toBeOnTheScreen();
+    fireEvent.press(screen.getByText('View my courses')); expect(mockPush).toHaveBeenCalledWith('/courses');
     fireEvent.press(screen.getByText('View my tasks')); expect(mockPush).toHaveBeenCalledWith('/tasks');
     fireEvent.press(screen.getByText('View my coursework')); expect(mockPush).toHaveBeenCalledWith('/academics');
     fireEvent.press(screen.getByText('View my routines')); expect(mockPush).toHaveBeenCalledWith('/wellness');
   });
-  it('does not treat demo coursework as an added academic foundation', () => {
+  it('does not treat demo coursework or demo courses as added foundations', () => {
+    jest.mocked(useCourses).mockReturnValue({ data: [{ id: '60000000-0000-4000-8000-000000000002', externalId: 'f', name: 'Demo', code: null, active: true, source: 'canvas:fixture' }], refetch: refresh } as unknown as ReturnType<typeof useCourses>);
     jest.mocked(useAcademic).mockReturnValue({ data: [{ ...essay, source: 'canvas:fixture' }], refetch: refresh } as unknown as ReturnType<typeof useAcademic>);
-    render(<GetStartedScreen/>); expect(screen.getByText('0 of 3 foundations added')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Add coursework' })).toBeOnTheScreen();
+    render(<GetStartedScreen/>); expect(screen.getByText('0 of 4 foundations added')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Add coursework' })).toBeOnTheScreen(); expect(screen.getByRole('button', { name: 'Add a course' })).toBeOnTheScreen();
   });
   it('labels unavailable account reads and preserves known cached progress after a refresh failure', () => {
     jest.mocked(useTasks).mockReturnValue({ data: undefined, error: new Error('Offline'), refetch: refresh } as unknown as ReturnType<typeof useTasks>);
     jest.mocked(useGoals).mockReturnValue({ data: snapshot.goals, error: new Error('Offline'), refetch: refresh } as unknown as ReturnType<typeof useGoals>);
-    render(<GetStartedScreen/>); expect(screen.getByText('1 of 3 foundations added')).toBeOnTheScreen();
+    render(<GetStartedScreen/>); expect(screen.getByText('1 of 4 foundations added')).toBeOnTheScreen();
     expect(screen.getByText('NOT LOADED')).toBeOnTheScreen(); expect(screen.getByRole('alert')).toHaveTextContent(/saved information/);
     fireEvent.press(screen.getByText('Refresh setup')); expect(refresh).toHaveBeenCalledTimes(4);
   });
   it('shows loading without claiming an empty account and supports pull-to-refresh', () => {
     jest.mocked(useTasks).mockReturnValue({ data: undefined, refetch: refresh } as unknown as ReturnType<typeof useTasks>);
-    render(<GetStartedScreen/>); expect(screen.getByText('Checking your saved tasks, coursework and routines…')).toBeOnTheScreen();
+    render(<GetStartedScreen/>); expect(screen.getByText('Checking your saved courses, tasks, coursework and routines…')).toBeOnTheScreen();
     expect(screen.getByText('NOT LOADED')).toBeOnTheScreen();
     fireEvent(screen.UNSAFE_getByType(RefreshControl), 'refresh'); expect(refresh).toHaveBeenCalledTimes(4);
   });
@@ -59,7 +63,7 @@ describe('guided setup (ToR 4, 7, 15, 19)', () => {
     fireEvent.press(screen.getByText('Add a task for today')); fireEvent.changeText(screen.getByLabelText('Title'), 'Read chapter 4');
     fireEvent.press(screen.getByText('Save task')); await screen.findByText('Network unavailable');
     expect(screen.getByLabelText('Title')).toHaveDisplayValue('Read chapter 4');
-    expect(screen.getByText('0 of 3 foundations added', { includeHiddenElements: true })).toBeOnTheScreen();
+    expect(screen.getByText('0 of 4 foundations added', { includeHiddenElements: true })).toBeOnTheScreen();
     await act(async () => fireEvent.press(screen.getByText('Save task')));
     await waitFor(() => expect(screen.queryByLabelText('Title')).toBeNull());
     expect(save).toHaveBeenLastCalledWith({ path: '/tasks', method: 'POST', body: {

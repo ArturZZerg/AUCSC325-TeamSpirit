@@ -15,10 +15,12 @@ export const studyWeekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function preparationDefaults(item: AcademicItem, today: string, timeZone: string): PreparationConfig {
   const due = item.due?.kind === 'date' ? item.due.date : item.due?.kind === 'instant' ? localDateAt(item.due.at, timeZone) : undefined;
-  const latest = addCalendarDays(today, 6);
-  return { title: `${item.kind === 'quiz' ? 'Prepare for' : 'Prepare'}: ${item.title}`.slice(0, 240), from: today,
-    through: due && due >= today && due < latest ? due : latest,
-    count: 3, minutes: 50, weekdays: [1, 2, 3, 4, 5, 6, 7], template: item.kind === 'quiz' ? 'revision' : 'assignment' };
+  // Exams get two weeks of spaced revision ending the day before; quizzes one week.
+  const exam = item.kind === 'exam', latest = addCalendarDays(today, exam ? 13 : 6);
+  const end = exam && due ? addCalendarDays(due, -1) : due;
+  return { title: `${item.kind === 'quiz' || exam ? 'Prepare for' : 'Prepare'}: ${item.title}`.slice(0, 240), from: today,
+    through: end && end >= today && end < latest ? end : latest,
+    count: exam ? 5 : 3, minutes: 50, weekdays: [1, 2, 3, 4, 5, 6, 7], template: item.kind === 'quiz' || exam ? 'revision' : 'assignment' };
 }
 
 export function preparationPreview(item: AcademicItem, value: PreparationConfig): PreparationSession[] {

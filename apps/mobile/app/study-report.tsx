@@ -3,10 +3,11 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { useRouter } from 'expo-router';
 import { addCalendarDays } from '@campusflow/domain';
 import { Button, Card, Screen, colors, BackLink } from '@/components/ui';
-import { useFocusHistory, useTasks } from '@/features/queries';
+import { useCourses, useFocusHistory, useStudyPlans, useTasks } from '@/features/queries';
+import { courseColor } from '@/features/course-editor';
 import { useTodayClock } from '@/features/today-clock';
 import { calendarLabel, weekStart } from '@/features/weekly-planner';
-import { buildStudyReport, studyTimeLabel } from '@/features/study-report';
+import { buildStudyReport, studyTimeByCourse, studyTimeLabel } from '@/features/study-report';
 import { useSessionStore } from '@/store/session';
 
 export default function StudyReportScreen() {
@@ -18,6 +19,7 @@ function ReportContent({ accountId, timeZone }: { accountId: string; timeZone: s
   const [selected, setSelected] = useState<string>();
   const from = selected ?? currentWeek, through = addCalendarDays(from, 6);
   const history = useFocusHistory(addCalendarDays(from, -7), through), tasks = useTasks();
+  const plans = useStudyPlans(), courses = useCourses();
   const report = buildStudyReport(history.data, accountId, timeZone, from, new Date().toISOString());
   const max = Math.max(1, ...(report?.days.map(day => day.seconds) ?? []));
   const refresh = () => { void history.refetch(); void tasks.refetch(); };
@@ -43,6 +45,18 @@ function ReportContent({ accountId, timeZone }: { accountId: string; timeZone: s
       {report.previous && <Text style={styles.meta}>Previous full week: {studyTimeLabel(report.previous.seconds)} in {report.previous.blocks} blocks.
         {from === currentWeek ? ' This week is still in progress.' : ''}</Text>}
       <Text style={styles.meta}>{history.isCached || history.error ? 'Saved' : 'Updated'} {new Date(report.capturedAt).toLocaleString(undefined, { timeZone })} · {timeZone}</Text>
+      {(() => { const byCourse = studyTimeByCourse(report.tasks, tasks.data, plans.data, courses.data);
+        if (!byCourse.courses.length) return null;
+        const top = Math.max(...byCourse.courses.map(row => row.seconds), byCourse.other, 1);
+        return <><Text style={styles.section}>By course</Text><Card>
+          {byCourse.courses.map(({ course, seconds }) => <View key={course.id} accessible accessibilityLabel={`${course.name}: ${studyTimeLabel(seconds)}`} style={styles.dayRow}>
+            <Text style={[styles.courseCode, { color: courseColor(course) }]} numberOfLines={1}>{course.code ?? course.name}</Text>
+            <View style={styles.track}><View style={[styles.fill, { width: `${100 * seconds / top}%`, backgroundColor: courseColor(course) }]}/></View>
+            <Text style={styles.dayTime}>{studyTimeLabel(seconds)}</Text></View>)}
+          {byCourse.other > 0 && <View accessible accessibilityLabel={`Other study: ${studyTimeLabel(byCourse.other)}`} style={styles.dayRow}>
+            <Text style={styles.courseCode}>Other</Text><View style={styles.track}><View style={[styles.fill, { width: `${100 * byCourse.other / top}%`, backgroundColor: colors.line }]}/></View>
+            <Text style={styles.dayTime}>{studyTimeLabel(byCourse.other)}</Text></View>}
+        </Card></>; })()}
       <Text style={styles.section}>Your week at a glance</Text>
       <Card>{report.days.map(day => <View key={day.date} accessible accessibilityLabel={`${calendarLabel(day.date, { weekday: 'long', month: 'long', day: 'numeric' })}, ${day.status === 'future' ? 'still ahead' : `${studyTimeLabel(day.seconds)} recorded, ${day.blocks} ${day.blocks === 1 ? 'block' : 'blocks'}`}`} style={styles.dayRow}>
         <Text style={styles.day}>{calendarLabel(day.date, { weekday: 'short' })}</Text><View style={styles.track}>
@@ -84,7 +98,7 @@ const styles = StyleSheet.create({
   navigation: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, hero: { backgroundColor: colors.sage, borderRadius: 22, padding: 20, gap: 12 },
   total: { color: colors.ink, fontSize: 36, fontWeight: '800', fontVariant: ['tabular-nums'] }, metrics: { flexDirection: 'row', gap: 24, flexWrap: 'wrap' },
   metric: { gap: 3 }, metricValue: { color: colors.ink, fontSize: 25, fontWeight: '800' },
-  dayRow: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 10 }, day: { width: 32, color: colors.muted, fontWeight: '600' },
+  dayRow: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 10 }, day: { width: 32, color: colors.muted, fontWeight: '600' }, courseCode: { width: 76, color: colors.muted, fontWeight: '800', fontSize: 12 },
   dayTime: { width: 82, color: colors.ink, textAlign: 'right', fontSize: 12, fontWeight: '700' }, track: { height: 8, flex: 1, backgroundColor: colors.canvas, borderRadius: 4, overflow: 'hidden' },
   fill: { height: '100%', backgroundColor: colors.moss }, item: { color: colors.ink, fontSize: 18, lineHeight: 25, fontWeight: '700' }, time: { color: colors.moss, fontWeight: '700' },
   estimateTrack: { height: 6, backgroundColor: colors.canvas, borderRadius: 3, overflow: 'hidden' }, estimateFill: { height: '100%', backgroundColor: colors.blue },

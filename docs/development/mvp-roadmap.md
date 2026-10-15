@@ -96,6 +96,14 @@ palette and Today-centered product model.
     Built from the authoritative task/coursework/event lists rather than the
     eight-day snapshot window.
 
+28. **Task steps:** checklist steps on one-time tasks, edited per step under a lock
+    (ADR 014), shown in task rows, Focus and Today.
+29. **Courses and grades:** student-created coloured courses (ADR 015) with weighted
+    assessments, targets and "needed on the rest" (ADR 016); guided setup starts
+    with courses and Today labels coursework by course.
+30. **Exams:** an exam coursework kind, exam revision defaults and an Exams ahead
+    countdown on Today.
+
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native
 acceptance remains a separate gate for new interactions. Temporary browser

@@ -161,3 +161,23 @@ tasks, category color, priority flag, human timing, reminder/estimate hints and
 an expandable panel with exact deadline/schedule values and the Focus, Main
 Goal, Edit, Reminder and Delete actions. Search, an All/Open/Done segmented
 control and horizontal category chips keep their previous accessible names.
+
+## Checklist steps
+
+Expanded one-time task rows and the Focus screen show the task's steps
+(`src/features/task-checklist.tsx`): tap a box to toggle, the × to remove, and
+type a step and press Return to add one. Collapsed rows show `done/total`. Each
+change is its own request (see ADR 014); a failed add keeps its text and step ID
+so retrying cannot create a duplicate. Repeating tasks have no steps.
+
+## Task courses
+
+A personal task may belong to one of the student's own courses
+(`PersonalTask.courseId`, nullable, `ON DELETE SET NULL`). The API rejects
+another account's or a missing course with 404, and creation-retry hashes
+include the course only when one is sent, so earlier course-less retries still
+replay. Editors opened from Tasks, Today and Calendar show a course picker
+(active courses plus a saved archived one); choosing a course makes a
+still-personal task university work. Task rows and Today show the course code in
+the course colour. Quick add links `#psy223`, or a unique 3+ character prefix
+such as `#psy`, to an active course by code; other tags keep category aliases.

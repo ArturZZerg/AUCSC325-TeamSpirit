@@ -3,7 +3,13 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Card, Screen, State, colors } from '@/components/ui';
-import { useAction, useToday } from '@/features/queries';
+import { useAcademic, useAction, useCourses, useTasks, useToday } from '@/features/queries';
+import { courseColor } from '@/features/course-editor';
+import { checklistProgress } from '@/features/task-checklist';
+import { ExamCountdown } from '@/features/exam-countdown';
+import { upcomingExams } from '@/features/exams';
+import { upNext } from '@/features/up-next';
+import { UpNextCard } from '@/features/up-next-card';
 import type { PlanItem } from '@/lib/types';
 import { DayAgenda } from '@/features/day-agenda';
 import { TaskEditor } from '@/features/task-editor';
@@ -11,7 +17,7 @@ import type { TaskFormValues } from '@/features/task-form';
 import { FocusRecoveryCard } from '@/features/focus-recovery-card';
 import { QuickAddBar } from '@/features/quick-add-bar';
 import { localDateAt } from '@campusflow/domain';
-import { PlanRow, kindColors, type PlanAction } from '@/features/plan-row';
+import { PlanRow, kindColors, type PlanAction, type PlanRowContext } from '@/features/plan-row';
 import { greeting, groupPlan, isAccountToday, planProgress, planTimingLabel } from '@/features/today-plan';
 import { useSessionStore } from '@/store/session';
 
@@ -21,7 +27,7 @@ const shortcuts: { label: string; title: string; icon: IconName; path: '/focus' 
   { label: 'Focus space', title: 'Focus', icon: 'timer-outline', path: '/focus' },
   { label: 'Plan your week', title: 'Week', icon: 'albums-outline', path: '/planner' },
   { label: 'Month calendar', title: 'Calendar', icon: 'calendar-outline', path: '/calendar' },
-  { label: 'Coursework', title: 'Courses', icon: 'school-outline', path: '/academics' },
+  { label: 'Coursework', title: 'Coursework', icon: 'school-outline', path: '/academics' },
   { label: 'My study plans', title: 'Study plans', icon: 'layers-outline', path: '/study-plans' },
   { label: 'Organise my workload', title: 'Workload', icon: 'file-tray-full-outline', path: '/workload' },
   { label: 'Review your week', title: 'Weekly review', icon: 'stats-chart-outline', path: '/review' },
@@ -76,11 +82,24 @@ export default function TodayScreen() {
   };
 
   const items = query.data?.items ?? [];
+  // Course codes/colours and step progress come from the cached lists; Today itself stays a derived read model.
+  const tasks = useTasks(), academic = useAcademic(), courses = useCourses();
+  const exams = isCurrentDay ? upcomingExams(academic.data, courses.data, date, query.timeZone, Date.now()) : [];
+  const contextFor = (item: PlanItem): PlanRowContext | undefined => {
+    if (item.kind === 'personalTask') {
+      const task = tasks.data?.find(row => row.id === item.entityId), course = task?.courseId ? courses.data?.find(row => row.id === task.courseId) : undefined;
+      if (!task) return undefined;
+      return { ...(!task.recurrence ? { steps: checklistProgress(task) } : {}), ...(course ? { course: { label: course.code ?? course.name, color: courseColor(course) } } : {}) };
+    }
+    if (item.kind !== 'academic') return undefined;
+    const course = courses.data?.find(row => row.id === academic.data?.find(entry => entry.id === item.entityId)?.courseId);
+    return course ? { course: { label: course.code ?? course.name, color: courseColor(course) } } : undefined;
+  };
   const groups = groupPlan(items), progress = planProgress(items);
   const blocked = !!pending || action.isPending;
   const row = (item: PlanItem) => <PlanRow key={item.key} item={item} timeZone={query.timeZone} date={date} isCurrentDay={isCurrentDay}
     disabled={blocked} pendingAction={pending?.key === item.key ? pending.action : undefined}
-    error={failure?.key === item.key ? failure.message : undefined} onAction={selected => { void run(item, selected); }}/>;
+    error={failure?.key === item.key ? failure.message : undefined} onAction={selected => { void run(item, selected); }} context={contextFor(item)}/>;
 
   return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}
     aria-hidden={!!taskDraft} accessibilityElementsHidden={!!taskDraft} importantForAccessibility={taskDraft ? 'no-hide-descendants' : 'auto'}
@@ -91,9 +110,11 @@ export default function TodayScreen() {
         <Text accessibilityRole="header" style={styles.title}>Your daily flow</Text>
         {isCurrentDay && <Text style={styles.greeting}>{greeting(Date.now(), query.timeZone)}{name ? `, ${name.trim().split(/\s+/)[0]}` : ''}.</Text>}
       </View>
+      <View style={styles.headerActions}><Pressable accessibilityRole="button" accessibilityLabel="Search" onPress={() => router.push('/search')} style={styles.searchButton} hitSlop={6}>
+        <Ionicons name="search" size={18} color={colors.ink}/></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Get started" onPress={() => router.push('/get-started')} style={styles.setup} hitSlop={6}>
         <Ionicons name="sparkles-outline" size={16} color={colors.moss}/><Text style={styles.setupText}>Get started</Text>
-      </Pressable>
+      </Pressable></View>
     </View>
 
     <View style={styles.hero}>
@@ -122,7 +143,9 @@ export default function TodayScreen() {
     <FocusRecoveryCard/>
     <State loading={query.isLoading} error={query.error}/>
 
-    <QuickAddBar today={localDateAt(new Date(Date.now()).toISOString(), query.timeZone)} planDate={date} timeZone={query.timeZone} disabled={blocked || !!taskDraft}
+    <UpNextCard next={isCurrentDay ? upNext(items, exams, date, query.timeZone, Date.now()) : undefined}/>
+    <ExamCountdown exams={exams}/>
+    <QuickAddBar courses={courses.data} today={localDateAt(new Date(Date.now()).toISOString(), query.timeZone)} planDate={date} timeZone={query.timeZone} disabled={blocked || !!taskDraft}
       onOpenEditor={values => setTaskDraft(values)}/>
     {query.data && !items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>
       <Text style={styles.meta}>Add a task, keep a deadline in sight, or choose one small routine.</Text>
@@ -155,7 +178,7 @@ export default function TodayScreen() {
     onPress={() => setTaskDraft({ scheduledMode: 'date', scheduledDate: date })} style={({ pressed }) => [styles.fab, pressed && styles.pressed, blocked && styles.dim]}>
     <Ionicons name="add" size={24} color="#fff"/><Text style={styles.fabText}>Add task</Text>
   </Pressable>}
-  {taskDraft && <TaskEditor task={null} timeZone={query.timeZone} initialValues={taskDraft} onClose={() => setTaskDraft(undefined)}/>}</Screen>;
+  {taskDraft && <TaskEditor task={null} timeZone={query.timeZone} courses={courses.data} initialValues={taskDraft} onClose={() => setTaskDraft(undefined)}/>}</Screen>;
 }
 
 function Section({ title, count }: { title: string; count: number }) {
@@ -168,7 +191,8 @@ const styles = StyleSheet.create({
   kicker: { color: colors.muted, fontWeight: '700', fontSize: 13, letterSpacing: .3 },
   title: { fontSize: 29, color: colors.ink, fontWeight: '800' }, greeting: { color: colors.muted, fontSize: 16 },
   setup: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, minHeight: 36, borderRadius: 18, backgroundColor: colors.sage, marginTop: 4 },
-  setupText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
+  setupText: { color: colors.ink, fontWeight: '700', fontSize: 13 }, headerActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  searchButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.sage, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   hero: { backgroundColor: colors.moss, borderRadius: 22, padding: 18, gap: 14 },
   heroRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, heroCopy: { gap: 2, flexShrink: 1 },
   heroValue: { color: '#fff', fontSize: 30, fontWeight: '800', fontVariant: ['tabular-nums'] }, heroLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 14 },

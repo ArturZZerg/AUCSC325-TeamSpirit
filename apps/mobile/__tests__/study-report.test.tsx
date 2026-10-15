@@ -6,7 +6,7 @@ import { snapshotFixture } from './snapshot-fixture';
 const mockPush = jest.fn(), mockReplace = jest.fn();
 let mockAccount = reportAccount, mockToken = 'first';
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }));
-jest.mock('../src/features/queries', () => ({ useFocusHistory: jest.fn(), useTasks: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useCourses: () => ({ data: undefined }), useStudyPlans: () => ({ data: undefined }), useFocusHistory: jest.fn(), useTasks: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: () => ({ date: '2025-03-09' }) }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: {
   accessToken: mockToken, user: { id: mockAccount, timeZone: 'America/Edmonton' },

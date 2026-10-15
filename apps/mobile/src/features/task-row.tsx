@@ -5,6 +5,7 @@ import { colors } from '@/components/ui';
 import type { PersonalTask } from '@/lib/types';
 import { taskTimingLabel } from './task-form';
 import { planTimingLabel } from './today-plan';
+import { TaskChecklist, checklistProgress } from './task-checklist';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 export type TaskRowAction = 'toggle' | 'focus' | 'mainGoal' | 'edit' | 'reminder' | 'delete';
@@ -21,9 +22,10 @@ export function recurrenceLabel(recurrence: NonNullable<PersonalTask['recurrence
 }
 
 /** Compact checklist row; details and secondary actions appear when expanded. */
-export function TaskRow({ task, today, timeZone, expanded, disabled, pending, isMainGoal, canChangeMainGoal, onToggleExpanded, onAction }: {
+export function TaskRow({ task, today, timeZone, expanded, disabled, pending, isMainGoal, canChangeMainGoal, onToggleExpanded, onAction, course }: {
   task: PersonalTask; today: string; timeZone: string; expanded: boolean; disabled: boolean; pending?: TaskRowAction;
   isMainGoal: boolean; canChangeMainGoal: boolean; onToggleExpanded(): void; onAction(action: TaskRowAction): void;
+  course?: { label: string; color: string };
 }) {
   const done = !!task.completedAt, accent = categoryColors[task.category];
   const timing = planTimingLabel({ kind: 'personalTask', schedule: task.scheduled, due: task.due }, timeZone, today);
@@ -40,11 +42,13 @@ export function TaskRow({ task, today, timeZone, expanded, disabled, pending, is
         {isMainGoal && <Text style={styles.star}>★ MAIN GOAL TODAY</Text>}
         <Text style={[styles.title, done && styles.done]}>{task.title}</Text>
         <View style={styles.meta}>
-          <View style={[styles.dot, { backgroundColor: accent }]}/><Text style={styles.metaText}>{capitalize(task.category)}</Text>
+          <View style={[styles.dot, { backgroundColor: course?.color ?? accent }]}/><Text style={[styles.metaText, course && { color: course.color, fontWeight: '700' }]}>{course?.label ?? capitalize(task.category)}</Text>
           {task.priority === 'high' && !done && <><Ionicons name="flag" size={12} color={colors.danger}/><Text style={[styles.metaText, styles.high]}>High</Text></>}
           {timing && <Text style={styles.metaText}>· {timing}</Text>}
           {task.reminder && <Ionicons name="notifications-outline" size={13} color={colors.muted} accessibilityLabel="Has reminder"/>}
           {task.estimatedMinutes !== null && <Text style={styles.metaText}>· {task.estimatedMinutes} min</Text>}
+          {!!task.checklist?.length && <><Ionicons name="list-outline" size={13} color={colors.muted}/>
+            <Text style={styles.metaText} accessibilityLabel={`${checklistProgress(task).done} of ${task.checklist.length} steps done`}>{checklistProgress(task).done}/{task.checklist.length}</Text></>}
         </View>
       </Pressable>
       <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} style={styles.chevron}/>
@@ -57,6 +61,8 @@ export function TaskRow({ task, today, timeZone, expanded, disabled, pending, is
       {task.estimatedMinutes !== null && <Text style={styles.detail}>Estimated duration: {task.estimatedMinutes} min</Text>}
       {task.reminder && <Text style={styles.detail}>Reminder: {taskTimingLabel(task.reminder, timeZone)}{task.reminder.kind === 'date' ? ' · Delivery time needed' : ''}</Text>}
       {task.recurrence && <Text style={styles.detail}>Complete recurring occurrences from Today.</Text>}
+      {!done && <TaskChecklist task={task} disabled={disabled}/>}
+      {done && !!task.checklist?.length && <Text style={styles.detail}>{checklistProgress(task).done} of {task.checklist.length} steps done</Text>}
       <View style={styles.actions}>
         {!done && !task.recurrence && <Chip icon="timer-outline" label="Focus" disabled={disabled} onPress={() => onAction('focus')}/>}
         {(isMainGoal || canChangeMainGoal) && <Chip icon={isMainGoal ? 'star' : 'star-outline'} disabled={disabled} onPress={() => onAction('mainGoal')}

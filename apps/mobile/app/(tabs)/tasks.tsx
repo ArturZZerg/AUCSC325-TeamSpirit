@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { taskOccursOn } from '@campusflow/domain';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
-import { useAcademic, useAction, useTasks } from '@/features/queries';
+import { useAcademic, useAction, useCourses, useTasks } from '@/features/queries';
+import { courseColor } from '@/features/course-editor';
 import { TaskEditor } from '@/features/task-editor';
 import { filterPersonalTasks, useTaskFilters } from '@/features/task-filters';
 import { TaskFilterControls } from '@/features/task-filter-controls';
@@ -20,6 +21,7 @@ import { useSessionStore } from '@/store/session';
 export default function Tasks() {
   const tasks = useTasks();
   const academic = useAcademic();
+  const courses = useCourses();
   const action = useAction();
   const session = useSessionStore(state => state.session);
   const timeZone = session?.user.timeZone ?? 'UTC';
@@ -61,6 +63,8 @@ export default function Tasks() {
   };
   const pendingFor = (task: PersonalTask): TaskRowAction | undefined => pending === `/tasks/${task.id}/complete` ? 'toggle'
     : pending === `/tasks/${task.id}/main-goal` ? 'mainGoal' : undefined;
+  const courseLabel = (id: string | null | undefined) => { const course = id ? courses.data?.find(row => row.id === id) : undefined;
+    return course ? { label: course.code ?? course.name, color: courseColor(course) } : undefined; };
   const summary = tasks.data ? taskSummary(tasks.data, today, timeZone, now) : undefined;
   const openAcademic = academic.data?.filter(item => item.submissionState !== 'submitted' && item.submissionState !== 'graded');
 
@@ -76,6 +80,7 @@ export default function Tasks() {
         <Chip icon="layers-outline" label="My study plans" onPress={() => router.push('/study-plans')}/>
         <Chip icon="school-outline" label="Coursework" onPress={() => router.push('/academics')}/>
         <Chip icon="calendar-outline" label="Calendar" onPress={() => router.push('/calendar')}/>
+        <Chip icon="search-outline" label="Search everything" onPress={() => router.push('/search')}/>
       </View>
       {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
       <TaskFilterControls filters={filters} onChange={updateFilters} onReset={resetFilters}/>
@@ -89,6 +94,7 @@ export default function Tasks() {
           <Text style={styles.count}>{group.tasks.length}</Text></View>
         {group.tasks.map(task => <TaskRow key={task.id} task={task} today={today} timeZone={timeZone} expanded={expanded === task.id} disabled={disabled}
           pending={pendingFor(task)} isMainGoal={task.mainGoalDate === today} canChangeMainGoal={canSelectTask(task)}
+          course={courseLabel(task.courseId)}
           onToggleExpanded={() => setExpanded(current => current === task.id ? undefined : task.id)} onAction={selected => onAction(task, selected)}/>)}
       </View>)}
 
@@ -110,7 +116,7 @@ export default function Tasks() {
         </View>; })}
       <View style={styles.spacer}/>
     </ScrollView>
-    {editing !== undefined && <TaskEditor key={editing?.id ?? 'new'} task={editing} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}
+    {editing !== undefined && <TaskEditor key={editing?.id ?? 'new'} task={editing} timeZone={timeZone} courses={courses.data} onClose={() => setEditing(undefined)}/>}
     {reminding && <TaskReminderEditor key={reminding.id} task={reminding} timeZone={timeZone} onClose={() => setReminding(undefined)}/>}
     {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!disabled) setDeleting(undefined); }}>
       <SafeAreaView style={styles.confirm}><Card>

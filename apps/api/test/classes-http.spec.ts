@@ -21,7 +21,7 @@ describe('Class timetable HTTP boundaries', () => {
     jest.resetAllMocks();
     prisma.session.findUnique.mockResolvedValue({ revokedAt: null, expiresAt: new Date('2099-01-01'), user: { id: userId, timeZone: 'America/Edmonton' } });
     prisma.$transaction.mockImplementation(async (work: (tx: typeof prisma) => Promise<unknown>) => work(prisma));
-    const row = { ...body, title: 'Biology', id, userId, createdAt: new Date('2025-03-01'), updatedAt: new Date('2025-03-01') };
+    const row = { ...body, title: 'Biology', courseId: null, id, userId, createdAt: new Date('2025-03-01'), updatedAt: new Date('2025-03-01') };
     prisma.classSchedule.create.mockImplementation(({ data }: { data: object }) => ({ ...row, ...data }));
     prisma.classSchedule.findFirstOrThrow.mockResolvedValue(row); prisma.classSchedule.findMany.mockResolvedValue([row]);
     prisma.classSchedule.updateMany.mockResolvedValue({ count: 1 }); prisma.classSchedule.deleteMany.mockResolvedValue({ count: 1 });

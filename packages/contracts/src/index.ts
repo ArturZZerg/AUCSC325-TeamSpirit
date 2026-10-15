@@ -45,8 +45,14 @@ export const emailVerificationRequestSchema = loginRequestSchema;
 export const emailVerificationConfirmSchema = emailVerificationRequestSchema.extend({ code: passwordResetRequestSchema.shape.code }).strict();
 export const emailVerificationResultSchema = z.object({ verified: z.literal(true) }).strict();
 
-export const personalTaskSchema = z.object({ id: idSchema, studyPlanId: idSchema.nullable().optional(), title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), createdAt: instantSchema, updatedAt: instantSchema });
-export const createPersonalTaskSchema = personalTaskSchema.pick({ title: true, description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true }).partial({ description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true });
+/** One step of a one-time task. Steps are edited through item endpoints, never the task PATCH. */
+export const checklistItemSchema = z.object({ id: idSchema, title: z.string().trim().min(1).max(240), done: z.boolean() }).strict();
+export const checklistLimit = 30;
+export const createChecklistItemSchema = z.object({ id: idSchema, title: z.string().trim().min(1, 'Enter a step.').max(240) }).strict();
+export const updateChecklistItemSchema = z.object({ title: z.string().trim().min(1, 'Enter a step.').max(240).optional(), done: z.boolean().optional() }).strict()
+  .refine(value => value.title !== undefined || value.done !== undefined, 'Provide a step change.');
+export const personalTaskSchema = z.object({ id: idSchema, studyPlanId: idSchema.nullable().optional(), title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), checklist: z.array(checklistItemSchema).max(checklistLimit).optional(), courseId: idSchema.nullable().optional(), createdAt: instantSchema, updatedAt: instantSchema });
+export const createPersonalTaskSchema = personalTaskSchema.pick({ title: true, description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, courseId: true }).partial({ description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, courseId: true });
 /** Optional creation identity; never part of editable task state or response DTOs. */
 export const createPersonalTaskRequestSchema = createPersonalTaskSchema.extend({
   requestKey: z.string().min(16).max(120).regex(/^[A-Za-z0-9-]+$/).optional(),
@@ -61,8 +67,31 @@ export const completePersonalTaskSchema = z.object({ completed: z.boolean(), occ
 export const snoozePersonalTaskSchema = z.object({ until: instantSchema });
 export const setMainGoalSchema = z.object({ date: dateSchema.nullable() });
 
-export const courseSchema = z.object({ id: idSchema, externalId: z.string().min(1), name: z.string().min(1), code: z.string().nullable(), active: z.boolean() });
-export const academicItemSchema = z.object({ id: idSchema, courseId: idSchema.nullable(), title: z.string().min(1), kind: z.enum(['assignment', 'quiz', 'discussion', 'planner']), due: dueSchema.nullable(), submissionState: z.enum(['unsubmitted', 'submitted', 'graded', 'missing']).nullable(), source: z.string().min(1), externalId: z.string().min(1), mainGoalDate: dateSchema.nullable(), updatedAt: instantSchema });
+export const courseColorSchema = z.enum(['moss', 'blue', 'plum', 'coral', 'gold', 'teal', 'slate', 'rose']);
+export const manualCourseSource = 'manual' as const;
+export const manualCourseLimit = 40;
+const percent = (max: number) => z.number().finite().min(0).max(max).transform(value => Math.round(value * 10) / 10);
+/** A weighted part of a course grade (percent weight, percent score; null until graded). */
+export const assessmentSchema = z.object({ id: idSchema, title: z.string().trim().min(1).max(120), weight: z.number().positive().max(100), score: z.number().min(0).max(150).nullable() }).strict();
+export const assessmentLimit = 30;
+const assessmentTitle = z.string().trim().min(1, 'Enter an assessment name.').max(120, 'Keep the name within 120 characters.');
+const assessmentWeight = percent(100).refine(value => value > 0, 'Enter a weight above 0%.');
+const assessmentScore = percent(150).nullable();
+export const createAssessmentSchema = z.object({ id: idSchema, title: assessmentTitle, weight: assessmentWeight, score: assessmentScore.optional() }).strict();
+export const updateAssessmentSchema = z.object({ title: assessmentTitle.optional(), weight: assessmentWeight.optional(), score: assessmentScore.optional() }).strict()
+  .refine(value => Object.values(value).some(field => field !== undefined), 'Provide an assessment change.');
+// source/color are optional so caches written before manual courses still parse.
+export const courseSchema = z.object({ id: idSchema, externalId: z.string().min(1), name: z.string().min(1), code: z.string().nullable(), active: z.boolean(),
+  source: z.string().min(1).optional(), color: courseColorSchema.nullable().optional(),
+  assessments: z.array(assessmentSchema).max(assessmentLimit).optional(), targetGrade: z.number().int().min(0).max(100).nullable().optional() });
+const courseName = z.string().trim().min(1, 'Enter a course name.').max(120, 'Keep the name within 120 characters.');
+const courseCode = z.string().trim().max(20, 'Keep the code within 20 characters.').transform(value => value || null).nullable();
+/** Student-created course. The client supplies the ID so a retried create is recognised. */
+export const createCourseSchema = z.object({ id: idSchema, name: courseName, code: courseCode.optional(), color: courseColorSchema.nullable().optional() }).strict();
+export const updateCourseSchema = z.object({ name: courseName.optional(), code: courseCode.optional(), color: courseColorSchema.nullable().optional(), active: z.boolean().optional(),
+  targetGrade: z.number().int('Enter a whole-number target.').min(0).max(100, 'Enter a target from 0 to 100.').nullable().optional() })
+  .strict().refine(value => Object.values(value).some(field => field !== undefined), 'Provide a course change.');
+export const academicItemSchema = z.object({ id: idSchema, courseId: idSchema.nullable(), title: z.string().min(1), kind: z.enum(['assignment', 'quiz', 'exam', 'discussion', 'planner']), due: dueSchema.nullable(), submissionState: z.enum(['unsubmitted', 'submitted', 'graded', 'missing']).nullable(), source: z.string().min(1), externalId: z.string().min(1), mainGoalDate: dateSchema.nullable(), updatedAt: instantSchema });
 export const manualAcademicSource = 'manual' as const;
 export const studySessionDraftSchema = z.object({
   title: z.string().trim().min(1).max(240), scheduled: scheduleSchema,

@@ -7,13 +7,15 @@ import { categorySchema, dateSchema, personalTaskSchema, prioritySchema } from '
 import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import { taskFormDefaults, taskFormRequest, taskFormSchema, taskTimingLabel, type TaskFormValues } from '@/features/task-form';
-import type { PersonalTask } from '@/lib/types';
+import type { Course, PersonalTask } from '@/lib/types';
 import { api, ApiError } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
 import { taskCredentialsGeneration, taskOwnershipGeneration, taskOwnerCurrent, taskEditBaseline, taskEditBaselineCurrent, useTaskEditRevision, type TaskEditBaseline } from './task-edit-freshness';
 
 type EditorProps = {
   task: PersonalTask | null; onClose: () => void; timeZone?: string; initialValues?: Partial<TaskFormValues>;
+  /** When supplied, the editor offers a course picker; otherwise the saved course is kept unchanged. */
+  courses?: readonly Course[];
   initialScheduledDate?: string;
   onSaved?: () => void;
 };
@@ -21,7 +23,7 @@ export function TaskEditor(props: EditorProps) {
   return props.task ? <ExistingTaskEditor {...props} task={props.task}/> : <TaskEditorForm {...props}/>;
 }
 
-function ExistingTaskEditor({ task, onClose, initialScheduledDate, onSaved }: EditorProps & { task: PersonalTask }) {
+function ExistingTaskEditor({ task, onClose, initialScheduledDate, onSaved, courses }: EditorProps & { task: PersonalTask }) {
   const owner = useSessionStore(state => state.session);
   useTaskEditRevision();
   const [loaded, setLoaded] = useState<{ task: PersonalTask; baseline: TaskEditBaseline }>();
@@ -68,13 +70,13 @@ function ExistingTaskEditor({ task, onClose, initialScheduledDate, onSaved }: Ed
     <Button title="Reload task" onPress={() => { void reload(); }} disabled={loading || !owner}/>
     <Button title="Cancel" onPress={onClose}/>
   </SafeAreaView></Modal>;
-  return <TaskEditorForm task={loaded.task} onClose={onClose} timeZone={owner?.user.timeZone ?? 'UTC'}
+  return <TaskEditorForm task={loaded.task} onClose={onClose} timeZone={owner?.user.timeZone ?? 'UTC'} courses={courses}
     initialScheduledDate={initialScheduledDate} onSaved={onSaved} baseline={loaded.baseline} stale={!fresh || loading} freshnessMessage={message} reload={() => { void reload(); }} loading={loading}/>;
 }
 
 // The form is separate so field validation tests can isolate it from the online
 // gate. Production existing-task entry points always use TaskEditor above.
-export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initialValues, initialScheduledDate, baseline, stale = false, freshnessMessage, reload, loading }: EditorProps & {
+export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initialValues, initialScheduledDate, baseline, stale = false, freshnessMessage, reload, loading, courses }: EditorProps & {
   baseline?: TaskEditBaseline; stale?: boolean; freshnessMessage?: string; reload?: () => void; loading?: boolean;
 }) {
   const action = useAction();
@@ -177,6 +179,12 @@ export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initi
               style={[styles.choice, field.value.includes(index + 1) && styles.selected]}><Text style={styles.label}>{day}</Text></Pressable>)}
           </View>}/>}
           <Controller name="category" control={control} render={({ field }) => <Choices label="Category" value={field.value} onChange={field.onChange} disabled={blocked} options={categorySchema.options.map(value => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}/>}/>
+          {!!courses?.length && <Controller name="courseId" control={control} render={({ field }) => <Choices label="Course" value={field.value} onChange={value => {
+            field.onChange(value);
+            // A course implies university work unless the student already chose otherwise.
+            if (value && !dirtyFields.category && getValues('category') === 'personal') setValue('category', 'university', { shouldDirty: true });
+          }} disabled={blocked} options={[{ value: '', label: 'No course' }, ...courses.filter(course => course.active || course.id === field.value)
+            .map(course => ({ value: course.id, label: course.code ?? course.name }))]}/>}/>}
           <Controller name="priority" control={control} render={({ field }) => <Choices label="Priority" value={field.value} onChange={field.onChange} disabled={blocked} options={prioritySchema.options.map(value => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}/>}/>
           {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
           <Button title={isSubmitting ? 'Saving…' : 'Save task'} onPress={() => { void submit(); }} disabled={blocked}/>

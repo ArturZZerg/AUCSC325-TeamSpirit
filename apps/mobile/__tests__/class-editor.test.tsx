@@ -49,3 +49,22 @@ it('blocks repeat saves and dismissal while the server is saving', async () => {
   expect(save).toHaveBeenCalledTimes(1); expect(close).not.toHaveBeenCalled(); expect(screen.getByLabelText('Class name')).toHaveProp('editable', false);
   await act(async () => { resolve(); }); expect(close).toHaveBeenCalledTimes(1);
 });
+it('links a class to a course, suggests its name and clears the link', async () => {
+  const course = { id: '60000000-0000-4000-8000-000000000001', externalId: 'p', name: 'Cognitive Psychology', code: 'PSY 223', active: true, source: 'manual', color: 'plum' as const };
+  const close = jest.fn(); const ui = render(<ClassEditor item={null} date="2025-03-03" timeZone="America/Edmonton" courses={[course]} onClose={close}/>);
+  fireEvent.press(screen.getByRole('radio', { name: 'PSY 223 course' }));
+  expect(screen.getByLabelText('Class name')).toHaveDisplayValue('Cognitive Psychology · Lecture');
+  fireEvent.press(screen.getByText('Save class')); await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+  expect(save.mock.calls[0][0].body).toMatchObject({ courseId: course.id, title: 'Cognitive Psychology · Lecture' });
+  ui.unmount(); save.mockClear();
+  render(<ClassEditor item={classFixture({ courseId: course.id })} date="2025-03-03" timeZone="America/Edmonton" courses={[course]} onClose={close}/>);
+  fireEvent.press(screen.getByRole('radio', { name: 'No course' }));
+  fireEvent.press(screen.getByText('Save class')); await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  expect(save.mock.calls[0][0].body.courseId).toBeNull();
+});
+it('keeps the saved course when course metadata is unavailable', async () => {
+  render(<ClassEditor item={classFixture({ courseId: '60000000-0000-4000-8000-000000000001' })} date="2025-03-03" timeZone="America/Edmonton" onClose={jest.fn()}/>);
+  expect(screen.queryByRole('radio', { name: 'No course' })).toBeNull();
+  fireEvent.press(screen.getByText('Save class')); await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  expect('courseId' in JSON.parse(JSON.stringify(save.mock.calls[0][0].body))).toBe(false);
+});

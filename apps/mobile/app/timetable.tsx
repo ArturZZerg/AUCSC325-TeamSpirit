@@ -6,7 +6,8 @@ import type { ClassSchedule } from '@campusflow/contracts';
 import { addCalendarDays, classConflicts, classesOnDay, dayBounds } from '@campusflow/domain';
 import { Button, Card, Screen, State, colors, BackLink } from '@/components/ui';
 import { ClassEditor, classDays, classPalette } from '@/features/class-editor';
-import { useAction, useClasses } from '@/features/queries';
+import { useAction, useClasses, useCourses } from '@/features/queries';
+import { courseColor } from '@/features/course-editor';
 import { calendarLabel, weekStart } from '@/features/weekly-planner';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
@@ -16,7 +17,7 @@ export default function TimetableScreen() {
   return session ? <TimetableContent key={JSON.stringify([session.user.id, session.accessToken])} timeZone={session.user.timeZone}/> : null;
 }
 function TimetableContent({ timeZone }: { timeZone: string }) {
-  const router = useRouter(); const query = useClasses(); const action = useAction(); const busy = useRef(false);
+  const router = useRouter(); const query = useClasses(); const courses = useCourses(); const action = useAction(); const busy = useRef(false);
   const { date: today } = useTodayClock(timeZone);
   const [selected, setSelected] = useState<string>(); const date = selected ?? today; const start = weekStart(date);
   const [editing, setEditing] = useState<ClassSchedule | null | undefined>();
@@ -35,6 +36,10 @@ function TimetableContent({ timeZone }: { timeZone: string }) {
     try { await action.mutateAsync({ path: `/classes/${id}`, method: 'DELETE' }); setConfirm(undefined); }
     catch (error) { setFailure(error instanceof Error ? error.message : 'Could not remove this class. Try again.'); }
     finally { busy.current = false; setRemoving(undefined); }
+  };
+  const courseOf = (classId: string) => {
+    const courseId = query.data?.find(value => value.id === classId)?.courseId;
+    return courseId ? courses.data?.find(course => course.id === courseId) : undefined;
   };
   const clock = (instant: string) => new Date(instant).toLocaleTimeString([], { timeZone, hour: 'numeric', minute: '2-digit' });
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
@@ -65,12 +70,15 @@ function TimetableContent({ timeZone }: { timeZone: string }) {
     <Text style={styles.section}>{calendarLabel(date, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
     {day.issues.map(issue => <Text key={`${issue.classId}:${issue.date}`} accessibilityRole="alert" style={styles.warning}>{issue.title}: this time is ambiguous or unavailable during the clock change. Edit the class time.</Text>)}
     {query.data && !day.occurrences.length && !day.issues.length && <Card><Text style={styles.item}>No classes scheduled.</Text><Text style={styles.copy}>Make room for study or a little downtime.</Text><Button title="Open this day’s plan" tone="plain" onPress={() => router.push({ pathname: '/today', params: { date } })}/></Card>}
-    {day.occurrences.map(item => <View key={item.key} style={[styles.meeting, { borderLeftColor: classPalette[item.color as keyof typeof classPalette] }]}>
-      <Text style={styles.time}>{clock(item.startsAt)} – {clock(item.endsAt)}</Text><Text style={styles.item}>{item.title}</Text>
+    {day.occurrences.map(item => { const course = courseOf(item.classId); return <View key={item.key} style={[styles.meeting, { borderLeftColor: classPalette[item.color as keyof typeof classPalette] }]}>
+      <Text style={styles.time}>{clock(item.startsAt)} – {clock(item.endsAt)}</Text>
+      {course && <Pressable accessibilityRole="link" accessibilityLabel={`Open ${course.name}`} onPress={() => router.push({ pathname: '/course/[id]', params: { id: course.id } })}>
+        <Text style={[styles.course, { color: courseColor(course) }]}>{course.code ?? course.name}</Text></Pressable>}
+      <Text style={styles.item}>{item.title}</Text>
       <Text style={styles.copy}>{item.location || 'Room not set'}{item.instructor ? ` · ${item.instructor}` : ''}</Text>
       {conflicts.has(item.key) && <Text style={styles.warning}>Overlaps another class</Text>}
       <Button title={`Edit ${item.title}`} tone="plain" disabled={!!removing} onPress={() => setEditing(query.data!.find(value => value.id === item.classId)!)}/>
-    </View>)}
+    </View>; })}
     {!query.data && !query.isLoading && <Card><Text style={styles.item}>Your timetable isn’t available yet.</Text><Text style={styles.copy}>Connect and refresh to load your saved classes.</Text><Button title="Retry timetable" onPress={() => { void query.refetch(); }}/></Card>}
     <Text style={styles.section}>Your saved classes</Text>
     {query.data?.length === 0 && <Text style={styles.copy}>Start with one class from your syllabus. You can add lectures and labs separately.</Text>}
@@ -87,7 +95,7 @@ function TimetableContent({ timeZone }: { timeZone: string }) {
         <Button title="Keep class" tone="plain" disabled={!!removing} onPress={() => setConfirm(undefined)}/></>}
     </Card>)}
     <Text style={styles.meta}>Weekly schedules repeat within the term, including holidays. Check your syllabus for exceptions.</Text>
-  </ScrollView>{editing !== undefined && <ClassEditor item={editing} date={today} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}</Screen>;
+  </ScrollView>{editing !== undefined && <ClassEditor item={editing} date={today} timeZone={timeZone} courses={courses.data} onClose={() => setEditing(undefined)}/>}</Screen>;
 }
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40, gap: 16, maxWidth: 760, width: '100%', alignSelf: 'center' },
@@ -101,5 +109,5 @@ const styles = StyleSheet.create({
   selected: { backgroundColor: colors.moss, borderColor: colors.moss }, selectedText: { color: colors.card }, dayNumber: { fontSize: 20, color: colors.ink, fontWeight: '800' },
   meeting: { padding: 16, gap: 10, borderRadius: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderLeftWidth: 4 },
   time: { color: colors.moss, fontWeight: '700' }, item: { fontSize: 17, color: colors.ink, fontWeight: '700' }, warning: { color: colors.coral, lineHeight: 21 },
-  swatch: { width: 12, height: 12, borderRadius: 6 },
+  swatch: { width: 12, height: 12, borderRadius: 6 }, course: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6 },
 });

@@ -21,7 +21,7 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@expo/vector-icons/Ionicons', () => () => null);
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useAcademic: jest.fn(), useClasses: jest.fn(), usePlanningSnapshot: jest.fn(), useGoalHistory: jest.fn(), useGoals: jest.fn(),
-  usePreferences: jest.fn(), useReminders: jest.fn(), useTasks: jest.fn(), useToday: jest.fn(), useWellnessJournal: jest.fn() }));
+  usePreferences: jest.fn(), useReminders: jest.fn(), useTasks: jest.fn(), useToday: jest.fn(), useWellnessJournal: jest.fn(), useCourses: () => ({ data: undefined }) }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: () => ({ date: '2025-03-09', resumeCount: 0 }) }));
 jest.mock('../src/features/use-agenda-clock', () => ({ useAgendaClock: () => '2025-03-09T12:00:00Z' }));
 jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn(), ensureNotificationPermission: jest.fn(), reconcileReminders: jest.fn() }));

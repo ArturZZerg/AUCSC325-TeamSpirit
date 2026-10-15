@@ -8,6 +8,7 @@ import { useAction, useTasks } from '@/features/queries';
 import { focusClockLabel } from '@/features/focus-timer';
 import { useFocusTimer } from '@/features/use-focus-timer';
 import { TickRing } from '@/features/tick-ring';
+import { TaskChecklist } from '@/features/task-checklist';
 import { focusOwner } from '@/store/focus';
 import { useSessionStore } from '@/store/session';
 import type { PersonalTask } from '@/lib/types';
@@ -142,6 +143,7 @@ function FocusContent() {
         onPress={() => { if (owner) focus.reset(owner); }}/>}
       {active && <Button title="End session" tone="plain" disabled={saving} onPress={() => setConfirmEnd(true)}/>}
     </View>
+    {targetTask && !targetTask.completedAt && !targetTask.recurrence && <Card><TaskChecklist task={targetTask} disabled={saving}/></Card>}
     {finished && timer.phase === 'focus' && target && <Card>
       <Text style={styles.section}>{focus.taskCompleted || targetTask?.completedAt ? 'Task completed.' : 'Finished the task too?'}</Text>
       <Text style={styles.meta}>A focus block can be one step toward finishing. Check off the task only when it is done.</Text>
