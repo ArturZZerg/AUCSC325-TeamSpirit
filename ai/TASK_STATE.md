@@ -2,16 +2,44 @@
 
 Updated: 2026-10-14
 
-### Current combined MVP review (#100)
+### Current coursework edit preservation
+
+The former full-payload coursework editor reproduced a data-loss sequence:
+acknowledge a title save, fail list refetch, reopen the retained cached row, then
+save a deadline and silently resend the old title. Sparse PATCH requests now
+contain only changes from the opening baseline. The paired draft/baseline is
+stable across refreshed props; no-op/reverted forms are disabled, and failed
+writes retain their exact changed fields for retry. Creation remains complete.
+Existing API ownership/manual-source checks and reminder reconciliation remain
+unchanged; no endpoint, schema, dependency or offline mutation queue is added.
+Edits to the same field still use the existing last-write-wins semantics.
+
+The regression failed before the fix and passes afterward through the real
+TanStack query/mutation lifecycle and a synthetic transport. All 1,206 mobile
+cases in 101 suites, workspace lint/types and a fresh web export pass locally.
+A PostgreSQL test additionally verifies saved field preservation, one updated
+reminder and foreign-owner rejection; execution requires database-backed CI.
+The synthetic browser acceptance passes the same failed-refresh/reopen flow:
+exactly two observed PATCH bodies, first title only and then deadline only,
+retaining the acknowledged title. No-op Save is disabled and the 320px editor
+does not overflow. The four HTTP 503s are deliberately failed fixture list
+reads; no application exception was observed. Final diff review is complete;
+current-head CI and author review remain required before merging this slice.
+The shared checkout and original native/device data are
+untouched. Source remains local except for the authorized GitHub/CI workflow.
+
+### Accepted combined MVP upgrade (#100)
 
 The managed worktree integrates the existing feature stack through `360aa75`,
 the latest auth UI `64ad435`, and login correction `a2a22e7`, preserving their
-commit ancestry. PR #100 will be reviewed against main as the combined upgrade:
+commit ancestry. PR #100 was reviewed and merged as the combined upgrade:
 Today checklist/progress, grouped tasks, habit history, month calendar, launch
 dark appearance, natural-language capture, campus cards, auth/back links, app
-icons, opt-in morning overview, and focus/planner presentation. After accepted
-combined execution, incorporated feature PRs can be resolved with that evidence;
-their older cancelled/failed native jobs are never described as passes.
+icons, opt-in morning overview, and focus/planner presentation. Its exact tested
+source `7ac3d9e` is tree-identical to merged main `b132eb8`. All 14 then-open PR
+heads are contained: three PRs are marked merged and eleven incorporated stack
+PRs closed, retaining their branches and exact-head author review records.
+Their older cancelled/failed native jobs are never described as passes.
 
 Review corrections: calendar event failures no longer present empty days;
 repeating completion uses owned, matching task revisions and covered snapshot
@@ -26,10 +54,14 @@ After those corrections, all 1,195 integrated mobile tests, 181 domain cases,
 40 iOS tooling/privacy cases, workspace types and lint pass. The mobile command
 exits successfully after a delayed-handle warning; no force-exit option is used.
 A fresh web export points only at the synthetic loopback visual fixture.
-Rendered design checks, current standard/native CI, author reviews and
-matched-head merges remain required. The shared checkout remains untouched.
+Rendered light/dark and 320/390px checks pass with explicitly synthetic data.
+Main standard `38660153556` and full native `38660153729` pass. Downloaded native
+proof independently validates exact commit/run/attempt/device identity, seven
+public groups, real-API Cancel/Save and all four storage/logout checks, six flow
+timelines and cleanup. These accept the recorded source, not future edits or
+production operation. The shared checkout remains untouched.
 
-### Current open-PR review and native login correction
+### Earlier open-PR review and native login correction
 
 PRs #86, #84 and #85 are now merged; main is `18b1694` after the API
 lock-wait regression correction (#94). Day-review source `692fb3e` has a complete

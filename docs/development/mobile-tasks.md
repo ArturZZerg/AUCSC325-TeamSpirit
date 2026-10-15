@@ -110,7 +110,7 @@ academic routing, clearing, replacement, pending controls, and offline retry.
 New-date offline composition is covered by the snapshot tests. Native device
 acceptance remains outstanding.
 
-## Editing freshness and unresolved academic issue
+## Editing freshness and coursework field preservation
 
 Existing-task editors require a validated uncached task-detail GET after relevant
 local writes settle. Explicit reload retains dirty deadline, schedule, and
@@ -119,13 +119,26 @@ obsolete detail read cannot enable submission. Task acknowledgments do not wait
 for background list refetches; pending old-owner writes retain barriers until
 settlement, then obsolete owner records are released.
 
-Separate unresolved finding: academic full-payload editors still initialize from
-cached rows. Awaiting query invalidation does not establish freshness: TanStack
-Query normally resolves invalidation even when a refetch fails. After an
-acknowledged academic title edit followed by a failed refresh, reopening and
-editing only the deadline can submit the old cached title and revert that edit.
-This pre-existing academic issue requires an independent freshness fix and is
-not addressed by the task-only guard.
+Coursework editors now send a partial PATCH containing only fields changed from
+the form's opening baseline. An acknowledged title edit followed by a failed
+list refresh cannot be reverted by reopening the cached row and changing only
+its deadline. The same rule preserves newer course, kind and deadline values
+when the student changes another field. The baseline remains paired with its
+draft when refreshed props arrive; failed writes retain that draft for retry.
+Unchanged or reverted forms do not send a request or claim a save.
+
+Deadlines compare their temporal values, independently of JSON property order
+and inactive date/time controls. Untouched exact instants, including folded
+times and seconds, are omitted; explicit clearing sends null. Creation still
+sends the complete validated input. Existing API ownership/manual-source checks
+and reminder reconciliation apply to partial updates without a new endpoint or
+cache authority. Explicit edits to the same field retain the API's existing
+last-write-wins behavior; this does not add offline writes or revision conflicts.
+
+Regression coverage includes the real query/mutation lifecycle with failed list
+refetches, concurrent changes to untouched fields, draft retry, no-op behavior,
+deadline modes and account/session dismissal. The PostgreSQL regression checks
+persisted partial edits, foreign-owner rejection and reminder rescheduling.
 
 ## Next task
 

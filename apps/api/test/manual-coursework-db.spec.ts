@@ -71,6 +71,19 @@ databaseSuite('Manual coursework persistence and reminder lifecycle', () => {
     const response = await edit(id, { courseId: null, due: null }).expect(200);
     expect(response.body.courseId).toBeNull(); expect(response.body.due).toBeNull();
   });
+  it('preserves acknowledged fields across partial edits and keeps reminder reconciliation intact', async () => {
+    const initial = (await create().expect(201)).body;
+    await client().put(`/academic-items/${initial.id}/reminder`).set('Authorization', token).send({ leadMinutes: 60 }).expect(200);
+    await edit(initial.id, { title: 'Acknowledged syllabus title', kind: 'quiz' }).expect(200);
+    const due = { kind: 'instant', at: '2030-10-12T18:00:42Z' };
+    const result = await edit(initial.id, { due }).expect(200);
+    expect(result.body).toMatchObject({ title: 'Acknowledged syllabus title', kind: 'quiz', courseId: null, due, submissionState: 'unsubmitted' });
+    expect(await db.academicItem.findUniqueOrThrow({ where: { id: initial.id } })).toMatchObject({ title: 'Acknowledged syllabus title', kind: 'quiz', due });
+    const reminders = await db.reminder.findMany({ where: { academicItemId: initial.id } });
+    expect(reminders).toHaveLength(1); expect(reminders[0]).toMatchObject({ enabled: true, fireAt: new Date('2030-10-12T17:00:42Z') });
+    await client().patch(`/academic-items/${initial.id}`).set('Authorization', otherToken).send({ due: null }).expect(404);
+    expect((await db.academicItem.findUniqueOrThrow({ where: { id: initial.id } })).due).toEqual(due);
+  });
   it('leaves user-entered academic state intact across repeated Canvas synchronization', async () => {
     const id = (await create({ title: 'My syllabus quiz', kind: 'quiz' }).expect(201)).body.id;
     await edit(id, { submissionState: 'submitted' }).expect(200);
