@@ -3,7 +3,7 @@ import { createManualAcademicItemSchema, updateManualAcademicItemSchema } from '
 it('accepts standalone date-only coursework and trims the title', () => {
   expect(createManualAcademicItemSchema.parse({ title: '  Essay  ', kind: 'assignment', due: { kind: 'date', date: '2028-02-29' } })).toEqual({ title: 'Essay', kind: 'assignment', due: { kind: 'date', date: '2028-02-29' } });
 });
-it.each([{ title: ' ', kind: 'quiz' }, { title: 'a'.repeat(241), kind: 'quiz' }, { title: 'Quiz', kind: 'exam' },
+it.each([{ title: ' ', kind: 'quiz' }, { title: 'a'.repeat(241), kind: 'quiz' }, { title: 'Quiz', kind: 'lecture' },
   { title: 'Quiz', kind: 'quiz', source: 'canvas:fixture' }, { title: 'Quiz', kind: 'quiz', userId: 'owner' },
   { title: 'Quiz', kind: 'quiz', externalId: 'injected' }, { title: 'Quiz', kind: 'quiz', courseId: 'invalid' },
   { title: 'Quiz', kind: 'quiz', due: { kind: 'date', date: '2027-02-29' } },
@@ -15,4 +15,8 @@ it.each([{}, { title: undefined }, { submissionState: 'graded' }, { submissionSt
 });
 it('supports finishing, reopening and clearing optional fields', () => {
   for (const submissionState of ['submitted', 'unsubmitted']) expect(updateManualAcademicItemSchema.parse({ submissionState, due: null, courseId: null })).toEqual({ submissionState, due: null, courseId: null });
+});
+
+it('accepts exams as student-owned coursework', () => {
+  expect(createManualAcademicItemSchema.parse({ title: 'Midterm', kind: 'exam', due: { kind: 'date', date: '2026-10-22' } })).toMatchObject({ kind: 'exam' });
 });
