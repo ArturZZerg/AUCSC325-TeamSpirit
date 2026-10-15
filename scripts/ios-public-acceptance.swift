@@ -152,6 +152,7 @@ final class NativePublicAcceptanceTests: XCTestCase {
 
         app.terminate()
         XCTAssertEqual(app.state, .notRunning)
+        print("CAMPUSFLOW_PUBLIC_COLD_RECOVERY_BEGIN=\(AcceptanceContext.value)|\(coldPID)")
         try open("campusflow:///unavailable-link")
         XCTAssertTrue(label("This page isn’t available.", in: app).waitForExistence(timeout: 30))
         let recoveryPID = try processID(app)

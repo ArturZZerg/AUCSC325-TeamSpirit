@@ -9,8 +9,9 @@ CI runs (2,290 cases) and native `38688283317`. Downloaded evidence independentl
 validates all seven public groups, both private native tests, four storage checks,
 day review, six completed timelines and cleanup, including observed revocation
 and zero owned cache rows before explicit termination. Main has an identical
-tree. Exact-main standard `38691688211` passes; native `38691688248` remains
-separately tracked. No open PR remains after that merge.
+tree. Exact-main standard `38691688211` and native `38691688248` pass; downloaded
+main evidence independently validates under its original source's verifier.
+No open PR remained immediately after that merge.
 
 Branch `codex/ios-coursework-acceptance` adds actual iOS editor acceptance to the
 existing disposable harness. Four private named XCTests perform no-op/Cancel,
@@ -23,14 +24,44 @@ Every original public/login/offline/storage/logout gate remains mandatory.
 Passing proof requires all four added native tests plus all four readbacks.
 Generated context, values, activities and results stay private on the runner.
 
-The normal root `npm run check` passes lint, types, builds and 2,048 local cases;
+The diagnostic follow-up's root `npm run check` passes lint, types, builds and 2,054 local cases;
 all 257 database cases are explicitly skipped pending PostgreSQL-backed CI.
-This includes all 64 native proof/privacy/readback cases. Native Swift/Ruby
+This includes all 70 native proof/privacy/readback/diagnostic cases. Native Swift/Ruby
 compilation and actual editor interactions still require current-head macOS CI;
 they are not accepted from these local cases. Review and exact-head
 standard/native acceptance remain required before merging. No app runtime,
 schema, dependency or SDK changes are included. Original deployment, physical
 device, account-deletion and source-local constraints remain active.
+
+### Cold startup investigation for #104
+
+Source `7e15031` passes both standard CI runs with all 2,305 cases, including
+657 API cases, the production container and 24-table/13-record restore. Native
+`38693065286` fails the final public cold unavailable-link heading at its existing
+30-second wait. Six public groups complete; every private storage/coursework
+phase is skipped. The new private Swift/Ruby and editor interactions remain
+unverified. Simulator shutdown and artifact upload pass. No unchanged retry
+has been dispatched.
+
+The public log records the cold URL at 06:51:23 UTC, the process becoming
+foreground at 06:51:27, a 20-second launch-watchdog violation at 06:51:48, the
+assertion failure at 06:52:06.341, and React's `Running main` at 06:52:07.300.
+The later frame shows recovery; it does not accept the failed assertion. The
+pre-main/native initialization, host/runtime and JS causes are not resolved.
+
+The diagnostic follow-up runs the identical public Xcode command through a
+bounded wrapper. A source/device/run/attempt marker arms one five-second,
+10-millisecond-interval sample of the new app process, selected through the
+explicit QA simulator's launchctl inventory. The old PID, foreign/ambiguous
+jobs, wrong executable, empty call graph, mismatched context and failed sampling
+are rejected. Only a bounded validated public-phase stack report is published.
+All owned monitoring/sampling finishes before private registration. The sampled
+PID must match the actual completed cold-recovery proof. Every original public
+action, assertion and timeout remains unchanged. Actual sampling and native
+editor acceptance still require complete new-head macOS CI. The observed startup
+watchdog remains a production-readiness concern until diagnosed and verified.
+Workflow YAML parsing also passes. Full current-head database-backed CI, actual
+public sampling and complete native editor/storage acceptance remain required.
 
 ### Xcode/UUID release repair — merged #103 history
 

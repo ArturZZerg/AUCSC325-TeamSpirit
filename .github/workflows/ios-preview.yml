@@ -59,12 +59,7 @@ jobs:
           ruby -c scripts/ios-public-acceptance.rb
           ruby scripts/ios-public-acceptance.rb
           set -euo pipefail
-          xcodebuild test -project .local/ios-public-project/PublicAcceptance.xcodeproj -scheme PublicAcceptanceTests \
-            -configuration Release -sdk iphonesimulator -destination "platform=iOS Simulator,id=$udid" \
-            -parallel-testing-enabled NO -derivedDataPath "$PWD/.local/ios-public-derived" \
-            -resultBundlePath "$PWD/artifacts/ios/evidence/public.xcresult" \
-            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
-            2>&1 | tee artifacts/ios/evidence/public-native.log
+          node scripts/ios-public-launch-diagnostics.mjs
           node scripts/ios-public-acceptance.mjs artifacts/ios/evidence/public-native.log \
             "$CAMPUSFLOW_BUILD_SHA" "$udid" artifacts/ios/evidence/public-native.json
       - name: Collect public simulator diagnostics

@@ -69,6 +69,34 @@ addition to the existing public, login, day-review, offline and sign-out gates.
 Actual simulator acceptance is required before merging this extension; it does
 not establish physical-device, adverse-network, share or reminder acceptance.
 
+### Cold launch diagnostics
+
+`IOS-LAUNCH-01` adds bounded profiling to investigate source `7e15031` run
+`38693065286`. Its final cold unavailable-link assertion fails before private
+testing. SpringBoard records a 20-second process-launch watchdog violation and
+React's entry message appears after that assertion times out. The later correct
+recovery frame leaves the failed outcome unchanged. Startup's cause remains open.
+
+The public Xcode command retains its original arguments and all public actions,
+assertions and timeouts. A marker immediately before the existing cold URL binds
+one sample to the source, simulator, run, attempt and previous process. The
+wrapper queries launchctl only through that job's explicit booted QA simulator,
+excludes the previous process, and uses the installed app's exact executable.
+The built-in `sample` tool records five seconds at ten-millisecond intervals,
+following [Apple's launch measurement guidance](https://developer.apple.com/library/archive/documentation/Performance/Conceptual/LaunchTime/Articles/MeasuringLaunch.html).
+
+Passing diagnostic evidence requires successful sampler exit, the exact new PID
+and executable, a bounded nonempty call graph, and successful owned-process
+cleanup. The sampled PID must equal the public test's actual cold-recovery PID.
+Only the validated public-phase report and fixed metadata enter artifacts; raw
+sampler logs remain local. Monitoring and sampling are joined before the public
+step returns, so private credentials/accounts are created afterward. Failure or
+missing diagnostic evidence cannot accept the original public gate. Unit cases
+exercise scope, replay, malformed/ambiguous PID inventories and invalid reports.
+Actual profiling, all seven public groups and every private coursework/storage
+check remain required on the changed source. Physical iOS launch performance and
+the cause of the observed watchdog violation remain separate release gates.
+
 Run `38677989005` at `e2a064f` proves checked native sign-in, API-confirmed
 capture and native day-review Cancel/Save, then fails the incoming unavailable
 link assertion after a successful offline Today/task read. Overall acceptance

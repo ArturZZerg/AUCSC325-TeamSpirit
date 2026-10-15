@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { verifyPublicAcceptance } from './ios-public-acceptance.mjs';
+import { publicLaunchContext, coldLaunchRequest, selectedAppPid, assertPublicLaunchSample } from './ios-public-launch-diagnostics.mjs';
 
 const sha = 'a'.repeat(40), udid = '00000000-0000-4000-8000-000000000001';
 const runId = '123456', attempt = '1';
@@ -48,4 +49,60 @@ test('rejects replay of valid evidence from a different source, device, run or a
 test('requires same-process warm unavailable recovery and a distinct terminated-process recovery', () => {
   assert.throws(() => verify(passed.replace('UNAVAILABLE_WARM=42', 'UNAVAILABLE_WARM=43')));
   assert.throws(() => verify(passed.replace('UNAVAILABLE_COLD=43', 'UNAVAILABLE_COLD=42')));
+});
+
+const launchContext = { commit: sha, udid, runId, attempt };
+const launchEnv = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', CAMPUSFLOW_BUILD_SHA: sha,
+  IOS_SIMULATOR_UDID: udid, GITHUB_RUN_ID: runId, GITHUB_RUN_ATTEMPT: attempt };
+const boot = { udid, name: 'CampusFlowIosQa', state: 'Booted', ready: true };
+const begin = `CAMPUSFLOW_PUBLIC_COLD_RECOVERY_BEGIN=${sha}|${udid}|${runId}|${attempt}|42`;
+const executable = `/Users/runner/Library/Developer/CoreSimulator/Devices/${udid}/data/Containers/Bundle/Application/fixture/CampusFlow.app/CampusFlow`;
+const launchSample = () => ({ ...launchContext, priorPid: 42, pid: 43, result: 'captured', cleanup: 'passed', sampleSeconds: 5, sampleIntervalMs: 10, sampleExitCode: 0 });
+const report = `Process:         CampusFlow [43]\nPath: ${executable}\nCall graph:\n    1 dyld_start\n`;
+
+test('startup sampling requires the exact disposable macOS job and booted simulator', () => {
+  assert.deepEqual(publicLaunchContext(launchEnv, 'darwin', boot), launchContext);
+  for (const [env, platform, device] of [[launchEnv, 'win32', boot], [{ ...launchEnv, GITHUB_ACTIONS: 'false' }, 'darwin', boot],
+    [{ ...launchEnv, IOS_SIMULATOR_UDID: 'booted' }, 'darwin', boot], [{ ...launchEnv, GITHUB_RUN_ID: 'invalid' }, 'darwin', boot],
+    [launchEnv, 'darwin', { ...boot, name: 'Personal iPhone' }], [launchEnv, 'darwin', { ...boot, state: 'Shutdown' }],
+    [launchEnv, 'darwin', { ...boot, ready: false }], [launchEnv, 'darwin', { ...boot, udid: udid.replace(/1$/, '2') }]])
+    assert.throws(() => publicLaunchContext(env, platform, device));
+});
+test('only a source/device/run-matched cold marker arms sampling of the new process', () => {
+  assert.equal(coldLaunchRequest('ordinary public output', launchContext), undefined);
+  assert.deepEqual(coldLaunchRequest(`${begin}\n`, launchContext), { priorPid: 42 });
+  for (const log of [`${begin}\n${begin}\n`, begin.replace(sha, 'b'.repeat(40)), begin.replace('|42', '|0'),
+    begin.replace('|42', '|1.5'), begin.replace('|42', '|9007199254740992'), begin.replace('|123456|', '|123457|'),
+    begin.replace('|1|42', '|2|42'), begin.replace(udid, udid.replace(/1$/, '2')), 'x'.repeat(65_537)])
+    assert.throws(() => coldLaunchRequest(log, launchContext));
+  assert.throws(() => coldLaunchRequest(begin, { ...launchContext, runId: Number(runId) }));
+});
+test('simulator process selection ignores unrelated jobs, stopped jobs and the previous process', () => {
+  const other = '9 0 UIKitApplication:com.other.app[1234][rb-legacy]\n';
+  assert.equal(selectedAppPid(`${other}- 0 UIKitApplication:com.campusflow.mobile[431f][rb-legacy]\n`, 42), undefined);
+  assert.equal(selectedAppPid('42 0 UIKitApplication:com.campusflow.mobile[431f][rb-legacy]\n', 42), undefined);
+  assert.equal(selectedAppPid(`${other}43 0 UIKitApplication:com.campusflow.mobile[431f][rb-legacy]\n`, 42), 43);
+});
+test('process selection rejects ambiguous, malformed and nonpositive matching jobs', () => {
+  for (const output of ['43 0 UIKitApplication:com.campusflow.mobile[a]\n44 0 UIKitApplication:com.campusflow.mobile[b]\n',
+    'not-a-pid 0 UIKitApplication:com.campusflow.mobile[a]\n', '0 0 UIKitApplication:com.campusflow.mobile[a]\n', 'x'.repeat(1_048_577)])
+    assert.throws(() => selectedAppPid(output, 42));
+  assert.throws(() => selectedAppPid('', 0));
+});
+test('a captured report must identify this new process and its exact installed executable', () => {
+  assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report, executable));
+  assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report.replace('Process:         ', 'Process: '), executable));
+});
+test('partial, replayed, foreign-process and oversized samples cannot satisfy the diagnostic gate', () => {
+  for (const value of [{ ...launchSample(), result: 'sample-failed' }, { ...launchSample(), cleanup: 'failed' },
+    { ...launchSample(), pid: 42 }, { ...launchSample(), pid: 0 }, { ...launchSample(), priorPid: undefined },
+    { ...launchSample(), sampleSeconds: 30 }, { ...launchSample(), sampleIntervalMs: 1 },
+    { ...launchSample(), sampleExitCode: 1 }, { ...launchSample(), failureStage: 'sampler execution' },
+    ...['commit', 'udid', 'runId', 'attempt'].map(key => ({ ...launchSample(), [key]: 'different' }))])
+    assert.throws(() => assertPublicLaunchSample(value, launchContext, report, executable));
+  for (const text of ['', report.replace('[43]', '[44]'), report.replace('CampusFlow [43]', 'OtherApp [43]'),
+    report.replace(executable, '/private/other-app'), report.replace('Call graph:', ''),
+    report.replace('    1 dyld_start', 'No samples recorded'), 'x'.repeat(2_097_153)])
+    assert.throws(() => assertPublicLaunchSample(launchSample(), launchContext, text, executable));
+  assert.throws(() => assertPublicLaunchSample(launchSample(), launchContext, report, '/private/Other.app/Other'));
 });
