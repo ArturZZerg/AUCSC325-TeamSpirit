@@ -156,9 +156,11 @@ async function run() {
   };
   const monitor = async () => {
     const deadline = Date.now() + 900_000;
+    // Keep the marker once seen: later test output pushes it out of the bounded log tail.
+    let request;
     while (!stopped && Date.now() < deadline) {
       observerStage = 'cold marker validation';
-      const request = coldLaunchRequest(tail(logPath), context);
+      request ??= coldLaunchRequest(tail(logPath), context);
       if (request) {
         proof.priorPid = request.priorPid;
         observerStage = 'simulator process inventory';
