@@ -16,41 +16,55 @@ const requiredChecks = ['ordinary native sign-in, Secure Store write, and API-co
   'native sign-out revocation, zero owned SQLite rows, and retained server task',
   'cold signed-out state without API revocation fallback'];
 const loginStages = ['EMAIL_AND_NEXT', 'PASSWORD_AND_HIDE', 'TODAY', 'COMPLETE'];
+const offlineStages = ['RESTORED', 'UNAVAILABLE', 'RETURNED', 'COMPLETE'];
+const nativeCases = {
+  login: { prefix: 'LOGIN', method: 'testOrdinaryNativeLogin', stages: loginStages },
+  offline: { prefix: 'OFFLINE', method: 'testOfflineRecovery', stages: offlineStages },
+};
+const nativeCase = kind => {
+  if (!Object.hasOwn(nativeCases, kind)) throw new Error('Unsupported private native test.');
+  return nativeCases[kind];
+};
 
 /** Never return raw XCTest output: ordinary typing activities contain credentials. */
-export function privateLoginStages(log) {
+export function privateLoginStages(log, kind = 'login') {
+  const { prefix, stages } = nativeCase(kind);
   if (typeof log !== 'string' || log.length > 16_777_216) return [];
-  return loginStages.filter(stage => log.includes(`\nCAMPUSFLOW_LOGIN_${stage}\n`));
+  return stages.filter(stage => log.includes(`\nCAMPUSFLOW_${prefix}_${stage}\n`));
 }
 
-export function privateLoginDiagnostics(log) {
+export function privateLoginDiagnostics(log, kind = 'login') {
+  const { method } = nativeCase(kind);
   const bounded = typeof log === 'string' && log.length <= 16_777_216 ? log : '';
-  return { completed: privateLoginStages(bounded),
-    started: /Test Case '-\[PrivateLoginTests\.NativePrivateLoginTests testOrdinaryNativeLogin\]' started\./.test(bounded),
-    failed: /Test Case '-\[PrivateLoginTests\.NativePrivateLoginTests testOrdinaryNativeLogin\]' failed \(/.test(bounded),
+  const namedTest = `Test Case '-[PrivateLoginTests.NativePrivateLoginTests ${method}]'`;
+  return { completed: privateLoginStages(bounded, kind),
+    started: bounded.includes(`${namedTest} started.`), failed: bounded.includes(`${namedTest} failed (`),
     sourceLines: [...new Set([...bounded.matchAll(/ios-private-login\.swift:(\d{1,4})(?::\d{1,4})?: error:/g)]
       .map(match => Number(match[1])).filter(line => line > 0))].slice(0, 20) };
 }
 
-export function verifyNativeLogin(log, context) {
-  const fail = () => { throw new Error('Complete source/device/run-matched native login proof required.'); };
+function verifyNativeTest(log, context, kind) {
+  const { prefix, method, stages } = nativeCase(kind);
+  const fail = () => { throw new Error(`Complete source/device/run-matched native ${kind === 'login' ? 'login' : 'offline recovery'} proof required.`); };
   if (!context || !/^[0-9a-f]{40}$/i.test(context.commit ?? '')
     || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(context.udid ?? '')
     || !/^[1-9][0-9]*$/.test(context.runId ?? '') || !/^[1-9][0-9]*$/.test(context.attempt ?? '')
     || typeof log !== 'string' || !log.length || log.length > 16_777_216) fail();
-  const markers = [`CONTEXT=${[context.commit, context.udid, context.runId, context.attempt].join('|')}`, ...loginStages];
+  const markers = [`CONTEXT=${[context.commit, context.udid, context.runId, context.attempt].join('|')}`, ...stages];
   let previous = -1;
   for (const marker of markers) {
-    const line = `\nCAMPUSFLOW_LOGIN_${marker}\n`, index = log.indexOf(line);
+    const line = `\nCAMPUSFLOW_${prefix}_${marker}\n`, index = log.indexOf(line);
     if (index <= previous || log.indexOf(line, index + 1) !== -1) fail();
     previous = index;
   }
-  if (!/Test Case '-\[PrivateLoginTests\.NativePrivateLoginTests testOrdinaryNativeLogin\]' passed \(/.test(log)
+  if (!log.includes(`Test Case '-[PrivateLoginTests.NativePrivateLoginTests ${method}]' passed (`)
     || !/Executed 1 test, with 0 failures \(0 unexpected\)/.test(log) || !/\*\* TEST SUCCEEDED \*\*/.test(log)
     || /Test Case .* failed \(|\*\* TEST FAILED \*\*/.test(log)) fail();
   return { commit: context.commit, udid: context.udid, runId: context.runId, attempt: context.attempt,
-    result: 'passed', checks: [...loginStages] };
+    result: 'passed', checks: [...stages] };
 }
+export const verifyNativeLogin = (log, context) => verifyNativeTest(log, context, 'login');
+export const verifyNativeOfflineRecovery = (log, context) => verifyNativeTest(log, context, 'offline');
 
 export function assertStorageAcceptanceProof(value, commit, context) {
   if (!/^[0-9a-f]{40}$/i.test(commit ?? '') || !value || value.commit !== commit || value.api !== apiUrl
@@ -60,13 +74,16 @@ export function assertStorageAcceptanceProof(value, commit, context) {
     || value.dayReview?.cancel !== 'unchanged' || value.dayReview?.save !== 'tomorrow with deadline retained'
     || value.dayReview?.taskCount !== 2 || value.dayReview?.studySeconds !== 1500 || value.dayReview?.studyBlocks !== 1)
     throw new Error('Incomplete iOS storage acceptance proof for this source commit.');
-  const login = value.nativeLogin;
-  if (login?.commit !== commit || login.result !== 'passed'
-    || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(login.udid ?? '')
-    || !/^[1-9][0-9]*$/.test(login.runId ?? '') || !/^[1-9][0-9]*$/.test(login.attempt ?? '')
-    || context && ['udid', 'runId', 'attempt'].some(key => login[key] !== context[key])
-    || JSON.stringify(login.checks) !== JSON.stringify(loginStages))
-    throw new Error('Incomplete iOS storage acceptance native login proof.');
+  for (const [key, stages] of [['nativeLogin', loginStages], ['nativeOfflineRecovery', offlineStages]]) {
+    const native = value[key];
+    if (native?.commit !== commit || native.result !== 'passed'
+      || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(native.udid ?? '')
+      || !/^[1-9][0-9]*$/.test(native.runId ?? '') || !/^[1-9][0-9]*$/.test(native.attempt ?? '')
+      || ['udid', 'runId', 'attempt'].some(field => native[field] !== value.nativeLogin[field])
+      || context && ['udid', 'runId', 'attempt'].some(field => native[field] !== context[field])
+      || JSON.stringify(native.checks) !== JSON.stringify(stages))
+      throw new Error('Incomplete iOS storage acceptance private native proof.');
+  }
 }
 
 /** Only stop the child created by this harness. Signal exits are terminal too. */
@@ -254,7 +271,7 @@ async function run() {
       if (name.startsWith('ios-session-')) saveFlowTimeline(path.join(runDir, name), path.join(root, `artifacts/ios/evidence/${name}-timeline.json`));
       if (code === 0) return resolve();
       // Publish only a bounded assertion summary, never raw Maestro commands/UI dumps.
-      const failed = name.startsWith('private-login') ? undefined
+      const failed = name.startsWith('private-') ? undefined
         : publicFlowFailure(readFileSync(path.join(runDir, `${name}.log`), 'utf8'), [email, password, dbPassword, title, reviewTitle]);
       if (failed) console.error(failed);
       reject(new Error(`Acceptance command failed: ${name}. Private diagnostics stay on the runner.`));
@@ -279,7 +296,7 @@ async function run() {
   const flow = async name => {
     const cli = path.join(root, '.local/maestro/bin/maestro');
     try {
-      await command(cli, ['--device', config.udid, 'test', '-e', `IOS_QA_TASK=${title}`,
+      await command(cli, ['--device', config.udid, 'test', '-e', `IOS_QA_EMAIL=${email}`, '-e', `IOS_QA_TASK=${title}`,
         '-e', `IOS_QA_REVIEW_TASK=${reviewTitle}`,
         '--debug-output', path.join(runDir, name), '--test-output-dir', path.join(runDir, name), `.maestro/${name}.yaml`], name);
     } catch (error) {
@@ -294,6 +311,24 @@ async function run() {
     }
   };
   const check = name => { proof.checks.push(name); console.log(`iOS storage acceptance passed: ${name}.`); };
+  const nativeTest = async (kind, context) => {
+    const { method } = nativeCase(kind), name = `private-${kind}`;
+    console.log(`iOS storage native stage: ${kind}.`);
+    try {
+      await command('xcodebuild', ['test', '-project', path.join(runDir, 'PrivateLogin.xcodeproj'), '-scheme', 'PrivateLoginTests',
+        `-only-testing:PrivateLoginTests/NativePrivateLoginTests/${method}`,
+        '-configuration', 'Release', '-sdk', 'iphonesimulator', '-destination', `platform=iOS Simulator,id=${config.udid}`,
+        '-parallel-testing-enabled', 'NO', '-derivedDataPath', path.join(runDir, 'login-derived'),
+        '-resultBundlePath', path.join(runDir, `${kind}.xcresult`),
+        'CODE_SIGNING_ALLOWED=YES', 'CODE_SIGN_IDENTITY=-', 'DEVELOPMENT_TEAM='], name);
+      return verifyNativeTest(readFileSync(path.join(runDir, `${name}.log`), 'utf8'), context, kind);
+    } catch (error) {
+      let diagnostics = privateLoginDiagnostics(undefined, kind);
+      try { diagnostics = privateLoginDiagnostics(readFileSync(path.join(runDir, `${name}.log`), 'utf8'), kind); } catch { /* No raw fallback. */ }
+      writeFileSync(path.join(root, `artifacts/ios/evidence/${name}-stages.json`), JSON.stringify({ ...context, ...diagnostics }));
+      throw error;
+    }
+  };
   try {
     await command(pg('initdb'), ['-D', path.join(runDir, 'pg'), '-U', 'campusflow_ios', '--auth-host=scram-sha-256',
       '--auth-local=scram-sha-256', `--pwfile=${path.join(runDir, 'pg-password')}`, '--encoding=UTF8', '--no-locale'], 'initdb');
@@ -314,21 +349,9 @@ async function run() {
     console.log(`::add-mask::${session.accessToken}`);
     stage = 'ordinary native XCTest login';
     const loginContext = { commit: proof.commit, udid: config.udid, runId: env.GITHUB_RUN_ID, attempt: env.GITHUB_RUN_ATTEMPT };
-    writeFileSync(path.join(runDir, 'login-context.json'), JSON.stringify({ ...loginContext, email, password }), { mode: 0o600 });
+    writeFileSync(path.join(runDir, 'login-context.json'), JSON.stringify({ ...loginContext, email, password, task: title }), { mode: 0o600 });
     await command('ruby', ['scripts/ios-private-login.rb', runDir], 'private-login-project');
-    try {
-      await command('xcodebuild', ['test', '-project', path.join(runDir, 'PrivateLogin.xcodeproj'), '-scheme', 'PrivateLoginTests',
-        '-configuration', 'Release', '-sdk', 'iphonesimulator', '-destination', `platform=iOS Simulator,id=${config.udid}`,
-        '-parallel-testing-enabled', 'NO', '-derivedDataPath', path.join(runDir, 'login-derived'),
-        '-resultBundlePath', path.join(runDir, 'login.xcresult'),
-        'CODE_SIGNING_ALLOWED=YES', 'CODE_SIGN_IDENTITY=-', 'DEVELOPMENT_TEAM='], 'private-login');
-      proof.nativeLogin = verifyNativeLogin(readFileSync(path.join(runDir, 'private-login.log'), 'utf8'), loginContext);
-    } catch (error) {
-      let diagnostics = privateLoginDiagnostics(undefined);
-      try { diagnostics = privateLoginDiagnostics(readFileSync(path.join(runDir, 'private-login.log'), 'utf8')); } catch { /* No raw fallback. */ }
-      writeFileSync(path.join(root, 'artifacts/ios/evidence/private-login-stages.json'), JSON.stringify({ ...loginContext, ...diagnostics }));
-      throw error;
-    }
+    proof.nativeLogin = await nativeTest('login', loginContext);
     assert.equal(await prisma.session.count({ where: { userId: session.user.id, revokedAt: null } }), 2);
     stage = 'native task capture';
     // XCTest used ordinary UI sign-in; Maestro must still capture a real owned task.
@@ -382,6 +405,9 @@ async function run() {
 
     stage = 'offline cold restoration'; await stopApi(); await unusedPort(3000);
     await flow('ios-session-offline');
+    stage = 'offline authenticated native recovery'; await unusedPort(3000);
+    proof.nativeOfflineRecovery = await nativeTest('offline', loginContext);
+    await unusedPort(3000);
     check('cold session and owned SQLite task restoration with no API listener');
     stage = 'native sign-out cleanup'; await startApi(); await flow('ios-session-cleanup');
     for (let attempt = 0; attempt < 20; attempt++) {

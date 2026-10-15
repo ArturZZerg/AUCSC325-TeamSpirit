@@ -29,7 +29,7 @@ records the observed failure and actual unchanged-app evidence for this choice.
 | IOS-STORAGE-01 | Verify the actual app's local host signature and compiled simulator Keychain capabilities in every architecture, without invented team IDs or shared groups | Strict signature verification; actual Mach-O `__TEXT,__entitlements` extraction; negative host/device/slice artifact tests |
 | IOS-STORAGE-02 | Ordinary native sign-in writes Secure Store and Today capture creates exactly one date-scheduled task through the real API | Disposable PostgreSQL 17 and NestJS preview API; private XCTest checks each email/password character, Next/Go, password hiding and Today, requires source/device/run/attempt-matched named-test success and two API sessions, then Maestro capture plus independent contract-validated task read |
 | IOS-STORAGE-03 | Terminated-process startup restores the encrypted session and owned SQLite task with no API/Metro listener | Explicit API shutdown/port guard and native cold offline flow |
-| IOS-RECOVERY-02 | An authenticated unavailable link returns to Today and the same cached task while the API is absent | Existing `ios-session-offline.yaml` and independent native cache/task persistence checks remain required |
+| IOS-RECOVERY-02 | An authenticated unavailable link returns to Today and the same cached task while the API is absent | Maestro verifies the cold cached read; separately selected private XCTest opens the actual incoming URL, requires unavailable recovery and Back to Today, checks the same cached task and unchanged native PID, with API port absence before/after. Both source/device/run/attempt-matched native proofs are mandatory |
 | IOS-STORAGE-04 | Native sign-out revokes its actual API session, removes owned SQLite rows, and cold startup stays signed out without an API while the server task survives | Before/after session/cache counts, online logout and separate API-disconnected cold signed-out flow; a server 401 cannot mask stale Secure Store |
 
 Private XCTest credentials, generated context source, raw logs, derived data and
@@ -38,7 +38,11 @@ They are never uploaded as evidence. Only verified fixed stage names and public
 build context enter passing proof; failure diagnostics contain fixed booleans,
 bounded static test-source line numbers and account-owned aggregate counts.
 All original task, day-review, offline, cache and logout gates remain required.
-This harness follow-up still needs a complete actual native run before acceptance.
+Run `38677989005` at `e2a064f` proves checked native sign-in, API-confirmed
+capture and native day-review Cancel/Save, then fails the incoming unavailable
+link assertion after a successful offline Today/task read. Overall acceptance
+remains failed. The follow-up moves only that system-link transition to XCTest;
+it still needs a complete actual native run before acceptance.
 
 PR #83 merged at `c08a0987222c3940bc59cd187f03e0e9e47aadea` after final native
 `38603642902` attempt 2 passed on `c3c2563`, with independently validated complete

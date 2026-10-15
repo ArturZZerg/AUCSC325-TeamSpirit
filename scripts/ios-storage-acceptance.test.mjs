@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { once, EventEmitter } from 'node:events';
 import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary, saveFlowTimeline,
   stopOwnedApiProcess, assertStorageAcceptanceProof, assertDayReviewTasks, privateHierarchyShape, privateFailureCounts,
-  verifyNativeLogin, privateLoginStages, privateLoginDiagnostics } from './ios-storage-acceptance.mjs';
+  verifyNativeLogin, verifyNativeOfflineRecovery, privateLoginStages, privateLoginDiagnostics } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
 
 test('stops an owned real child and makes repeated cleanup after a signal exit idempotent', { timeout: 5000 }, async t => {
@@ -44,8 +44,12 @@ const loginLog = () => `Private activities stay here: private@example.test secre
   + loginMarkers.map(marker => `CAMPUSFLOW_LOGIN_${marker}\n`).join('')
   + "Test Case '-[PrivateLoginTests.NativePrivateLoginTests testOrdinaryNativeLogin]' passed (1.0 seconds).\n"
   + 'Executed 1 test, with 0 failures (0 unexpected)\n** TEST SUCCEEDED **\n';
+const offlineLog = () => loginLog().replaceAll('CAMPUSFLOW_LOGIN_', 'CAMPUSFLOW_OFFLINE_')
+  .replace('EMAIL_AND_NEXT', 'RESTORED').replace('PASSWORD_AND_HIDE', 'UNAVAILABLE').replace('OFFLINE_TODAY', 'OFFLINE_RETURNED')
+  .replace('testOrdinaryNativeLogin', 'testOfflineRecovery');
 const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed', cleanup: 'passed',
   nativeLogin: verifyNativeLogin(loginLog(), loginContext),
+  nativeOfflineRecovery: verifyNativeOfflineRecovery(offlineLog(), loginContext),
   dayReview: { cancel: 'unchanged', save: 'tomorrow with deadline retained', taskCount: 2, studySeconds: 1500, studyBlocks: 1 }, checks: [
   'ordinary native sign-in, Secure Store write, and API-confirmed task capture',
   'cold session and owned SQLite task restoration with no API listener',
@@ -65,6 +69,10 @@ test('rejects missing, partial, replayed and failed proof without echoing privat
     { ...complete(), nativeLogin: undefined }, { ...complete(), nativeLogin: { ...complete().nativeLogin, commit: 'b'.repeat(40) } },
     { ...complete(), nativeLogin: { ...complete().nativeLogin, result: 'failed' } },
     { ...complete(), nativeLogin: { ...complete().nativeLogin, checks: loginMarkers.slice(0, 3) } },
+    { ...complete(), nativeOfflineRecovery: undefined },
+    { ...complete(), nativeOfflineRecovery: { ...complete().nativeOfflineRecovery, checks: ['RESTORED', 'COMPLETE'] } },
+    ...['udid', 'runId', 'attempt'].map(field => ({ ...complete(),
+      nativeOfflineRecovery: { ...complete().nativeOfflineRecovery, [field]: field === 'udid' ? '22222222-2222-3333-4444-555555555555' : '2' } })),
     { ...complete(), checks: complete().checks.slice(0, 3) }, { ...complete(), checks: complete().checks.toReversed() },
     { ...complete(), dayReview: undefined }, { ...complete(), dayReview: { ...complete().dayReview, cancel: 'changed' } },
     { ...complete(), dayReview: { ...complete().dayReview, save: undefined } },
@@ -118,6 +126,26 @@ test('private XCTest failure diagnostics omit activities and errors, retaining b
   assert.deepEqual(privateLoginDiagnostics(undefined), { completed: [], started: false, failed: false, sourceLines: [] });
   assert.deepEqual(privateLoginDiagnostics('x'.repeat(16_777_217)), privateLoginDiagnostics(undefined));
   assert.equal(privateLoginDiagnostics(Array.from({ length: 30 }, (_, i) => `ios-private-login.swift:${i + 1}: error: private`).join('\n')).sourceLines.length, 20);
+});
+
+test('offline native proof requires restored owned data, incoming recovery and return in the named successful test', () => {
+  const result = verifyNativeOfflineRecovery(offlineLog(), loginContext);
+  assert.deepEqual(result, { ...loginContext, result: 'passed', checks: ['RESTORED', 'UNAVAILABLE', 'RETURNED', 'COMPLETE'] });
+  assert.ok(!/private@example|secret-password/.test(JSON.stringify(result)));
+  const diagnostics = privateLoginDiagnostics(offlineLog(), 'offline');
+  assert.deepEqual(diagnostics.completed, result.checks);
+  assert.deepEqual(privateLoginStages(loginLog(), 'offline'), []);
+});
+
+test('offline native proof rejects missing or reordered recovery, login substitution, failed discovery and replay', () => {
+  const log = offlineLog();
+  for (const value of [loginLog(), ...['RESTORED', 'UNAVAILABLE', 'RETURNED', 'COMPLETE'].map(stage => log.replace(`CAMPUSFLOW_OFFLINE_${stage}\n`, '')),
+    log.replace('OFFLINE_UNAVAILABLE', 'OFFLINE_TEMP').replace('OFFLINE_RETURNED', 'OFFLINE_UNAVAILABLE').replace('OFFLINE_TEMP', 'OFFLINE_RETURNED'),
+    log.replace('Executed 1 test', 'Executed 2 tests'), log + '** TEST FAILED **', log + 'CAMPUSFLOW_OFFLINE_RETURNED\n'])
+    assert.throws(() => verifyNativeOfflineRecovery(value, loginContext));
+  for (const changed of [{ commit: 'b'.repeat(40) }, { runId: '124' }, { attempt: '2' }])
+    assert.throws(() => verifyNativeOfflineRecovery(log, { ...loginContext, ...changed }));
+  assert.throws(() => privateLoginDiagnostics('private-token', 'unsupported'), /Unsupported private native test/);
 });
 
 test('requires an explicit disposable macOS runner and UUID, without an external API', () => {

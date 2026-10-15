@@ -40,6 +40,23 @@ stay in `.local`; only fixed stages, booleans and bounded static-source failure
 line numbers can be published. Current-head full CI/native acceptance remains
 required before merging #102. App/API/shared runtime and dependencies are unchanged.
 
+Actual run `38677989005` at `e2a064f` passes all seven public groups, checked
+ordinary XCTest login, two real API sessions, native task capture and day-review
+Cancel/Save with the retained deadline and 1,500 study seconds. Its offline flow
+also restores Today and the owned cached task, then fails the incoming unavailable
+link assertion. Overall storage acceptance remains failed; cleanup passes. Both
+standard runs pass 2,285 cases and the 24-table/13-record restore rehearsal.
+
+The next follow-up retains Maestro's cold-read assertions and moves the incoming
+unavailable-link/Back-to-Today/cached-task assertions to a separately selected
+private XCTest, using the accepted public system-link input approach. The API
+port is verified absent before and after; the same native PID must survive the
+link and recovery. Passing storage proof requires both named native tests from
+the same source/device/run/attempt and all original storage/day-review/logout
+checks. The final signed-out flow's email variable is retained. No unchanged
+retry or application/runtime/dependency change is made. Local 49 proof/privacy
+cases pass; complete new-head native acceptance remains mandatory.
+
 The former full-payload coursework editor reproduced a data-loss sequence:
 acknowledge a title save, fail list refetch, reopen the retained cached row, then
 save a deadline and silently resend the old title. Sparse PATCH requests now
