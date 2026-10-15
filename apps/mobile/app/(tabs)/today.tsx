@@ -103,9 +103,11 @@ export default function TodayScreen() {
         <Text accessibilityRole="header" style={styles.title}>Your daily flow</Text>
         {isCurrentDay && <Text style={styles.greeting}>{greeting(Date.now(), query.timeZone)}{name ? `, ${name.trim().split(/\s+/)[0]}` : ''}.</Text>}
       </View>
+      <View style={styles.headerActions}><Pressable accessibilityRole="button" accessibilityLabel="Search" onPress={() => router.push('/search')} style={styles.searchButton} hitSlop={6}>
+        <Ionicons name="search" size={18} color={colors.ink}/></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Get started" onPress={() => router.push('/get-started')} style={styles.setup} hitSlop={6}>
         <Ionicons name="sparkles-outline" size={16} color={colors.moss}/><Text style={styles.setupText}>Get started</Text>
-      </Pressable>
+      </Pressable></View>
     </View>
 
     <View style={styles.hero}>
@@ -181,7 +183,8 @@ const styles = StyleSheet.create({
   kicker: { color: colors.muted, fontWeight: '700', fontSize: 13, letterSpacing: .3 },
   title: { fontSize: 29, color: colors.ink, fontWeight: '800' }, greeting: { color: colors.muted, fontSize: 16 },
   setup: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, minHeight: 36, borderRadius: 18, backgroundColor: colors.sage, marginTop: 4 },
-  setupText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
+  setupText: { color: colors.ink, fontWeight: '700', fontSize: 13 }, headerActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  searchButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.sage, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   hero: { backgroundColor: colors.moss, borderRadius: 22, padding: 18, gap: 14 },
   heroRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, heroCopy: { gap: 2, flexShrink: 1 },
   heroValue: { color: '#fff', fontSize: 30, fontWeight: '800', fontVariant: ['tabular-nums'] }, heroLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 14 },
