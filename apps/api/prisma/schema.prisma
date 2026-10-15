@@ -203,6 +203,7 @@ model Course {
   name String
   code String?
   active Boolean @default(true)
+  color String?
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   academicItems AcademicItem[]
   @@unique([userId, source, externalId])

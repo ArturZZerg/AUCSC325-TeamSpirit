@@ -55,3 +55,11 @@ fixture QA checked search, Finished filtering, reminder selection and Cancel at
 320px/390px, plus a 1100px layout; there was no page horizontal overflow.
 The temporary preview route was removed before checks/export. No authorized
 ADB device was connected, so native interaction/delivery remains unverified.
+
+## Courses
+
+Coursework links to **Courses** (`app/courses.tsx`): students add a course with a
+name, optional code and one of eight colours, edit or archive it, and delete it
+after confirmation (its coursework stays, with no course). Imported Canvas
+courses show their source and accept only a colour. Course colours appear as a
+dot beside coursework. Creates reuse their client ID on retry (ADR 015).
