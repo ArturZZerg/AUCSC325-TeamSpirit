@@ -22,9 +22,10 @@ export function recurrenceLabel(recurrence: NonNullable<PersonalTask['recurrence
 }
 
 /** Compact checklist row; details and secondary actions appear when expanded. */
-export function TaskRow({ task, today, timeZone, expanded, disabled, pending, isMainGoal, canChangeMainGoal, onToggleExpanded, onAction }: {
+export function TaskRow({ task, today, timeZone, expanded, disabled, pending, isMainGoal, canChangeMainGoal, onToggleExpanded, onAction, course }: {
   task: PersonalTask; today: string; timeZone: string; expanded: boolean; disabled: boolean; pending?: TaskRowAction;
   isMainGoal: boolean; canChangeMainGoal: boolean; onToggleExpanded(): void; onAction(action: TaskRowAction): void;
+  course?: { label: string; color: string };
 }) {
   const done = !!task.completedAt, accent = categoryColors[task.category];
   const timing = planTimingLabel({ kind: 'personalTask', schedule: task.scheduled, due: task.due }, timeZone, today);
@@ -41,7 +42,7 @@ export function TaskRow({ task, today, timeZone, expanded, disabled, pending, is
         {isMainGoal && <Text style={styles.star}>★ MAIN GOAL TODAY</Text>}
         <Text style={[styles.title, done && styles.done]}>{task.title}</Text>
         <View style={styles.meta}>
-          <View style={[styles.dot, { backgroundColor: accent }]}/><Text style={styles.metaText}>{capitalize(task.category)}</Text>
+          <View style={[styles.dot, { backgroundColor: course?.color ?? accent }]}/><Text style={[styles.metaText, course && { color: course.color, fontWeight: '700' }]}>{course?.label ?? capitalize(task.category)}</Text>
           {task.priority === 'high' && !done && <><Ionicons name="flag" size={12} color={colors.danger}/><Text style={[styles.metaText, styles.high]}>High</Text></>}
           {timing && <Text style={styles.metaText}>· {timing}</Text>}
           {task.reminder && <Ionicons name="notifications-outline" size={13} color={colors.muted} accessibilityLabel="Has reminder"/>}

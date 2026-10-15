@@ -4,7 +4,7 @@ import Tasks from '../app/(tabs)/tasks';
 import { useAction, useTasks } from '../src/features/queries';
 import type { PersonalTask } from '../src/lib/types';
 
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useTasks: jest.fn(), useAcademic: () => ({ data: [], isLoading: false }) }));
+jest.mock('../src/features/queries', () => ({ useCourses: () => ({ data: undefined }), useAction: jest.fn(), useTasks: jest.fn(), useAcademic: () => ({ data: [], isLoading: false }) }));
 // These are isolated field/action tests; the real online editor gate is covered
 // with real useAction in task-edit-freshness.test.tsx.
 jest.mock('../src/features/task-editor', () => {

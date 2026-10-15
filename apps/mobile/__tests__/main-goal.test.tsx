@@ -5,7 +5,7 @@ import { useTodayClock } from '../src/features/today-clock';
 import type { AcademicItem, PersonalTask } from '../src/lib/types';
 import { snapshotFixture } from './snapshot-fixture';
 
-jest.mock('../src/features/queries', () => ({ useAcademic: jest.fn(), useAction: jest.fn(), useTasks: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useCourses: () => ({ data: undefined }), useAcademic: jest.fn(), useAction: jest.fn(), useTasks: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: jest.fn() }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { timeZone: 'America/Edmonton' } } }) }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
