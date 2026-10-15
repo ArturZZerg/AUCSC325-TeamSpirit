@@ -300,8 +300,11 @@ databaseSuite('Explicit academic reminder lifecycle with PostgreSQL (ToR changed
   async function waitForBlockedQuery(blockerPid: number): Promise<string> {
     const deadline = Date.now() + 2000;
     while (Date.now() < deadline) {
+      // pg_stat_activity can briefly report the transaction's preceding SET
+      // statement; only a statement actually waiting on a lock is the evidence.
       const blocked = await db.$queryRaw<Array<{ query: string }>>`
-        SELECT query FROM pg_stat_activity WHERE ${blockerPid}::integer = ANY(pg_blocking_pids(pid))`;
+        SELECT query FROM pg_stat_activity WHERE ${blockerPid}::integer = ANY(pg_blocking_pids(pid))
+          AND wait_event_type = 'Lock' AND query NOT ILIKE 'SET %'`;
       if (blocked.length) return blocked[0].query;
       await new Promise(resolve => setTimeout(resolve, 10));
     }
