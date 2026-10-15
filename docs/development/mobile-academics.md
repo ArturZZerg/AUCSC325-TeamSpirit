@@ -63,3 +63,12 @@ name, optional code and one of eight colours, edit or archive it, and delete it
 after confirmation (its coursework stays, with no course). Imported Canvas
 courses show their source and accept only a colour. Course colours appear as a
 dot beside coursework. Creates reuse their client ID on retry (ADR 015).
+
+## Course grades
+
+Each course opens a detail screen (`app/course/[id].tsx`) with the current
+weighted grade, graded share, a target (presets or a custom whole number) and
+what average is needed on the remaining work, plus the course's assessments and
+coursework. Assessments are added and scored in `assessment-editor.tsx`; weights
+and scores accept `30`, `7,5` or `88%`. Calculation: `gradeSummary` in the domain
+package (ADR 016).

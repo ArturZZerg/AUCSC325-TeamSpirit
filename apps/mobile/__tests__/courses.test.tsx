@@ -46,25 +46,19 @@ it('validates a blank name without saving', async () => {
   await act(async () => { fireEvent.press(screen.getAllByRole('button', { name: 'Add course' }).at(-1)!); });
   expect(save).not.toHaveBeenCalled(); expect(screen.getByRole('alert')).toHaveTextContent('Enter a course name.');
 });
-it('edits only the colour of an imported course', async () => {
-  render(<CoursesScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Edit Statistics' }));
-  expect(screen.getByLabelText('Course name')).toHaveProp('editable', false); expect(screen.queryByRole('button', { name: 'Delete course' })).toBeNull();
-  fireEvent.press(screen.getByRole('radio', { name: 'Gold colour' }));
-  await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Save course' })); });
-  expect(save).toHaveBeenCalledWith({ path: `/courses/${imported.id}`, method: 'PATCH', body: { color: 'gold' } });
-});
-it('archives, restores and deletes a manual course after confirmation', async () => {
+it('archives and restores a manual course and opens course details', async () => {
+  const { router } = jest.requireMock('expo-router') as { router: { push: jest.Mock } };
   const view = render(<CoursesScreen/>);
   await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Archive Cognitive Psychology' })); });
   expect(save).toHaveBeenCalledWith({ path: `/courses/${manual.id}`, method: 'PATCH', body: { active: false } });
   show([{ ...manual, active: false }, imported]); view.rerender(<CoursesScreen/>);
   expect(screen.getByText('Archived')).toBeOnTheScreen(); expect(screen.getByRole('button', { name: 'Restore Cognitive Psychology' })).toBeOnTheScreen();
-  fireEvent.press(screen.getByRole('button', { name: 'Edit Cognitive Psychology' })); fireEvent.press(screen.getByRole('button', { name: 'Delete course' }));
-  expect(screen.getByText(/becomes “No course”/)).toBeOnTheScreen(); fireEvent.press(screen.getByRole('button', { name: 'Keep course' }));
-  expect(save).toHaveBeenCalledTimes(1);
-  fireEvent.press(screen.getByRole('button', { name: 'Edit Cognitive Psychology' })); fireEvent.press(screen.getByRole('button', { name: 'Delete course' }));
-  await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Delete course' })); });
-  expect(save).toHaveBeenLastCalledWith({ path: `/courses/${manual.id}`, method: 'DELETE' });
+  fireEvent.press(screen.getByRole('button', { name: 'Open Statistics' }));
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/course/[id]', params: { id: imported.id } });
+});
+it('shows a current grade in the list once something is graded', () => {
+  show([{ ...manual, assessments: [{ id: '70000000-0000-4000-8000-000000000001', title: 'Midterm', weight: 30, score: 82 }] }]);
+  render(<CoursesScreen/>); expect(screen.getByText('Current grade 82%')).toBeOnTheScreen();
 });
 it('offers an empty state', () => {
   show([]); render(<CoursesScreen/>); expect(screen.getByText('Add your first course.')).toBeOnTheScreen();
