@@ -32,6 +32,19 @@ export function academicFormRequest(values: AcademicFormValues, item: AcademicIt
   const due = valid.dueMode === 'existing' ? item?.due ?? null : valid.dueMode === 'none' ? null
     : valid.dueMode === 'date' ? { kind: 'date' as const, date: valid.dueDate }
       : { kind: 'instant' as const, at: instantAtLocalTime(valid.dueDate, valid.dueTime, timeZone) };
-  return { path: item ? `/academic-items/${item.id}` : '/academic-items', method: item ? 'PATCH' : 'POST',
-    body: (item ? updateManualAcademicItemSchema : createManualAcademicItemSchema).parse({ title: valid.title, kind: valid.kind, courseId: valid.courseId || null, due }) };
+  const body = { title: valid.title, kind: valid.kind, courseId: valid.courseId || null, due };
+  if (!item) return { path: '/academic-items', method: 'POST', body: createManualAcademicItemSchema.parse(body) };
+  // Cached rows are valid reading fallbacks, not authority for untouched fields.
+  // Compare deadline values rather than JSON property order or form controls.
+  const dueChanged = due?.kind !== item.due?.kind
+    || due?.kind === 'date' && item.due?.kind === 'date' && due.date !== item.due.date
+    || due?.kind === 'instant' && item.due?.kind === 'instant' && due.at !== item.due.at;
+  const changes = {
+    ...(body.title !== item.title ? { title: body.title } : {}),
+    ...(body.kind !== item.kind ? { kind: body.kind } : {}),
+    ...(body.courseId !== item.courseId ? { courseId: body.courseId } : {}),
+    ...(dueChanged ? { due } : {}),
+  };
+  if (!Object.keys(changes).length) return null;
+  return { path: `/academic-items/${item.id}`, method: 'PATCH', body: updateManualAcademicItemSchema.parse(changes) };
 }

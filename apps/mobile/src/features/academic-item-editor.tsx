@@ -9,22 +9,27 @@ import { taskTimingLabel } from './task-form';
 import { academicFormDefaults, academicFormRequest, academicFormSchema, type AcademicFormValues } from './academic-form';
 import type { AcademicItem } from '@/lib/types';
 
-export function AcademicItemEditor({ item, courses, timeZone, onClose, onSaved }: {
+export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClose, onSaved }: {
   item: AcademicItem | null; courses: { id: string; name: string; code: string | null; active: boolean }[];
   timeZone: string; onClose(): void; onSaved(): void;
 }) {
   const { date: today } = useTodayClock(timeZone);
+  // The baseline and draft belong to the same opening. A background row change
+  // must not turn unchanged draft fields into edits against a newer baseline.
+  const [item] = useState(initialItem);
   const action = useAction(); const busy = useRef(false);
   const [saving, setSaving] = useState(false); const [error, setError] = useState<string>();
   const [values, setValues] = useState(() => academicFormDefaults(item, timeZone, today));
+  const validation = academicFormSchema(item, timeZone).safeParse(values);
+  const request = validation.success ? academicFormRequest(validation.data, item, timeZone) : undefined;
   const update = <K extends keyof AcademicFormValues>(key: K, value: AcademicFormValues[K]) => setValues(previous => ({ ...previous, [key]: value }));
   const close = () => { if (!busy.current) onClose(); };
   const save = async () => {
     if (busy.current) return;
-    const result = academicFormSchema(item, timeZone).safeParse(values);
-    if (!result.success) { setError(result.error.issues[0].message); return; }
+    if (!validation.success) { setError(validation.error.issues[0].message); return; }
+    if (!request) return;
     busy.current = true; setSaving(true); setError(undefined);
-    try { await action.mutateAsync(academicFormRequest(result.data, item, timeZone)); onSaved(); }
+    try { await action.mutateAsync(request); onSaved(); }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not save your coursework. Try again.'); }
     finally { busy.current = false; setSaving(false); }
   };
@@ -56,7 +61,8 @@ export function AcademicItemEditor({ item, courses, timeZone, onClose, onSaved }
         </>}
         <Text style={styles.meta}>Save first, then use Plan study time to make room for preparation. Your changes need a connection.</Text>
         {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-        <Button title={saving ? 'Saving…' : item ? 'Save coursework' : 'Add coursework'} disabled={saving} onPress={() => { void save(); }}/>
+        {request === null && <Text style={styles.meta}>No changes to save.</Text>}
+        <Button title={saving ? 'Saving…' : item ? 'Save coursework' : 'Add coursework'} disabled={saving || request === null} onPress={() => { void save(); }}/>
       </ScrollView>
     </KeyboardAvoidingView>
   </SafeAreaView></Modal>;

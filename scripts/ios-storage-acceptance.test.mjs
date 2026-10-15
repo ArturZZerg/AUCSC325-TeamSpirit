@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { once, EventEmitter } from 'node:events';
 import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary, saveFlowTimeline,
-  stopOwnedApiProcess, assertStorageAcceptanceProof, assertDayReviewTasks } from './ios-storage-acceptance.mjs';
+  stopOwnedApiProcess, assertStorageAcceptanceProof, assertDayReviewTasks, privateHierarchyShape, privateFailureCounts,
+  verifyNativeLogin, verifyNativeOfflineRecovery, privateLoginStages, privateLoginDiagnostics } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
 
 test('stops an owned real child and makes repeated cleanup after a signal exit idempotent', { timeout: 5000 }, async t => {
@@ -37,7 +38,18 @@ test('a synchronous termination does not retain escalation timers or listeners',
   assert.equal(child.listenerCount('exit'), 0);
 });
 const commit = 'a'.repeat(40);
+const loginContext = { commit, udid: env.IOS_SIMULATOR_UDID, runId: '123', attempt: '1' };
+const loginMarkers = ['EMAIL_AND_NEXT', 'PASSWORD_AND_HIDE', 'TODAY', 'COMPLETE'];
+const loginLog = () => `Private activities stay here: private@example.test secret-password\nCAMPUSFLOW_LOGIN_CONTEXT=${Object.values(loginContext).join('|')}\n`
+  + loginMarkers.map(marker => `CAMPUSFLOW_LOGIN_${marker}\n`).join('')
+  + "Test Case '-[PrivateLoginTests.NativePrivateLoginTests testOrdinaryNativeLogin]' passed (1.0 seconds).\n"
+  + 'Executed 1 test, with 0 failures (0 unexpected)\n** TEST SUCCEEDED **\n';
+const offlineLog = () => loginLog().replaceAll('CAMPUSFLOW_LOGIN_', 'CAMPUSFLOW_OFFLINE_')
+  .replace('EMAIL_AND_NEXT', 'RESTORED').replace('PASSWORD_AND_HIDE', 'UNAVAILABLE').replace('OFFLINE_TODAY', 'OFFLINE_RETURNED')
+  .replace('testOrdinaryNativeLogin', 'testOfflineRecovery');
 const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed', cleanup: 'passed',
+  nativeLogin: verifyNativeLogin(loginLog(), loginContext),
+  nativeOfflineRecovery: verifyNativeOfflineRecovery(offlineLog(), loginContext),
   dayReview: { cancel: 'unchanged', save: 'tomorrow with deadline retained', taskCount: 2, studySeconds: 1500, studyBlocks: 1 }, checks: [
   'ordinary native sign-in, Secure Store write, and API-confirmed task capture',
   'cold session and owned SQLite task restoration with no API listener',
@@ -45,11 +57,22 @@ const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed'
   'cold signed-out state without API revocation fallback'] });
 test('accepts only completed native and process-cleanup evidence for the exact source', () => {
   assert.doesNotThrow(() => assertStorageAcceptanceProof(complete(), commit));
+  assert.doesNotThrow(() => assertStorageAcceptanceProof(complete(), commit, loginContext));
+  for (const change of [{ udid: '22222222-2222-3333-4444-555555555555' }, { runId: '124' }, { attempt: '2' }])
+    assert.throws(() => assertStorageAcceptanceProof(complete(), commit, { ...loginContext, ...change }));
 });
 test('rejects missing, partial, replayed and failed proof without echoing private values', () => {
   const privateValue = 'private-token-must-not-appear';
   for (const value of [undefined, {}, { ...complete(), result: 'failed' }, { ...complete(), cleanup: undefined },
     { ...complete(), commit: 'b'.repeat(40) }, { ...complete(), api: privateValue }, { ...complete(), failedStage: privateValue },
+    { ...complete(), failureDiagnostics: { activeSessions: 1, ownedTasks: 0 } },
+    { ...complete(), nativeLogin: undefined }, { ...complete(), nativeLogin: { ...complete().nativeLogin, commit: 'b'.repeat(40) } },
+    { ...complete(), nativeLogin: { ...complete().nativeLogin, result: 'failed' } },
+    { ...complete(), nativeLogin: { ...complete().nativeLogin, checks: loginMarkers.slice(0, 3) } },
+    { ...complete(), nativeOfflineRecovery: undefined },
+    { ...complete(), nativeOfflineRecovery: { ...complete().nativeOfflineRecovery, checks: ['RESTORED', 'COMPLETE'] } },
+    ...['udid', 'runId', 'attempt'].map(field => ({ ...complete(),
+      nativeOfflineRecovery: { ...complete().nativeOfflineRecovery, [field]: field === 'udid' ? '22222222-2222-3333-4444-555555555555' : '2' } })),
     { ...complete(), checks: complete().checks.slice(0, 3) }, { ...complete(), checks: complete().checks.toReversed() },
     { ...complete(), dayReview: undefined }, { ...complete(), dayReview: { ...complete().dayReview, cancel: 'changed' } },
     { ...complete(), dayReview: { ...complete().dayReview, save: undefined } },
@@ -58,6 +81,71 @@ test('rejects missing, partial, replayed and failed proof without echoing privat
     { ...complete(), dayReview: { ...complete().dayReview, studyBlocks: undefined } }]) {
     assert.throws(() => assertStorageAcceptanceProof(value, commit), error => !error.message.includes(privateValue) && /Incomplete iOS storage/.test(error.message));
   }
+});
+
+test('native login requires every ordinary input and screen stage and the named successful XCTest', () => {
+  assert.deepEqual(verifyNativeLogin(loginLog(), loginContext), { ...loginContext, result: 'passed', checks: loginMarkers });
+  assert.ok(!/private@example|secret-password/.test(JSON.stringify(verifyNativeLogin(loginLog(), loginContext))));
+  assert.deepEqual(privateLoginStages(loginLog()), loginMarkers);
+});
+
+test('native login rejects missing, duplicate, reordered, failed, zero-test and replayed execution', () => {
+  const log = loginLog();
+  const invalid = [undefined, '', 'x'.repeat(16_777_217),
+    ...loginMarkers.map(marker => log.replace(`CAMPUSFLOW_LOGIN_${marker}\n`, '')),
+    log + 'CAMPUSFLOW_LOGIN_TODAY\n',
+    log.replace('CAMPUSFLOW_LOGIN_EMAIL_AND_NEXT', 'CAMPUSFLOW_LOGIN_TEMP')
+      .replace('CAMPUSFLOW_LOGIN_PASSWORD_AND_HIDE', 'CAMPUSFLOW_LOGIN_EMAIL_AND_NEXT')
+      .replace('CAMPUSFLOW_LOGIN_TEMP', 'CAMPUSFLOW_LOGIN_PASSWORD_AND_HIDE'),
+    log.replace("testOrdinaryNativeLogin]' passed", "testOther]' passed"),
+    log.replace('Executed 1 test', 'Executed 0 tests'), log.replace('0 failures', '1 failure'),
+    log.replace('** TEST SUCCEEDED **', '** TEST FAILED **'),
+    log + "Test Case '-[PrivateLoginTests.NativePrivateLoginTests testOrdinaryNativeLogin]' failed (1.0 seconds).\n"];
+  for (const value of invalid) assert.throws(() => verifyNativeLogin(value, loginContext), error =>
+    !/secret-password|private@example/.test(error.message) && /native login proof required/.test(error.message));
+  for (const changed of [{ commit: 'b'.repeat(40) }, { udid: '22222222-2222-3333-4444-555555555555' },
+    { runId: '124' }, { attempt: '2' }, { attempt: 'private-token' }])
+    assert.throws(() => verifyNativeLogin(log, { ...loginContext, ...changed }));
+});
+
+test('failed native login diagnostics publish fixed completed stage names only', () => {
+  assert.deepEqual(privateLoginStages('private@example.test\nCAMPUSFLOW_LOGIN_EMAIL_AND_NEXT\nInput secret-password\nCAMPUSFLOW_LOGIN_private-token\n'), ['EMAIL_AND_NEXT']);
+  assert.deepEqual(privateLoginStages(undefined), []);
+  assert.deepEqual(privateLoginStages('x'.repeat(16_777_217)), []);
+});
+
+test('private XCTest failure diagnostics omit activities and errors, retaining bounded static-source line numbers only', () => {
+  const privateLog = "Test Case '-[PrivateLoginTests.NativePrivateLoginTests testOrdinaryNativeLogin]' started.\n"
+    + 'CAMPUSFLOW_LOGIN_EMAIL_AND_NEXT\nInput secret-password\n'
+    + '/private/ios-private-login.swift:53: error: secret-password private@example.test\n'
+    + '/private/ios-private-login.swift:53:8: error: private-token\n'
+    + '/private/PrivateLoginContext.swift:2: error: private-token\n'
+    + "Test Case '-[PrivateLoginTests.NativePrivateLoginTests testOrdinaryNativeLogin]' failed (1.0 seconds).\n";
+  assert.deepEqual(privateLoginDiagnostics(privateLog), { completed: ['EMAIL_AND_NEXT'], started: true, failed: true, sourceLines: [53] });
+  assert.ok(!/private@example|secret-password|private-token/.test(JSON.stringify(privateLoginDiagnostics(privateLog))));
+  assert.deepEqual(privateLoginDiagnostics(undefined), { completed: [], started: false, failed: false, sourceLines: [] });
+  assert.deepEqual(privateLoginDiagnostics('x'.repeat(16_777_217)), privateLoginDiagnostics(undefined));
+  assert.equal(privateLoginDiagnostics(Array.from({ length: 30 }, (_, i) => `ios-private-login.swift:${i + 1}: error: private`).join('\n')).sourceLines.length, 20);
+});
+
+test('offline native proof requires restored owned data, incoming recovery and return in the named successful test', () => {
+  const result = verifyNativeOfflineRecovery(offlineLog(), loginContext);
+  assert.deepEqual(result, { ...loginContext, result: 'passed', checks: ['RESTORED', 'UNAVAILABLE', 'RETURNED', 'COMPLETE'] });
+  assert.ok(!/private@example|secret-password/.test(JSON.stringify(result)));
+  const diagnostics = privateLoginDiagnostics(offlineLog(), 'offline');
+  assert.deepEqual(diagnostics.completed, result.checks);
+  assert.deepEqual(privateLoginStages(loginLog(), 'offline'), []);
+});
+
+test('offline native proof rejects missing or reordered recovery, login substitution, failed discovery and replay', () => {
+  const log = offlineLog();
+  for (const value of [loginLog(), ...['RESTORED', 'UNAVAILABLE', 'RETURNED', 'COMPLETE'].map(stage => log.replace(`CAMPUSFLOW_OFFLINE_${stage}\n`, '')),
+    log.replace('OFFLINE_UNAVAILABLE', 'OFFLINE_TEMP').replace('OFFLINE_RETURNED', 'OFFLINE_UNAVAILABLE').replace('OFFLINE_TEMP', 'OFFLINE_RETURNED'),
+    log.replace('Executed 1 test', 'Executed 2 tests'), log + '** TEST FAILED **', log + 'CAMPUSFLOW_OFFLINE_RETURNED\n'])
+    assert.throws(() => verifyNativeOfflineRecovery(value, loginContext));
+  for (const changed of [{ commit: 'b'.repeat(40) }, { runId: '124' }, { attempt: '2' }])
+    assert.throws(() => verifyNativeOfflineRecovery(log, { ...loginContext, ...changed }));
+  assert.throws(() => privateLoginDiagnostics('private-token', 'unsupported'), /Unsupported private native test/);
 });
 
 test('requires an explicit disposable macOS runner and UUID, without an external API', () => {
@@ -84,6 +172,8 @@ test('private flow timeline publishes only known actions, states and numeric tim
     { sequence: 2, action: 'inputTextCommand', status: 'COMPLETED', durationMs: 500 }]);
   assert.ok(!JSON.stringify(result).includes(privateText));
   assert.deepEqual(privateFlowTimeline(undefined), []);
+  assert.deepEqual(privateFlowTimeline([{ command: { pressKeyCommand: { privateText } }, metadata: { status: 'COMPLETED' } }]),
+    [{ sequence: 0, action: 'pressKeyCommand', status: 'COMPLETED', durationMs: null }]);
 });
 
 const fixtureRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.local/ios-timeline-tests');
@@ -124,7 +214,8 @@ test('private screen diagnostics output fixed label-presence booleans only', () 
     { attributes: { text: 'private@example.test', input: 'secret-password', token: 'private-token' } }] });
   assert.deepEqual(result, { auth: false, today: true, editor: false, capture: true, titleInput: false, save: false, cleanupRetry: false,
     savePassword: false, notNow: false, passwords: false, settingsTab: false, settings: false, signOut: false, unavailable: false,
-    dayReview: false, existingEditor: false });
+    dayReview: false, existingEditor: false, emailInput: false, passwordInput: false, signIn: false, invalidCredentials: false,
+    networkFailure: false, showPassword: false, hidePassword: false });
   assert.ok(Object.values(result).every(value => typeof value === 'boolean'));
   assert.ok(!JSON.stringify(result).includes('private'));
   const overlay = privateViewSummary({ children: [{ attributes: { text: 'Save Password' } },
@@ -142,6 +233,36 @@ test('private screen diagnostics output fixed label-presence booleans only', () 
   assert.equal(privateViewSummary({ attributes: { text: 'This page isn’t available.' } }).unavailable, true);
   const review = privateViewSummary({ children: [{ attributes: { text: 'Leave the day a little lighter.' } }, { attributes: { text: 'Edit task' } }] });
   assert.equal(review.dayReview, true); assert.equal(review.existingEditor, true);
+});
+
+test('failure screen diagnostics recognize auth controls and fixed errors without exposing inputs', () => {
+  const privateValue = 'private@example.test secret-password private-token';
+  const summary = privateViewSummary({ children: [{ attributes: { id: 'auth-email', value: privateValue } },
+    { attributes: { id: 'auth-password', value: privateValue } }, { attributes: { text: 'Invalid email or password' } }] });
+  assert.equal(summary.emailInput, true); assert.equal(summary.passwordInput, true); assert.equal(summary.invalidCredentials, true);
+  assert.ok(Object.values(summary).every(value => typeof value === 'boolean'));
+  assert.ok(!JSON.stringify(summary).includes(privateValue));
+});
+
+test('hierarchy diagnostics distinguish empty and populated trees using bounded counts only', () => {
+  assert.deepEqual(privateHierarchyShape({}), { objects: 1, strings: 0, depthLimited: false, truncated: false });
+  const value = { children: [{ attributes: { text: 'private@example.test', token: 'private-token', password: 'secret-password' } }] };
+  const summary = privateHierarchyShape(value);
+  assert.deepEqual(summary, { objects: 4, strings: 3, depthLimited: false, truncated: false });
+  assert.ok(!/private|secret/.test(JSON.stringify(summary)));
+  value.children.push(value);
+  assert.equal(privateHierarchyShape(value).truncated, false);
+  assert.equal(privateHierarchyShape(Array(5000).fill('private-token')).truncated, true);
+  let deep = {}; for (let i = 0; i < 50; i++) deep = { children: deep };
+  assert.equal(privateHierarchyShape(deep).depthLimited, true);
+});
+
+test('database failure diagnostics allow nonnegative aggregate counts and omit all record fields', () => {
+  assert.deepEqual(privateFailureCounts({ activeSessions: 2, ownedTasks: 1, userId: 'private-id', accessToken: 'private-token' }), { activeSessions: 2, ownedTasks: 1 });
+  for (const invalid of [undefined, -1, NaN, Infinity, 'private-token', { secret: 'private-password' }]) {
+    assert.deepEqual(privateFailureCounts({ activeSessions: invalid, ownedTasks: invalid }), { activeSessions: null, ownedTasks: null });
+  }
+  assert.deepEqual(privateFailureCounts(undefined), { activeSessions: null, ownedTasks: null });
 });
 
 const task = { id: '11111111-2222-4333-8444-555555555555', title: 'Synthetic study', description: null,

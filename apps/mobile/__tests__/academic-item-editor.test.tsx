@@ -30,6 +30,7 @@ it('retains edits on failure and acknowledges success only after retry', async (
   expect(screen.getByLabelText('Coursework title')).toHaveDisplayValue('Keep my draft'); expect(saved).not.toHaveBeenCalled();
   expect(screen.getByRole('alert')).toHaveTextContent('Offline write');
   await act(async () => fireEvent.press(screen.getByText('Save coursework'))); expect(saved).toHaveBeenCalledTimes(1);
+  expect(save.mock.calls.map(([request]) => request.body)).toEqual([{ title: 'Keep my draft' }, { title: 'Keep my draft' }]);
 });
 it('guards repeated taps, editing and dismissal during a save', async () => {
   let resolve!: () => void; save.mockReturnValueOnce(new Promise<void>(done => { resolve = done; })); show();
@@ -42,6 +43,24 @@ it('guards repeated taps, editing and dismissal during a save', async () => {
 it('preserves a course assignment while metadata is unavailable', async () => {
   render(<AcademicItemEditor item={essay} courses={[]} timeZone="America/Edmonton" onClose={close} onSaved={saved}/>);
   expect(screen.getByRole('radio', { name: 'Saved course', checked: true })).toBeOnTheScreen();
-  await act(async () => fireEvent.press(screen.getByText('Save coursework'))); expect(save.mock.calls[0][0].body.courseId).toBe(essay.courseId);
+  fireEvent.changeText(screen.getByLabelText('Coursework title'), 'Revised title');
+  await act(async () => fireEvent.press(screen.getByText('Save coursework')));
+  expect(save.mock.calls[0][0].body).toEqual({ title: 'Revised title' });
+});
+it('does not write or acknowledge unchanged coursework, including a reverted draft', async () => {
+  show(essay); expect(screen.getByRole('button', { name: 'Save coursework' })).toBeDisabled();
+  fireEvent.changeText(screen.getByLabelText('Coursework title'), 'Different');
+  expect(screen.getByRole('button', { name: 'Save coursework' })).toBeEnabled();
+  fireEvent.changeText(screen.getByLabelText('Coursework title'), essay.title);
+  await act(async () => fireEvent.press(screen.getByText('Save coursework')));
+  expect(save).not.toHaveBeenCalled(); expect(saved).not.toHaveBeenCalled();
+  expect(screen.getByText('No changes to save.')).toBeOnTheScreen();
+});
+it('keeps the opening baseline alongside its draft when refreshed props arrive', async () => {
+  const ui = show(essay); fireEvent.changeText(screen.getByLabelText('Coursework title'), 'Draft title');
+  ui.rerender(<AcademicItemEditor item={{ ...essay, kind: 'quiz', due: null }} courses={courses} timeZone="America/Edmonton" onClose={close} onSaved={saved}/>);
+  expect(screen.getByLabelText('Coursework title')).toHaveDisplayValue('Draft title');
+  await act(async () => fireEvent.press(screen.getByText('Save coursework')));
+  expect(save.mock.calls[0][0].body).toEqual({ title: 'Draft title' });
 });
 it('cancels without creating a record', () => { show(); fireEvent.press(screen.getByText('Cancel')); expect(close).toHaveBeenCalledTimes(1); expect(save).not.toHaveBeenCalled(); });
