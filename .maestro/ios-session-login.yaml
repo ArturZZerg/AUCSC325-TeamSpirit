@@ -58,7 +58,8 @@ name: iOS ordinary sign-in and owned task capture
 - tapOn:
     id: task-title
 - inputText: ${IOS_QA_TASK}
-- hideKeyboard
+# Return dismisses the single-line title keyboard without tapping elsewhere.
+- pressKey: Enter
 - scrollUntilVisible:
     element:
       text: Save task
