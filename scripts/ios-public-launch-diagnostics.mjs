@@ -38,7 +38,7 @@ export function coldLaunchRequest(log, context) {
   return { priorPid: pid };
 }
 
-/** launchctl is queried only inside the explicit simulator, never the host list. */
+/** launchctl is queried only inside the explicit simulator; see selectedHostPid for the scoped fallback. */
 export function selectedAppPid(output, priorPid) {
   if (typeof output !== 'string' || output.length > 1_048_576 || !positive(priorPid))
     throw new Error('Invalid simulator job inventory.');
@@ -50,6 +50,19 @@ export function selectedAppPid(output, priorPid) {
   }).filter(pid => pid !== undefined);
   if (pids.length > 1 || pids.some(pid => !positive(pid))) throw new Error('Ambiguous CampusFlow simulator process.');
   return pids[0] !== priorPid ? pids[0] : undefined;
+}
+
+/** Host fallback: simulator apps are host processes, so only this device's exact installed executable matches. */
+export function selectedHostPid(output, executable, priorPid) {
+  if (typeof output !== 'string' || output.length > 4_194_304 || !positive(priorPid)
+    || typeof executable !== 'string' || !executable.endsWith('/CampusFlow.app/CampusFlow') || !executable.includes('/CoreSimulator/Devices/'))
+    throw new Error('Invalid host process inventory.');
+  const pids = output.split('\n').map(line => line.match(/^\s*(\d+)\s+(.*)$/)).filter(Boolean)
+    .filter(([, , command]) => command === executable || command.startsWith(`${executable} `)).map(([, pid]) => Number(pid));
+  if (pids.length > 2 || pids.some(pid => !positive(pid))) throw new Error('Ambiguous CampusFlow host process.');
+  const fresh = pids.filter(pid => pid !== priorPid);
+  if (fresh.length > 1) throw new Error('Ambiguous CampusFlow host process.');
+  return fresh[0];
 }
 
 export function assertPublicLaunchSample(value, context, report, executable) {
@@ -131,11 +144,24 @@ async function run() {
       if (request) {
         proof.priorPid = request.priorPid;
         observerStage = 'simulator process inventory';
-        const output = (await tool(['simctl', 'spawn', context.udid, 'launchctl', 'list'])).stdout;
         proof.inventoryAttempts = (proof.inventoryAttempts ?? 0) + 1;
-        proof.matchingAppJobs = output.split('\n').filter(line => /\sUIKitApplication:com\.campusflow\.mobile\[/.test(line)).length;
-        observerStage = 'simulator process selection';
-        const pid = selectedAppPid(output, request.priorPid);
+        let pid;
+        try {
+          // A loaded runner can make the in-simulator launchctl query slow or fail; retry instead of ending the sample.
+          const output = (await execute('xcrun', ['simctl', 'spawn', context.udid, 'launchctl', 'list'], { timeout: 15_000, killSignal: 'SIGKILL', maxBuffer: 4_194_304 })).stdout;
+          proof.matchingAppJobs = output.split('\n').filter(line => /\sUIKitApplication:com\.campusflow\.mobile\[/.test(line)).length;
+          observerStage = 'simulator process selection';
+          pid = selectedAppPid(output, request.priorPid);
+        } catch (error) {
+          if (observerStage === 'simulator process selection') throw error;
+          proof.inventoryFailures = (proof.inventoryFailures ?? 0) + 1;
+          proof.inventoryError ??= String(error?.code ?? error?.message ?? error).slice(0, 200);
+          observerStage = 'host process inventory';
+          const hosts = (await execute('ps', ['-ax', '-o', 'pid=,command='], { timeout: 5000, killSignal: 'SIGKILL', maxBuffer: 4_194_304 })).stdout;
+          observerStage = 'host process selection';
+          pid = selectedHostPid(hosts, executable, request.priorPid);
+          if (pid) proof.inventorySource = 'host';
+        }
         if (pid && !stopped) {
           sampleTask = sample(pid).catch(() => { proof.result = 'sample-cleanup-failed'; sampleCleanupFailed = true; });
           return;

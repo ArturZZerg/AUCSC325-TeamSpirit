@@ -82,6 +82,9 @@ assertions and timeouts. A marker immediately before the existing cold URL binds
 one sample to the source, simulator, run, attempt and previous process. The
 wrapper queries launchctl only through that job's explicit booted QA simulator,
 excludes the previous process, and uses the installed app's exact executable.
+If that in-simulator query fails, the wrapper records the error and falls back to
+host processes whose command is exactly this simulator's installed executable
+(its path contains the device UDID), still excluding the previous process.
 The built-in `sample` tool records five seconds at ten-millisecond intervals,
 following [Apple's launch measurement guidance](https://developer.apple.com/library/archive/documentation/Performance/Conceptual/LaunchTime/Articles/MeasuringLaunch.html).
 

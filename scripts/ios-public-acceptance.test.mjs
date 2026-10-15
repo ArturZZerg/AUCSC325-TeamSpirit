@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { verifyPublicAcceptance } from './ios-public-acceptance.mjs';
-import { publicLaunchContext, coldLaunchRequest, selectedAppPid, assertPublicLaunchSample } from './ios-public-launch-diagnostics.mjs';
+import { publicLaunchContext, coldLaunchRequest, selectedAppPid, selectedHostPid, assertPublicLaunchSample } from './ios-public-launch-diagnostics.mjs';
 
 const sha = 'a'.repeat(40), udid = '00000000-0000-4000-8000-000000000001';
 const runId = '123456', attempt = '1';
@@ -88,6 +88,15 @@ test('process selection rejects ambiguous, malformed and nonpositive matching jo
     'not-a-pid 0 UIKitApplication:com.campusflow.mobile[a]\n', '0 0 UIKitApplication:com.campusflow.mobile[a]\n', 'x'.repeat(1_048_577)])
     assert.throws(() => selectedAppPid(output, 42));
   assert.throws(() => selectedAppPid('', 0));
+});
+test('host fallback selects only the new process of this simulator’s exact executable', () => {
+  const app = `/Users/runner/Library/Developer/CoreSimulator/Devices/${udid}/data/Containers/Bundle/Application/X/CampusFlow.app/CampusFlow`;
+  const other = `/Users/runner/Library/Developer/CoreSimulator/Devices/00000000-0000-4000-8000-000000000009/data/Containers/Bundle/Application/Y/CampusFlow.app/CampusFlow`;
+  assert.equal(selectedHostPid(`  42 ${app}\n  77 ${other}\n`, app, 42), undefined);
+  assert.equal(selectedHostPid(`  42 ${app}\n  43 ${app} -arg\n 77 ${other}\n 90 /bin/zsh ${app}\n`, app, 42), 43);
+  assert.throws(() => selectedHostPid(`43 ${app}\n44 ${app}\n`, app, 42));
+  assert.throws(() => selectedHostPid('', '/tmp/CampusFlow', 42));
+  assert.throws(() => selectedHostPid('', app, 0));
 });
 test('a captured report must identify this new process and its exact installed executable', () => {
   assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report, executable));
