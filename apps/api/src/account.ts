@@ -20,7 +20,7 @@ const accountFields = {
   academicItems: { select: { id: true, courseId: true, title: true, kind: true, due: true, submissionState: true,
     source: true, externalId: true, mainGoalDate: true, updatedAt: true, reminderLeadMinutes: true } },
   classSchedules: { select: { id: true, title: true, weekdays: true, termStart: true, termEnd: true, startTime: true,
-    endTime: true, timeZone: true, location: true, instructor: true, notes: true, color: true, createdAt: true, updatedAt: true } },
+    endTime: true, timeZone: true, location: true, instructor: true, notes: true, color: true, courseId: true, createdAt: true, updatedAt: true } },
   studyPlans: { select: { id: true, academicItemId: true, title: true, deadlineWhenPlanned: true, archivedAt: true, createdAt: true } },
   focusSessions: { select: { id: true, taskId: true, title: true, startedAt: true, endedAt: true,
     plannedMinutes: true, focusedSeconds: true, outcome: true, createdAt: true } },

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import CourseScreen from '../app/course/[id]';
-import { useAcademic, useAction, useCourses } from '../src/features/queries';
+import { useAcademic, useAction, useClasses, useCourses } from '../src/features/queries';
+import { classFixture } from './class-fixture';
 import { useTodayClock } from '../src/features/today-clock';
 import { useSessionStore } from '../src/store/session';
 import type { Course } from '../src/lib/types';
@@ -8,7 +9,7 @@ import type { Course } from '../src/lib/types';
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
 let mockId = '60000000-0000-4000-8000-000000000001';
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({ id: mockId }) }));
-jest.mock('../src/features/queries', () => ({ useCourses: jest.fn(), useAcademic: jest.fn(), useAction: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useCourses: jest.fn(), useAcademic: jest.fn(), useClasses: jest.fn(), useAction: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: jest.fn() }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
 const midterm = { id: '70000000-0000-4000-8000-000000000001', title: 'Midterm', weight: 30, score: 80 };
@@ -26,6 +27,7 @@ beforeEach(() => {
   jest.mocked(useAcademic).mockReturnValue({ data: [{ id: '50000000-0000-4000-8000-000000000001', courseId: base.id, title: 'Lab report', kind: 'assignment',
     due: { kind: 'date', date: '2026-10-16' }, submissionState: 'unsubmitted', source: 'manual', externalId: 'x', mainGoalDate: null, updatedAt: '2026-10-01T00:00:00Z' }], refetch: jest.fn() } as unknown as ReturnType<typeof useAcademic>);
   jest.mocked(useTodayClock).mockReturnValue({ date: '2026-10-15', resumeCount: 0 });
+  jest.mocked(useClasses).mockReturnValue({ data: [classFixture({ courseId: base.id, title: 'PSY 223 · Lecture' }), classFixture({ id: '20000000-0000-4000-8000-000000000009', title: 'Other class' })] } as unknown as ReturnType<typeof useClasses>);
   show(base);
 });
 
@@ -88,4 +90,11 @@ it('limits imported courses to colour edits and handles a missing course', () =>
   fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
   mockId = '60000000-0000-4000-8000-000000000009'; view.rerender(<CourseScreen/>);
   expect(screen.getByText(/isn’t available/)).toBeOnTheScreen();
+});
+it('lists only this course’s class times and adds one already linked to it', async () => {
+  render(<CourseScreen/>);
+  expect(screen.getByText('PSY 223 · Lecture')).toBeOnTheScreen(); expect(screen.getByText('Mon · Wed · Fri · 09:00–10:00 · Library 204')).toBeOnTheScreen();
+  expect(screen.queryByText('Other class')).toBeNull();
+  fireEvent.press(screen.getByText('Add a class time'));
+  expect(screen.getByRole('radio', { name: 'PSY 223 course', checked: true })).toBeOnTheScreen();
 });
