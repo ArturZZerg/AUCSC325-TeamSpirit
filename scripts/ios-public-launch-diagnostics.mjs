@@ -65,18 +65,26 @@ export function selectedHostPid(output, executable, priorPid) {
   return fresh[0];
 }
 
+/** A five-second sample of a React Native app can exceed a few megabytes. */
+export const sampleReportLimit = 16_777_216;
+// macOS may report a firmlinked path (/private/...) for the same installed file.
+const samePath = (left, right) => left.replace(/^\/private(?=\/)/, '') === right.replace(/^\/private(?=\/)/, '');
 export function assertPublicLaunchSample(value, context, report, executable) {
   const graph = typeof report === 'string' ? report.split('Call graph:')[1]?.split('Binary Images:')[0] ?? '' : '';
-  if (!boundedContext(context) || !value || ['commit', 'udid', 'runId', 'attempt'].some(key => value[key] !== context[key])
-    || value.result !== 'captured' || value.cleanup !== 'passed' || !positive(value.pid) || !positive(value.priorPid)
-    || value.pid === value.priorPid || value.sampleSeconds !== 5 || value.sampleIntervalMs !== 10
-    || value.sampleExitCode !== 0 || Object.hasOwn(value, 'failureStage')
-    || typeof report !== 'string' || !report.length || Buffer.byteLength(report) > 2_097_152
-    || typeof executable !== 'string' || !executable.endsWith('/CampusFlow.app/CampusFlow')
-    || !executable.includes(`/CoreSimulator/Devices/${context.udid}/`)
-    || !report.split('\n').some(line => line.match(/^Process:\s+CampusFlow \[(\d+)\]\s*$/)?.[1] === String(value.pid))
-    || !report.split('\n').some(line => /^Path:\s+/.test(line) && line.replace(/^Path:\s+/, '').trim() === executable)
-    || !/^\s*[+!|: ]*[1-9]\d*\s+[A-Za-z_]/m.test(graph)) throw new Error('Complete job-owned public launch sample required.');
+  const lines = typeof report === 'string' ? report.split(/\r?\n/) : [];
+  const checks = [
+    ['context', boundedContext(context) && !!value && ['commit', 'udid', 'runId', 'attempt'].every(key => value[key] === context[key])],
+    ['capture', value?.result === 'captured' && value.cleanup === 'passed' && value.sampleExitCode === 0 && !Object.hasOwn(value, 'failureStage')],
+    ['process ids', positive(value?.pid) && positive(value?.priorPid) && value.pid !== value.priorPid],
+    ['sampling settings', value?.sampleSeconds === 5 && value?.sampleIntervalMs === 10],
+    ['report size', typeof report === 'string' && report.length > 0 && Buffer.byteLength(report) <= sampleReportLimit],
+    ['executable', typeof executable === 'string' && executable.endsWith('/CampusFlow.app/CampusFlow') && executable.includes(`/CoreSimulator/Devices/${context?.udid}/`)],
+    ['process line', lines.some(line => line.match(/^Process:\s+CampusFlow \[(\d+)\]/)?.[1] === String(value?.pid))],
+    ['path line', typeof executable === 'string' && lines.some(line => /^Path:\s+/.test(line) && samePath(line.replace(/^Path:\s+/, '').trim(), executable))],
+    ['call graph', /^\s*[+!|: ]*[1-9]\d*\s+[A-Za-z_]/m.test(graph)],
+  ];
+  const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
+  if (failed.length) throw new Error(`Complete job-owned public launch sample required (${failed.join(', ')}).`);
 }
 
 function tail(file) {
@@ -131,12 +139,16 @@ async function run() {
       proof.sampleExitCode = code;
       if (code !== 0) throw new Error('Public sample did not complete.');
       sampleStage = 'sample report validation';
-      assert.ok(statSync(rawSample).size <= 2_097_152);
+      proof.reportBytes = statSync(rawSample).size;
+      assert.ok(proof.reportBytes <= sampleReportLimit, 'report size');
       const report = readFileSync(rawSample, 'utf8');
       assertPublicLaunchSample({ ...proof, result: 'captured', cleanup: 'passed' }, context, report, executable);
       copyFileSync(rawSample, path.join(evidence, 'public-cold-start.sample.txt'));
       proof.result = 'captured';
-    } catch { proof.result = 'sample-failed'; proof.failureStage = sampleStage; }
+    } catch (error) {
+      proof.result = 'sample-failed'; proof.failureStage = sampleStage;
+      if (sampleStage === 'sample report validation') proof.validationError = String(error?.message ?? error).slice(0, 300);
+    }
     finally {
       proof.sampleElapsedMs = Date.now() - sampleStarted;
       clearTimeout(timer); await stopOwnedApiProcess(sampleProcess, { termMs: 1000, killMs: 1000 });

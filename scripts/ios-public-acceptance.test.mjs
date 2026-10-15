@@ -101,6 +101,11 @@ test('host fallback selects only the new process of this simulator’s exact exe
 test('a captured report must identify this new process and its exact installed executable', () => {
   assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report, executable));
   assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report.replace('Process:         ', 'Process: '), executable));
+  // Large real reports, CRLF line endings and the firmlinked spelling of the same file are accepted.
+  assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report + ' '.repeat(3_000_000), executable));
+  assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report.replaceAll('\n', '\r\n'), executable));
+  assert.doesNotThrow(() => assertPublicLaunchSample(launchSample(), launchContext, report.replace(`Path: ${executable}`, `Path: /private${executable}`), executable));
+  assert.throws(() => assertPublicLaunchSample(launchSample(), launchContext, report.replace('Call graph:', ''), executable), /call graph/);
 });
 test('partial, replayed, foreign-process and oversized samples cannot satisfy the diagnostic gate', () => {
   for (const value of [{ ...launchSample(), result: 'sample-failed' }, { ...launchSample(), cleanup: 'failed' },
@@ -111,7 +116,7 @@ test('partial, replayed, foreign-process and oversized samples cannot satisfy th
     assert.throws(() => assertPublicLaunchSample(value, launchContext, report, executable));
   for (const text of ['', report.replace('[43]', '[44]'), report.replace('CampusFlow [43]', 'OtherApp [43]'),
     report.replace(executable, '/private/other-app'), report.replace('Call graph:', ''),
-    report.replace('    1 dyld_start', 'No samples recorded'), 'x'.repeat(2_097_153)])
+    report.replace('    1 dyld_start', 'No samples recorded'), 'x'.repeat(2_097_153), report + 'x'.repeat(16_777_217)])
     assert.throws(() => assertPublicLaunchSample(launchSample(), launchContext, text, executable));
   assert.throws(() => assertPublicLaunchSample(launchSample(), launchContext, report, '/private/Other.app/Other'));
 });
