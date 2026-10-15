@@ -2,7 +2,45 @@
 
 Updated: 2026-10-14
 
-### Current coursework edit preservation
+### Current Xcode/UUID release repair
+
+Branch `codex/xcode-uuid-release` starts from merged main `86bc966`. The existing
+Xcode 3.0.1 generator now has a narrow UUID 11.1.1 override and an explicit root
+dev-tool declaration, needed for npm to honor it across workspaces. Only the
+root/UUID lock entries change. App/API/shared runtime, schemas, Expo SDK and all
+other dependency versions remain unchanged. A one-line API Jest configuration
+change replaces its mixed-separator absolute Windows glob with a portable
+project-root pattern; all 657 cases are discovered (400 local passes, 257 DB
+cases reserved for PostgreSQL-backed CI).
+
+Normal `npm ci` passes; Expo config plugins/Xcode actually resolve UUID 11.1.1.
+Before repair the three new cases produce two normal passes and one bounds
+failure. All eight dependency compatibility cases then pass, including 100
+project-reference write/reparse checks and unchanged buffers after rejected
+v3/v5/v6 writes. Actual full/omit-dev audit affected entries fall 60 → 53 and
+56 → 49, with UUID absent and four leaf advisories still tracked. Prisma client
+generation passes with trusted Windows system certificates. The normal root
+check then passes lint/types, builds and 2,033 local tests, with all 257 database
+cases explicitly skipped until CI. A fresh web export's referenced entry contains
+the selected QA API origin. Android prebuild/bundle/assemble passes in 5m 9s,
+with actual x86_64/25-permission gates and v2 signature verification. Its APK
+matches the prior application's bytes, as expected for a tooling repair. No
+device operation is performed. Current-branch native iOS and database-backed
+standard/production-container/restore CI remain mandatory before merge.
+
+PR #102 merged as `86bc966` after exact-head `b5b2d98` standard CI passed 2,287
+cases and native `38680864819` passed. Downloaded evidence independently verifies
+all seven public groups, both private native proofs, all four storage checks,
+day-review persistence, six completed flow timelines and cleanup. Main has the
+same tree as that accepted source; exact-main standard `38683801630` passes,
+while native `38683801635` remains independently tracked. Earlier failed native
+attempts below retain their failed outcomes. Original production gates and
+source-local/no-physical-device/no-new-account-delete constraints remain active.
+
+### Coursework edit preservation — merged #102 validation history
+
+The accepted outcome is recorded above. The chronology below preserves earlier
+failed and pending states; those are not the current status of merged #102.
 
 Source `0b238fc` passes both standard CI runs with 2,278 cases, including the
 new PostgreSQL persistence/reminder test. The actual signed x86 Android build
