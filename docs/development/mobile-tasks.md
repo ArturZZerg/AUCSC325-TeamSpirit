@@ -161,3 +161,11 @@ tasks, category color, priority flag, human timing, reminder/estimate hints and
 an expandable panel with exact deadline/schedule values and the Focus, Main
 Goal, Edit, Reminder and Delete actions. Search, an All/Open/Done segmented
 control and horizontal category chips keep their previous accessible names.
+
+## Checklist steps
+
+Expanded one-time task rows and the Focus screen show the task's steps
+(`src/features/task-checklist.tsx`): tap a box to toggle, the × to remove, and
+type a step and press Return to add one. Collapsed rows show `done/total`. Each
+change is its own request (see ADR 014); a failed add keeps its text and step ID
+so retrying cannot create a duplicate. Repeating tasks have no steps.
