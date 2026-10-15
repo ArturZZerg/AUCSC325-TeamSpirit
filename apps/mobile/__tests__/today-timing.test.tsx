@@ -5,7 +5,7 @@ import type { PlanItem, Today } from '../src/lib/types';
 jest.mock('@expo/vector-icons/Ionicons', () => () => null);
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({}) }));
 jest.mock('../src/features/day-agenda', () => ({ DayAgenda: () => null }));
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useToday: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useTasks: () => ({ data: undefined }), useAcademic: () => ({ data: undefined }), useCourses: () => ({ data: undefined }), useAction: jest.fn(), useToday: jest.fn() }));
 const item: PlanItem = { key: 'personalTask:1', kind: 'personalTask', entityId: '1', occurrenceKey: null, title: 'Read', schedule: null, due: null, state: 'today', isMainGoal: false, priority: 'medium', allowedActions: ['complete'] };
 const show = (items: PlanItem[], upcoming: PlanItem[] = [], timeZone = 'America/Edmonton', extra = {}, date = '2025-03-09') => {
   const data: Today = { date, timeZone, generatedAt: '2025-03-09T12:00:00Z', sourceStatus: { availability: 'notConnected', lastSuccessfulSyncAt: null, coveredFrom: null, coveredThrough: null }, items, upcoming, campusEvents: [] };

@@ -6,7 +6,7 @@ jest.mock('@expo/vector-icons/Ionicons', () => () => null);
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({}), router: { push: jest.fn() } }));
 jest.mock('../src/features/day-agenda', () => ({ DayAgenda: () => null }));
 jest.mock('../src/features/focus-recovery-card', () => ({ FocusRecoveryCard: () => null }));
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useToday: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useTasks: () => ({ data: undefined }), useAcademic: () => ({ data: undefined }), useCourses: () => ({ data: undefined }), useAction: jest.fn(), useToday: jest.fn() }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
 
 const save = jest.fn(), date = '2026-11-01';

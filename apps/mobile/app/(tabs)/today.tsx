@@ -3,7 +3,9 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Card, Screen, State, colors } from '@/components/ui';
-import { useAction, useToday } from '@/features/queries';
+import { useAcademic, useAction, useCourses, useTasks, useToday } from '@/features/queries';
+import { courseColor } from '@/features/course-editor';
+import { checklistProgress } from '@/features/task-checklist';
 import type { PlanItem } from '@/lib/types';
 import { DayAgenda } from '@/features/day-agenda';
 import { TaskEditor } from '@/features/task-editor';
@@ -11,7 +13,7 @@ import type { TaskFormValues } from '@/features/task-form';
 import { FocusRecoveryCard } from '@/features/focus-recovery-card';
 import { QuickAddBar } from '@/features/quick-add-bar';
 import { localDateAt } from '@campusflow/domain';
-import { PlanRow, kindColors, type PlanAction } from '@/features/plan-row';
+import { PlanRow, kindColors, type PlanAction, type PlanRowContext } from '@/features/plan-row';
 import { greeting, groupPlan, isAccountToday, planProgress, planTimingLabel } from '@/features/today-plan';
 import { useSessionStore } from '@/store/session';
 
@@ -21,7 +23,7 @@ const shortcuts: { label: string; title: string; icon: IconName; path: '/focus' 
   { label: 'Focus space', title: 'Focus', icon: 'timer-outline', path: '/focus' },
   { label: 'Plan your week', title: 'Week', icon: 'albums-outline', path: '/planner' },
   { label: 'Month calendar', title: 'Calendar', icon: 'calendar-outline', path: '/calendar' },
-  { label: 'Coursework', title: 'Courses', icon: 'school-outline', path: '/academics' },
+  { label: 'Coursework', title: 'Coursework', icon: 'school-outline', path: '/academics' },
   { label: 'My study plans', title: 'Study plans', icon: 'layers-outline', path: '/study-plans' },
   { label: 'Organise my workload', title: 'Workload', icon: 'file-tray-full-outline', path: '/workload' },
   { label: 'Review your week', title: 'Weekly review', icon: 'stats-chart-outline', path: '/review' },
@@ -76,11 +78,19 @@ export default function TodayScreen() {
   };
 
   const items = query.data?.items ?? [];
+  // Course codes/colours and step progress come from the cached lists; Today itself stays a derived read model.
+  const tasks = useTasks(), academic = useAcademic(), courses = useCourses();
+  const contextFor = (item: PlanItem): PlanRowContext | undefined => {
+    if (item.kind === 'personalTask') { const task = tasks.data?.find(row => row.id === item.entityId); return task && !task.recurrence ? { steps: checklistProgress(task) } : undefined; }
+    if (item.kind !== 'academic') return undefined;
+    const course = courses.data?.find(row => row.id === academic.data?.find(entry => entry.id === item.entityId)?.courseId);
+    return course ? { course: { label: course.code ?? course.name, color: courseColor(course) } } : undefined;
+  };
   const groups = groupPlan(items), progress = planProgress(items);
   const blocked = !!pending || action.isPending;
   const row = (item: PlanItem) => <PlanRow key={item.key} item={item} timeZone={query.timeZone} date={date} isCurrentDay={isCurrentDay}
     disabled={blocked} pendingAction={pending?.key === item.key ? pending.action : undefined}
-    error={failure?.key === item.key ? failure.message : undefined} onAction={selected => { void run(item, selected); }}/>;
+    error={failure?.key === item.key ? failure.message : undefined} onAction={selected => { void run(item, selected); }} context={contextFor(item)}/>;
 
   return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}
     aria-hidden={!!taskDraft} accessibilityElementsHidden={!!taskDraft} importantForAccessibility={taskDraft ? 'no-hide-descendants' : 'auto'}
