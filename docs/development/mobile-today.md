@@ -10,9 +10,25 @@ occurrenceKey, which can differ from the displayed date because the goal has
 its own timezone. A goal missing its occurrence date asks the user to refresh
 instead of submitting an invented date.
 
-Today and Coming up cards display the read model's deadline and scheduled-work
-values separately. Timed values use shared account-local formatting; date-only
-values stay calendar dates and missing values have no invented timestamp.
+## Dashboard layout
+
+Today opens with the date, a greeting in the account time zone, and a progress
+card ("3 of 7 done") with a Review this day action. Progress counts tasks,
+routines and coursework in the derived plan; events are excluded and skipped
+routines leave the denominator. Six icon shortcuts (Focus, Week, Courses, Study
+plans, Workload, Weekly review) replace the former button wall, keeping their
+original accessible names. A floating Add task button opens the existing editor
+with the displayed date as its schedule. The plan is a checklist: open work
+first (main goals, then overdue, then server order), finished/skipped work in a
+collapsible Done group. Each row shows a kind color and label, meaningful states
+only (Overdue, Snoozed, Done…) and human timing relative to the displayed day.
+Grouping, progress and labels live in `src/features/today-plan.ts`; the row UI
+in `src/features/plan-row.tsx`. Nothing about this layout is persisted.
+
+Today and Coming up rows display the read model's deadline and scheduled-work
+values separately ("Planned 3:00 PM · Due tomorrow"). Timed values are formatted
+in the account zone relative to the displayed day; date-only values stay
+calendar dates and missing values have no invented timestamp.
 Saved-event schedule values are labeled Starts. Recurring tasks use the supplied
 occurrence timing without recalculating from a template. Cached timing remains
 visible during refresh failure, and changed server deadlines update after refresh.
@@ -102,3 +118,25 @@ records actual offline background rollover, overdue recalculation and cold
 restoration on Pixel 10 Pro XL. Continue the remaining foreground/iOS and
 integration gates listed in the linked native reports. Web export and Jest cannot
 prove native notification delivery or phone lifecycle behavior.
+
+## Appearance
+
+`src/components/ui.tsx` defines light and dark palettes with semantic tokens
+(surfaces, accents, warning/danger/gold/streak surfaces, scrim). The palette is
+chosen from the system appearance when the app starts; StyleSheets read it once
+at module load, so a system change applies on the next launch. Screens use
+tokens rather than literal colors; white is reserved for content on accent fills.
+
+## Quick add
+
+The Today quick-add bar (`src/features/quick-add-bar.tsx`) turns one line into a
+task. `src/features/quick-add.ts` recognises: today/tonight/tomorrow, weekdays
+(on or after today; "next" adds a week), "in N days/weeks", month-day dates
+(rolling past dates to next year, rejecting impossible days), times (5pm, 7:30am,
+17:00, noon, midnight), `due`/`by`/`before` for a deadline (otherwise a planned
+day), `!high`/`!low`, `#tag` categories with aliases and estimates (45m, 1.5h).
+Unrecognised text stays in the title. Without a date the task is planned for the
+displayed day. Recognised details preview as chips before saving. Saving reuses
+the editor's `taskFormRequest`, so title rules, account-zone conversion and
+missing/repeated DST time rejection are identical; Details opens the full editor
+with the parsed draft.

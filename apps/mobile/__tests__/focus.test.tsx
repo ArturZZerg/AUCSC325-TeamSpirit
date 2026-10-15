@@ -44,7 +44,7 @@ it('pauses without consuming time, resumes and keeps the session across screen r
   act(() => jest.advanceTimersByTime(120_000)); expect(screen.getByText('00:50')).toBeOnTheScreen();
   fireEvent.press(screen.getByText('Resume')); ui.unmount(); render(<FocusScreen/>);
   expect(screen.getByText('Focus in progress')).toBeOnTheScreen(); expect(screen.getByText('00:50')).toBeOnTheScreen();
-  fireEvent.press(screen.getByText('Back to Today')); expect(mockReplace).toHaveBeenCalledWith('/today');
+  fireEvent.press(screen.getByRole('button', { name: 'Back to Today' })); expect(mockReplace).toHaveBeenCalledWith('/today');
   expect(useFocusStore.getState().timer.status).toBe('running');
 });
 it('reconciles expiry after background suspension without auto-completing a task', () => {

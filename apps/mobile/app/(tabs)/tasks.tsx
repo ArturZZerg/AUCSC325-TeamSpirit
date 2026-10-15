@@ -1,15 +1,18 @@
 import { useRef, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { taskOccursOn } from '@campusflow/domain';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAcademic, useAction, useTasks } from '@/features/queries';
 import { TaskEditor } from '@/features/task-editor';
-import { taskTimingLabel } from '@/features/task-form';
 import { filterPersonalTasks, useTaskFilters } from '@/features/task-filters';
 import { TaskFilterControls } from '@/features/task-filter-controls';
 import { TaskReminderEditor } from '@/features/task-reminder-editor';
+import { Chip, TaskRow, type TaskRowAction } from '@/features/task-row';
+import { groupTasks, taskSummary } from '@/features/task-groups';
+import { planTimingLabel } from '@/features/today-plan';
 import type { PersonalTask } from '@/lib/types';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
@@ -29,7 +32,9 @@ export default function Tasks() {
   const [editing, setEditing] = useState<PersonalTask | null>();
   const [reminding, setReminding] = useState<PersonalTask>();
   const [deleting, setDeleting] = useState<PersonalTask>();
+  const [expanded, setExpanded] = useState<string>();
   const [message, setMessage] = useState<string>();
+  const now = Date.now();
   const run = async (request: Parameters<typeof action.mutateAsync>[0]) => {
     if (busy.current || action.isPending) return false;
     busy.current = true;
@@ -46,50 +51,64 @@ export default function Tasks() {
   const canSelectTask = (task: PersonalTask) => !!session && !task.completedAt && (!task.recurrence || taskOccursOn({
     recurrence: task.recurrence, due: task.due ?? undefined, scheduled: task.scheduled ?? undefined,
   }, today, timeZone));
+  const onAction = (task: PersonalTask, selected: TaskRowAction) => {
+    if (selected === 'toggle') void run({ path: `/tasks/${task.id}/complete`, body: { completed: !task.completedAt } });
+    else if (selected === 'focus') router.push({ pathname: '/focus', params: { taskId: task.id } });
+    else if (selected === 'mainGoal') mainGoal('personalTask', task.id, task.mainGoalDate === today);
+    else if (selected === 'edit') setEditing(task);
+    else if (selected === 'reminder') setReminding(task);
+    else { setMessage(undefined); setDeleting(task); }
+  };
+  const pendingFor = (task: PersonalTask): TaskRowAction | undefined => pending === `/tasks/${task.id}/complete` ? 'toggle'
+    : pending === `/tasks/${task.id}/main-goal` ? 'mainGoal' : undefined;
+  const summary = tasks.data ? taskSummary(tasks.data, today, timeZone, now) : undefined;
+  const openAcademic = academic.data?.filter(item => item.submissionState !== 'submitted' && item.submissionState !== 'graded');
 
-  return <Screen>
-    <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.top}><Text style={styles.title}>Tasks</Text><Button title="Add task" disabled={disabled} onPress={() => setEditing(null)}/></View>
+  return <Screen safeArea edges={['top', 'left', 'right']}>
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <View style={styles.top}>
+        <View style={styles.heading}><Text accessibilityRole="header" style={styles.title}>Tasks</Text>
+          {summary && <Text style={styles.summary}>{summary.open} open{summary.overdue ? ` · ${summary.overdue} overdue` : ''}</Text>}</View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Add task" accessibilityState={{ disabled }} disabled={disabled} onPress={() => setEditing(null)}
+          style={({ pressed }) => [styles.add, pressed && styles.pressed, disabled && styles.dim]}><Ionicons name="add" size={26} color="#fff"/></Pressable>
+      </View>
+      <View style={styles.links}>
+        <Chip icon="layers-outline" label="My study plans" onPress={() => router.push('/study-plans')}/>
+        <Chip icon="school-outline" label="Coursework" onPress={() => router.push('/academics')}/>
+        <Chip icon="calendar-outline" label="Calendar" onPress={() => router.push('/calendar')}/>
+      </View>
       {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
-      <Text style={styles.section}>My tasks</Text>
-      <Button title="My study plans" tone="plain" onPress={() => router.push('/study-plans')}/>
       <TaskFilterControls filters={filters} onChange={updateFilters} onReset={resetFilters}/>
       {visibleTasks && <Text style={styles.meta}>{visibleTasks.length} personal {visibleTasks.length === 1 ? 'task' : 'tasks'}</Text>}
       <State loading={tasks.isLoading} error={tasks.error}/>
-      {visibleTasks?.length === 0 && <Text style={styles.meta}>{tasks.data?.length === 0 ? 'No personal tasks yet.' : 'No personal tasks match your filters.'}</Text>}
-      {visibleTasks?.map(task => <Card key={task.id}>
-        {task.mainGoalDate === today && <Text style={styles.mainGoal}>★ MAIN GOAL TODAY</Text>}
-        <Text style={[styles.item, task.completedAt && styles.done]}>{task.title}</Text>
-        <Text style={styles.meta}>{task.category} · {task.priority} · {taskTimingLabel(task.due, timeZone)}</Text>
-        {task.scheduled && <Text style={styles.meta}>Scheduled: {taskTimingLabel(task.scheduled, timeZone)}</Text>}
-        {task.recurrence && <Text style={styles.meta}>Every {task.recurrence.interval} {task.recurrence.frequency === 'daily' ? (task.recurrence.interval === 1 ? 'day' : 'days') : `${task.recurrence.interval === 1 ? 'week' : 'weeks'} · ${task.recurrence.weekdays.map(day => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day - 1]).join(', ')}`}</Text>}
-        {task.description && <Text style={styles.meta}>{task.description}</Text>}
-        {task.estimatedMinutes !== null && <Text style={styles.meta}>Estimated duration: {task.estimatedMinutes} min</Text>}
-        {task.reminder && <Text style={styles.meta}>Reminder: {taskTimingLabel(task.reminder, timeZone)}{task.reminder.kind === 'date' ? ' · Delivery time needed' : ''}</Text>}
-        <View style={styles.actions}>
-          {!task.completedAt && !task.recurrence && <Button title="Focus" tone="plain" disabled={disabled}
-            onPress={() => router.push({ pathname: '/focus', params: { taskId: task.id } })}/>}
-          {task.recurrence ? <Text style={styles.meta}>Complete recurring occurrences from Today.</Text> :
-            <Button title={task.completedAt ? 'Undo completion' : 'Complete'} tone="plain" disabled={disabled}
-              onPress={() => { void run({ path: `/tasks/${task.id}/complete`, body: { completed: !task.completedAt } }); }}/>}
-          {(task.mainGoalDate === today || canSelectTask(task)) && <Button
-            title={pending === `/tasks/${task.id}/main-goal` ? 'Saving…' : task.mainGoalDate === today ? 'Remove Main Goal' : 'Make Main Goal today'}
-            tone="plain" disabled={disabled} onPress={() => mainGoal('personalTask', task.id, task.mainGoalDate === today)}/>}
-          <Button title="Edit" tone="plain" disabled={disabled} onPress={() => setEditing(task)}/>
-          <Button title={task.reminder ? 'Edit reminder' : 'Set reminder'} tone="plain" disabled={disabled} onPress={() => setReminding(task)}/>
-          <Button title="Delete" tone="danger" disabled={disabled} onPress={() => { setMessage(undefined); setDeleting(task); }}/>
-        </View>
-      </Card>)}
-      <Text style={styles.section}>University</Text>
-      <Button title="Browse coursework" tone="plain" onPress={() => router.push('/academics')}/>
+      {visibleTasks?.length === 0 && <View style={styles.empty}><Ionicons name={tasks.data?.length === 0 ? 'sunny-outline' : 'search-outline'} size={30} color={colors.moss}/>
+        <Text style={styles.item}>{tasks.data?.length === 0 ? 'No personal tasks yet.' : 'No personal tasks match your filters.'}</Text>
+        {tasks.data?.length === 0 && <Text style={styles.meta}>Capture an assignment step, an errand or anything you want off your mind.</Text>}</View>}
+      {visibleTasks && groupTasks(visibleTasks, today, timeZone, now).map(group => <View key={group.bucket} style={styles.group}>
+        <View style={styles.groupHeading}><Text accessibilityRole="header" style={[styles.section, group.bucket === 'overdue' && styles.overdue]}>{group.title}</Text>
+          <Text style={styles.count}>{group.tasks.length}</Text></View>
+        {group.tasks.map(task => <TaskRow key={task.id} task={task} today={today} timeZone={timeZone} expanded={expanded === task.id} disabled={disabled}
+          pending={pendingFor(task)} isMainGoal={task.mainGoalDate === today} canChangeMainGoal={canSelectTask(task)}
+          onToggleExpanded={() => setExpanded(current => current === task.id ? undefined : task.id)} onAction={selected => onAction(task, selected)}/>)}
+      </View>)}
+
+      <View style={styles.groupHeading}><Text accessibilityRole="header" style={styles.section}>University</Text>
+        {openAcademic && <Text style={styles.count}>{openAcademic.length} open</Text>}</View>
       <State loading={academic.isLoading} error={academic.error} empty={academic.data?.length === 0 ? 'Canvas work appears here after a successful sync.' : undefined}/>
-      {academic.data?.map(item => <Card key={item.id}>
-        {item.mainGoalDate === today && <Text style={styles.mainGoal}>★ MAIN GOAL TODAY</Text>}
-        <Text style={styles.item}>{item.title}</Text><Text style={styles.meta}>{item.kind} · {item.submissionState ?? 'unsubmitted'} · {taskTimingLabel(item.due, timeZone)}</Text>
-        {(item.mainGoalDate === today || (!!session && item.submissionState !== 'submitted' && item.submissionState !== 'graded')) && <Button
-          title={pending === `/academic-items/${item.id}/main-goal` ? 'Saving…' : item.mainGoalDate === today ? 'Remove Main Goal' : 'Make Main Goal today'}
-          tone="plain" disabled={disabled} onPress={() => mainGoal('academic', item.id, item.mainGoalDate === today)}/>}
-      </Card>)}
+      {academic.data?.map(item => { const selected = item.mainGoalDate === today, done = item.submissionState === 'submitted' || item.submissionState === 'graded';
+        const timing = planTimingLabel({ kind: 'academic', schedule: null, due: item.due }, timeZone, today);
+        return <View key={item.id} style={[styles.academic, selected && styles.main]}>
+          <View style={styles.academicIcon}><Ionicons name={done ? 'checkmark' : 'school-outline'} size={16} color={colors.blue}/></View>
+          <View style={styles.academicBody}>
+            {selected && <Text style={styles.star}>★ MAIN GOAL TODAY</Text>}
+            <Text style={[styles.item, done && styles.done]}>{item.title}</Text>
+            <Text style={styles.meta}>{item.kind[0].toUpperCase() + item.kind.slice(1)} · {(item.submissionState ?? 'unsubmitted').replace(/^\w/, letter => letter.toUpperCase())}{timing ? ` · ${timing}` : ' · No deadline'}</Text>
+            {(selected || (!!session && !done)) && <View style={styles.links}><Chip icon={selected ? 'star' : 'star-outline'} disabled={disabled}
+              label={pending === `/academic-items/${item.id}/main-goal` ? 'Saving…' : selected ? 'Remove Main Goal' : 'Make Main Goal today'}
+              onPress={() => mainGoal('academic', item.id, selected)}/></View>}
+          </View>
+        </View>; })}
+      <View style={styles.spacer}/>
     </ScrollView>
     {editing !== undefined && <TaskEditor key={editing?.id ?? 'new'} task={editing} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}
     {reminding && <TaskReminderEditor key={reminding.id} task={reminding} timeZone={timeZone} onClose={() => setReminding(undefined)}/>}
@@ -106,4 +125,21 @@ export default function Tasks() {
   </Screen>;
 }
 
-const styles = StyleSheet.create({ content: { padding: 16, gap: 12 }, top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, title: { fontSize: 28, color: colors.ink, fontWeight: '800' }, section: { fontSize: 19, fontWeight: '800', color: colors.ink }, actions: { gap: 7 }, mainGoal: { color: colors.moss, fontWeight: '800' }, item: { fontSize: 16, fontWeight: '700', color: colors.ink }, done: { textDecorationLine: 'line-through', color: colors.muted }, meta: { color: colors.muted }, error: { color: colors.coral }, confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.35)' } });
+const styles = StyleSheet.create({
+  content: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, heading: { flex: 1, gap: 2 },
+  title: { fontSize: 30, color: colors.ink, fontWeight: '800' }, summary: { color: colors.muted, fontSize: 15 },
+  add: { width: 50, height: 50, borderRadius: 25, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  links: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  group: { gap: 8 }, groupHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  section: { fontSize: 18, fontWeight: '800', color: colors.ink }, overdue: { color: colors.coral },
+  count: { color: colors.muted, fontWeight: '700', backgroundColor: colors.sage, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 1, overflow: 'hidden', fontSize: 12 },
+  empty: { alignItems: 'center', gap: 6, padding: 24, borderRadius: 18, backgroundColor: colors.sage },
+  academic: { flexDirection: 'row', gap: 12, backgroundColor: colors.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.line },
+  academicIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: colors.blueSurface, alignItems: 'center', justifyContent: 'center' }, academicBody: { flex: 1, gap: 4 },
+  main: { borderColor: colors.goldLine, backgroundColor: colors.goldSurface }, star: { color: colors.gold, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  item: { fontSize: 16, fontWeight: '700', color: colors.ink }, done: { textDecorationLine: 'line-through', color: colors.muted }, meta: { color: colors.muted },
+  error: { color: colors.coral }, pressed: { opacity: 0.75 }, dim: { opacity: 0.5 }, spacer: { height: 24 },
+  confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.scrim },
+});

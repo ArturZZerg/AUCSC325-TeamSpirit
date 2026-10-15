@@ -21,6 +21,7 @@ beforeEach(() => {
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>);
   jest.mocked(useTasks).mockReturnValue({ data: [task], isLoading: false } as ReturnType<typeof useTasks>);
 });
+const expandFirst = (index = 0) => fireEvent.press(screen.getAllByRole('button', { name: /^Show details for / })[index]);
 describe('optional task duration (ToR 3.2, 7)', () => {
   it.each(['1', '1440', ' 45 '])('creates a duration of %s minutes', estimatedMinutes => {
     const request = taskFormRequest({ ...taskFormDefaults(null), title: 'Read', estimatedMinutes }, null);
@@ -64,7 +65,7 @@ describe('optional task duration (ToR 3.2, 7)', () => {
     await act(async () => { resolve(); });
   });
   it('shows refreshed estimates and hides removed estimates in task cards', () => {
-    const view = render(<Tasks/>); expect(screen.getByText('Estimated duration: 30 min')).toBeOnTheScreen();
+    const view = render(<Tasks/>); expandFirst(); expect(screen.getByText('Estimated duration: 30 min')).toBeOnTheScreen();
     jest.mocked(useTasks).mockReturnValue({ data: [{ ...task, estimatedMinutes: 60 }], isLoading: false } as ReturnType<typeof useTasks>);
     view.rerender(<Tasks/>); expect(screen.getByText('Estimated duration: 60 min')).toBeOnTheScreen();
     jest.mocked(useTasks).mockReturnValue({ data: [{ ...task, estimatedMinutes: null }], isLoading: false } as ReturnType<typeof useTasks>);

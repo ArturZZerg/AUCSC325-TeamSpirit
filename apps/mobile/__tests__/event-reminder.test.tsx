@@ -66,7 +66,7 @@ describe('event reminder controls', () => {
 });
 describe('Campus saved controls', () => {
   it('opens reminders in the account zone and displays only refreshed server values', async () => {
-    const view = render(<Campus/>); expect(screen.getByText('2025-03-08 17:00 · America/Edmonton · Library')).toBeOnTheScreen(); fireEvent.press(screen.getByText('Set reminder'));
+    const view = render(<Campus/>); expect(screen.getByText(/^5:00\sPM$/)).toBeOnTheScreen(); expect(screen.getByText('Library')).toBeOnTheScreen(); fireEvent.press(screen.getByText('Set reminder'));
     expect(screen.getByText(/One reminder at/)).toHaveTextContent(/America\/Edmonton/); fill(); fireEvent.press(screen.getByText('Save reminder')); await waitFor(() => expect(screen.queryByText('Event reminder')).toBeNull());
     expect(screen.queryByText(/^Reminder:/)).toBeNull(); jest.mocked(useEvents).mockReturnValue(eventsQuery([{ ...event, savedReminder: expected.body.reminder }]));
     view.rerender(<Campus/>); expect(screen.getByText('Reminder: 2025-03-08 17:00 · America/Edmonton')).toBeOnTheScreen(); expect(screen.getByText('Edit reminder')).toBeOnTheScreen();

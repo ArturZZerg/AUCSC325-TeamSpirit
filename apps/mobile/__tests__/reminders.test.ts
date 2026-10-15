@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { waitFor } from '@testing-library/react-native';
-import { clearScheduledReminders, reconcileReminders, type ReminderContext } from '../src/services/reminders';
+import { clearScheduledReminders, overviewSchedule, reconcileReminders, type ReminderContext } from '../src/services/reminders';
 import type { Reminder } from '@campusflow/contracts';
 import { useReminderStatus } from '../src/store/reminder-status';
 
@@ -191,4 +191,33 @@ it('reschedules an unchanged reminder for the new timezone across DST quiet hour
   expect(scheduled[0].content.data?.fireAt).toBe('2025-03-09T07:00:00.000Z');
   expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledTimes(1);
   expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2);
+});
+
+describe('morning overview (ToR 13)', () => {
+  const account = '10000000-0000-4000-8000-000000000001';
+  const withOverview = (extra = {}): ReminderContext => ({ ...context(), preferences: { ...context().preferences, dailyOverviewEnabled: true, ...extra } });
+  it('plans 8:00 in the account zone for the coming week, skipping a time already passed', () => {
+    // 17:00Z on 9 March 2025 is 10:00 MDT, after today's overview.
+    const plan = overviewSchedule(account, 'America/Edmonton', withOverview().preferences, Date.now());
+    expect([...plan.keys()]).toEqual(['2025-03-10', '2025-03-11', '2025-03-12', '2025-03-13', '2025-03-14', '2025-03-15'].map(date => `campusflow:${account}:overview-${date}`));
+    expect(plan.get(`campusflow:${account}:overview-2025-03-10`)).toBe('2025-03-10T14:00:00.000Z');
+    expect(overviewSchedule(account, 'America/Edmonton', context().preferences, Date.now()).size).toBe(0);
+  });
+  it('moves the overview past quiet hours', () => {
+    const plan = overviewSchedule(account, 'America/Edmonton', withOverview({ quietHoursStart: '22:00', quietHoursEnd: '09:30' }).preferences, Date.now());
+    expect(plan.get(`campusflow:${account}:overview-2025-03-10`)).toBe('2025-03-10T15:30:00.000Z');
+  });
+  it('schedules with reminders without duplicates and removes them when turned off', async () => {
+    await reconcileReminders([reminder], withOverview()); await reconcileReminders([reminder], withOverview());
+    expect(scheduled.filter(item => item.content.data?.campusFlowOverview === true)).toHaveLength(6);
+    expect(scheduled).toHaveLength(7); expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(7);
+    expect(jest.mocked(Notifications.scheduleNotificationAsync).mock.calls.find(([request]) => request.content.data?.campusFlowOverview)?.[0].content)
+      .toMatchObject({ title: 'Your plan for today', data: { accountId: account, stableId: expect.stringMatching(/:overview-2025-03-1\d$/) } });
+    await reconcileReminders([reminder], context());
+    expect(scheduled.map(item => item.identifier)).toEqual([`campusflow:${account}:${reminder.id}`]);
+  });
+  it('does not schedule overviews without notification permission', async () => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue({ granted: false } as Notifications.NotificationPermissionsStatus);
+    await reconcileReminders([], withOverview()); expect(scheduled).toHaveLength(0);
+  });
 });

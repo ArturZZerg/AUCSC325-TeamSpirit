@@ -7,6 +7,7 @@ import { queryClient } from '@/lib/query-client';
 import { FocusRecoverySync } from '@/features/focus-recovery-sync';
 import { SessionAccessSync } from '@/features/session-access-sync';
 import { ReminderResponseSync } from '@/features/reminder-response-sync';
+import { colorScheme, colors } from '@/components/ui';
 function Gate() {
   const router = useRouter(), segments = useSegments();
   const { next } = useGlobalSearchParams<{ next?: string }>();
@@ -19,6 +20,6 @@ function Gate() {
     if (!session && !atAuth && !atPublicPage) router.replace(segments[0] === 'account' ? '/auth?next=account' : '/auth');
     if (session && atAuth) router.replace(next === 'account' ? '/account' : '/today');
   }, [ready, session, segments, router, next]);
-  return <Stack screenOptions={{ headerShown: false, statusBarStyle: 'dark' }}><Stack.Screen name="auth"/><Stack.Screen name="recover"/><Stack.Screen name="verify"/><Stack.Screen name="(tabs)"/></Stack>;
+  return <Stack screenOptions={{ headerShown: false, statusBarStyle: colorScheme === 'dark' ? 'light' : 'dark', contentStyle: { backgroundColor: colors.canvas } }}><Stack.Screen name="auth"/><Stack.Screen name="recover"/><Stack.Screen name="verify"/><Stack.Screen name="(tabs)"/></Stack>;
 }
 export default function RootLayout() { return <QueryClientProvider client={queryClient}><SessionAccessSync /><FocusRecoverySync /><DeviceReminderSync /><Gate /><ReminderResponseSync /></QueryClientProvider>; }

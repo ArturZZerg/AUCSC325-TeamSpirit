@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, Scrol
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { idSchema, updateStudyPlanSchema, type StudyPlan } from '@campusflow/contracts';
-import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Field, Screen, State, colors, BackLink } from '@/components/ui';
 import { useAction, useStudyPlans } from '@/features/queries';
 import { filterStudyPlans, sessionNeedsMoving, studyPlanProgress, type StudyPlanView } from '@/features/preparation-progress';
 import { useTodayClock } from '@/features/today-clock';
@@ -60,7 +60,7 @@ function StudyPlansContent() {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={plans.isRefetching} onRefresh={refresh}/>}>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" disabled={disabled} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>MY STUDY PLANS</Text></View>
+    <View style={styles.heading}><BackLink to="Today" disabled={disabled} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>MY STUDY PLANS</Text></View>
     <Text style={styles.title}>Make steady progress.</Text><Text style={styles.meta}>Your preparation, one session at a time.</Text>
     {plans.data && <View style={styles.summary}><Metric value={active.length} label="active plans"/><Metric value={openCount} label="sessions left"/><Metric value={earlierCount} label="to revisit"/></View>}
     <Button title="Plan from coursework" tone="plain" disabled={disabled} onPress={() => router.push('/academics')}/>
@@ -154,5 +154,5 @@ const styles = StyleSheet.create({
   track: { height: 8, backgroundColor: colors.sage, borderRadius: 4, overflow: 'hidden' }, fill: { height: '100%', backgroundColor: colors.moss },
   next: { padding: 14, backgroundColor: colors.sage, borderRadius: 12, gap: 8 }, sessions: { gap: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.line }, session: { gap: 10 },
   notice: { color: colors.ink, backgroundColor: colors.sage, padding: 12, borderRadius: 12, lineHeight: 21 }, attention: { color: colors.coral, lineHeight: 21 }, error: { color: colors.coral },
-  overlay: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: 'rgba(0,0,0,.25)' }, rename: { width: '100%', maxWidth: 600, alignSelf: 'center' },
+  overlay: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: colors.scrim }, rename: { width: '100%', maxWidth: 600, alignSelf: 'center' },
 });

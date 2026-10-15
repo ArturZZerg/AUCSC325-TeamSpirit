@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
-import { Button, Card, Screen, colors } from '@/components/ui';
+import { Button, Card, Screen, colors, BackLink } from '@/components/ui';
 import { useAcademic, useCourses, useGoals, useTasks } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { TaskEditor } from '@/features/task-editor';
@@ -36,7 +36,7 @@ function GetStartedContent({ timeZone }: { timeZone: string }) {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     aria-hidden={!!editing} accessibilityElementsHidden={!!editing} importantForAccessibility={editing ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={!!refreshing} onRefresh={refresh}/>}>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>GET STARTED</Text></View>
+    <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>GET STARTED</Text></View>
     <View style={styles.hero}>
       <View style={styles.heroIcon}><Ionicons name="leaf-outline" size={28} color={colors.moss}/></View>
       <Text style={styles.title}>{'A little structure.\nA lighter day.'}</Text>

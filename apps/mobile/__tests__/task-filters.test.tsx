@@ -65,7 +65,7 @@ describe('personal task filters (ToR 7, 10, 19)', () => {
   });
   it('updates results from refreshed data and keeps entity actions on the filtered task', async () => {
     const view = render(<Tasks/>); fireEvent.changeText(screen.getByLabelText('Search personal tasks'), 'groceries');
-    await act(async () => { fireEvent.press(screen.getByText('Undo completion')); });
+    await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Undo completion' })); });
     expect(save).toHaveBeenCalledWith({ path: `/tasks/${tasks[1].id}/complete`, body: { completed: false } });
     jest.mocked(useTasks).mockReturnValue({ data: [{ ...tasks[1], title: 'Renamed task', completedAt: null }], isLoading: false } as ReturnType<typeof useTasks>);
     view.rerender(<Tasks/>); expect(screen.getByText('No personal tasks match your filters.')).toBeOnTheScreen();

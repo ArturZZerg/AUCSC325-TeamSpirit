@@ -7,7 +7,7 @@ for store submission.
 | --- | --- | --- |
 | Daily workflow | Tasks, Today, planner, classes, preparation, focus/history/report, routines, wellness, campus discovery and workload inbox; automated behavior tests and real API/cache browser checks | Full acceptance script on authorized Android and iOS devices, including keyboard, accessibility, lifecycle and offline cold start |
 | Daily capture | Today opens the existing editor with the displayed date-only schedule and separate deadline; 11 new behavior/session cases, signed emulator create/cancel/offline checks and independent task/Today API proof | Broader physical/older Android and iOS acceptance; see the [capture record](../requirements/today-task-capture.md) |
-| Day-end review (draft) | PR #85 at `9df62cc` connects recorded progress, saved study time, fresh explicit tomorrow scheduling and the journal; standard checks pass, and prior signed Android fixture evidence covers Cancel/Save, retained deadline, offline cold reads and narrow/large text | Current iOS run fails an earlier public Help assertion and never reaches real-API review checks. Require those checks, author review, accepted dependency, matched-head merge and post-main verification; fixture UI evidence does not prove real authentication or PostgreSQL persistence |
+| Day-end review | Merged PR #85 at `692fb3e` connects recorded progress, saved study time, fresh explicit tomorrow scheduling and the journal; full native `38631725799` independently proves real-API Cancel unchanged, Save to tomorrow with retained deadline, 25-minute focus history, all four storage checks and cleanup; standard checks pass | Latest integrated-main native acceptance, broader physical/older-device checks and hosted production operation remain open; prior Android UI evidence uses a synthetic fixture |
 | Account privacy | Password-confirmed whole-account deletion, complete versioned export, private-import race protection, attempt-all cleanup/retry, ordinary web sign-in and actual JSON download verified; isolated signed Android emulator opens/cancels the real JSON share chooser and confirms approved disposable-account deletion, revoked session and unchanged separate-owner export; ADR 011 adds owned shared password admission with rollback/erasure protection | Physical native share/cleanup acceptance, hosted HTTPS `/account` resource, declared backup/log retention and deployed abuse monitoring |
 | Account recovery | Request/reset, encrypted durable mail, shared quotas, single-use/expiry/rollback and sign-in/reset session races verified with disposable PostgreSQL; native recovery UI states and narrow/wide browser request layout verified under ADR 009 | Approved SMTP sender/provider and real delivery, deployed trusted proxy/source policy, signed-device acceptance |
 | Public signup | ADR 010 adds password-and-code mailbox verification, private purpose/credential-bound tokens, public session gating, explicit preview/verified/closed modes and native verification forms; ADR 011 adds mail-independent shared auth limits and native recovery from confirmed session rejection while preserving offline reads | Approved real mail delivery, deployed auth key/source policy, signed-device acceptance and abuse/capacity monitoring |
@@ -19,7 +19,7 @@ for store submission.
 | Actionable reminders | Searchable account-owned center, existing subject editors, validated root tap handling and one-time schedule upgrade; current signed emulator proves real warm and terminated-process API-disconnected taps, ordinary-launch non-replay, invalid/stale-link recovery and narrow/large-text layout | Physical/older Android and iOS notification-tap/session/cache acceptance; this remains saved intent, not a delivery history. See the [native evidence](../requirements/android-reminder-center-2026-10-12.md) |
 | Mobile builds | Separate locally signed ARM phone/x86 emulator previews, signature and actual architecture/permission gates; no known synthetic QA credentials in package; new x86 build installs, signs in, reads cached Today offline, opens sharing and passes 13 workspace geometry checks | Production signing/identifiers, store builds, hosted backend connectivity and physical-device acceptance of latest session/cache/share/reminders; older Android and iOS build/signing on supported host |
 | Web artifacts | Reproduced Metro environment-cache issue; build now clears cache; fresh referenced entry and packaged bundles inspected | Fresh deployment output with authorized HTTPS API/domain; validate actual hosted assets and avoid publishing old generated bundles |
-| iOS simulator | PR #83's final uninstrumented source `c3c2563` passes native public warm/cold flows and source-bound real-API sign-in/capture, cold encrypted-session/SQLite reads, logout revocation/cache removal and cold signed-out proof; merged main `c08a098` has the identical tree and passes standard checks | Exact-main native run fails the first warm Help observation. Draft recovery/day-review runs repeat that earlier failure, so their private phases are unexecuted. Require repeatable accepted current native behavior, recovery/day-review execution, focus/reminders/share, older/physical iOS and store signing. See the [gate](../requirements/ios-simulator-preview.md) |
+| iOS simulator | Merged PR #86's full native XCTest public gate and original API/cache/logout checks pass at `846b105`; merged day-review `692fb3e` also passes all seven public/recovery groups and real-API feature/storage checks in `38631725799` | Main `7b983db` passes public navigation but fails the first Today assertion while a known system `Not Now` prompt is present. PR #101's current native login correction still needs complete source-bound acceptance. Focus/reminders/share, older/physical iOS and store signing remain open. See the [gate](../requirements/ios-simulator-preview.md) |
 | Privacy/support/store | Technical data ownership/lifecycle and public offline Help are documented; searchable workflow/data answers, protected account continuation and configurable validated policy/support links; signed emulator exercises public entry/password clearing, search/accordion/reset | Owner-approved public privacy/support URLs, real backup/log retention and accurate Apple/Google data declarations; physical Help and configured native-browser acceptance, store metadata/review account |
 
 The 2026-10-14 accepted storage evidence is native run
@@ -31,13 +31,25 @@ run `38612589071` passes, but native `38612589080` fails the first warm Help
 assertion. Recovery `71e8082` / `38613496910` and day-review `9df62cc` /
 `38615841433` fail that same earlier public assertion. These failures are not
 accepted as passes based on a later screenshot, nor attributed to an application
-routing defect without evidence. Both feature PRs remain draft and unmerged.
+routing defect without evidence. These are historical attempts: PRs #84 and
+#85 subsequently merged as `70bd635` and `5fd8101` respectively. The complete
+day-review native run `38631725799` at `692fb3e` passes; downloaded public and
+storage proofs independently validate all seven public/recovery groups, native
+Cancel/Save with deadline preservation, 1,500 saved study seconds, four original
+storage checks and cleanup. Recovery `bf804d5` and later exact-main failures
+retain their failed status and do not acquire acceptance from those other runs.
 
-[PR #86](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/86) prepares a
-temporary public-input comparison against the existing main app binary. It requires an unchanged app process for
-the first warm URL and single Back taps. Its current execution result must be
-inspected; even success covers only that public subset and cannot replace the
-original public/cold/real-API/cache/logout/recovery/day-review acceptance gates.
+[PR #86](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/86) is merged as
+`7b983db`. It replaces the retired comparison with a complete public XCTest gate
+against each current build, retaining the private Maestro/API checks. Native
+`38631465541` at reviewed head `846b105` passes and its downloaded public and
+four-check storage/cleanup proofs independently validate. The later exact-main
+run `38635693551` passes public navigation but fails the first Today assertion
+with the known system `Not Now` prompt still visible. Its cleanup passes. The
+login flow must recognize that prompt before requiring the obscured Today tree,
+dismiss it conditionally, and still prove Today and every API/cache/logout check.
+Current PR #101 and the newly opened feature stack need final integrated checks;
+neither cancelled jobs nor historical passes establish those current results.
 
 On 2026-10-12 the owner authorized the existing server for initial hosting and
 offered an Android device. Read-only discovery verifies the existing server,

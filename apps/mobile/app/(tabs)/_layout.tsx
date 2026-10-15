@@ -17,10 +17,11 @@ export default function TabsLayout() {
   // Retained routes must discard private forms, selections and pending UI when
   // the authenticated session changes. Query/cache cleanup remains separate.
   return <Tabs key={JSON.stringify([session?.user.id, session?.accessToken])} screenOptions={({ route }) => ({
-    headerStyle: { backgroundColor: colors.canvas },
-    headerShadowVisible: false,
+    // Each tab draws its own large title inside the safe area.
+    headerShown: false,
     tabBarActiveTintColor: colors.moss,
-    tabBarStyle: { backgroundColor: '#fff' },
+    tabBarInactiveTintColor: colors.muted,
+    tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.line },
     tabBarIcon: ({ color, size }) => <Ionicons name={icons[route.name] ?? 'ellipse-outline'} color={color} size={size} />,
   })}>
     <Tabs.Screen name="today" options={{ title: 'Today' }}/>

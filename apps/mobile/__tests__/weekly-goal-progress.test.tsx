@@ -25,7 +25,7 @@ it('shows a known empty history as zero progress in the goal week', () => {
 it.each([true, false])('shows unavailable progress for missing history while loading=%s', isLoading => {
   history([], { data: undefined, isLoading, error: isLoading ? undefined : new Error('Offline') });
   render(<Wellness/>); expect(screen.getByText('Weekly progress unavailable until history is loaded.')).toBeOnTheScreen();
-  expect(screen.queryByText(/This week:/)).toBeNull(); expect(screen.queryByText('Complete today')).toBeNull();
+  expect(screen.queryByText(/This week:/)).toBeNull(); expect(screen.queryByRole('button', { name: 'Complete today' })).toBeNull();
 });
 it('retains cached progress when refresh fails', () => {
   history(['2025-03-03', '2025-03-05'], { error: new Error('Offline') });
@@ -42,7 +42,8 @@ it('refreshes progress after completion and starts a new week at goal-local Mond
 it('keeps paused goal progress and history without offering completion', () => {
   jest.mocked(useGoals).mockReturnValue({ data: [{ ...goal, pausedAt: '2025-03-09T10:00:00Z' }], isLoading: false } as ReturnType<typeof useGoals>);
   history(['2025-03-03']); render(<Wellness/>); expect(screen.getByText('This week: 1 completed · Target 3')).toBeOnTheScreen();
-  expect(screen.getByText('Completion history')).toBeOnTheScreen(); expect(screen.queryByText('Complete today')).toBeNull();
+  fireEvent.press(screen.getByRole('button', { name: /^More options for / })); expect(screen.getByRole('button', { name: 'Completion history' })).toBeOnTheScreen();
+  expect(screen.queryByRole('button', { name: 'Complete today' })).toBeNull();
 });
 it('still permits another occurrence after reaching the target', async () => {
   history(['2025-03-03', '2025-03-04', '2025-03-05']); render(<Wellness/>);

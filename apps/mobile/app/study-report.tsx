@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { addCalendarDays } from '@campusflow/domain';
-import { Button, Card, Screen, colors } from '@/components/ui';
+import { Button, Card, Screen, colors, BackLink } from '@/components/ui';
 import { useFocusHistory, useTasks } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { calendarLabel, weekStart } from '@/features/weekly-planner';
@@ -23,7 +23,7 @@ function ReportContent({ accountId, timeZone }: { accountId: string; timeZone: s
   const refresh = () => { void history.refetch(); void tasks.refetch(); };
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
     refreshControl={<RefreshControl refreshing={history.isRefetching || tasks.isRefetching} onRefresh={refresh}/>}>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>STUDY REPORT</Text></View>
+    <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>STUDY REPORT</Text></View>
     <Text style={styles.title}>See where your time goes.</Text>
     <Text style={styles.meta}>Your saved focus blocks, with a clear next step.</Text>
     <View style={styles.navigation}><Button title="Previous week" tone="plain" onPress={() => setSelected(addCalendarDays(from, -7))}/>

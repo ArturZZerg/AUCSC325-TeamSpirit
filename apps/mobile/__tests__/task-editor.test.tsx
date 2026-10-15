@@ -26,6 +26,7 @@ beforeEach(() => {
   jest.mocked(useTasks).mockReturnValue({ data: [task], isLoading: false } as ReturnType<typeof useTasks>);
 });
 
+const expandFirst = (index = 0) => fireEvent.press(screen.getAllByRole('button', { name: /^Show details for / })[index]);
 describe('task forms and actions (ToR 7)', () => {
   it('shows title/date validation and does not submit invalid input', async () => {
     render(<TaskEditor task={null} onClose={jest.fn()}/>);
@@ -106,25 +107,25 @@ describe('task forms and actions (ToR 7)', () => {
     const other = { ...task, id: '10000000-0000-4000-8000-000000000002', title: 'Second task' };
     jest.mocked(useTasks).mockReturnValue({ data: [task, other], isLoading: false } as ReturnType<typeof useTasks>);
     render(<Tasks/>);
-    fireEvent.press(screen.getAllByText('Edit')[0]);
+    expandFirst(0); fireEvent.press(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.getByLabelText('Title')).toHaveDisplayValue(task.title);
     fireEvent.changeText(screen.getByLabelText('Title'), 'Cancelled draft');
     fireEvent.press(screen.getByText('Cancel'));
-    fireEvent.press(screen.getAllByText('Edit')[1]);
+    expandFirst(0); fireEvent.press(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.getByLabelText('Title')).toHaveDisplayValue('Second task');
     fireEvent.press(screen.getByText('Cancel'));
-    fireEvent.press(screen.getByText('Add task'));
+    fireEvent.press(screen.getByRole('button', { name: 'Add task' }));
     expect(screen.getByLabelText('Title')).toHaveDisplayValue('');
     expect(save).not.toHaveBeenCalled();
   });
 
   it('requires delete confirmation and keeps the task visible on failure', async () => {
-    render(<Tasks/>);
-    fireEvent.press(screen.getByText('Delete'));
+    render(<Tasks/>); expandFirst();
+    fireEvent.press(screen.getByRole('button', { name: 'Delete' }));
     expect(save).not.toHaveBeenCalled();
     fireEvent.press(screen.getByText('Keep task'));
     expect(save).not.toHaveBeenCalled();
-    fireEvent.press(screen.getByText('Delete'));
+    fireEvent.press(screen.getByRole('button', { name: 'Delete' }));
     save.mockRejectedValueOnce(new Error('Delete failed'));
     fireEvent.press(screen.getByText('Delete task'));
     await screen.findByText('Delete failed');
@@ -141,7 +142,7 @@ describe('task forms and actions (ToR 7)', () => {
     jest.mocked(useTasks).mockReturnValue({ data: [{ ...task, completedAt: '2026-10-03T12:00:00Z' }], isLoading: false } as ReturnType<typeof useTasks>);
     save.mockRejectedValueOnce(new Error('Completion failed'));
     render(<Tasks/>);
-    fireEvent.press(screen.getByText('Undo completion'));
+    fireEvent.press(screen.getByRole('button', { name: 'Undo completion' }));
     await screen.findByText('Completion failed');
     expect(save).toHaveBeenCalledWith({ path: `/tasks/${task.id}/complete`, body: { completed: false } });
   });

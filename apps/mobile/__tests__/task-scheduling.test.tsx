@@ -21,6 +21,7 @@ beforeEach(() => {
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>);
   jest.mocked(useTasks).mockReturnValue({ data: [task], isLoading: false } as ReturnType<typeof useTasks>);
 });
+const expandFirst = (index = 0) => fireEvent.press(screen.getAllByRole('button', { name: /^Show details for / })[index]);
 describe('task scheduling request boundary (ToR 7)', () => {
   it('requires undo before a completed one-time task becomes recurring', () => {
     const closed = { ...task, completedAt: task.createdAt, scheduled: { kind: 'date' as const, date: '2025-03-08' } };
@@ -133,7 +134,7 @@ describe('task scheduling controls', () => {
   });
   it('passes the account zone to the editor and shows the stored schedule', async () => {
     jest.mocked(useTasks).mockReturnValue({ data: [{ ...task, scheduled: { kind: 'instant', at: '2025-03-09T00:00:00Z' }, recurrence: { frequency: 'weekly', interval: 2, weekdays: [1, 5] } }], isLoading: false } as ReturnType<typeof useTasks>);
-    render(<Tasks/>); expect(screen.getByText('Scheduled: 2025-03-08 17:00 · America/Edmonton')).toBeOnTheScreen(); expect(screen.getByText(/Mon, Fri/)).toBeOnTheScreen();
+    render(<Tasks/>); expandFirst(); expect(screen.getByText('Scheduled: 2025-03-08 17:00 · America/Edmonton')).toBeOnTheScreen(); expect(screen.getByText(/Mon, Fri/)).toBeOnTheScreen();
     await act(async () => { fireEvent.press(screen.getByText('Edit')); }); expect(screen.getByText(/Dates and times follow/)).toHaveTextContent(/America\/Edmonton/);
     expect(screen.getByText(/Current schedule:/)).toHaveTextContent(/17:00/);
   });

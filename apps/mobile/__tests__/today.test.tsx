@@ -5,6 +5,7 @@ import TodayScreen from '../app/(tabs)/today';
 import { useAction, useToday } from '../src/features/queries';
 import type { PlanItem, Today } from '../src/lib/types';
 
+jest.mock('@expo/vector-icons/Ionicons', () => () => null);
 jest.mock('expo-router', () => ({ useLocalSearchParams: jest.fn(), router: { push: jest.fn() } }));
 jest.mock('../src/features/day-agenda', () => ({ DayAgenda: () => null }));
 jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useToday: jest.fn() }));
@@ -43,6 +44,7 @@ beforeEach(() => {
   jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-10-03T18:00:00Z').getTime());
 });
 afterEach(() => { jest.restoreAllMocks(); });
+function expandDone(count: number) { fireEvent.press(screen.getByRole('button', { name: `Show ${count} done` })); }
 it('opens the day-end review for the displayed calendar day without a mutation', () => {
   render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Review this day' }));
   expect(router.push).toHaveBeenCalledWith({ pathname: '/day-review', params: { date } }); expect(mutate).not.toHaveBeenCalled();
@@ -50,7 +52,7 @@ it('opens the day-end review for the displayed calendar day without a mutation',
 
 describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
   it('opens the workload inbox from Today', () => {
-    render(<TodayScreen/>); fireEvent.press(screen.getByText('Organise my workload'));
+    render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Organise my workload' }));
     expect(router.push).toHaveBeenCalledWith('/workload');
   });
   it('offers guided setup on an empty day and keeps the guide accessible with existing plans', () => {
@@ -65,7 +67,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     expect(router.push).toHaveBeenCalledWith('/planner');
   });
   it('opens the weekly review from Today', () => {
-    render(<TodayScreen/>); fireEvent.press(screen.getByText('Review your week'));
+    render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Review your week' }));
     expect(router.push).toHaveBeenCalledWith('/review');
   });
   it('opens the academic workspace from Today', () => {
@@ -79,7 +81,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     expect(router.push).toHaveBeenCalledWith('/study-plans');
   });
   it('opens free focus or preselects an open one-time task', () => {
-    render(<TodayScreen/>); fireEvent.press(screen.getByText('Focus space')); expect(router.push).toHaveBeenCalledWith('/focus');
+    render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Focus space' })); expect(router.push).toHaveBeenCalledWith('/focus');
     fireEvent.press(screen.getByText('Focus on this')); expect(router.push).toHaveBeenCalledWith({ pathname: '/focus', params: { taskId: task.entityId } });
   });
   it('uses the query account date for the header when no date is selected', () => {
@@ -110,7 +112,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     const occurrence = { ...recurring, state: completed ? 'completed' as const : 'today' as const,
       allowedActions: completed ? ['uncomplete' as const, 'open' as const] : recurring.allowedActions };
     show([occurrence]);
-    render(<TodayScreen/>);
+    render(<TodayScreen/>); if (completed) expandDone(1);
     fireEvent.press(screen.getByRole('button', { name: completed ? 'Undo completion' : 'Complete' }));
     await waitFor(() => expect(mutate).toHaveBeenCalledWith({ path: `/tasks/${task.entityId}/complete`,
       body: { completed: !completed, occurrenceKey: recurring.occurrenceKey } }));
@@ -118,7 +120,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
 
   it('undoes one-time completion without an occurrence date', async () => {
     show([{ ...task, state: 'completed', allowedActions: ['uncomplete', 'open'] }]);
-    render(<TodayScreen/>);
+    render(<TodayScreen/>); expandDone(1);
     fireEvent.press(screen.getByRole('button', { name: 'Undo completion' }));
     await waitFor(() => expect(mutate).toHaveBeenCalledWith({ path: `/tasks/${task.entityId}/complete`, body: { completed: false } }));
   });
@@ -148,7 +150,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
       { ...task, key: 'academic', kind: 'academic', state: 'submitted', title: 'Submitted essay', allowedActions: ['open'] },
       { ...task, key: 'event', kind: 'event', title: 'Campus event', allowedActions: ['open'] },
     ]);
-    render(<TodayScreen/>);
+    render(<TodayScreen/>); expandDone(3);
     for (const name of ['Complete', 'Undo completion', 'Skip today', 'Snooze 1 hour']) {
       expect(screen.queryByRole('button', { name })).toBeNull();
     }
@@ -163,7 +165,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Complete' }));
     await screen.findByText('Network unavailable');
     expect(screen.getByRole('alert')).toHaveTextContent('Network unavailable');
-    expect(screen.getByText('today')).toBeOnTheScreen();
+    expect(screen.getByText('Due today')).toBeOnTheScreen();
     expect(screen.getByText('Buy groceries')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Complete' })).toBeEnabled();
     fireEvent.press(screen.getByRole('button', { name: 'Complete' }));
@@ -194,7 +196,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Complete' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Skip today' })).toBeDisabled();
-    expect(screen.getAllByText('today')).toHaveLength(2);
+    expect(screen.getAllByText('Due today')).toHaveLength(2);
     await act(async () => { resolve(); });
     expect(screen.getByRole('button', { name: 'Skip today' })).toBeEnabled();
   });
@@ -204,14 +206,15 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     mutate.mockReturnValueOnce(new Promise<void>(done => { resolve = done; }));
     const view = render(<TodayScreen/>);
     fireEvent.press(screen.getByRole('button', { name: 'Complete' }));
-    expect(screen.getByText('Saving…')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
     await act(async () => { resolve(); });
-    expect(screen.queryByText('Saving…')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Saving…' })).toBeNull();
     // The screen itself never claims success before the API's refreshed plan.
-    expect(screen.getByText('today')).toBeOnTheScreen();
+    expect(screen.getByText('Due today')).toBeOnTheScreen();
     show([{ ...task, state: 'completed', allowedActions: ['uncomplete', 'open'] }]);
     view.rerender(<TodayScreen/>);
-    expect(screen.getByText('completed')).toBeOnTheScreen();
+    expect(screen.getByText('All clear for this day.')).toBeOnTheScreen(); expandDone(1);
+    expect(screen.getAllByText('Done')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Undo completion' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Complete' })).toBeNull();
   });
@@ -221,7 +224,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
     await waitFor(() => expect(mutate).toHaveBeenCalledWith({ path: `/tasks/${item.entityId}/snooze`,
       body: { until: '2026-10-03T19:00:00.000Z' } }));
-    expect(screen.getByText('today')).toBeOnTheScreen();
+    expect(screen.getByText('Due today')).toBeOnTheScreen();
     expect(item.due).toEqual(task.due);
   });
 
@@ -264,7 +267,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     mutate.mockRejectedValueOnce(new Error('Network unavailable'));
     render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
     await screen.findByText('Network unavailable');
-    expect(screen.getByText('today')).toBeOnTheScreen();
+    expect(screen.getByText('Due today')).toBeOnTheScreen();
     fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
     expect(mutate).toHaveBeenCalledTimes(2);

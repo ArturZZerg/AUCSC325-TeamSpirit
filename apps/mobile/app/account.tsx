@@ -3,7 +3,7 @@ import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRouter } from 'expo-router';
 import { accountDeletedSchema, accountExportSchema, deleteAccountSchema, type AccountExport } from '@campusflow/contracts';
-import { Button, Card, Field, colors } from '@/components/ui';
+import { Button, Card, Field, colors, BackLink } from '@/components/ui';
 import { ApiError, api, json } from '@/lib/api';
 import { queryClient } from '@/lib/query-client';
 import { useSessionStore } from '@/store/session';
@@ -62,7 +62,7 @@ function AccountCentre() {
     ['Reminder records', copy.reminders.length],
   ];
   return <SafeAreaView style={styles.safe}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.page}>
-    <Button title="Back to Settings" tone="plain" disabled={!!busy} onPress={() => router.replace('/settings')}/>
+    <BackLink to="Settings" disabled={!!busy} onPress={() => router.replace('/settings')}/>
     <View style={styles.heading}><Text style={styles.eyebrow}>YOUR ACCOUNT</Text><Text style={styles.title}>Account & privacy</Text>
       <Text style={styles.muted}>Your student life belongs to you. Keep a copy or choose to leave CampusFlow.</Text></View>
     <Card><Text style={styles.section}>{session.user.displayName}</Text><Text style={styles.muted}>{session.user.email}</Text>

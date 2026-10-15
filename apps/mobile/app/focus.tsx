@@ -3,10 +3,11 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { focusSessionSchema, idSchema } from '@campusflow/contracts';
-import { Button, Card, Field, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Field, Screen, State, colors, BackLink } from '@/components/ui';
 import { useAction, useTasks } from '@/features/queries';
 import { focusClockLabel } from '@/features/focus-timer';
 import { useFocusTimer } from '@/features/use-focus-timer';
+import { TickRing } from '@/features/tick-ring';
 import { focusOwner } from '@/store/focus';
 import { useSessionStore } from '@/store/session';
 import type { PersonalTask } from '@/lib/types';
@@ -94,7 +95,7 @@ function FocusContent() {
   };
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     accessibilityElementsHidden={confirmEnd} importantForAccessibility={confirmEnd ? 'no-hide-descendants' : 'auto'} aria-hidden={confirmEnd}>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" disabled={saving} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>FOCUS SPACE</Text></View>
+    <View style={styles.heading}><BackLink to="Today" disabled={saving} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>FOCUS SPACE</Text></View>
     <Text style={styles.title}>One thing at a time.</Text>
     <Text style={styles.meta}>Give yourself a little space to make progress.</Text>
     <Button title="My focus history" tone="plain" disabled={saving} onPress={() => router.push('/focus-history')}/>
@@ -119,11 +120,11 @@ function FocusContent() {
     <View style={styles.timerCard}>
       <Text style={styles.kicker}>{timer.phase === 'focus' ? 'YOUR FOCUS BLOCK' : 'TIME TO RECHARGE'}</Text>
       <Text style={styles.target}>{target?.title ?? 'A little uninterrupted study'}</Text>
-      <Text accessibilityLabel={`${focusClockLabel(focus.remainingMs)} remaining`} style={styles.clock}>{focusClockLabel(focus.remainingMs)}</Text>
-      <Text accessibilityLiveRegion="polite" style={styles.status}>{finished ? (timer.phase === 'focus' ? 'Block finished. Nice work.' : 'Break finished. Ready for another block?')
-        : timer.status === 'paused' ? 'Paused · take your time' : timer.status === 'running' ? `${phase} in progress` : 'Ready when you are'}</Text>
-      <View accessibilityRole="progressbar" accessibilityLabel="Session progress" accessibilityValue={{ min: 0, max: 100, now: progress }}
-        aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} style={styles.track}><View style={[styles.fill, { width: `${progress}%` }]}/></View>
+      <TickRing progress={progress / 100} color={timer.phase === 'focus' ? colors.moss : colors.plum} accessibilityLabel="Session progress" accessibilityValue={{ min: 0, max: 100, now: progress }}>
+        <Text accessibilityLabel={`${focusClockLabel(focus.remainingMs)} remaining`} style={styles.clock}>{focusClockLabel(focus.remainingMs)}</Text>
+        <Text accessibilityLiveRegion="polite" style={styles.status}>{finished ? (timer.phase === 'focus' ? 'Block finished. Nice work.' : 'Break finished. Ready for another block?')
+          : timer.status === 'paused' ? 'Paused · take your time' : timer.status === 'running' ? `${phase} in progress` : 'Ready when you are'}</Text>
+      </TickRing>
       {timer.status === 'ready' && <Button title="Start focus" disabled={!owner || saving || !focus.recoveryReady}
         onPress={() => { if (owner) focus.start(owner); }}/>}
       {timer.status === 'running' && <Button title="Pause" disabled={saving}
@@ -183,9 +184,9 @@ const styles = StyleSheet.create({
   heading: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, title: { color: colors.ink, fontSize: 28, fontWeight: '800', lineHeight: 34 },
   kicker: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: .7 }, meta: { color: colors.muted, lineHeight: 21 }, section: { color: colors.ink, fontSize: 18, fontWeight: '700' },
   timerCard: { backgroundColor: colors.sage, borderRadius: 24, padding: 24, gap: 18 }, target: { color: colors.ink, fontSize: 19, fontWeight: '700', textAlign: 'center', lineHeight: 26 },
-  clock: { color: colors.ink, fontSize: 64, fontWeight: '800', textAlign: 'center', fontVariant: ['tabular-nums'] }, status: { color: colors.moss, textAlign: 'center', fontWeight: '600' },
-  track: { height: 6, borderRadius: 3, backgroundColor: colors.card, overflow: 'hidden' }, fill: { height: '100%', backgroundColor: colors.moss },
+  clock: { color: colors.ink, fontSize: 56, fontWeight: '800', textAlign: 'center', fontVariant: ['tabular-nums'] }, status: { color: colors.moss, textAlign: 'center', fontWeight: '600' },
+
   choices: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' }, choice: { minHeight: 46, borderRadius: 12, backgroundColor: colors.card, padding: 14, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
   selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: '#fff' }, disabled: { opacity: .5 }, error: { color: colors.coral },
-  confirm: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,.25)' },
+  confirm: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: colors.scrim },
 });

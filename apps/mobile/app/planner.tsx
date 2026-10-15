@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { addCalendarDays } from '@campusflow/domain';
-import { Button, Card, Screen, State, colors } from '@/components/ui';
+import { Button, Card, Screen, State, colors, BackLink } from '@/components/ui';
 import { usePlanningSnapshot } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { buildPlannerWeek, calendarLabel, isFinished, weekStart } from '@/features/weekly-planner';
 import { taskTimingLabel } from '@/features/task-form';
 import { useSessionStore } from '@/store/session';
 import { DayAgenda } from '@/features/day-agenda';
+import { Chip } from '@/features/task-row';
 import { TaskEditor } from '@/features/task-editor';
 import type { TaskFormValues } from '@/features/task-form';
 
@@ -35,13 +36,16 @@ function PlannerContent() {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content}
     aria-hidden={!!studyDraft} accessibilityElementsHidden={!!studyDraft} importantForAccessibility={studyDraft ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => { void query.refetch(); }}/> }>
-    <View style={styles.top}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/>
+    <View style={styles.top}><BackLink to="Today" onPress={() => router.replace('/today')}/>
       <Text style={styles.kicker}>PLAN AHEAD</Text></View>
     <Text style={styles.title}>Your week, in view.</Text>
     <Text style={styles.muted}>See busy days before they sneak up.</Text>
-    <Button title="Organise my workload" tone="plain" onPress={() => router.push('/workload')}/>
-    <Button title="Review your week" tone="plain" onPress={() => router.push('/review')}/>
-    <Button title="Class timetable" tone="plain" onPress={() => router.push('/timetable')}/>
+    <View style={styles.links}>
+      <Chip icon="file-tray-full-outline" label="Organise my workload" onPress={() => router.push('/workload')}/>
+      <Chip icon="stats-chart-outline" label="Review your week" onPress={() => router.push('/review')}/>
+      <Chip icon="time-outline" label="Class timetable" onPress={() => router.push('/timetable')}/>
+      <Chip icon="calendar-outline" label="Month calendar" onPress={() => router.push('/calendar')}/>
+    </View>
     <View style={styles.navigation}>
       <Pressable accessibilityRole="button" accessibilityLabel="Previous week" style={styles.arrow} onPress={() => setSelected(addCalendarDays(date, -7))}><Text style={styles.arrowText}>‹</Text></Pressable>
       <Button title="This week" tone="plain" onPress={() => setSelected(undefined)}/>
@@ -92,6 +96,7 @@ function Metric({ value, label }: { value: number; label: string }) {
   return <View style={styles.metric}><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
 }
 const styles = StyleSheet.create({
+  links: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   content: { padding: 20, gap: 16, maxWidth: 760, width: '100%', alignSelf: 'center', paddingBottom: 40 },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   kicker: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: 1 },

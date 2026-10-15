@@ -83,6 +83,19 @@ palette and Today-centered product model.
     timing and native taps that open the exact saved item with existing edit/focus
     controls. See [Reminder center](../requirements/reminder-center.md).
 
+23. **Today dashboard:** progress card, icon shortcuts, floating capture and a
+    checklist plan with human timing and a collapsible Done group.
+24. **Grouped tasks:** Overdue/Today/Tomorrow/Next 7 days/Later/No date buckets,
+    segmented completion filter, category chips and expandable task rows.
+25. **Habit tracker:** goal-local streaks (skips neutral), a seven-day strip and
+    weekly-target progress on each routine card; rules live in the domain package.
+26. **Settings:** grouped list with profile card and real reminder switches; all
+    tabs draw their own large titles.
+27. **Month calendar:** account-zone month grid of task, coursework and saved-event
+    dates (repeating tasks expanded), day agenda, open-day and capture actions.
+    Built from the authoritative task/coursework/event lists rather than the
+    eight-day snapshot window.
+
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native
 acceptance remains a separate gate for new interactions. Temporary browser
@@ -97,3 +110,18 @@ Commercial-release gates remain: institution-approved live Canvas OAuth and
 an authorized integration test, deployed campus feeds, production hosting/TLS,
 account recovery, and iOS/Android acceptance. Feature development can continue
 against existing provider boundaries while these external gates are pending.
+
+## Integrated review of the October MVP stack
+
+The open UI/product slices are combined in PR #100 for final acceptance against
+main. The month calendar now reads repeating completion from the existing owned
+planning snapshot only inside its declared coverage and for the matching task
+revision. Missing, duplicate, future or foreign completion records remain
+unavailable, and failed event reads cannot imply an empty day. It remains a
+derived view with fixed links to the selected daily plan and existing editor.
+
+Quick-add `next weekday` resolves in the following Monday–Sunday calendar week;
+the visible preview remains editable before an explicit save. A disabled input
+cannot submit through a retained keyboard action. Morning-overview activation
+reconciles the saved preference after notification permission is granted, and
+incoming overview dates use the shared calendar-date boundary schema.

@@ -64,7 +64,7 @@ function ExistingTaskEditor({ task, onClose, initialScheduledDate, onSaved }: Ed
   const sameCredentials = loaded && loaded.task.id === task.id && owner?.user.id === loaded.baseline.owner.user.id
     && owner.accessToken === loaded.baseline.owner.accessToken && loaded.baseline.credentialsGeneration === taskCredentialsGeneration();
   if (!loaded || !sameCredentials) return <Modal visible onRequestClose={onClose}><SafeAreaView style={styles.content}>
-    <Text>{loading ? 'Loading task for editing…' : message ?? 'Reload the task before editing.'}</Text>
+    <Text style={{ color: colors.ink }}>{loading ? 'Loading task for editing…' : message ?? 'Reload the task before editing.'}</Text>
     <Button title="Reload task" onPress={() => { void reload(); }} disabled={loading || !owner}/>
     <Button title="Cancel" onPress={onClose}/>
   </SafeAreaView></Modal>;
@@ -147,7 +147,7 @@ export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initi
             : dateSchema.safeParse(initialScheduledDate).success ? 'Your chosen day is prefilled as a schedule. Review it before saving; the deadline stays separate.'
               : 'The chosen day could not be prefilled. Select a scheduled date before saving.'}</Text>}
           <Text style={styles.meta}>Dates and times follow your account time zone: {timeZone}.</Text>
-          {stale && <><Text accessibilityRole="alert">{freshnessMessage ?? 'Task changed. Reload before saving; your draft will be kept.'}</Text>
+          {stale && <><Text accessibilityRole="alert" style={{ color: colors.ink }}>{freshnessMessage ?? 'Task changed. Reload before saving; your draft will be kept.'}</Text>
             <Button title="Reload task" onPress={reload!} disabled={isSubmitting || loading}/></>}
           <Controller name="title" control={control} render={({ field }) => <Field testID="task-title" label="Title" value={field.value} onChangeText={field.onChange} editable={!blocked}/>}/>
           <Controller name="description" control={control} render={({ field }) => <Field label="Description" value={field.value} onChangeText={field.onChange} editable={!blocked} multiline/>}/>

@@ -85,7 +85,7 @@ it('browses past days but plans for tomorrow relative to the current account day
   mockParams = { date: '2025-03-08' }; render(<DayReview/>);
   expect(usePlanningSnapshot).toHaveBeenLastCalledWith('2025-03-08');
   fireEvent.press(screen.getByRole('button', { name: 'Open tomorrow’s plan' })); expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/today', params: { date: '2025-03-10' } });
-  fireEvent.press(screen.getByRole('button', { name: 'Today' })); expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled();
+  fireEvent.press(screen.getAllByRole('button', { name: 'Today' }).at(-1)!); // The first match is the Back to Today link. expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled();
 });
 it('refreshes study history on resume and follows midnight when no day is selected', () => {
   const view = render(<DayReview/>); mockResume++; mockToday = '2025-03-10'; view.rerender(<DayReview/>);

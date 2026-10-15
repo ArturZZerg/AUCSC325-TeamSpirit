@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useRootNavigationState, useRouter } from 'expo-router';
-import { reminderResponseTarget } from '@/services/reminder-response';
+import { overviewResponseTarget, reminderResponseTarget } from '@/services/reminder-response';
 import { useSessionStore } from '@/store/session';
 
-type Pending = { accountId: string; reminderId: string; token?: string };
+type Pending = { accountId: string; reminderId?: string; token?: string };
 export function ReminderResponseSync() {
   const router = useRouter(), navigation = useRootNavigationState();
   const { session, ready } = useSessionStore();
@@ -16,7 +16,7 @@ export function ReminderResponseSync() {
     const seen = new Set<string>();
     const receive = (response: Notifications.NotificationResponse) => {
       if (!active) return;
-      const target = reminderResponseTarget(response, Notifications.DEFAULT_ACTION_IDENTIFIER);
+      const target = reminderResponseTarget(response, Notifications.DEFAULT_ACTION_IDENTIFIER) ?? overviewResponseTarget(response, Notifications.DEFAULT_ACTION_IDENTIFIER);
       if (!target) {
         try { Notifications.clearLastNotificationResponse(); } catch { /* Unsupported responses are never followed. */ }
         return;
@@ -47,7 +47,8 @@ export function ReminderResponseSync() {
     }
     if (!navigation?.key) return;
     setPending(undefined);
-    router.push({ pathname: '/reminders', params: { reminderId: pending.reminderId, accountId: pending.accountId } });
+    if (pending.reminderId) router.push({ pathname: '/reminders', params: { reminderId: pending.reminderId, accountId: pending.accountId } });
+    else router.push('/today');
   }, [pending, ready, session, navigation?.key, router]);
   return null;
 }

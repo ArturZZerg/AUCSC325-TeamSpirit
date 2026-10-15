@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { dateSchema } from '@campusflow/contracts';
 import { addCalendarDays } from '@campusflow/domain';
-import { Button, Card, Screen, colors } from '@/components/ui';
+import { Button, Card, Screen, colors, BackLink } from '@/components/ui';
 import { useFocusHistory, usePlanningSnapshot } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { useAgendaClock } from '@/features/use-agenda-clock';
@@ -39,7 +39,7 @@ function DayReviewContent({ accountId, timeZone }: { accountId: string; timeZone
   const tasks = expandedDate === date ? review?.carryover : review?.carryover.slice(0, 3);
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} aria-hidden={!!editing} accessibilityElementsHidden={!!editing} importantForAccessibility={editing ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={snapshot.isRefetching || history.isRefetching} onRefresh={refresh}/>}>
-    <View style={styles.heading}><Button title="Back to Today" tone="plain" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>DAY-END REVIEW</Text></View>
+    <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>DAY-END REVIEW</Text></View>
     <Text style={styles.title}>Leave the day a little lighter.</Text><Text style={styles.copy}>Notice the work you recorded, then make room for one small next step.</Text>
     <View style={styles.actions}><Button title="Previous day" tone="plain" onPress={() => setSelected(addCalendarDays(date, -1))}/><Button title="Today" tone="plain" onPress={() => setSelected(undefined)}/>
       <Button title="Next day" tone="plain" disabled={date >= today} onPress={() => setSelected(addCalendarDays(date, 1))}/></View>

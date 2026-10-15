@@ -1,19 +1,22 @@
 import { useRef, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { goalOccursOn, weeklyGoalProgress } from '@campusflow/domain';
 import { ZodError } from 'zod';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAction, useGoals, useGoalHistory, useWellnessJournal } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { GoalEditor } from '@/features/goal-editor';
 import { GoalReminderEditor } from '@/features/goal-reminder-editor';
-import { taskTimingLabel } from '@/features/task-form';
 import { BreathingPause } from '@/features/breathing-pause';
+import { HabitCard } from '@/features/habit-card';
+import { Chip } from '@/features/task-row';
 import { ratingLabel } from '@/features/wellness-journal';
 import { useSessionStore } from '@/store/session';
 import type { Goal } from '@/lib/types';
+
+const moodIcons = ['sad-outline', 'cloudy-outline', 'partly-sunny-outline', 'sunny-outline', 'happy-outline'] as const;
 
 export default function WellnessScreen() {
   const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');
@@ -24,6 +27,7 @@ export default function WellnessScreen() {
   const [editing, setEditing] = useState<Goal | null>(); const [deleting, setDeleting] = useState<Goal>();
   const [history, setHistory] = useState<Goal>();
   const [reminding, setReminding] = useState<Goal>();
+  const [expanded, setExpanded] = useState<string>();
   const checkIn = entries.data?.entries.find(entry => entry.date === today);
   const disabled = !!pending || action.isPending;
   const run = async (key: string, operation: () => Promise<unknown>) => {
@@ -33,22 +37,37 @@ export default function WellnessScreen() {
     catch (error) { setMessage(error instanceof ZodError ? error.issues[0].message : error instanceof Error ? error.message : 'Could not save the change. Please try again.'); return false; }
     finally { guard.current = false; setPending(undefined); }
   };
+  const active = goals.data?.filter(goal => !goal.pausedAt) ?? [], paused = goals.data?.filter(goal => goal.pausedAt) ?? [];
+  const card = (goal: Goal) => <HabitCard key={goal.id} goal={goal} disabled={disabled} pending={pending === goal.id} expanded={expanded === goal.id}
+    onToggleExpanded={() => setExpanded(current => current === goal.id ? undefined : goal.id)}
+    onAction={request => { void run(goal.id, () => action.mutateAsync(request)); }}
+    onEdit={() => setEditing(goal)} onReminder={() => setReminding(goal)} onHistory={() => setHistory(goal)} onDelete={() => { setMessage(undefined); setDeleting(goal); }}/>;
 
-  return <Screen><ScrollView contentContainerStyle={styles.content}>
-    <Text style={styles.title}>Wellness</Text><Text style={styles.sub}>Small routines that support your week.</Text>
+  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}>
+    <Text accessibilityRole="header" style={styles.title}>Wellness</Text><Text style={styles.sub}>Small routines that support your week.</Text>
     {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
-    <Card><Text style={styles.section}>Today’s check-in</Text><Text style={styles.meta}>{today}</Text>
-      <State loading={entries.isLoading} error={entries.error}/>
-      <Text style={styles.meta}>{checkIn ? `Mood: ${ratingLabel('mood', checkIn.mood)} · Energy: ${ratingLabel('energy', checkIn.energy)} · Stress: ${ratingLabel('stress', checkIn.stress)}` : entries.data ? 'A small moment to record how your day feels.' : 'Connect to review saved check-ins.'}</Text>
-      <Button title="Open check-in journal" disabled={disabled} onPress={() => router.push('/journal')}/>
-    </Card>
-    <View style={styles.top}><Text style={styles.section}>Your goals</Text><View style={styles.buttons}>
-      <Button title="Browse routine ideas" tone="plain" disabled={disabled} onPress={() => router.push('/routines')}/>
-      <Button title="Add goal" disabled={disabled} onPress={() => setEditing(null)}/></View></View>
-    <State loading={goals.isLoading} error={goals.error} empty={goals.data?.length === 0 ? 'Create a daily or weekly goal to begin a gentle routine.' : undefined}/>
-    {goals.data?.map(goal => <GoalCard key={goal.id} goal={goal} disabled={disabled} pending={pending === goal.id}
-      onAction={request => { void run(goal.id, () => action.mutateAsync(request)); }}
-      onEdit={() => setEditing(goal)} onReminder={() => setReminding(goal)} onHistory={() => setHistory(goal)} onDelete={() => { setMessage(undefined); setDeleting(goal); }}/>) }
+    <View style={styles.checkIn}>
+      <View style={styles.checkInIcon}><Ionicons name={checkIn?.mood ? moodIcons[checkIn.mood - 1] : 'leaf-outline'} size={28} color={colors.moss}/></View>
+      <View style={styles.checkInBody}>
+        <Text style={styles.section}>Today’s check-in</Text>
+        <State loading={entries.isLoading} error={entries.error}/>
+        <Text style={styles.meta}>{checkIn ? `Mood: ${ratingLabel('mood', checkIn.mood)} · Energy: ${ratingLabel('energy', checkIn.energy)} · Stress: ${ratingLabel('stress', checkIn.stress)}` : entries.data ? 'A small moment to record how your day feels.' : 'Connect to review saved check-ins.'}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Open check-in journal" disabled={disabled} onPress={() => router.push('/journal')}
+          style={({ pressed }) => [styles.journal, pressed && styles.pressed, disabled && styles.dim]}>
+          <Text style={styles.journalText}>{checkIn ? 'Update check-in' : 'Check in now'}</Text><Ionicons name="arrow-forward" size={16} color="#fff"/>
+        </Pressable>
+      </View>
+    </View>
+    <View style={styles.top}><Text accessibilityRole="header" style={styles.section}>Your routines</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Add goal" accessibilityState={{ disabled }} disabled={disabled} onPress={() => setEditing(null)}
+        style={({ pressed }) => [styles.add, pressed && styles.pressed, disabled && styles.dim]}><Ionicons name="add" size={22} color="#fff"/></Pressable></View>
+    <View style={styles.links}><Chip icon="bulb-outline" label="Browse routine ideas" disabled={disabled} onPress={() => router.push('/routines')}/></View>
+    <State loading={goals.isLoading} error={goals.error}/>
+    {goals.data?.length === 0 && <View style={styles.empty}><Ionicons name="flame-outline" size={30} color={colors.plum}/>
+      <Text style={styles.item}>Start a gentle routine.</Text><Text style={styles.meta}>Create a daily or weekly goal to begin a gentle routine.</Text></View>}
+    {active.map(card)}
+    {paused.length > 0 && <Text style={styles.subsection}>Paused</Text>}
+    {paused.map(card)}
     <BreathingPause/>
   </ScrollView>
     {editing !== undefined && <GoalEditor key={editing?.id ?? 'new'} goal={editing} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}
@@ -66,46 +85,36 @@ export default function WellnessScreen() {
   </Screen>;
 }
 
-function GoalCard({ goal, disabled, pending, onAction, onEdit, onReminder, onHistory, onDelete }: {
-  goal: Goal; disabled: boolean; pending: boolean; onAction(request: { path: string; body: unknown }): void;
-  onEdit(): void; onReminder(): void; onHistory(): void; onDelete(): void;
-}) {
-  const { date } = useTodayClock(goal.timeZone);
-  const history = useGoalHistory(goal.id);
-  const progress = history.data === undefined ? undefined : weeklyGoalProgress(goal, history.data, date);
-  const completion = history.data?.find(row => row.occurrenceKey === date);
-  const onDay = goal.schedule.kind === 'weeklyTarget' || goalOccursOn({ id: goal.id, title: goal.title, schedule: goal.schedule, timeZone: goal.timeZone }, date);
-  const canComplete = history.data !== undefined && !goal.pausedAt && onDay && !completion;
-  return <Card><Text style={styles.item}>{goal.title}</Text>
-    <Text style={styles.meta}>{goal.pausedAt ? 'Paused' : goal.schedule.kind === 'weeklyTarget' ? `${goal.schedule.target} times this week` : goal.schedule.kind === 'weekly' ? 'Selected days' : 'Every day'} · {goal.timeZone}</Text>
-    {goal.reminder && <Text style={styles.meta}>Reminder: {taskTimingLabel(goal.reminder, goal.timeZone)}{goal.reminder.kind === 'date' ? ' · Delivery time needed' : ''}{goal.pausedAt ? ' · Inactive while paused' : ''}</Text>}
-    <State loading={history.isLoading} error={history.error}/>
-    {goal.schedule.kind === 'weeklyTarget' && (progress ? <>
-      <Text style={styles.meta}>This week: {progress.completed} completed · Target {progress.target}</Text>
-      <Text style={styles.meta}>Week of {progress.weekStart} · Monday–Sunday</Text>
-      {progress.reached && <Text style={styles.meta}>Weekly target reached</Text>}
-    </> : <Text style={styles.meta}>Weekly progress unavailable until history is loaded.</Text>)}
-    {completion && <Text style={styles.meta}>{completion.state === 'completed' ? 'Completed today' : 'Skipped today'}</Text>}
-    {!onDay && !goal.pausedAt && <Text style={styles.meta}>Not scheduled today</Text>}
-    <View style={styles.buttons}>
-      {canComplete && <><Button title={pending ? 'Saving…' : 'Complete today'} disabled={disabled} onPress={() => onAction({ path: `/goals/${goal.id}/complete`, body: { occurrenceKey: date, state: 'completed' } })}/>
-        <Button title="Skip today" tone="plain" disabled={disabled} onPress={() => onAction({ path: `/goals/${goal.id}/complete`, body: { occurrenceKey: date, state: 'skipped' } })}/></>}
-      <Button title={goal.pausedAt ? 'Resume' : 'Pause'} tone="plain" disabled={disabled} onPress={() => onAction({ path: `/goals/${goal.id}/pause`, body: { paused: !goal.pausedAt } })}/>
-      <Button title="Edit goal" tone="plain" disabled={disabled} onPress={onEdit}/><Button title="Completion history" tone="plain" disabled={disabled} onPress={onHistory}/>
-      <Button title={goal.reminder ? 'Edit reminder' : 'Set reminder'} tone="plain" disabled={disabled} onPress={onReminder}/>
-      <Button title="Delete" tone="danger" disabled={disabled} onPress={onDelete}/>
-    </View>
-  </Card>;
-}
 function GoalHistory({ goal, onClose }: { goal: Goal; onClose(): void }) {
   const query = useGoalHistory(goal.id);
   return <Modal visible animationType="slide" onRequestClose={onClose}><SafeAreaView style={styles.safe}>
     <ScrollView contentContainerStyle={styles.content}><Text style={styles.section}>{goal.title} — completion history</Text>
       <Text style={styles.meta}>Occurrence dates follow {goal.timeZone}.</Text>
       <State loading={query.isLoading} error={query.error} empty={query.data?.length === 0 ? 'No completion history yet.' : undefined}/>
-      {query.data?.map(row => <Card key={row.id}><Text style={styles.item}>{row.occurrenceKey}</Text><Text style={styles.meta}>{row.state}</Text></Card>)}
+      {query.data?.map(row => <View key={row.id} style={styles.historyRow}>
+        <Ionicons name={row.state === 'completed' ? 'checkmark-circle' : 'play-skip-forward-circle-outline'} size={22} color={row.state === 'completed' ? colors.plum : colors.muted}/>
+        <Text style={styles.item}>{new Date(`${row.occurrenceKey}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+        <Text style={styles.meta}>{row.state}</Text>
+      </View>)}
       <Button title="Refresh history" disabled={query.isFetching} onPress={() => { void query.refetch(); }}/><Button title="Close history" tone="plain" onPress={onClose}/>
     </ScrollView>
   </SafeAreaView></Modal>;
 }
-const styles = StyleSheet.create({ content: { padding: 16, gap: 12 }, title: { fontSize: 29, fontWeight: '800', color: colors.ink }, sub: { color: colors.muted }, section: { fontSize: 18, fontWeight: '800', color: colors.ink }, item: { color: colors.ink, fontSize: 17, fontWeight: '700' }, meta: { color: colors.muted }, buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, top: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, error: { color: colors.coral }, safe: { flex: 1, backgroundColor: colors.canvas }, confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.35)' } });
+
+const styles = StyleSheet.create({
+  content: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  title: { fontSize: 30, fontWeight: '800', color: colors.ink }, sub: { color: colors.muted, fontSize: 15, marginTop: -8 },
+  section: { fontSize: 18, fontWeight: '800', color: colors.ink }, subsection: { fontSize: 15, fontWeight: '800', color: colors.muted, marginTop: 6 },
+  item: { color: colors.ink, fontSize: 16, fontWeight: '700' }, meta: { color: colors.muted },
+  checkIn: { flexDirection: 'row', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.sage },
+  checkInIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }, checkInBody: { flex: 1, gap: 6 },
+  journal: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.moss, borderRadius: 18, paddingHorizontal: 14, minHeight: 38, marginTop: 2 },
+  journalText: { color: '#fff', fontWeight: '700' },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 6 },
+  add: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center' },
+  links: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  empty: { alignItems: 'center', gap: 6, padding: 24, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  error: { color: colors.coral }, pressed: { opacity: 0.75 }, dim: { opacity: 0.5 },
+  safe: { flex: 1, backgroundColor: colors.canvas }, confirm: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.scrim },
+});
