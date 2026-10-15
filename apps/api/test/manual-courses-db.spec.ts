@@ -24,7 +24,7 @@ databaseSuite('student-created courses', () => {
   it('creates, lists, edits, archives and exports a course, idempotently for a retried create', async () => {
     const id = randomUUID();
     const created = await create({ id, name: '  Cognitive Psychology ', code: ' PSY 223 ', color: 'plum' }).expect(201);
-    expect(created.body).toEqual({ id, externalId: id, name: 'Cognitive Psychology', code: 'PSY 223', active: true, source: 'manual', color: 'plum' });
+    expect(created.body).toEqual({ id, externalId: id, name: 'Cognitive Psychology', code: 'PSY 223', active: true, source: 'manual', color: 'plum', assessments: [], targetGrade: null });
     await create({ id, name: 'Cognitive Psychology', code: 'PSY 223', color: 'plum' }).expect(201);
     await create({ id, name: 'Different name' }).expect(409);
     expect(await db.course.count({ where: { userId } })).toBe(1);
