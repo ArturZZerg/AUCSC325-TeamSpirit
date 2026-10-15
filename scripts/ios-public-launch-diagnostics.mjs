@@ -123,10 +123,11 @@ async function run() {
     try { sampleProcess = spawn('/usr/bin/sample', [String(pid), '5', '10', '-mayDie', '-file', rawSample], { stdio: ['ignore', descriptor, descriptor] }); }
     finally { closeSync(descriptor); }
     let timer, sampleStage = 'sampler execution';
+    const sampleStarted = Date.now();
     try {
-      // Recording takes five seconds; symbolicating the report on a loaded runner can take much longer.
+      // Recording takes five seconds; first-use symbolication of a simulator app on a fresh runner can take minutes.
       const code = await Promise.race([exited(sampleProcess, error => { proof.sampleSpawnError = String(error?.code ?? error).slice(0, 200); }),
-        new Promise(resolve => { timer = setTimeout(() => { proof.sampleTimedOut = true; resolve(-1); }, 60_000); })]);
+        new Promise(resolve => { timer = setTimeout(() => { proof.sampleTimedOut = true; resolve(-1); }, 240_000); })]);
       proof.sampleExitCode = code;
       if (code !== 0) throw new Error('Public sample did not complete.');
       sampleStage = 'sample report validation';
@@ -137,8 +138,8 @@ async function run() {
       proof.result = 'captured';
     } catch { proof.result = 'sample-failed'; proof.failureStage = sampleStage; }
     finally {
+      proof.sampleElapsedMs = Date.now() - sampleStarted;
       clearTimeout(timer); await stopOwnedApiProcess(sampleProcess, { termMs: 1000, killMs: 1000 });
-      try { copyFileSync(path.join(directory, 'sampler.log'), path.join(evidence, 'public-sampler.log')); } catch { /* diagnostics only */ }
     }
   };
   const monitor = async () => {
