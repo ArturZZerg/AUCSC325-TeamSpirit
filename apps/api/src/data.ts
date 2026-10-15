@@ -1,6 +1,6 @@
 import { eventRange, selectEvents } from './integrations/events/event-query';
 import { createHash, randomUUID } from 'node:crypto';
-import { createManualAcademicItemSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
+import { createCourseSchema, createManualAcademicItemSchema, manualCourseLimit, manualCourseSource, updateCourseSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
 import { campusEventSchema } from '@campusflow/contracts';
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { checklistItemSchema, checklistLimit, createChecklistItemSchema, createPersonalTaskRequestSchema, updateChecklistItemSchema } from '@campusflow/contracts';
@@ -326,6 +326,43 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
    }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
  }
  @Get('courses') async courses(@CurrentUser() u:RequestUser){return (await this.prisma.course.findMany({where:{userId:u.id},orderBy:{name:'asc'}})).map(r=>courseSchema.parse(r));}
+ // Student-created courses (source "manual"). Imported courses keep their
+ // name/code/active state from the integration; only their colour is editable.
+ @Post('courses') async createCourse(@CurrentUser() u: RequestUser, @Body(new ZodPipe(createCourseSchema)) b: z.infer<typeof createCourseSchema>) {
+   return this.prisma.$transaction(async tx => {
+     await lockAccountRecords(tx, u.id);
+     const existing = await tx.course.findUnique({ where: { id: b.id } });
+     if (existing) {
+       if (existing.userId !== u.id || existing.source !== manualCourseSource || existing.name !== b.name) throw new ConflictException('This course ID belongs to a different course.');
+       return courseSchema.parse(existing);
+     }
+     if (await tx.course.count({ where: { userId: u.id, source: manualCourseSource } }) >= manualCourseLimit) throw new BadRequestException(`You can add up to ${manualCourseLimit} courses.`);
+     return courseSchema.parse(await tx.course.create({ data: { id: b.id, userId: u.id, source: manualCourseSource, externalId: b.id,
+       name: b.name, code: b.code ?? null, color: b.color ?? null } }));
+   });
+ }
+ @Patch('courses/:id') async updateCourse(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(updateCourseSchema)) b: z.infer<typeof updateCourseSchema>) {
+   return this.prisma.$transaction(async tx => {
+     await lockAccountRecords(tx, u.id);
+     const course = await tx.course.findFirst({ where: { id, userId: u.id } });
+     if (!course) throw new NotFoundException('Course not found');
+     if (course.source !== manualCourseSource && (b.name !== undefined || b.code !== undefined || b.active !== undefined)) {
+       throw new BadRequestException('Imported courses follow Canvas. You can still choose their colour.');
+     }
+     return courseSchema.parse(await tx.course.update({ where: { id }, data: b }));
+   });
+ }
+ @Delete('courses/:id') async deleteCourse(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {
+   return this.prisma.$transaction(async tx => {
+     await lockAccountRecords(tx, u.id);
+     const course = await tx.course.findFirst({ where: { id, userId: u.id } });
+     if (!course) return { deleted: true };
+     if (course.source !== manualCourseSource) throw new BadRequestException('Imported courses follow Canvas and can’t be deleted here.');
+     // Coursework stays; the relation clears its course (onDelete: SetNull).
+     await tx.course.delete({ where: { id } });
+     return { deleted: true };
+   });
+ }
  @Get('academic-items') async items(@CurrentUser() u:RequestUser){return (await this.prisma.academicItem.findMany({where:{userId:u.id},orderBy:{updatedAt:'desc'}})).map(r=>academicItemSchema.parse({...r,updatedAt:toIso(r.updatedAt)}));}
  @Patch('academic-items/:id/main-goal') async main(@CurrentUser() u: RequestUser,
    @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(setMainGoalSchema)) b: z.infer<typeof setMainGoalSchema>) {

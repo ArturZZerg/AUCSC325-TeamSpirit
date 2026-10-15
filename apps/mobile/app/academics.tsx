@@ -6,6 +6,8 @@ import { useRouter } from 'expo-router';
 import { localDateAt } from '@campusflow/domain';
 import { Button, Card, Field, Screen, State, colors, BackLink } from '@/components/ui';
 import { useAcademic, useAction, useCourses, usePlanningSnapshot } from '@/features/queries';
+import { Chip } from '@/features/task-row';
+import { courseColor } from '@/features/course-editor';
 import { academicAttention, academicFinished, academicOverview, type AcademicView } from '@/features/academic-overview';
 import { AcademicReminderEditor } from '@/features/academic-reminder-editor';
 import { StudyPlanEditor } from '@/features/study-plan-editor';
@@ -70,7 +72,10 @@ function AcademicsContent() {
     <Text style={styles.title}>Stay ahead of deadlines.</Text>
     <Text style={styles.meta}>Find your next assignment and make time to work on it.</Text>
     <Button title="Add coursework" disabled={disabled} onPress={() => { setSavedMessage(undefined); setEditing(null); }}/>
-    <Button title="My study plans" tone="plain" disabled={disabled} onPress={() => router.push('/study-plans')}/>
+    <View style={styles.links}>
+      <Chip icon="layers-outline" label="My study plans" disabled={disabled} onPress={() => router.push('/study-plans')}/>
+      <Chip icon="color-palette-outline" label="Courses" disabled={disabled} onPress={() => router.push('/courses')}/>
+    </View>
     {savedMessage && <Text accessibilityRole="alert" style={styles.notice}>{savedMessage}</Text>}
     {studySaved && <Card><Text accessibilityRole="alert" style={styles.item}>Study task added to your plan.</Text><Text style={styles.meta}>You can edit it, set a reminder or check it off in Tasks.</Text><Button title="View my tasks" tone="plain" onPress={() => router.push('/tasks')}/></Card>}
     {fixtureData && <Text style={styles.notice}>Demo coursework is shown. Live Canvas access still needs an approved connection.</Text>}
@@ -96,7 +101,7 @@ function AcademicsContent() {
     {overview.groups.map(group => <View key={group.title} style={styles.group}>
       <View style={styles.heading}><Text style={styles.section}>{group.title}</Text><Text style={styles.meta}>{group.items.length}</Text></View>
       {group.items.map(item => <Card key={item.id}>
-        <View style={styles.heading}><Text style={styles.kicker}>{byCourse.get(item.courseId ?? '')?.code ?? byCourse.get(item.courseId ?? '')?.name ?? 'OTHER COURSEWORK'}</Text><Text style={styles.meta}>{item.kind}</Text></View>
+        <View style={styles.heading}><View style={styles.courseLabel}>{item.courseId && byCourse.has(item.courseId) && <View style={[styles.courseDot, { backgroundColor: courseColor(byCourse.get(item.courseId)) }]}/>}<Text style={styles.kicker}>{byCourse.get(item.courseId ?? '')?.code ?? byCourse.get(item.courseId ?? '')?.name ?? 'OTHER COURSEWORK'}</Text></View><Text style={styles.meta}>{item.kind}</Text></View>
         {item.source === manualAcademicSource && <Text style={styles.kicker}>ADDED BY YOU</Text>}
         {item.mainGoalDate === today && <Text style={styles.kicker}>★ MAIN GOAL TODAY</Text>}
         <Text style={[styles.item, academicFinished(item) && styles.finished]}>{item.title}</Text>
@@ -148,6 +153,7 @@ function Metric({ value, label }: { value: number; label: string }) {
   return <View style={styles.metric}><Text style={styles.metricValue}>{value}</Text><Text style={styles.meta}>{label}</Text></View>;
 }
 const styles = StyleSheet.create({
+  links: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, courseLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 }, courseDot: { width: 9, height: 9, borderRadius: 5 },
   content: { padding: 20, paddingBottom: 40, gap: 16, maxWidth: 760, width: '100%', alignSelf: 'center' },
   heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   title: { color: colors.ink, fontSize: 28, lineHeight: 34, fontWeight: '800' },

@@ -67,7 +67,18 @@ export const completePersonalTaskSchema = z.object({ completed: z.boolean(), occ
 export const snoozePersonalTaskSchema = z.object({ until: instantSchema });
 export const setMainGoalSchema = z.object({ date: dateSchema.nullable() });
 
-export const courseSchema = z.object({ id: idSchema, externalId: z.string().min(1), name: z.string().min(1), code: z.string().nullable(), active: z.boolean() });
+export const courseColorSchema = z.enum(['moss', 'blue', 'plum', 'coral', 'gold', 'teal', 'slate', 'rose']);
+export const manualCourseSource = 'manual' as const;
+export const manualCourseLimit = 40;
+// source/color are optional so caches written before manual courses still parse.
+export const courseSchema = z.object({ id: idSchema, externalId: z.string().min(1), name: z.string().min(1), code: z.string().nullable(), active: z.boolean(),
+  source: z.string().min(1).optional(), color: courseColorSchema.nullable().optional() });
+const courseName = z.string().trim().min(1, 'Enter a course name.').max(120, 'Keep the name within 120 characters.');
+const courseCode = z.string().trim().max(20, 'Keep the code within 20 characters.').transform(value => value || null).nullable();
+/** Student-created course. The client supplies the ID so a retried create is recognised. */
+export const createCourseSchema = z.object({ id: idSchema, name: courseName, code: courseCode.optional(), color: courseColorSchema.nullable().optional() }).strict();
+export const updateCourseSchema = z.object({ name: courseName.optional(), code: courseCode.optional(), color: courseColorSchema.nullable().optional(), active: z.boolean().optional() })
+  .strict().refine(value => Object.values(value).some(field => field !== undefined), 'Provide a course change.');
 export const academicItemSchema = z.object({ id: idSchema, courseId: idSchema.nullable(), title: z.string().min(1), kind: z.enum(['assignment', 'quiz', 'discussion', 'planner']), due: dueSchema.nullable(), submissionState: z.enum(['unsubmitted', 'submitted', 'graded', 'missing']).nullable(), source: z.string().min(1), externalId: z.string().min(1), mainGoalDate: dateSchema.nullable(), updatedAt: instantSchema });
 export const manualAcademicSource = 'manual' as const;
 export const studySessionDraftSchema = z.object({

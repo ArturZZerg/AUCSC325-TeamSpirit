@@ -1,8 +1,9 @@
 import type { z } from 'zod';
-import type { academicItemSchema, campusEventSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, sessionSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import type { academicItemSchema, campusEventSchema, courseSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, sessionSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 export type Priority = 'low' | 'medium' | 'high';
 export type PersonalTask = z.infer<typeof personalTaskSchema>;
 export type AcademicItem = z.infer<typeof academicItemSchema>;
+export type Course = z.infer<typeof courseSchema>;
 export type Goal = z.infer<typeof goalSchema>;
 export type CampusEvent = z.infer<typeof campusEventSchema>;
 export type WellnessEntry = z.infer<typeof wellnessEntrySchema>;
