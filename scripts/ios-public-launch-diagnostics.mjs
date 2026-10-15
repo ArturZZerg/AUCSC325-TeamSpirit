@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { openSync, closeSync, readSync, statSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import { openSync, closeSync, readSync, statSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -67,8 +67,13 @@ export function selectedHostPid(output, executable, priorPid) {
 
 /** A five-second sample of a React Native app can exceed a few megabytes. */
 export const sampleReportLimit = 16_777_216;
-// macOS may report a firmlinked path (/private/...) for the same installed file.
-const samePath = (left, right) => left.replace(/^\/private(?=\/)/, '') === right.replace(/^\/private(?=\/)/, '');
+// macOS may report a firmlinked (/private/...) or symlinked spelling of the same installed file.
+const resolved = file => { try { return realpathSync(file); } catch { return file; } };
+const spelling = file => resolved(file).replace(/^\/private(?=\/)/, '');
+const samePath = (left, right) => left === right || spelling(left) === spelling(right);
+/** The report's executable path, for evidence when it does not match. */
+export const reportedPath = report => typeof report === 'string'
+  ? report.split(/\r?\n/).find(line => /^Path:\s+/.test(line))?.replace(/^Path:\s+/, '').trim().slice(0, 400) : undefined;
 export function assertPublicLaunchSample(value, context, report, executable) {
   const graph = typeof report === 'string' ? report.split('Call graph:')[1]?.split('Binary Images:')[0] ?? '' : '';
   const lines = typeof report === 'string' ? report.split(/\r?\n/) : [];
@@ -147,7 +152,10 @@ async function run() {
       proof.result = 'captured';
     } catch (error) {
       proof.result = 'sample-failed'; proof.failureStage = sampleStage;
-      if (sampleStage === 'sample report validation') proof.validationError = String(error?.message ?? error).slice(0, 300);
+      if (sampleStage === 'sample report validation') {
+        proof.validationError = String(error?.message ?? error).slice(0, 300);
+        try { proof.reportedPath = reportedPath(readFileSync(rawSample, 'utf8')); proof.expectedPath = executable; } catch { /* evidence only */ }
+      }
     }
     finally {
       proof.sampleElapsedMs = Date.now() - sampleStarted;
