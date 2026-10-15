@@ -4,7 +4,7 @@ import { taskReminderDefaults, taskReminderRequest } from '../src/features/task-
 import { useAction, useTasks } from '../src/features/queries';
 import Tasks from '../app/(tabs)/tasks';
 import { snapshotFixture } from './snapshot-fixture';
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useTasks: jest.fn(), useAcademic: () => ({ data: [], isLoading: false }) }));
+jest.mock('../src/features/queries', () => ({ useCourses: () => ({ data: undefined }), useAction: jest.fn(), useTasks: jest.fn(), useAcademic: () => ({ data: [], isLoading: false }) }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { id: 'account-one', timeZone: 'America/Edmonton' } } }) }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
 const zone = 'America/Edmonton'; const task = snapshotFixture().personalTasks[0]; const save = jest.fn();

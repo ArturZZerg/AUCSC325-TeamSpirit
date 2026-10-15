@@ -86,7 +86,11 @@ export default function TodayScreen() {
   const tasks = useTasks(), academic = useAcademic(), courses = useCourses();
   const exams = isCurrentDay ? upcomingExams(academic.data, courses.data, date, query.timeZone, Date.now()) : [];
   const contextFor = (item: PlanItem): PlanRowContext | undefined => {
-    if (item.kind === 'personalTask') { const task = tasks.data?.find(row => row.id === item.entityId); return task && !task.recurrence ? { steps: checklistProgress(task) } : undefined; }
+    if (item.kind === 'personalTask') {
+      const task = tasks.data?.find(row => row.id === item.entityId), course = task?.courseId ? courses.data?.find(row => row.id === task.courseId) : undefined;
+      if (!task) return undefined;
+      return { ...(!task.recurrence ? { steps: checklistProgress(task) } : {}), ...(course ? { course: { label: course.code ?? course.name, color: courseColor(course) } } : {}) };
+    }
     if (item.kind !== 'academic') return undefined;
     const course = courses.data?.find(row => row.id === academic.data?.find(entry => entry.id === item.entityId)?.courseId);
     return course ? { course: { label: course.code ?? course.name, color: courseColor(course) } } : undefined;
@@ -141,7 +145,7 @@ export default function TodayScreen() {
 
     <UpNextCard next={isCurrentDay ? upNext(items, exams, date, query.timeZone, Date.now()) : undefined}/>
     <ExamCountdown exams={exams}/>
-    <QuickAddBar today={localDateAt(new Date(Date.now()).toISOString(), query.timeZone)} planDate={date} timeZone={query.timeZone} disabled={blocked || !!taskDraft}
+    <QuickAddBar courses={courses.data} today={localDateAt(new Date(Date.now()).toISOString(), query.timeZone)} planDate={date} timeZone={query.timeZone} disabled={blocked || !!taskDraft}
       onOpenEditor={values => setTaskDraft(values)}/>
     {query.data && !items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>
       <Text style={styles.meta}>Add a task, keep a deadline in sight, or choose one small routine.</Text>
@@ -174,7 +178,7 @@ export default function TodayScreen() {
     onPress={() => setTaskDraft({ scheduledMode: 'date', scheduledDate: date })} style={({ pressed }) => [styles.fab, pressed && styles.pressed, blocked && styles.dim]}>
     <Ionicons name="add" size={24} color="#fff"/><Text style={styles.fabText}>Add task</Text>
   </Pressable>}
-  {taskDraft && <TaskEditor task={null} timeZone={query.timeZone} initialValues={taskDraft} onClose={() => setTaskDraft(undefined)}/>}</Screen>;
+  {taskDraft && <TaskEditor task={null} timeZone={query.timeZone} courses={courses.data} initialValues={taskDraft} onClose={() => setTaskDraft(undefined)}/>}</Screen>;
 }
 
 function Section({ title, count }: { title: string; count: number }) {

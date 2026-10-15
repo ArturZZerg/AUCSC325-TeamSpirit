@@ -17,6 +17,10 @@ async function lockCourse(tx: Prisma.TransactionClient, userId: string, id: stri
   await lockAccountRecords(tx, userId);
   await tx.$queryRaw`SELECT "id" FROM "Course" WHERE "id" = ${id}::uuid AND "userId" = ${userId}::uuid FOR UPDATE`;
 }
+/** A task may reference only the caller's own course; null clears it. */
+async function ownedCourseId(tx: Prisma.TransactionClient, userId: string, courseId: string | null | undefined) {
+  if (courseId && !await tx.course.findFirst({ where: { id: courseId, userId }, select: { id: true } })) throw new NotFoundException('Course not found');
+}
 const checklistOf = (task: { checklist?: Prisma.JsonValue }) => z.array(checklistItemSchema).parse(task.checklist ?? []);
 const taskDto = (r:{id:string;title:string;description:string|null;priority:string;category:string;due:Prisma.JsonValue|null;scheduled:Prisma.JsonValue|null;recurrence:Prisma.JsonValue|null;reminder:Prisma.JsonValue|null;estimatedMinutes:number|null;completedAt:Date|null;snoozedUntil:Date|null;mainGoalDate:string|null;createdAt:Date;updatedAt:Date}) => personalTaskSchema.parse({...r,completedAt:r.completedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
 const goalDto = (r:{id:string;title:string;category:string;schedule:Prisma.JsonValue;timeZone:string;reminder:Prisma.JsonValue|null;pausedAt:Date|null;snoozedUntil:Date|null;createdAt:Date;updatedAt:Date}) => goalSchema.parse({...r,pausedAt:r.pausedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
@@ -110,8 +114,10 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
     // task semantics, so omitted defaults and reordered JSON replay identically.
     const requestHash = createHash('sha256').update(JSON.stringify({ title: b.title, description: b.description ?? null,
       priority: b.priority ?? 'medium', category: b.category ?? 'personal', due: canonicalTaskTime(b.due), scheduled: canonicalTaskTime(b.scheduled),
-      recurrence: b.recurrence ?? null, reminder: canonicalTaskTime(b.reminder), estimatedMinutes: b.estimatedMinutes ?? null })).digest('hex');
+      recurrence: b.recurrence ?? null, reminder: canonicalTaskTime(b.reminder), estimatedMinutes: b.estimatedMinutes ?? null,
+      ...(b.courseId ? { courseId: b.courseId } : {}) })).digest('hex');
     return this.prisma.$transaction(async tx => {
+      await ownedCourseId(tx, u.id, b.courseId);
       if (b.requestKey) {
         // Serialize account-scoped creation retries, following Focus/StudyPlan.
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${u.id}::uuid FOR UPDATE`;
@@ -128,7 +134,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
         priority: b.priority ?? 'medium', category: b.category ?? 'personal',
         due: b.due ? asJson(b.due) : Prisma.JsonNull, scheduled: b.scheduled ? asJson(b.scheduled) : Prisma.JsonNull,
         recurrence: b.recurrence ? asJson(b.recurrence) : Prisma.JsonNull,
-        reminder: b.reminder ? asJson(b.reminder) : Prisma.JsonNull, estimatedMinutes: b.estimatedMinutes ?? null,
+        reminder: b.reminder ? asJson(b.reminder) : Prisma.JsonNull, estimatedMinutes: b.estimatedMinutes ?? null, courseId: b.courseId ?? null,
       } });
       await this.reminders.replace(u.id, 'personalTask', task.id, b.reminder, tx);
       if (b.requestKey) await tx.taskCreationRequest.create({ data: { userId: u.id, requestKey: b.requestKey, requestHash, taskId: task.id } });
@@ -146,6 +152,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
       await this.lockTask(tx, u.id, id);
       const existing = await this.owned(tx, u.id, id);
       if (existing.studyPlanId && b.recurrence) throw new BadRequestException('Study plan sessions cannot repeat. Create a separate recurring task.');
+      await ownedCourseId(tx, u.id, b.courseId);
       if (b.recurrence && checklistOf(existing).length) throw new BadRequestException('Remove this task’s steps before making it repeat.');
       const recurrence = b.recurrence === undefined ? existing.recurrence : b.recurrence;
       if (existing.completedAt && !existing.recurrence && recurrence) throw new BadRequestException('Undo completion before making this task repeat');

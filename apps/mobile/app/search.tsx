@@ -56,7 +56,7 @@ function SearchContent({ timeZone }: { timeZone: string }) {
           <Text style={styles.meta} numberOfLines={1}>{kind.label}{result.detail && result.detail !== kind.label ? ` · ${result.detail.replace(/^Routine · /, '')}` : ''}</Text></View>
         <Ionicons name="chevron-forward" size={16} color={colors.muted}/>
       </Pressable>; })}
-  </ScrollView>{editing && <TaskEditor key={editing.id} task={editing} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}</Screen>;
+  </ScrollView>{editing && <TaskEditor key={editing.id} task={editing} timeZone={timeZone} courses={courses.data} onClose={() => setEditing(undefined)}/>}</Screen>;
 }
 
 const styles = StyleSheet.create({
