@@ -11,7 +11,7 @@ import type { AcademicItem } from '@/lib/types';
 
 export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClose, onSaved }: {
   item: AcademicItem | null; courses: { id: string; name: string; code: string | null; active: boolean }[];
-  timeZone: string; onClose(): void; onSaved(): void;
+  timeZone: string; onClose(): void; onSaved(message?: string): void;
 }) {
   const { date: today } = useTodayClock(timeZone);
   // The baseline and draft belong to the same opening. A background row change
@@ -20,16 +20,31 @@ export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClo
   const action = useAction(); const busy = useRef(false);
   const [saving, setSaving] = useState(false); const [error, setError] = useState<string>();
   const [values, setValues] = useState(() => academicFormDefaults(item, timeZone, today));
+  const [remind, setRemind] = useState(true);
   const validation = academicFormSchema(item, timeZone).safeParse(values);
   const request = validation.success ? academicFormRequest(validation.data, item, timeZone) : undefined;
   const update = <K extends keyof AcademicFormValues>(key: K, value: AcademicFormValues[K]) => setValues(previous => ({ ...previous, [key]: value }));
   const close = () => { if (!busy.current) onClose(); };
+  const showReminder = !item && values.kind === 'exam' && values.dueMode === 'instant';
   const save = async () => {
     if (busy.current) return;
     if (!validation.success) { setError(validation.error.issues[0].message); return; }
     if (!request) return;
     busy.current = true; setSaving(true); setError(undefined);
-    try { await action.mutateAsync(request); onSaved(); }
+    // Reminders need a timed deadline. A new exam asks for one the day before by default.
+    const wantsReminder = !item && remind && values.kind === 'exam' && values.dueMode === 'instant';
+    try {
+      const created = await action.mutateAsync(request) as AcademicItem | undefined;
+      if (wantsReminder && created?.id) {
+        try { await action.mutateAsync({ path: `/academic-items/${created.id}/reminder`, method: 'PUT', body: { leadMinutes: 1440 } }); }
+        catch {
+          // The exam is saved; never repeat its creation for a missing reminder.
+          onSaved('Exam added, but its reminder was not saved. Set one from the exam’s Reminder option.'); return;
+        }
+        onSaved('Exam added. We’ll remind you the day before.'); return;
+      }
+      onSaved();
+    }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not save your coursework. Try again.'); }
     finally { busy.current = false; setSaving(false); }
   };
@@ -59,6 +74,12 @@ export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClo
           {values.dueMode === 'instant' && <Field label="Deadline time" value={values.dueTime} onChangeText={value => update('dueTime', value)} placeholder="HH:MM" autoCorrect={false} editable={!saving}/>}
           <Text style={styles.meta}>{values.dueMode === 'date' ? 'Due by the end of this day.' : 'Times follow'} {timeZone}.</Text>
         </>}
+        {showReminder && <Pressable accessibilityRole="switch" accessibilityState={{ checked: remind, disabled: saving }}
+          accessibilityLabel="Remind me the day before" disabled={saving} onPress={() => setRemind(value => !value)} style={styles.toggle}>
+          <View style={[styles.box, remind && styles.boxOn]}>{remind && <Text style={styles.tick}>✓</Text>}</View>
+          <Text style={styles.toggleText}>Remind me the day before</Text>
+        </Pressable>}
+        {!item && values.kind === 'exam' && values.dueMode === 'date' && <Text style={styles.meta}>Add a time to get a reminder before this exam.</Text>}
         <Text style={styles.meta}>Save first, then use Plan study time to make room for preparation. Your changes need a connection.</Text>
         {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         {request === null && <Text style={styles.meta}>No changes to save.</Text>}
@@ -72,6 +93,11 @@ function Choice({ label, selected, disabled, onPress }: { label: string; selecte
     style={[styles.choice, selected && styles.selected, disabled && styles.disabled]}><Text style={[styles.choiceText, selected && styles.selectedText]}>{label}</Text></Pressable>;
 }
 const styles = StyleSheet.create({
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
+  box: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  boxOn: { backgroundColor: colors.moss, borderColor: colors.moss },
+  tick: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  toggleText: { color: colors.ink, fontSize: 15, fontWeight: '600' },
   safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: 20, paddingBottom: 40, gap: 16, maxWidth: 680, width: '100%', alignSelf: 'center' },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   kicker: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: .5 }, title: { color: colors.ink, fontSize: 28, lineHeight: 34, fontWeight: '800' },

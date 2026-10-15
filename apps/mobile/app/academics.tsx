@@ -133,9 +133,9 @@ function AcademicsContent() {
   }}/>}{reminding && <AcademicReminderEditor key={reminding.id} item={reminding} onClose={() => setReminding(undefined)}/>}
     {planning && <StudyPlanEditor key={planning.id} item={planning} course={byCourse.get(planning.courseId ?? '')?.code ?? byCourse.get(planning.courseId ?? '')?.name}
       timeZone={timeZone} onClose={() => setPlanning(undefined)} onSaved={() => { setPlanning(undefined); setStudySaved(true); }}/>}
-    {editing !== undefined && <AcademicItemEditor key={editing?.id ?? 'new'} item={editing} courses={courses.data ?? []} timeZone={timeZone} onClose={() => setEditing(undefined)} onSaved={() => {
+    {editing !== undefined && <AcademicItemEditor key={editing?.id ?? 'new'} item={editing} courses={courses.data ?? []} timeZone={timeZone} onClose={() => setEditing(undefined)} onSaved={message => {
       if (!editing) { setSearch(''); setCourseId(undefined); setView('open'); }
-      setSavedMessage(editing ? 'Coursework updated.' : 'Coursework added. You can plan study time from it below.'); setEditing(undefined);
+      setSavedMessage(message ?? (editing ? 'Coursework updated.' : 'Coursework added. You can plan study time from it below.')); setEditing(undefined);
     }}/>}
     {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!busy.current) setDeleting(undefined); }}>
       <SafeAreaView style={styles.confirm}><Card><Text style={styles.section}>Delete coursework?</Text><Text style={styles.meta}>Delete “{deleting.title}” and its reminder? Preparation tasks you already planned stay in Tasks.</Text>

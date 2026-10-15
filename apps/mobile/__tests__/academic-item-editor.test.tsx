@@ -64,3 +64,28 @@ it('keeps the opening baseline alongside its draft when refreshed props arrive',
   expect(save.mock.calls[0][0].body).toEqual({ title: 'Draft title' });
 });
 it('cancels without creating a record', () => { show(); fireEvent.press(screen.getByText('Cancel')); expect(close).toHaveBeenCalledTimes(1); expect(save).not.toHaveBeenCalled(); });
+it('asks for a day-before reminder when adding a timed exam', async () => {
+  save.mockResolvedValueOnce({ id: 'exam-1' }).mockResolvedValueOnce({}); show();
+  fireEvent.changeText(screen.getByLabelText('Coursework title'), 'Midterm'); fireEvent.press(screen.getByRole('radio', { name: 'Exam' }));
+  fireEvent.press(screen.getByRole('radio', { name: 'Date & time' })); fireEvent.press(screen.getByRole('radio', { name: 'Tomorrow' }));
+  fireEvent.changeText(screen.getByLabelText('Deadline time'), '09:00');
+  expect(screen.getByRole('switch', { name: 'Remind me the day before', checked: true })).toBeOnTheScreen();
+  await act(async () => fireEvent.press(screen.getByText('Add coursework')));
+  expect(save).toHaveBeenLastCalledWith({ path: '/academic-items/exam-1/reminder', method: 'PUT', body: { leadMinutes: 1440 } });
+  expect(saved).toHaveBeenCalledWith('Exam added. We’ll remind you the day before.');
+});
+it('keeps a created exam when its reminder fails and skips reminders when switched off', async () => {
+  save.mockResolvedValueOnce({ id: 'exam-1' }).mockRejectedValueOnce(new Error('Offline')); show();
+  fireEvent.changeText(screen.getByLabelText('Coursework title'), 'Midterm'); fireEvent.press(screen.getByRole('radio', { name: 'Exam' }));
+  fireEvent.press(screen.getByRole('radio', { name: 'Date & time' })); fireEvent.changeText(screen.getByLabelText('Deadline time'), '09:00');
+  await act(async () => fireEvent.press(screen.getByText('Add coursework')));
+  expect(save).toHaveBeenCalledTimes(2); expect(saved).toHaveBeenCalledWith(expect.stringMatching(/its reminder was not saved/));
+  saved.mockClear(); save.mockClear().mockResolvedValue({ id: 'exam-2' });
+  fireEvent.press(screen.getByRole('switch', { name: 'Remind me the day before' }));
+  await act(async () => fireEvent.press(screen.getByText('Add coursework')));
+  expect(save).toHaveBeenCalledTimes(1); expect(saved).toHaveBeenCalledWith();
+});
+it('offers no reminder for a date-only exam', () => {
+  show(); fireEvent.press(screen.getByRole('radio', { name: 'Exam' })); fireEvent.press(screen.getByRole('radio', { name: 'Day only' }));
+  expect(screen.queryByRole('switch')).toBeNull(); expect(screen.getByText('Add a time to get a reminder before this exam.')).toBeOnTheScreen();
+});
