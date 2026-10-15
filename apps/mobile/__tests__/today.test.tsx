@@ -8,7 +8,7 @@ import type { PlanItem, Today } from '../src/lib/types';
 jest.mock('@expo/vector-icons/Ionicons', () => () => null);
 jest.mock('expo-router', () => ({ useLocalSearchParams: jest.fn(), router: { push: jest.fn() } }));
 jest.mock('../src/features/day-agenda', () => ({ DayAgenda: () => null }));
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useToday: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useTasks: () => ({ data: undefined }), useAcademic: () => ({ data: undefined }), useCourses: () => ({ data: undefined }), useAction: jest.fn(), useToday: jest.fn() }));
 
 const date = '2026-10-03';
 const task: PlanItem = {

@@ -59,6 +59,7 @@ it('archives and restores a manual course and opens course details', async () =>
 it('shows a current grade in the list once something is graded', () => {
   show([{ ...manual, assessments: [{ id: '70000000-0000-4000-8000-000000000001', title: 'Midterm', weight: 30, score: 82 }] }]);
   render(<CoursesScreen/>); expect(screen.getByText('Current grade 82%')).toBeOnTheScreen();
+  expect(screen.getByText('82%')).toBeOnTheScreen(); expect(screen.getByText('Average current grade across 1 course with graded work')).toBeOnTheScreen();
 });
 it('offers an empty state', () => {
   show([]); render(<CoursesScreen/>); expect(screen.getByText('Add your first course.')).toBeOnTheScreen();

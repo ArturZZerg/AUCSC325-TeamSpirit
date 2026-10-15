@@ -12,9 +12,12 @@ export const kindColors: Record<PlanItem['kind'], string> = { academic: colors.b
 const kindIcons: Record<PlanItem['kind'], IconName> = { academic: 'school-outline', personalTask: 'checkbox-outline', goal: 'repeat-outline', event: 'calendar-outline' };
 
 /** One checklist row. The screen owns the mutations; the row only reports intent. */
-export function PlanRow({ item, timeZone, date, isCurrentDay, disabled, pendingAction, error, onAction }: {
+/** Optional context joined from cached lists; absent data simply hides the extra detail. */
+export type PlanRowContext = { course?: { label: string; color: string }; steps?: { done: number; total: number } };
+
+export function PlanRow({ item, timeZone, date, isCurrentDay, disabled, pendingAction, error, onAction, context }: {
   item: PlanItem; timeZone: string; date: string; isCurrentDay: boolean; disabled: boolean;
-  pendingAction?: PlanAction; error?: string; onAction: (action: PlanAction) => void;
+  pendingAction?: PlanAction; error?: string; onAction: (action: PlanAction) => void; context?: PlanRowContext;
 }) {
   const work = item.kind === 'personalTask' || item.kind === 'goal';
   const canComplete = work && item.allowedActions.includes('complete');
@@ -39,12 +42,14 @@ export function PlanRow({ item, timeZone, date, isCurrentDay, disabled, pendingA
       <View style={styles.body}>
         <View style={styles.labels}>
           {item.isMainGoal && <Text style={styles.star}>★ MAIN GOAL</Text>}
-          <View style={[styles.dot, { backgroundColor: accent }]}/><Text style={[styles.kind, { color: accent }]}>{kindLabels[item.kind].toUpperCase()}</Text>
+          <View style={[styles.dot, { backgroundColor: context?.course?.color ?? accent }]}/>
+          <Text style={[styles.kind, { color: context?.course?.color ?? accent }]}>{(context?.course?.label ?? kindLabels[item.kind]).toUpperCase()}</Text>
           {state && <Text style={[styles.chip, item.state === 'overdue' && styles.overdue]}>{state}</Text>}
           {item.priority === 'high' && !muted && <Text style={[styles.chip, styles.high]}>High priority</Text>}
         </View>
         <Text style={[styles.title, muted && styles.done]}>{item.title}</Text>
         {timing && <Text style={[styles.meta, item.state === 'overdue' && styles.overdueText]}>{timing}</Text>}
+        {!!context?.steps?.total && <Text style={styles.meta} accessibilityLabel={`${context.steps.done} of ${context.steps.total} steps done`}>{context.steps.done}/{context.steps.total} steps</Text>}
       </View>
     </View>
     {(canFocus || canSkip || canSnooze) && <View style={styles.actions}>
