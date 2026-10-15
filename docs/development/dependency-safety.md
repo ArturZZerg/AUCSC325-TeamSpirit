@@ -15,6 +15,7 @@ stack. Review [production readiness](production-readiness.md) separately.
 | `deepmerge-ts` | 7.1.5 → 8.0.2 | Scoped to `@prisma/config@6.19.0`; plain nested configuration, circular-input safety and actual Prisma config validation tested. |
 | `effect` | 3.18.4 → 3.20.0 | Scoped to the same Prisma configuration loader; patched same-major API, real CLI generation/validation/migration. No Effect RPC server exists in CampusFlow. |
 | `handlebars` | 4.7.9 → 4.7.10 | Existing ts-jest range; template compatibility/AST rejection and full transformer-driven test suites. |
+| `uuid` through `xcode` 3.0.1 | 7.0.3 → 11.1.1 | Narrow Xcode override, with the existing generator declared as root dev tooling so npm applies it. Actual CommonJS project generation/write/parse and ordinary/bounded UUID tests pass after normal clean installation; native build/acceptance remains required for this follow-up. |
 
 Primary patch references:
 [shell quoting](https://github.com/advisories/GHSA-pqg4-j6r4-53mv),
@@ -41,13 +42,52 @@ The public `deepmerge` export and CommonJS/ESM loading remain supported. See the
 Reassess/remove these two overrides when upgrading Prisma; do not carry them
 blindly across a major ORM migration.
 
+## Xcode UUID follow-up
+
+The iOS project generator uses CommonJS `require('uuid').v4()`; the reviewed
+[advisory](https://github.com/advisories/GHSA-w5hq-g745-h8pq) concerns external
+output buffers in v3/v5/v6. This is a build-tool repair, not evidence of a
+remotely reachable CampusFlow API vulnerability. UUID 11.1.1 is patched and
+retains CommonJS; version 12 removes it ([11.1.1 API](https://github.com/uuidjs/uuid/blob/v11.1.1/README.md),
+[12.0.0 release](https://github.com/uuidjs/uuid/releases/tag/v12.0.0)).
+
+An override alone was ineffective across the real workspace graph. The existing
+Xcode 3.0.1 package is therefore also declared as root dev tooling, as with the
+earlier Prisma loader repair. Expo's config-plugin consumer and Xcode actually
+resolve UUID 11.1.1 after normal `npm ci`. Only the root and UUID lock entries
+change; unrelated platform metadata and other package versions are retained.
+Expo SDK 55 and application code are unchanged. Remove/reassess the direct
+tooling declaration and override when the installed Xcode/Expo parent supports
+a patched dependency range.
+
+Before repair, normal project/UUID generation passes but the bounds test fails
+because the old dependency silently accepts an undersized output buffer.
+Afterward all eight dependency compatibility cases pass: 100 unique 24-hex
+references survive writing/reparsing, ordinary UUID buffers retain their padding,
+and v3/v5/v6 reject undersized, excessive-offset and negative-offset writes before
+modifying buffers. Full checks, exports and actual native compilation/acceptance
+remain separate requirements before merging.
+
+Local verification exposed an existing mixed-separator Windows API test glob:
+the absolute `<rootDir>` pattern discovered zero tests in this checkout. The
+API Jest configuration now uses the same `test/**/*.spec.ts` scope through a
+portable glob within its existing project root. All 657 cases are discovered;
+400 run locally and 257 database cases require the real PostgreSQL CI service.
+No application test is removed or allowed to pass with zero discovery.
+
+The actual clean-installed full audit falls from 60 to 53 affected package
+entries (zero critical, 45 high, eight moderate); `--omit=dev` falls from 56 to
+49 (zero critical, 41 high, eight moderate). UUID is absent from both reports.
+These totals include affected parents; four leaf advisories remain. Audit flags
+do not establish the production-container package set.
+
 ## Unresolved advisories
 
-Primary advisory records refreshed on 2026-10-14 still list no patched version
-for braces, node-forge or sprintf-js. The decoder fix remains 0.5.0, and uuid
-lists 11.1.1/12.0.1/13.0.1 as patched versions. This refresh does not establish
-a compatible upgrade through the locked Expo/Xcode parents or resolve any of
-the five release dispositions below. No dependency or lockfile is changed.
+The primary advisory refresh on 2026-10-14 lists no patched version for braces,
+node-forge or sprintf-js. The decoder fix remains 0.5.0, outside its current
+CommonJS parent's range. The Xcode UUID repair above removes that fifth leaf
+from the installed graph; it does not resolve the four dispositions below or
+replace actual native/production verification.
 
 | Package/path | Current evidence | Release implication |
 | --- | --- | --- |
@@ -55,7 +95,6 @@ the five release dispositions below. No dependency or lockfile is changed.
 | `node-forge` 1.4.0 through Expo CLI/code-signing tools | [Upstream advisory](https://github.com/advisories/GHSA-86w9-cpqp-85rv) lists no patched version; registry latest remains 1.4.0 | Malformed PKCS#1 signature verification is a tooling risk. No API/app source imports this package. Do not describe it as a remotely reachable CampusFlow API bug or as resolved; signing/OTA acceptance remains pending. |
 | `decode-uri-component` 0.2.2 through query-string 7 / Expo Router | [Advisory](https://github.com/advisories/GHSA-vcc3-ghjq-m6fr); fixed 0.5 changes to ESM outside the parent's CommonJS `^0.2.2` range. Router 55.0.18 is the latest SDK 55 release checked on 2026-10-12. Its inspected callers use `stringify`; its incoming query parser uses `URLSearchParams`. Installed-parser regressions cover ordinary focus/account links and bounded malformed encodings with a throwing decoder canary. | These exercised parser/serializer paths do not invoke the older decoder. This does not remove the bundled dependency or prove all links, the mounted app, or hardware acceptance safe. Keep it tracked until a supported upstream fix and native malicious-link acceptance. Do not claim the mobile/web bundle clean. |
 | `sprintf-js` 1.0.3 through argparse 1 | [Advisory](https://github.com/advisories/GHSA-hp3w-g68c-fv3c) lists no patch, including latest 1.1.3; parent restricts `~1.0.2` | Track a supported parser/toolchain repair; current app source does not take user format strings. |
-| `uuid` 7.0.3 through xcode 3 | [Advisory](https://github.com/advisories/GHSA-w5hq-g745-h8pq); old iOS tooling range | Upgrade through a supported Xcode/Expo path and verify on a supported iOS host. App UUID validation and API ID generation do not use xcode's package. |
 
 Do not force npm's suggested Expo 44 downgrade, override the entire SDK graph,
 suppress findings or label the unresolved audit clean. Workspace-only `npm audit`
@@ -153,7 +192,7 @@ This uses npm's [documented dependency omission options](https://docs.npmjs.com/
 without manually deleting transitive package directories or forcing upgrades.
 
 The rebuilt runtime contains 106 inventoried packages, and none of the five
-currently tracked leaf packages. Image size falls from 184,612,563 to 123,957,347
+leaf packages reviewed at that time. Image size falls from 184,612,563 to 123,957,347
 bytes (about 33%). This removes the observed toolchain paths from this API image.
 All 106 inventoried versions match the committed root lockfile.
 The mobile/build lockfile advisories and their release gates still apply. The

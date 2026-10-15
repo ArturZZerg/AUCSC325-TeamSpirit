@@ -3,6 +3,16 @@
 Status: PR #62 merged after author self-review, local validation and both
 exact-head Linux CI checks passed, following release-readiness PR #61.
 
+Current Xcode/UUID follow-up: keep Xcode 3.0.1/Expo SDK 55 and scope UUID 11.1.1
+to that consumer, declaring the existing generator as root dev tooling so npm
+honors the workspace override. Require real clean installation and consumer
+resolution, project generation/write/reparse, ordinary UUID output and rejection
+of unsafe caller buffers. The pre-patch bounds regression must fail. Record
+60 → 53 full / 56 → 49 dev-omission affected entries without calling the four
+remaining leaf advisories clean. Full checks, fresh web/Android artifacts,
+exact-source native iOS proof, production-container/restore CI and review remain
+required before merge. No application, API, schema or framework migration.
+
 The pre-repair 2026-10-11 installed-lockfile npm audit (`--omit=dev`) reported 64 affected
 package entries: 1 critical, 48 high and 15 moderate. These totals include parent
 packages and toolchain dependencies brought in by Expo/React Native; they are not

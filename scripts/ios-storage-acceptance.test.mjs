@@ -48,6 +48,7 @@ const offlineLog = () => loginLog().replaceAll('CAMPUSFLOW_LOGIN_', 'CAMPUSFLOW_
   .replace('EMAIL_AND_NEXT', 'RESTORED').replace('PASSWORD_AND_HIDE', 'UNAVAILABLE').replace('OFFLINE_TODAY', 'OFFLINE_RETURNED')
   .replace('testOrdinaryNativeLogin', 'testOfflineRecovery');
 const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed', cleanup: 'passed',
+  signedOut: { serverRevocation: 'observed', ownedCacheRows: 0, appTermination: 'after revocation and cache proof' },
   nativeLogin: verifyNativeLogin(loginLog(), loginContext),
   nativeOfflineRecovery: verifyNativeOfflineRecovery(offlineLog(), loginContext),
   dayReview: { cancel: 'unchanged', save: 'tomorrow with deadline retained', taskCount: 2, studySeconds: 1500, studyBlocks: 1 }, checks: [
@@ -66,6 +67,10 @@ test('rejects missing, partial, replayed and failed proof without echoing privat
   for (const value of [undefined, {}, { ...complete(), result: 'failed' }, { ...complete(), cleanup: undefined },
     { ...complete(), commit: 'b'.repeat(40) }, { ...complete(), api: privateValue }, { ...complete(), failedStage: privateValue },
     { ...complete(), failureDiagnostics: { activeSessions: 1, ownedTasks: 0 } },
+    { ...complete(), signedOut: undefined },
+    { ...complete(), signedOut: { ...complete().signedOut, serverRevocation: undefined } },
+    { ...complete(), signedOut: { ...complete().signedOut, ownedCacheRows: 1 } },
+    { ...complete(), signedOut: { ...complete().signedOut, appTermination: 'before revocation' } },
     { ...complete(), nativeLogin: undefined }, { ...complete(), nativeLogin: { ...complete().nativeLogin, commit: 'b'.repeat(40) } },
     { ...complete(), nativeLogin: { ...complete().nativeLogin, result: 'failed' } },
     { ...complete(), nativeLogin: { ...complete().nativeLogin, checks: loginMarkers.slice(0, 3) } },
