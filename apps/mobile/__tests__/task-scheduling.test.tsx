@@ -5,7 +5,7 @@ import { TaskEditor } from '../src/features/task-editor';
 import { useAction, useTasks } from '../src/features/queries';
 import Tasks from '../app/(tabs)/tasks';
 import { snapshotFixture } from './snapshot-fixture';
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useTasks: jest.fn(), useAcademic: () => ({ data: [], isLoading: false }) }));
+jest.mock('../src/features/queries', () => ({ useCourses: () => ({ data: undefined }), useAction: jest.fn(), useTasks: jest.fn(), useAcademic: () => ({ data: [], isLoading: false }) }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { timeZone: 'America/Edmonton' } } }) }));
 // These are isolated field/action tests; the real online editor gate is covered
 // with real useAction in task-edit-freshness.test.tsx.

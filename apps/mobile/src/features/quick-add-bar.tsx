@@ -6,20 +6,21 @@ import { colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import { parseQuickAdd } from './quick-add';
 import { taskFormDefaults, taskFormRequest, type TaskFormValues } from './task-form';
+import type { Course } from '@/lib/types';
 
 /**
  * One-line capture: type, review the recognised details, press Add. Saving uses
  * the editor's request builder, so the same validation and account-zone
  * conversion apply. "Details" hands the parsed draft to the full editor.
  */
-export function QuickAddBar({ today, planDate, timeZone, disabled, onOpenEditor }: {
-  today: string; planDate: string; timeZone: string; disabled?: boolean; onOpenEditor(values: Partial<TaskFormValues>): void;
+export function QuickAddBar({ today, planDate, timeZone, disabled, onOpenEditor, courses }: {
+  today: string; planDate: string; timeZone: string; disabled?: boolean; onOpenEditor(values: Partial<TaskFormValues>): void; courses?: readonly Course[];
 }) {
   const action = useAction();
   const saving = useRef(false);
   const [text, setText] = useState('');
   const [message, setMessage] = useState<{ tone: 'error' | 'done'; text: string }>();
-  const parsed = text.trim() ? parseQuickAdd(text, today, planDate) : undefined;
+  const parsed = text.trim() ? parseQuickAdd(text, today, planDate, courses) : undefined;
   const busy = action.isPending || saving.current;
   const add = async () => {
     if (disabled || !parsed || saving.current || action.isPending) return;

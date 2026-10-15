@@ -97,7 +97,7 @@ function CalendarContent({ timeZone, accountId }: { timeZone: string; accountId:
       {selected >= today && <Pressable accessibilityRole="button" onPress={() => setDraft({ scheduledMode: 'date', scheduledDate: selected })} style={styles.action}>
         <Ionicons name="add" size={18} color="#fff"/><Text style={styles.actionText}>Add task on this day</Text></Pressable>}
     </View>
-  </ScrollView>{draft && <TaskEditor task={null} timeZone={timeZone} initialValues={draft} onClose={() => setDraft(undefined)}/>}</Screen>;
+  </ScrollView>{draft && <TaskEditor task={null} timeZone={timeZone} courses={courses.data} initialValues={draft} onClose={() => setDraft(undefined)}/>}</Screen>;
 }
 
 function EntryRow({ entry, timeZone, course }: { entry: CalendarEntry; timeZone: string; course?: Course }) {

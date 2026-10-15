@@ -1,6 +1,6 @@
 import { addCalendarDays } from '@campusflow/domain';
 import { dateSchema } from '@campusflow/contracts';
-import type { PersonalTask } from '@/lib/types';
+import type { Course, PersonalTask } from '@/lib/types';
 import type { TaskFormValues } from './task-form';
 
 export type QuickAddResult = {
@@ -88,15 +88,23 @@ const tidy = (text: string) => text.replace(/\s+/g, ' ').replace(/(^|\s)(at|on|d
  * planned day. Times stay wall-clock values; the editor's validation converts
  * them in the account zone and rejects missing or repeated DST times.
  */
-export function parseQuickAdd(input: string, today: string, planDate = today): QuickAddResult {
+export function parseQuickAdd(input: string, today: string, planDate = today, courses?: readonly Course[]): QuickAddResult {
   let text = ` ${input.trim()} `;
   const values: Partial<TaskFormValues> = {}, details: string[] = [];
   for (const [token, priority] of Object.entries(priorities)) {
     const found = take(text, token.replace(/[!]/g, '\\!'));
     if (found) { text = found.rest; values.priority = priority; details.push(`${priority[0].toUpperCase()}${priority.slice(1)} priority`); break; }
   }
-  const tag = take(text, '#([a-z]+)');
-  if (tag && categoryAliases[tag.groups[0].toLowerCase()]) {
+  // A #tag naming one active course (by code, e.g. #psy223 or #psy) links the task to it;
+  // otherwise known category aliases apply.
+  const tag = take(text, '#([a-z0-9]+)');
+  const key = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const course = tag && courses?.filter(row => row.active && row.code).filter(row => key(row.code!) === key(tag.groups[0])
+    || (key(tag.groups[0]).length >= 3 && key(row.code!).startsWith(key(tag.groups[0])))) ;
+  if (tag && course?.length === 1) {
+    text = tag.rest; values.courseId = course[0].id; values.category = 'university';
+    details.push(course[0].code!);
+  } else if (tag && categoryAliases[tag.groups[0].toLowerCase()]) {
     text = tag.rest; values.category = categoryAliases[tag.groups[0].toLowerCase()];
     details.push(values.category[0].toUpperCase() + values.category.slice(1));
   }

@@ -34,3 +34,8 @@ account export includes both.
 
 Colours are presentation data, not a theme system. Merging a manual course with a
 later Canvas import is out of scope; both can coexist.
+
+## Addendum — tasks linked to courses (2026-10-15)
+
+Personal tasks gain an optional `courseId` with the same ownership rule as manual
+coursework and `ON DELETE SET NULL`, so deleting a course keeps its tasks.
