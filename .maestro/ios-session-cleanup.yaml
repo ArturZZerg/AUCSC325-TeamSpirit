@@ -15,4 +15,6 @@ name: iOS online sign-out and private cleanup
     visible: Welcome back
     timeout: 30000
 - assertNotVisible: Retry device cleanup
-- stopApp
+# Keep the signed-out app alive for its bounded best-effort server revocation.
+# The harness verifies server/cache cleanup, then explicitly terminates this app
+# before the API-disconnected cold signed-out check.

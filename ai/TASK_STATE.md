@@ -37,6 +37,17 @@ while native `38683801635` remains independently tracked. Earlier failed native
 attempts below retain their failed outcomes. Original production gates and
 source-local/no-physical-device/no-new-account-delete constraints remain active.
 
+That exact-main native run subsequently fails at sign-out cleanup: both native
+login/offline-recovery proofs and day review pass, and all cleanup UI commands
+complete, but the server still has two unrevoked sessions after the flow stops
+the app. Process cleanup passes; post-sign-out cache removal and final cold state
+are unaccepted. Existing local logout intentionally does not await its bounded
+best-effort server request. The harness now keeps the app running until server
+revocation and zero cache rows are observed, explicitly terminates it afterward,
+then performs the unchanged API-disconnected cold check. Passing proof requires
+that order. No app authentication policy or original acceptance gate changes.
+The observed failure permits this ordering race; its sole cause is not asserted.
+
 ### Coursework edit preservation — merged #102 validation history
 
 The accepted outcome is recorded above. The chronology below preserves earlier

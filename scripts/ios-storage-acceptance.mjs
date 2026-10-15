@@ -72,7 +72,9 @@ export function assertStorageAcceptanceProof(value, commit, context) {
     || !Array.isArray(value.checks) || value.checks.length !== requiredChecks.length
     || !value.checks.every((check, index) => check === requiredChecks[index])
     || value.dayReview?.cancel !== 'unchanged' || value.dayReview?.save !== 'tomorrow with deadline retained'
-    || value.dayReview?.taskCount !== 2 || value.dayReview?.studySeconds !== 1500 || value.dayReview?.studyBlocks !== 1)
+    || value.dayReview?.taskCount !== 2 || value.dayReview?.studySeconds !== 1500 || value.dayReview?.studyBlocks !== 1
+    || value.signedOut?.serverRevocation !== 'observed' || value.signedOut?.ownedCacheRows !== 0
+    || value.signedOut?.appTermination !== 'after revocation and cache proof')
     throw new Error('Incomplete iOS storage acceptance proof for this source commit.');
   for (const [key, stages] of [['nativeLogin', loginStages], ['nativeOfflineRecovery', offlineStages]]) {
     const native = value[key];
@@ -418,6 +420,12 @@ async function run() {
     assert.equal(await prisma.personalTask.count({ where: { userId: session.user.id, id: task.id } }), 1);
     assert.equal(await prisma.personalTask.count({ where: { userId: session.user.id, id: reviewTask.id } }), 1);
     assert.equal(cachedCount(), 0);
+    // Local logout deliberately returns without awaiting its bounded network
+    // request. Terminating at the Auth screen could cancel that request before
+    // the online-revocation assertion observes it. Preserve every assertion and
+    // stop only after both server and owned-cache cleanup have been proved.
+    await command('xcrun', ['simctl', 'terminate', config.udid, 'com.campusflow.mobile'], 'stop-after-logout-proof');
+    proof.signedOut = { serverRevocation: 'observed', ownedCacheRows: 0, appTermination: 'after revocation and cache proof' };
     check('native sign-out revocation, zero owned SQLite rows, and retained server task');
     stage = 'offline cold signed-out state'; await stopApi(); await unusedPort(3000);
     await flow('ios-session-signed-out');
