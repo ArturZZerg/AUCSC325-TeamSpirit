@@ -39,9 +39,9 @@ export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClo
         <View style={styles.heading}><Text style={styles.kicker}>MY COURSEWORK</Text><Button title="Cancel" tone="plain" disabled={saving} onPress={close}/></View>
         <Text style={styles.title}>{item ? 'Update your deadline.' : 'One less thing to remember.'}</Text>
         <Text style={styles.meta}>Keep track of work from a syllabus, lecture or another learning platform.</Text>
-        <Field label="Coursework title" value={values.title} onChangeText={value => update('title', value)} editable={!saving} placeholder="Essay, problem set or quiz"/>
+        <Field label="Coursework title" value={values.title} onChangeText={value => update('title', value)} editable={!saving} placeholder="Essay, quiz or midterm exam"/>
         <Text style={styles.section}>What kind of work?</Text>
-        <View style={styles.choices}>{([{ value: 'assignment', label: 'Assignment' }, { value: 'quiz', label: 'Quiz' }, { value: 'discussion', label: 'Discussion' }, { value: 'planner', label: 'Other work' }] as const)
+        <View style={styles.choices}>{([{ value: 'assignment', label: 'Assignment' }, { value: 'quiz', label: 'Quiz' }, { value: 'exam', label: 'Exam' }, { value: 'discussion', label: 'Discussion' }, { value: 'planner', label: 'Other work' }] as const)
           .map(option => <Choice key={option.value} label={option.label} selected={values.kind === option.value} disabled={saving} onPress={() => update('kind', option.value)}/>)}</View>
         <Text style={styles.section}>Course (optional)</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choices}>

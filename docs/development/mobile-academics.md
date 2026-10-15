@@ -72,3 +72,12 @@ what average is needed on the remaining work, plus the course's assessments and
 coursework. Assessments are added and scored in `assessment-editor.tsx`; weights
 and scores accept `30`, `7,5` or `88%`. Calculation: `gradeSummary` in the domain
 package (ADR 016).
+
+## Exams
+
+Manual coursework can be an **Exam** (contracts `kind: 'exam'`; Canvas mapping is
+unchanged). Exam study plans default to five revision sessions over up to two
+weeks, ending the day before the exam. Today shows **Exams ahead**: unfinished
+exams from today through 14 days in the account zone (timed exams drop off once
+they start), soonest first, with course code/colour and a countdown that turns
+coral within two days (`src/features/exams.ts`, `exam-countdown.tsx`).
