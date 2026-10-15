@@ -12,6 +12,11 @@ import { PrismaService } from './prisma.service';
 import { academicReminderFireAt, goalOccursOn, reminderAfterSnooze, taskOccursOn } from '@campusflow/domain';
 
 const asJson = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
+/** Account deletion guard plus an exclusive course row lock for read-modify-write edits. */
+async function lockCourse(tx: Prisma.TransactionClient, userId: string, id: string) {
+  await lockAccountRecords(tx, userId);
+  await tx.$queryRaw`SELECT "id" FROM "Course" WHERE "id" = ${id}::uuid AND "userId" = ${userId}::uuid FOR UPDATE`;
+}
 const checklistOf = (task: { checklist?: Prisma.JsonValue }) => z.array(checklistItemSchema).parse(task.checklist ?? []);
 const taskDto = (r:{id:string;title:string;description:string|null;priority:string;category:string;due:Prisma.JsonValue|null;scheduled:Prisma.JsonValue|null;recurrence:Prisma.JsonValue|null;reminder:Prisma.JsonValue|null;estimatedMinutes:number|null;completedAt:Date|null;snoozedUntil:Date|null;mainGoalDate:string|null;createdAt:Date;updatedAt:Date}) => personalTaskSchema.parse({...r,completedAt:r.completedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
 const goalDto = (r:{id:string;title:string;category:string;schedule:Prisma.JsonValue;timeZone:string;reminder:Prisma.JsonValue|null;pausedAt:Date|null;snoozedUntil:Date|null;createdAt:Date;updatedAt:Date}) => goalSchema.parse({...r,pausedAt:r.pausedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
@@ -330,7 +335,8 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  // name/code/active state from the integration; only their colour is editable.
  @Post('courses') async createCourse(@CurrentUser() u: RequestUser, @Body(new ZodPipe(createCourseSchema)) b: z.infer<typeof createCourseSchema>) {
    return this.prisma.$transaction(async tx => {
-     await lockAccountRecords(tx, u.id);
+     // Serialize account-scoped creation so retries and the course limit cannot race.
+     await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${u.id}::uuid FOR UPDATE`;
      const existing = await tx.course.findUnique({ where: { id: b.id } });
      if (existing) {
        if (existing.userId !== u.id || existing.source !== manualCourseSource || existing.name !== b.name) throw new ConflictException('This course ID belongs to a different course.');
@@ -343,7 +349,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  }
  @Patch('courses/:id') async updateCourse(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(updateCourseSchema)) b: z.infer<typeof updateCourseSchema>) {
    return this.prisma.$transaction(async tx => {
-     await lockAccountRecords(tx, u.id);
+     await lockCourse(tx, u.id, id);
      const course = await tx.course.findFirst({ where: { id, userId: u.id } });
      if (!course) throw new NotFoundException('Course not found');
      if (course.source !== manualCourseSource && (b.name !== undefined || b.code !== undefined || b.active !== undefined)) {
@@ -354,7 +360,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  }
  @Delete('courses/:id') async deleteCourse(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {
    return this.prisma.$transaction(async tx => {
-     await lockAccountRecords(tx, u.id);
+     await lockCourse(tx, u.id, id);
      const course = await tx.course.findFirst({ where: { id, userId: u.id } });
      if (!course) return { deleted: true };
      if (course.source !== manualCourseSource) throw new BadRequestException('Imported courses follow Canvas and can’t be deleted here.');

@@ -65,7 +65,12 @@ databaseSuite('student-created courses', () => {
     expect(await db.course.findUnique({ where: { id } })).not.toBeNull();
     await create({ id, name: 'Private' }, otherToken).expect(409);
     await client().patch(`/courses/${id}`).set('Authorization', token).send({}).expect(400);
-    await db.course.createMany({ data: Array.from({ length: 40 }, (_, index) => ({ userId, source: 'manual', externalId: randomUUID(), name: `Bulk ${index}` })) });
+    // Concurrent creates near the limit cannot overshoot it.
+    const existing = await db.course.count({ where: { userId, source: 'manual' } });
+    await db.course.createMany({ data: Array.from({ length: 38 - existing }, (_, index) => ({ userId, source: 'manual', externalId: randomUUID(), name: `Bulk ${index}` })) });
+    const racing = await Promise.all(Array.from({ length: 5 }, (_, index) => create({ id: randomUUID(), name: `Race ${index}` })));
+    expect(racing.filter(response => response.status === 201)).toHaveLength(2);
+    expect(await db.course.count({ where: { userId, source: 'manual' } })).toBe(40);
     await create({ id: randomUUID(), name: 'One too many' }).expect(400);
   });
 });
