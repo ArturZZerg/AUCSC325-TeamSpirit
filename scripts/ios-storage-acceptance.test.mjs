@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { once, EventEmitter } from 'node:events';
 import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary, saveFlowTimeline,
-  stopOwnedApiProcess, assertStorageAcceptanceProof, assertDayReviewTasks, privateHierarchyShape, privateFailureCounts } from './ios-storage-acceptance.mjs';
+  stopOwnedApiProcess, assertStorageAcceptanceProof, assertDayReviewTasks, privateHierarchyShape, privateFailureCounts,
+  verifyNativeLogin, privateLoginStages, privateLoginDiagnostics } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
 
 test('stops an owned real child and makes repeated cleanup after a signal exit idempotent', { timeout: 5000 }, async t => {
@@ -37,7 +38,14 @@ test('a synchronous termination does not retain escalation timers or listeners',
   assert.equal(child.listenerCount('exit'), 0);
 });
 const commit = 'a'.repeat(40);
+const loginContext = { commit, udid: env.IOS_SIMULATOR_UDID, runId: '123', attempt: '1' };
+const loginMarkers = ['EMAIL_AND_NEXT', 'PASSWORD_AND_HIDE', 'TODAY', 'COMPLETE'];
+const loginLog = () => `Private activities stay here: private@example.test secret-password\nCAMPUSFLOW_LOGIN_CONTEXT=${Object.values(loginContext).join('|')}\n`
+  + loginMarkers.map(marker => `CAMPUSFLOW_LOGIN_${marker}\n`).join('')
+  + "Test Case '-[PrivateLoginTests.NativePrivateLoginTests testOrdinaryNativeLogin]' passed (1.0 seconds).\n"
+  + 'Executed 1 test, with 0 failures (0 unexpected)\n** TEST SUCCEEDED **\n';
 const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed', cleanup: 'passed',
+  nativeLogin: verifyNativeLogin(loginLog(), loginContext),
   dayReview: { cancel: 'unchanged', save: 'tomorrow with deadline retained', taskCount: 2, studySeconds: 1500, studyBlocks: 1 }, checks: [
   'ordinary native sign-in, Secure Store write, and API-confirmed task capture',
   'cold session and owned SQLite task restoration with no API listener',
@@ -45,12 +53,18 @@ const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed'
   'cold signed-out state without API revocation fallback'] });
 test('accepts only completed native and process-cleanup evidence for the exact source', () => {
   assert.doesNotThrow(() => assertStorageAcceptanceProof(complete(), commit));
+  assert.doesNotThrow(() => assertStorageAcceptanceProof(complete(), commit, loginContext));
+  for (const change of [{ udid: '22222222-2222-3333-4444-555555555555' }, { runId: '124' }, { attempt: '2' }])
+    assert.throws(() => assertStorageAcceptanceProof(complete(), commit, { ...loginContext, ...change }));
 });
 test('rejects missing, partial, replayed and failed proof without echoing private values', () => {
   const privateValue = 'private-token-must-not-appear';
   for (const value of [undefined, {}, { ...complete(), result: 'failed' }, { ...complete(), cleanup: undefined },
     { ...complete(), commit: 'b'.repeat(40) }, { ...complete(), api: privateValue }, { ...complete(), failedStage: privateValue },
     { ...complete(), failureDiagnostics: { activeSessions: 1, ownedTasks: 0 } },
+    { ...complete(), nativeLogin: undefined }, { ...complete(), nativeLogin: { ...complete().nativeLogin, commit: 'b'.repeat(40) } },
+    { ...complete(), nativeLogin: { ...complete().nativeLogin, result: 'failed' } },
+    { ...complete(), nativeLogin: { ...complete().nativeLogin, checks: loginMarkers.slice(0, 3) } },
     { ...complete(), checks: complete().checks.slice(0, 3) }, { ...complete(), checks: complete().checks.toReversed() },
     { ...complete(), dayReview: undefined }, { ...complete(), dayReview: { ...complete().dayReview, cancel: 'changed' } },
     { ...complete(), dayReview: { ...complete().dayReview, save: undefined } },
@@ -59,6 +73,51 @@ test('rejects missing, partial, replayed and failed proof without echoing privat
     { ...complete(), dayReview: { ...complete().dayReview, studyBlocks: undefined } }]) {
     assert.throws(() => assertStorageAcceptanceProof(value, commit), error => !error.message.includes(privateValue) && /Incomplete iOS storage/.test(error.message));
   }
+});
+
+test('native login requires every ordinary input and screen stage and the named successful XCTest', () => {
+  assert.deepEqual(verifyNativeLogin(loginLog(), loginContext), { ...loginContext, result: 'passed', checks: loginMarkers });
+  assert.ok(!/private@example|secret-password/.test(JSON.stringify(verifyNativeLogin(loginLog(), loginContext))));
+  assert.deepEqual(privateLoginStages(loginLog()), loginMarkers);
+});
+
+test('native login rejects missing, duplicate, reordered, failed, zero-test and replayed execution', () => {
+  const log = loginLog();
+  const invalid = [undefined, '', 'x'.repeat(16_777_217),
+    ...loginMarkers.map(marker => log.replace(`CAMPUSFLOW_LOGIN_${marker}\n`, '')),
+    log + 'CAMPUSFLOW_LOGIN_TODAY\n',
+    log.replace('CAMPUSFLOW_LOGIN_EMAIL_AND_NEXT', 'CAMPUSFLOW_LOGIN_TEMP')
+      .replace('CAMPUSFLOW_LOGIN_PASSWORD_AND_HIDE', 'CAMPUSFLOW_LOGIN_EMAIL_AND_NEXT')
+      .replace('CAMPUSFLOW_LOGIN_TEMP', 'CAMPUSFLOW_LOGIN_PASSWORD_AND_HIDE'),
+    log.replace("testOrdinaryNativeLogin]' passed", "testOther]' passed"),
+    log.replace('Executed 1 test', 'Executed 0 tests'), log.replace('0 failures', '1 failure'),
+    log.replace('** TEST SUCCEEDED **', '** TEST FAILED **'),
+    log + "Test Case '-[PrivateLoginTests.NativePrivateLoginTests testOrdinaryNativeLogin]' failed (1.0 seconds).\n"];
+  for (const value of invalid) assert.throws(() => verifyNativeLogin(value, loginContext), error =>
+    !/secret-password|private@example/.test(error.message) && /native login proof required/.test(error.message));
+  for (const changed of [{ commit: 'b'.repeat(40) }, { udid: '22222222-2222-3333-4444-555555555555' },
+    { runId: '124' }, { attempt: '2' }, { attempt: 'private-token' }])
+    assert.throws(() => verifyNativeLogin(log, { ...loginContext, ...changed }));
+});
+
+test('failed native login diagnostics publish fixed completed stage names only', () => {
+  assert.deepEqual(privateLoginStages('private@example.test\nCAMPUSFLOW_LOGIN_EMAIL_AND_NEXT\nInput secret-password\nCAMPUSFLOW_LOGIN_private-token\n'), ['EMAIL_AND_NEXT']);
+  assert.deepEqual(privateLoginStages(undefined), []);
+  assert.deepEqual(privateLoginStages('x'.repeat(16_777_217)), []);
+});
+
+test('private XCTest failure diagnostics omit activities and errors, retaining bounded static-source line numbers only', () => {
+  const privateLog = "Test Case '-[PrivateLoginTests.NativePrivateLoginTests testOrdinaryNativeLogin]' started.\n"
+    + 'CAMPUSFLOW_LOGIN_EMAIL_AND_NEXT\nInput secret-password\n'
+    + '/private/ios-private-login.swift:53: error: secret-password private@example.test\n'
+    + '/private/ios-private-login.swift:53:8: error: private-token\n'
+    + '/private/PrivateLoginContext.swift:2: error: private-token\n'
+    + "Test Case '-[PrivateLoginTests.NativePrivateLoginTests testOrdinaryNativeLogin]' failed (1.0 seconds).\n";
+  assert.deepEqual(privateLoginDiagnostics(privateLog), { completed: ['EMAIL_AND_NEXT'], started: true, failed: true, sourceLines: [53] });
+  assert.ok(!/private@example|secret-password|private-token/.test(JSON.stringify(privateLoginDiagnostics(privateLog))));
+  assert.deepEqual(privateLoginDiagnostics(undefined), { completed: [], started: false, failed: false, sourceLines: [] });
+  assert.deepEqual(privateLoginDiagnostics('x'.repeat(16_777_217)), privateLoginDiagnostics(undefined));
+  assert.equal(privateLoginDiagnostics(Array.from({ length: 30 }, (_, i) => `ios-private-login.swift:${i + 1}: error: private`).join('\n')).sourceLines.length, 20);
 });
 
 test('requires an explicit disposable macOS runner and UUID, without an external API', () => {

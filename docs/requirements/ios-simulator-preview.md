@@ -9,8 +9,8 @@ retain Xcode's local ad-hoc signature and declare an app-private Keychain namesp
 only for the explicit simulator build. The gate inspects the compiled simulated
 entitlement section in every executable architecture. A disposable API/database flow checks authenticated
 storage; it never treats simulator signing as Apple device/store signing.
-It uses the existing GitHub Actions infrastructure, public XCTest input for
-public navigation and the existing Maestro private-account flows; it does not
+It uses the existing GitHub Actions infrastructure, XCTest input for public
+navigation and ordinary private sign-in, then Maestro for owned task/storage flows; it does not
 deploy CampusFlow to the owner's server. The [input comparison](ios-input-comparison.md)
 records the observed failure and actual unchanged-app evidence for this choice.
 
@@ -27,10 +27,18 @@ records the observed failure and actual unchanged-app evidence for this choice.
 | IOS-PREVIEW-07 | Reject incomplete/failed simulator migration even when bootstatus exits zero; retry at most one new job-owned UUID, then fail closed | Actual failed-migration regression, explicit inventory/name/state check and scoped boot helper; direct installed-app launch preflight |
 | IOS-RECOVERY-01 | Warm unavailable links ignore private parameters and return to ordinary sign-in; cold unavailable links open recovery and return to offline Help | Full public XCTest retains all parent assertions, requires the warm recovery process and a third distinct cold process; both added source-bound proof stages are mandatory |
 | IOS-STORAGE-01 | Verify the actual app's local host signature and compiled simulator Keychain capabilities in every architecture, without invented team IDs or shared groups | Strict signature verification; actual Mach-O `__TEXT,__entitlements` extraction; negative host/device/slice artifact tests |
-| IOS-STORAGE-02 | Ordinary native sign-in writes Secure Store and Today capture creates exactly one date-scheduled task through the real API | Disposable PostgreSQL 17 and NestJS preview API; native flow plus independent contract-validated API read |
+| IOS-STORAGE-02 | Ordinary native sign-in writes Secure Store and Today capture creates exactly one date-scheduled task through the real API | Disposable PostgreSQL 17 and NestJS preview API; private XCTest checks each email/password character, Next/Go, password hiding and Today, requires source/device/run/attempt-matched named-test success and two API sessions, then Maestro capture plus independent contract-validated task read |
 | IOS-STORAGE-03 | Terminated-process startup restores the encrypted session and owned SQLite task with no API/Metro listener | Explicit API shutdown/port guard and native cold offline flow |
 | IOS-RECOVERY-02 | An authenticated unavailable link returns to Today and the same cached task while the API is absent | Existing `ios-session-offline.yaml` and independent native cache/task persistence checks remain required |
 | IOS-STORAGE-04 | Native sign-out revokes its actual API session, removes owned SQLite rows, and cold startup stays signed out without an API while the server task survives | Before/after session/cache counts, online logout and separate API-disconnected cold signed-out flow; a server 401 cannot mask stale Secure Store |
+
+Private XCTest credentials, generated context source, raw logs, derived data and
+result bundles stay in the disposable runner's `.local/ios-storage-*` directory.
+They are never uploaded as evidence. Only verified fixed stage names and public
+build context enter passing proof; failure diagnostics contain fixed booleans,
+bounded static test-source line numbers and account-owned aggregate counts.
+All original task, day-review, offline, cache and logout gates remain required.
+This harness follow-up still needs a complete actual native run before acceptance.
 
 PR #83 merged at `c08a0987222c3940bc59cd187f03e0e9e47aadea` after final native
 `38603642902` attempt 2 passed on `c3c2563`, with independently validated complete

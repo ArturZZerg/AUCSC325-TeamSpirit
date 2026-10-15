@@ -21,7 +21,24 @@ bounded hierarchy shape and owned aggregate session/task counts on failure.
 Passing proof rejects failure-only diagnostics. All original API, Secure Store,
 SQLite, day-review and logout assertions remain mandatory. Local 43 native proof/
 privacy cases and lint pass; complete new-head CI/native acceptance remains open.
-No app/API runtime file or dependency changes in this follow-up.
+No app/API runtime file or dependency changes in that follow-up.
+
+Run `38672886360` at `3e1dc58` also fails the first post-login assertion;
+standard CI passes. Its owned counts are one active session (registration)
+and zero tasks, so native sign-in is not established. The populated hierarchy
+still contains no recognized exact labels. This evidence does not identify an
+application authentication defect. No unchanged retry is dispatched.
+
+The next harness change uses a private XCTest host, following the already
+accepted public XCTest approach, for ordinary native sign-in. Each email and
+visible-password character must reach the real controlled input exactly once;
+native Next/Go keys, password hiding and Today are required. The API must then
+show two sessions before the unchanged Maestro task capture, day review, offline
+restoration and logout checks. Source/device/run/attempt-matched named-test proof
+is mandatory. Credentials, generated source and all private XCTest artifacts
+stay in `.local`; only fixed stages, booleans and bounded static-source failure
+line numbers can be published. Current-head full CI/native acceptance remains
+required before merging #102. App/API/shared runtime and dependencies are unchanged.
 
 The former full-payload coursework editor reproduced a data-loss sequence:
 acknowledge a title save, fail list refetch, reopen the retained cached row, then
