@@ -150,3 +150,12 @@ and campus events (`src/features/global-search.ts`). Every word must match;
 title starts rank above words inside titles, which rank above other fields;
 open items sort before finished ones. Missing lists are reported as possibly
 incomplete results. Tasks open in the editor; other kinds open their screen.
+
+## Up next
+
+On the current day Today suggests one next step (`src/features/up-next.ts`):
+the oldest overdue task or coursework, else the Main Goal, else the next timed
+deadline later today, else an exam within three days, else work due today (high
+priority first), else a planned task. Routines, events and finished, skipped or
+snoozed items are never suggested. One-time tasks offer *Focus on this*;
+coursework and exams offer *Plan study*. Other days show no suggestion.

@@ -8,6 +8,8 @@ import { courseColor } from '@/features/course-editor';
 import { checklistProgress } from '@/features/task-checklist';
 import { ExamCountdown } from '@/features/exam-countdown';
 import { upcomingExams } from '@/features/exams';
+import { upNext } from '@/features/up-next';
+import { UpNextCard } from '@/features/up-next-card';
 import type { PlanItem } from '@/lib/types';
 import { DayAgenda } from '@/features/day-agenda';
 import { TaskEditor } from '@/features/task-editor';
@@ -82,6 +84,7 @@ export default function TodayScreen() {
   const items = query.data?.items ?? [];
   // Course codes/colours and step progress come from the cached lists; Today itself stays a derived read model.
   const tasks = useTasks(), academic = useAcademic(), courses = useCourses();
+  const exams = isCurrentDay ? upcomingExams(academic.data, courses.data, date, query.timeZone, Date.now()) : [];
   const contextFor = (item: PlanItem): PlanRowContext | undefined => {
     if (item.kind === 'personalTask') {
       const task = tasks.data?.find(row => row.id === item.entityId), course = task?.courseId ? courses.data?.find(row => row.id === task.courseId) : undefined;
@@ -140,7 +143,8 @@ export default function TodayScreen() {
     <FocusRecoveryCard/>
     <State loading={query.isLoading} error={query.error}/>
 
-    <ExamCountdown exams={isCurrentDay ? upcomingExams(academic.data, courses.data, date, query.timeZone, Date.now()) : []}/>
+    <UpNextCard next={isCurrentDay ? upNext(items, exams, date, query.timeZone, Date.now()) : undefined}/>
+    <ExamCountdown exams={exams}/>
     <QuickAddBar courses={courses.data} today={localDateAt(new Date(Date.now()).toISOString(), query.timeZone)} planDate={date} timeZone={query.timeZone} disabled={blocked || !!taskDraft}
       onOpenEditor={values => setTaskDraft(values)}/>
     {query.data && !items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>
