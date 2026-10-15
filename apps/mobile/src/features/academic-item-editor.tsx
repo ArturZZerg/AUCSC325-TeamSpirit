@@ -32,7 +32,7 @@ export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClo
     if (!request) return;
     busy.current = true; setSaving(true); setError(undefined);
     // Reminders need a timed deadline. A new exam asks for one the day before by default.
-    const wantsReminder = !item && remind && values.kind === 'exam' && values.dueMode === 'instant';
+    const wantsReminder = showReminder && remind;
     try {
       const created = await action.mutateAsync(request) as AcademicItem | undefined;
       if (wantsReminder && created?.id) {
