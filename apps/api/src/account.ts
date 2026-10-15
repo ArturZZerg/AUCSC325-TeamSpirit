@@ -14,7 +14,7 @@ const accountFields = {
   id: true, email: true, displayName: true, timeZone: true, createdAt: true,
   tasks: { select: { id: true, studyPlanId: true, studyPlanOrder: true, title: true, description: true, priority: true, category: true, due: true,
     scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, completedAt: true, snoozedUntil: true,
-    mainGoalDate: true, createdAt: true, updatedAt: true } },
+    mainGoalDate: true, checklist: true, createdAt: true, updatedAt: true } },
   taskCompletions: { select: { taskId: true, occurrenceKey: true, completedAt: true } },
   courses: { select: { id: true, externalId: true, source: true, name: true, code: true, active: true } },
   academicItems: { select: { id: true, courseId: true, title: true, kind: true, due: true, submissionState: true,

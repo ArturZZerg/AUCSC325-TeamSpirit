@@ -45,7 +45,13 @@ export const emailVerificationRequestSchema = loginRequestSchema;
 export const emailVerificationConfirmSchema = emailVerificationRequestSchema.extend({ code: passwordResetRequestSchema.shape.code }).strict();
 export const emailVerificationResultSchema = z.object({ verified: z.literal(true) }).strict();
 
-export const personalTaskSchema = z.object({ id: idSchema, studyPlanId: idSchema.nullable().optional(), title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), createdAt: instantSchema, updatedAt: instantSchema });
+/** One step of a one-time task. Steps are edited through item endpoints, never the task PATCH. */
+export const checklistItemSchema = z.object({ id: idSchema, title: z.string().trim().min(1).max(240), done: z.boolean() }).strict();
+export const checklistLimit = 30;
+export const createChecklistItemSchema = z.object({ id: idSchema, title: z.string().trim().min(1, 'Enter a step.').max(240) }).strict();
+export const updateChecklistItemSchema = z.object({ title: z.string().trim().min(1, 'Enter a step.').max(240).optional(), done: z.boolean().optional() }).strict()
+  .refine(value => value.title !== undefined || value.done !== undefined, 'Provide a step change.');
+export const personalTaskSchema = z.object({ id: idSchema, studyPlanId: idSchema.nullable().optional(), title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), checklist: z.array(checklistItemSchema).max(checklistLimit).optional(), createdAt: instantSchema, updatedAt: instantSchema });
 export const createPersonalTaskSchema = personalTaskSchema.pick({ title: true, description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true }).partial({ description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true });
 /** Optional creation identity; never part of editable task state or response DTOs. */
 export const createPersonalTaskRequestSchema = createPersonalTaskSchema.extend({

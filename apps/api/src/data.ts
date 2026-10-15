@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createManualAcademicItemSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
 import { campusEventSchema } from '@campusflow/contracts';
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
-import { createPersonalTaskRequestSchema } from '@campusflow/contracts';
+import { checklistItemSchema, checklistLimit, createChecklistItemSchema, createPersonalTaskRequestSchema, updateChecklistItemSchema } from '@campusflow/contracts';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { configureAcademicReminderSchema, academicReminderConfigurationSchema, dueSchema, eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema } from '@campusflow/contracts';
@@ -12,6 +12,7 @@ import { PrismaService } from './prisma.service';
 import { academicReminderFireAt, goalOccursOn, reminderAfterSnooze, taskOccursOn } from '@campusflow/domain';
 
 const asJson = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
+const checklistOf = (task: { checklist?: Prisma.JsonValue }) => z.array(checklistItemSchema).parse(task.checklist ?? []);
 const taskDto = (r:{id:string;title:string;description:string|null;priority:string;category:string;due:Prisma.JsonValue|null;scheduled:Prisma.JsonValue|null;recurrence:Prisma.JsonValue|null;reminder:Prisma.JsonValue|null;estimatedMinutes:number|null;completedAt:Date|null;snoozedUntil:Date|null;mainGoalDate:string|null;createdAt:Date;updatedAt:Date}) => personalTaskSchema.parse({...r,completedAt:r.completedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
 const goalDto = (r:{id:string;title:string;category:string;schedule:Prisma.JsonValue;timeZone:string;reminder:Prisma.JsonValue|null;pausedAt:Date|null;snoozedUntil:Date|null;createdAt:Date;updatedAt:Date}) => goalSchema.parse({...r,pausedAt:r.pausedAt?.toISOString()??null,snoozedUntil:r.snoozedUntil?.toISOString()??null,createdAt:toIso(r.createdAt),updatedAt:toIso(r.updatedAt)});
 const eventDto = (r:{id:string;title:string;description:string|null;category:string|null;source:string;externalId:string;timing:Prisma.JsonValue;location:string|null;url:string|null}) => eventSchema.parse(r);
@@ -140,6 +141,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
       await this.lockTask(tx, u.id, id);
       const existing = await this.owned(tx, u.id, id);
       if (existing.studyPlanId && b.recurrence) throw new BadRequestException('Study plan sessions cannot repeat. Create a separate recurring task.');
+      if (b.recurrence && checklistOf(existing).length) throw new BadRequestException('Remove this task’s steps before making it repeat.');
       const recurrence = b.recurrence === undefined ? existing.recurrence : b.recurrence;
       if (existing.completedAt && !existing.recurrence && recurrence) throw new BadRequestException('Undo completion before making this task repeat');
       validateTaskAnchor({ recurrence,
@@ -208,6 +210,46 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
       if (b.date) await clearMainGoal(tx, u.id, b.date);
       return taskDto(await tx.personalTask.update({ where: { id }, data: { mainGoalDate: b.date } }));
     }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+  }
+
+  // Steps are read-modified-written under the task lock, so concurrent devices
+  // cannot lose each other's additions or toggles. Retried adds reuse the step ID.
+  @Post(':id/checklist') async addStep(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
+    @Body(new ZodPipe(createChecklistItemSchema)) b: z.infer<typeof createChecklistItemSchema>) {
+    return this.prisma.$transaction(async tx => {
+      await this.lockTask(tx, u.id, id);
+      const task = await this.owned(tx, u.id, id), steps = checklistOf(task);
+      const existing = steps.find(step => step.id === b.id);
+      if (existing) {
+        if (existing.title !== b.title) throw new ConflictException('This step ID belongs to a different step.');
+        return taskDto(task);
+      }
+      if (task.recurrence) throw new BadRequestException('Repeating tasks can’t have steps. Add steps to a one-time task.');
+      if (steps.length >= checklistLimit) throw new BadRequestException(`A task can have up to ${checklistLimit} steps.`);
+      return taskDto(await tx.personalTask.update({ where: { id }, data: { checklist: asJson([...steps, { id: b.id, title: b.title, done: false }]) } }));
+    });
+  }
+
+  @Patch(':id/checklist/:stepId') async updateStep(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
+    @Param('stepId', new ZodPipe(parseUuid)) stepId: string, @Body(new ZodPipe(updateChecklistItemSchema)) b: z.infer<typeof updateChecklistItemSchema>) {
+    return this.prisma.$transaction(async tx => {
+      await this.lockTask(tx, u.id, id);
+      const task = await this.owned(tx, u.id, id), steps = checklistOf(task);
+      if (!steps.some(step => step.id === stepId)) throw new NotFoundException('Step not found');
+      const next = steps.map(step => step.id === stepId ? { ...step, ...(b.title !== undefined ? { title: b.title } : {}), ...(b.done !== undefined ? { done: b.done } : {}) } : step);
+      return taskDto(await tx.personalTask.update({ where: { id }, data: { checklist: asJson(next) } }));
+    });
+  }
+
+  @Delete(':id/checklist/:stepId') async removeStep(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
+    @Param('stepId', new ZodPipe(parseUuid)) stepId: string) {
+    return this.prisma.$transaction(async tx => {
+      await this.lockTask(tx, u.id, id);
+      const task = await this.owned(tx, u.id, id), steps = checklistOf(task);
+      // A retried delete of an already-removed step returns the current task.
+      if (!steps.some(step => step.id === stepId)) return taskDto(task);
+      return taskDto(await tx.personalTask.update({ where: { id }, data: { checklist: asJson(steps.filter(step => step.id !== stepId)) } }));
+    });
   }
 
   private async lockTask(tx: Prisma.TransactionClient, userId: string, id: string): Promise<void> {
