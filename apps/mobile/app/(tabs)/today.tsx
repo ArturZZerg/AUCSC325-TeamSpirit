@@ -6,6 +6,8 @@ import { Card, Screen, State, colors } from '@/components/ui';
 import { useAcademic, useAction, useCourses, useTasks, useToday } from '@/features/queries';
 import { courseColor } from '@/features/course-editor';
 import { checklistProgress } from '@/features/task-checklist';
+import { ExamCountdown } from '@/features/exam-countdown';
+import { upcomingExams } from '@/features/exams';
 import type { PlanItem } from '@/lib/types';
 import { DayAgenda } from '@/features/day-agenda';
 import { TaskEditor } from '@/features/task-editor';
@@ -132,6 +134,7 @@ export default function TodayScreen() {
     <FocusRecoveryCard/>
     <State loading={query.isLoading} error={query.error}/>
 
+    <ExamCountdown exams={isCurrentDay ? upcomingExams(academic.data, courses.data, date, query.timeZone, Date.now()) : []}/>
     <QuickAddBar today={localDateAt(new Date(Date.now()).toISOString(), query.timeZone)} planDate={date} timeZone={query.timeZone} disabled={blocked || !!taskDraft}
       onOpenEditor={values => setTaskDraft(values)}/>
     {query.data && !items.length && <Card><Text style={styles.item}>Make room for a good day.</Text>

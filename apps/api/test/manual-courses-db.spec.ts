@@ -40,6 +40,9 @@ databaseSuite('student-created courses', () => {
     const id = randomUUID(); await create({ id, name: 'Statistics' }).expect(201);
     const item = await client().post('/academic-items').set('Authorization', token).send({ title: 'Problem set 3', kind: 'assignment', courseId: id }).expect(201);
     expect(item.body.courseId).toBe(id);
+    const exam = await client().post('/academic-items').set('Authorization', token).send({ title: 'Midterm', kind: 'exam', courseId: id, due: { kind: 'date', date: '2030-03-10' } }).expect(201);
+    expect(exam.body).toMatchObject({ kind: 'exam', courseId: id, source: 'manual' });
+    await client().post('/academic-items').set('Authorization', token).send({ title: 'Bad kind', kind: 'lecture' }).expect(400);
     await client().delete(`/courses/${id}`).set('Authorization', token).expect(200);
     expect((await db.academicItem.findUniqueOrThrow({ where: { id: item.body.id } })).courseId).toBeNull();
     // A retried delete still succeeds.

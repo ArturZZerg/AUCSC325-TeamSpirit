@@ -91,7 +91,7 @@ export const createCourseSchema = z.object({ id: idSchema, name: courseName, cod
 export const updateCourseSchema = z.object({ name: courseName.optional(), code: courseCode.optional(), color: courseColorSchema.nullable().optional(), active: z.boolean().optional(),
   targetGrade: z.number().int('Enter a whole-number target.').min(0).max(100, 'Enter a target from 0 to 100.').nullable().optional() })
   .strict().refine(value => Object.values(value).some(field => field !== undefined), 'Provide a course change.');
-export const academicItemSchema = z.object({ id: idSchema, courseId: idSchema.nullable(), title: z.string().min(1), kind: z.enum(['assignment', 'quiz', 'discussion', 'planner']), due: dueSchema.nullable(), submissionState: z.enum(['unsubmitted', 'submitted', 'graded', 'missing']).nullable(), source: z.string().min(1), externalId: z.string().min(1), mainGoalDate: dateSchema.nullable(), updatedAt: instantSchema });
+export const academicItemSchema = z.object({ id: idSchema, courseId: idSchema.nullable(), title: z.string().min(1), kind: z.enum(['assignment', 'quiz', 'exam', 'discussion', 'planner']), due: dueSchema.nullable(), submissionState: z.enum(['unsubmitted', 'submitted', 'graded', 'missing']).nullable(), source: z.string().min(1), externalId: z.string().min(1), mainGoalDate: dateSchema.nullable(), updatedAt: instantSchema });
 export const manualAcademicSource = 'manual' as const;
 export const studySessionDraftSchema = z.object({
   title: z.string().trim().min(1).max(240), scheduled: scheduleSchema,
