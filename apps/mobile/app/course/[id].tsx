@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { gradeSummary } from '@campusflow/domain';
 import { BackLink, Button, Card, Screen, State, colors } from '@/components/ui';
-import { useAcademic, useAction, useCourses } from '@/features/queries';
+import { useAcademic, useAction, useClasses, useCourses } from '@/features/queries';
+import { ClassEditor, classDays } from '@/features/class-editor';
 import { CourseEditor, courseColor, isManualCourse } from '@/features/course-editor';
 import { AssessmentEditor } from '@/features/assessment-editor';
 import { planTimingLabel } from '@/features/today-plan';
@@ -23,7 +24,7 @@ export default function CourseScreen() {
 
 function CourseContent({ timeZone }: { timeZone: string }) {
   const router = useRouter(), { id } = useLocalSearchParams<{ id: string }>();
-  const courses = useCourses(), academic = useAcademic(), action = useAction();
+  const courses = useCourses(), academic = useAcademic(), classes = useClasses(), action = useAction();
   const { date: today } = useTodayClock(timeZone);
   const course = courses.data?.find(row => row.id === id);
   const assessments = useMemo(() => course?.assessments ?? [], [course?.assessments]);
@@ -31,6 +32,8 @@ function CourseContent({ timeZone }: { timeZone: string }) {
   const [editing, setEditing] = useState<Assessment | null>(), [editingCourse, setEditingCourse] = useState(false), [deleting, setDeleting] = useState(false);
   const [target, setTarget] = useState<string>(), guard = useRef(false), [busy, setBusy] = useState(false), [message, setMessage] = useState<string>();
   const coursework = academic.data?.filter(item => item.courseId === id) ?? [];
+  const meetings = classes.data?.filter(item => item.courseId === id) ?? [];
+  const [addingClass, setAddingClass] = useState(false);
   const removeCourse = async () => {
     if (guard.current || !course) return;
     guard.current = true; setBusy(true); setMessage(undefined);
@@ -98,6 +101,14 @@ function CourseContent({ timeZone }: { timeZone: string }) {
     </Pressable>)}
     {summary.totalWeight > 0 && summary.totalWeight < 100 && <Text style={styles.meta}>Weights total {pct(summary.totalWeight)}. Add the rest of your outline for a complete picture.</Text>}
 
+    <Text style={styles.section}>Classes</Text>
+    {meetings.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.title}, open timetable`} onPress={() => router.push('/timetable')} style={styles.coursework}>
+      <View style={[styles.stripe, { backgroundColor: accent }]}/><View style={styles.courseworkBody}><Text style={styles.item}>{item.title}</Text>
+        <Text style={styles.meta}>{[[...item.weekdays].sort((a, b) => a - b).map(day => classDays[day - 1].slice(0, 3)).join(' · '), `${item.startTime}–${item.endTime}`, item.location].filter(Boolean).join(' · ')}</Text></View>
+    </Pressable>)}
+    {classes.data && !meetings.length && <Text style={styles.meta}>Add when and where this course meets so it appears in your timetable and day plan.</Text>}
+    {classes.data && <Button title="Add a class time" tone="plain" onPress={() => setAddingClass(true)}/>}
+
     {coursework.length > 0 && <><Text style={styles.section}>Coursework</Text>
       {coursework.map(item => <Pressable key={item.id} accessibilityRole="button" onPress={() => router.push('/academics')} style={styles.coursework}>
         <View style={[styles.stripe, { backgroundColor: accent }]}/><View style={styles.courseworkBody}><Text style={styles.item}>{item.title}</Text>
@@ -106,6 +117,7 @@ function CourseContent({ timeZone }: { timeZone: string }) {
       </Pressable>)}</>}
     <Text style={styles.meta}>Grades here are your own notes for planning; your institution’s records are authoritative.</Text>
   </ScrollView>
+    {addingClass && <ClassEditor item={null} date={today} timeZone={timeZone} courses={courses.data} initialCourseId={course.id} onClose={() => setAddingClass(false)}/>}
     {editing !== undefined && <AssessmentEditor key={editing?.id ?? 'new'} courseId={course.id} assessment={editing} onClose={() => setEditing(undefined)}/>}
     {editingCourse && !deleting && <CourseEditor course={course} onClose={() => setEditingCourse(false)} onDelete={isManualCourse(course) ? () => setDeleting(true) : undefined}/>}
     {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!busy) setDeleting(false); }}>

@@ -8,24 +8,30 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
+import type { Course } from '@/lib/types';
 
 export const classFormSchema = classScheduleFieldsSchema.extend({
   location: z.string().trim().max(240), instructor: z.string().trim().max(240), notes: z.string().trim().max(2000),
+  /** '' means no course. */
+  courseId: z.string(),
 }).superRefine(validateClassPattern);
 export type ClassFormValues = z.infer<typeof classFormSchema>;
 export const classDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 export const classPalette = { moss: colors.moss, blue: colors.blue, plum: colors.plum, coral: colors.coral };
 
-export function ClassEditor({ item, date, timeZone, onClose }: {
+export function ClassEditor({ item, date, timeZone, onClose, courses, initialCourseId }: {
   item: ClassSchedule | null; date: string; timeZone: string; onClose(): void;
+  /** When supplied, the editor offers a course picker; otherwise the saved course is kept unchanged. */
+  courses?: readonly Course[]; initialCourseId?: string;
 }) {
   const action = useAction(); const saving = useRef(false); const [message, setMessage] = useState<string>();
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<ClassFormValues>({
+  const { control, handleSubmit, getValues, setValue, formState: { errors, isSubmitting } } = useForm<ClassFormValues>({
     resolver: zodResolver(classFormSchema), defaultValues: {
       title: item?.title ?? '', weekdays: item?.weekdays ?? [1, 3, 5],
       termStart: item?.termStart ?? date, termEnd: item?.termEnd ?? addCalendarDays(date, 120),
       startTime: item?.startTime ?? '09:00', endTime: item?.endTime ?? '09:50', timeZone: item?.timeZone ?? timeZone,
       location: item?.location ?? '', instructor: item?.instructor ?? '', notes: item?.notes ?? '', color: item?.color ?? 'moss',
+      courseId: item?.courseId ?? initialCourseId ?? '',
     },
   });
   const close = () => { if (!saving.current && !isSubmitting) onClose(); };
@@ -33,7 +39,7 @@ export function ClassEditor({ item, date, timeZone, onClose }: {
     setMessage(undefined);
     try {
       await action.mutateAsync({ path: item ? `/classes/${item.id}` : '/classes', method: item ? 'PUT' : 'POST',
-        body: { ...values, weekdays: [...values.weekdays].sort((a, b) => a - b),
+        body: { ...values, courseId: courses ? values.courseId || null : undefined, weekdays: [...values.weekdays].sort((a, b) => a - b),
           location: values.location || null, instructor: values.instructor || null, notes: values.notes || null } });
       onClose();
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save this class. Please try again.'); }
@@ -44,7 +50,7 @@ export function ClassEditor({ item, date, timeZone, onClose }: {
     try { await handleSubmit(save)(); } finally { saving.current = false; }
   };
   const error = Object.values(errors).find(value => value?.message)?.message ?? message;
-  const input = (name: Exclude<keyof ClassFormValues, 'weekdays' | 'color'>, label: string, placeholder?: string) =>
+  const input = (name: Exclude<keyof ClassFormValues, 'weekdays' | 'color' | 'courseId'>, label: string, placeholder?: string) =>
     <Controller key={name} name={name} control={control} render={({ field }) =>
       <Field label={label} value={field.value} onChangeText={field.onChange} placeholder={placeholder}
         editable={!isSubmitting} autoCapitalize={name === 'timeZone' ? 'none' : undefined} autoCorrect={false} multiline={name === 'notes'}/>}/>;
@@ -53,6 +59,18 @@ export function ClassEditor({ item, date, timeZone, onClose }: {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{item ? 'Edit class' : 'Add a class'}</Text>
         <Text style={styles.meta}>One meeting pattern per class. Add a separate entry for a lab or a different room.</Text>
+        {!!courses?.length && <><Text style={styles.label}>Course</Text>
+          <Controller name="courseId" control={control} render={({ field }) => <View style={styles.options}>
+            {[{ id: '', label: 'No course' }, ...courses.filter(course => course.active || course.id === field.value)
+              .map(course => ({ id: course.id, label: course.code ?? course.name, name: course.name }))].map(option =>
+              <Pressable key={option.id || 'none'} accessibilityRole="radio" accessibilityLabel={option.id ? `${option.label} course` : option.label} aria-checked={field.value === option.id}
+                accessibilityState={{ checked: field.value === option.id, disabled: isSubmitting }} disabled={isSubmitting}
+                onPress={() => {
+                  field.onChange(option.id);
+                  // A new class usually shares its course's name; never overwrite one the student typed.
+                  if ('name' in option && !getValues('title').trim()) setValue('title', `${option.name} · Lecture`);
+                }} style={[styles.choice, field.value === option.id && styles.selected]}><Text style={styles.label}>{option.label}</Text></Pressable>)}
+          </View>}/></>}
         {input('title', 'Class name', 'e.g. Psychology 101 · Lecture')}
         <Text style={styles.label}>Meets on</Text>
         <Controller name="weekdays" control={control} render={({ field }) => <View style={styles.options}>
