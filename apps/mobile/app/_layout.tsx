@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Stack, useGlobalSearchParams, useRouter, useSegments } from 'expo-router';
+import { Stack, router as appRouter, useGlobalSearchParams, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { useEffect } from 'react';
 import { useSessionStore } from '@/store/session';
 import { DeviceReminderSync } from '@/features/device-reminders';
@@ -8,6 +8,7 @@ import { FocusRecoverySync } from '@/features/focus-recovery-sync';
 import { SessionAccessSync } from '@/features/session-access-sync';
 import { ReminderResponseSync } from '@/features/reminder-response-sync';
 import { colorScheme, colors } from '@/components/ui';
+import { AppErrorScreen } from '@/features/app-error';
 function Gate() {
   const router = useRouter(), segments = useSegments();
   const { next } = useGlobalSearchParams<{ next?: string }>();
@@ -23,3 +24,8 @@ function Gate() {
   return <Stack screenOptions={{ headerShown: false, statusBarStyle: colorScheme === 'dark' ? 'light' : 'dark', contentStyle: { backgroundColor: colors.canvas } }}><Stack.Screen name="auth"/><Stack.Screen name="recover"/><Stack.Screen name="verify"/><Stack.Screen name="(tabs)"/></Stack>;
 }
 export default function RootLayout() { return <QueryClientProvider client={queryClient}><SessionAccessSync /><FocusRecoverySync /><DeviceReminderSync /><Gate /><ReminderResponseSync /></QueryClientProvider>; }
+
+/** Root render-failure recovery for every route below this layout. */
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  return <AppErrorScreen onRetry={() => { void retry(); }} onHome={() => { appRouter.replace('/today'); void retry(); }}/>;
+}
