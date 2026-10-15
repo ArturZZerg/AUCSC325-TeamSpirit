@@ -34,3 +34,10 @@ Refresh retries both reads. Only explicit saved blocks count.
 Evidence: `focus-report.test.ts` in domain and `study-report.test.ts` /
 `study-report.test.tsx` in mobile, plus existing history/cache and API tests.
 Run root checks, web export, responsive browser QA and native acceptance.
+
+## By course
+
+The report also rolls this week's recorded time up to courses
+(`studyTimeByCourse`): a task's own course first, otherwise its study plan's
+coursework course. Time on unlinked or course-less tasks, or while lists are
+unavailable, is shown as Other rather than guessed. Bars use course colours.
