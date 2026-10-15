@@ -1,14 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import CalendarScreen from '../app/calendar';
-import { useAcademic, useAction, useEvents, usePlanningSnapshot, useTasks } from '../src/features/queries';
+import { useAcademic, useAction, useCourses, useEvents, usePlanningSnapshot, useTasks } from '../src/features/queries';
 import { useTodayClock } from '../src/features/today-clock';
 import { useSessionStore } from '../src/store/session';
 import type { PersonalTask } from '../src/lib/types';
 import { snapshotFixture } from './snapshot-fixture';
 
 jest.mock('expo-router', () => { const router = { push: jest.fn(), replace: jest.fn() }; return { router, useRouter: () => router }; });
-jest.mock('../src/features/queries', () => ({ useTasks: jest.fn(), useAcademic: jest.fn(), useEvents: jest.fn(), usePlanningSnapshot: jest.fn(), useAction: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useTasks: jest.fn(), useAcademic: jest.fn(), useEvents: jest.fn(), usePlanningSnapshot: jest.fn(), useAction: jest.fn(), useCourses: jest.fn() }));
 jest.mock('../src/features/today-clock', () => ({ useTodayClock: jest.fn() }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
 
@@ -18,6 +18,7 @@ const show = (tasks: PersonalTask[], extra = {}) => {
   jest.mocked(useTasks).mockReturnValue(query(tasks, extra) as unknown as ReturnType<typeof useTasks>);
   jest.mocked(useAcademic).mockReturnValue(query([]) as unknown as ReturnType<typeof useAcademic>);
   jest.mocked(useEvents).mockReturnValue(query([]) as unknown as ReturnType<typeof useEvents>);
+  jest.mocked(useCourses).mockReturnValue(query([]) as unknown as ReturnType<typeof useCourses>);
 };
 beforeEach(() => {
   jest.clearAllMocks();
@@ -83,4 +84,15 @@ it('keeps recurring completion unknown while its history is unavailable', () => 
   render(<CalendarScreen/>);
   expect(screen.getByText('Completion unavailable · Planned for this day')).toBeOnTheScreen();
   expect(screen.getByRole('button', { name: /Wednesday, October 14, today: 1 repeating occurrence with completion unavailable/ })).toBeOnTheScreen();
+});
+
+it('labels exams and coursework with their course', () => {
+  const courseId = '60000000-0000-4000-8000-000000000001';
+  jest.mocked(useCourses).mockReturnValue(query([{ id: courseId, externalId: courseId, name: 'Cognitive Psychology', code: 'PSY 223', active: true, source: 'manual', color: 'plum' }]) as unknown as ReturnType<typeof useCourses>);
+  jest.mocked(useAcademic).mockReturnValue(query([
+    { id: '50000000-0000-4000-8000-000000000001', courseId, title: 'Midterm', kind: 'exam', due: { kind: 'date', date: '2026-10-14' }, submissionState: 'unsubmitted', source: 'manual', externalId: 'a', mainGoalDate: null, updatedAt: '2026-10-01T00:00:00Z' },
+    { id: '50000000-0000-4000-8000-000000000002', courseId: null, title: 'Reading log', kind: 'assignment', due: { kind: 'date', date: '2026-10-14' }, submissionState: 'unsubmitted', source: 'manual', externalId: 'b', mainGoalDate: null, updatedAt: '2026-10-01T00:00:00Z' },
+  ]) as unknown as ReturnType<typeof useAcademic>);
+  render(<CalendarScreen/>);
+  expect(screen.getByText('EXAM · PSY 223')).toBeOnTheScreen(); expect(screen.getByText('COURSEWORK')).toBeOnTheScreen();
 });

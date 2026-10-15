@@ -8,6 +8,8 @@ export type CalendarEntry = {
   /** Sort key within the day: timed values by instant, date-only values last. */
   at: number; role: 'due' | 'planned' | 'starts';
   timing: { kind: 'date' } | { kind: 'instant'; at: string };
+  /** Coursework only: its course and whether it is an exam. */
+  courseId?: string | null; exam?: boolean;
 };
 
 const dateOf = (value: { kind: 'date'; date: string } | { kind: 'instant'; at: string }, timeZone: string) =>
@@ -76,7 +78,8 @@ export function calendarEntries({ tasks, academic, events, from, through, timeZo
   for (const item of academic ?? []) {
     const due = item.due ? dateOf(item.due, timeZone) : undefined;
     if (item.due && due && inRange(due)) entries.push({ key: `academic:${item.id}`, kind: 'academic', title: item.title, date: due,
-      done: item.submissionState === 'submitted' || item.submissionState === 'graded', at: sortAt(item.due), role: 'due', timing: item.due });
+      done: item.submissionState === 'submitted' || item.submissionState === 'graded', at: sortAt(item.due), role: 'due', timing: item.due,
+      courseId: item.courseId, exam: item.kind === 'exam' });
   }
   for (const event of events ?? []) {
     if (event.saved !== true) continue;

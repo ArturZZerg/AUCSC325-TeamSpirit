@@ -3,13 +3,15 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { Screen, State, colors } from '@/components/ui';
-import { useAcademic, useEvents, usePlanningSnapshot, useTasks } from '@/features/queries';
+import { useAcademic, useCourses, useEvents, usePlanningSnapshot, useTasks } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { calendarEntries, monthGrid, shiftMonth, type CalendarEntry, type CalendarKind } from '@/features/month-calendar';
 import { calendarLabel } from '@/features/weekly-planner';
 import { TaskEditor } from '@/features/task-editor';
 import type { TaskFormValues } from '@/features/task-form';
 import { useSessionStore } from '@/store/session';
+import { courseColor } from '@/features/course-editor';
+import type { Course } from '@/lib/types';
 
 const kindColors: Record<CalendarKind, string> = { academic: colors.blue, personalTask: colors.moss, event: colors.coral };
 const kindLabels: Record<CalendarKind, string> = { academic: 'Coursework', personalTask: 'Task', event: 'Saved event' };
@@ -27,7 +29,8 @@ function CalendarContent({ timeZone, accountId }: { timeZone: string; accountId:
   const [month, setMonth] = useState(`${today.slice(0, 7)}-01`);
   const [selected, setSelected] = useState(today);
   const [draft, setDraft] = useState<Partial<TaskFormValues>>();
-  const tasks = useTasks(), academic = useAcademic(), events = useEvents();
+  const tasks = useTasks(), academic = useAcademic(), events = useEvents(), courses = useCourses();
+  const courseById = useMemo(() => new Map(courses.data?.map(course => [course.id, course]) ?? []), [courses.data]);
   const history = usePlanningSnapshot(selected);
   const grid = useMemo(() => monthGrid(month, today), [month, today]);
   const days = useMemo(() => calendarEntries({ tasks: tasks.data, academic: academic.data, events: events.data, from: grid.start, through: grid.end, timeZone,
@@ -87,7 +90,7 @@ function CalendarContent({ timeZone, accountId }: { timeZone: string; accountId:
     </View>
     {!loading && !missing && !entries.length && <View style={styles.empty}><Ionicons name="sunny-outline" size={26} color={colors.moss}/>
       <Text style={styles.item}>Nothing dated for this day.</Text><Text style={styles.meta}>Routines and undated tasks appear in the day plan.</Text></View>}
-    {entries.map(entry => <EntryRow key={entry.key} entry={entry} timeZone={timeZone}/>)}
+    {entries.map(entry => <EntryRow key={entry.key} entry={entry} timeZone={timeZone} course={entry.courseId ? courseById.get(entry.courseId) : undefined}/>)}
     <View style={styles.actions}>
       <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/today', params: { date: selected } })} style={[styles.action, styles.actionPlain]}>
         <Ionicons name="today-outline" size={17} color={colors.moss}/><Text style={styles.actionPlainText}>Open day plan</Text></Pressable>
@@ -97,13 +100,15 @@ function CalendarContent({ timeZone, accountId }: { timeZone: string; accountId:
   </ScrollView>{draft && <TaskEditor task={null} timeZone={timeZone} initialValues={draft} onClose={() => setDraft(undefined)}/>}</Screen>;
 }
 
-function EntryRow({ entry, timeZone }: { entry: CalendarEntry; timeZone: string }) {
+function EntryRow({ entry, timeZone, course }: { entry: CalendarEntry; timeZone: string; course?: Course }) {
+  const accent = course ? courseColor(course) : kindColors[entry.kind];
+  const kind = [entry.exam ? 'Exam' : kindLabels[entry.kind], course ? course.code ?? course.name : null].filter(Boolean).join(' · ');
   const time = entry.timing.kind === 'instant' ? new Date(entry.timing.at).toLocaleTimeString([], { timeZone, hour: 'numeric', minute: '2-digit' }) : undefined;
   const label = entry.role === 'due' ? (time ? `Due ${time}` : 'Due this day') : entry.role === 'planned' ? (time ? `Planned ${time}` : 'Planned for this day') : (time ? `Starts ${time}` : 'All day');
   return <View style={styles.entry}>
-    <View style={[styles.stripe, { backgroundColor: kindColors[entry.kind] }]}/>
+    <View style={[styles.stripe, { backgroundColor: accent }]}/>
     <View style={styles.entryBody}>
-      <Text style={[styles.kind, { color: kindColors[entry.kind] }]}>{kindLabels[entry.kind].toUpperCase()}</Text>
+      <Text style={[styles.kind, { color: accent }]}>{kind.toUpperCase()}</Text>
       <Text style={[styles.item, entry.done && styles.done]}>{entry.title}</Text>
       <Text style={styles.meta}>{entry.done === null ? `Completion unavailable · ${label}` : entry.done ? `Finished · ${label}` : label}</Text>
     </View>
