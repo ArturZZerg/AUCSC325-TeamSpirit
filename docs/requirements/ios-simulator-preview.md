@@ -38,6 +38,37 @@ They are never uploaded as evidence. Only verified fixed stage names and public
 build context enter passing proof; failure diagnostics contain fixed booleans,
 bounded static test-source line numbers and account-owned aggregate counts.
 All original task, day-review, offline, cache and logout gates remain required.
+The coursework extension below is additional; its local proof tests do not
+establish that the new native interactions have run successfully.
+
+### Native coursework editor
+
+`IOS-COURSEWORK-01` exercises the actual React Native coursework modal through
+private XCTest and the ordinary authenticated API. It seeds one owned manual
+discussion with an exact UTC deadline containing seconds/milliseconds, 45 days
+ahead of the disposable runner's current UTC date. It must then prove:
+
+1. An unchanged editor has disabled Save and the no-changes message. Editing the
+   title and choosing Cancel leaves the complete API record/version unchanged.
+2. A title-only Save changes only the title/version and preserves the exact
+   instant, kind, course association, source and identity.
+3. Choosing No deadline and saving persists explicit null without reverting the
+   acknowledged title or changing other fields.
+4. Creating a quiz through Add coursework persists the requested calendar date
+   and leaves the earlier edited record unchanged, with exactly two items.
+
+Each phase requires its separately selected named XCTest, all ordered fixed
+stages, and the same source/simulator/run/attempt. Ordinary per-character input
+and deletion are observed in the controlled fields; scrolling and keyboard
+dismissal use the visible native controls. API reads after each successful UI
+phase independently validate the outcome. The API is used only to seed the
+initial fixture and read results; it never substitutes for a failed UI write.
+Private activities, record values and generated context remain unuploaded.
+Passing storage proof requires all four native proofs and all four readbacks in
+addition to the existing public, login, day-review, offline and sign-out gates.
+Actual simulator acceptance is required before merging this extension; it does
+not establish physical-device, adverse-network, share or reminder acceptance.
+
 Run `38677989005` at `e2a064f` proves checked native sign-in, API-confirmed
 capture and native day-review Cancel/Save, then fails the incoming unavailable
 link assertion after a successful offline Today/task read. Overall acceptance

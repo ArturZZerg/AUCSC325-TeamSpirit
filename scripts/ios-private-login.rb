@@ -12,11 +12,15 @@ parent = File.realpath(File.join(root, '.local'))
 abort 'Invalid private login directory.' unless File.dirname(directory) == parent &&
   File.basename(directory).match?(/\Aios-storage-[0-9a-f-]{36}\z/)
 context = JSON.parse(File.read(File.join(directory, 'login-context.json')))
-abort 'Invalid private login context.' unless context.keys.sort == %w[attempt commit email password runId task udid].sort &&
+abort 'Invalid private login context.' unless context.keys.sort == %w[academicDate academicTitle attempt commit createdAcademicTitle editedAcademicTitle email password runId task udid].sort &&
   context['commit'].match?(/\A[0-9a-f]{40}\z/i) && context['udid'].match?(/\A[0-9a-f-]{36}\z/i) &&
   context['runId'].match?(/\A[1-9][0-9]*\z/) && context['attempt'].match?(/\A[1-9][0-9]*\z/) &&
   context['email'].match?(/\Aios-[0-9a-f-]{36}@example\.test\z/) && context['password'].match?(/\A[0-9a-f]{48}\z/) &&
-  context['task'].match?(/\AiOS study [0-9a-f]{8}\z/)
+  context['task'].match?(/\AiOS study [0-9a-f]{8}\z/) &&
+  context['academicTitle'].match?(/\ANative coursework [0-9a-f]{8}\z/) &&
+  context['editedAcademicTitle'].match?(/\ANative revised [0-9a-f]{8}\z/) &&
+  context['createdAcademicTitle'].match?(/\ANative added [0-9a-f]{8}\z/) &&
+  context['academicDate'].match?(/\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z/)
 
 host_source = File.join(directory, 'LoginHost.swift')
 File.write(host_source, <<~SWIFT)
@@ -38,6 +42,10 @@ File.write(context_source, <<~SWIFT)
     static let email = #{context.fetch('email').dump}
     static let password = #{context.fetch('password').dump}
     static let task = #{context.fetch('task').dump}
+    static let academicTitle = #{context.fetch('academicTitle').dump}
+    static let editedAcademicTitle = #{context.fetch('editedAcademicTitle').dump}
+    static let createdAcademicTitle = #{context.fetch('createdAcademicTitle').dump}
+    static let academicDate = #{context.fetch('academicDate').dump}
   }
 SWIFT
 project = Xcodeproj::Project.new(File.join(directory, 'PrivateLogin.xcodeproj'))

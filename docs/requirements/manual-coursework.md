@@ -23,3 +23,8 @@ deadline entry independent of Canvas approval; ownership is defined in ADR 003.
 
 Evidence: contract boundaries, API HTTP validation and PostgreSQL lifecycle
 tests, date/form and editor tests, coursework-screen tests, and phone-width UI QA.
+The additive [iOS coursework gate](ios-simulator-preview.md#native-coursework-editor)
+requires actual native no-op/Cancel, exact deadline preservation, explicit
+clearing and creation, each followed by independent API readback. Local harness
+tests validate its rejection rules; only a complete source-matched simulator run
+accepts those native interactions.

@@ -1,8 +1,41 @@
 # Current development state
 
-Updated: 2026-10-14
+Updated: 2026-10-15
 
-### Current Xcode/UUID release repair
+### Native coursework acceptance — in progress
+
+PR #103 is merged as `42a1956`; its accepted source `0b400ba` passes both standard
+CI runs (2,290 cases) and native `38688283317`. Downloaded evidence independently
+validates all seven public groups, both private native tests, four storage checks,
+day review, six completed timelines and cleanup, including observed revocation
+and zero owned cache rows before explicit termination. Main has an identical
+tree. Exact-main standard `38691688211` passes; native `38691688248` remains
+separately tracked. No open PR remains after that merge.
+
+Branch `codex/ios-coursework-acceptance` adds actual iOS editor acceptance to the
+existing disposable harness. Four private named XCTests perform no-op/Cancel,
+title-only Save, deadline clearing and date-only quiz creation. Ordinary API
+reads independently verify the complete unchanged record after Cancel, exact
+UTC deadline precision and untouched fields after title Save, explicit null
+after clearing, and two owned records after creation. Future dates derive from
+the runner's current UTC date; the original Today/day-review tasks stay separate.
+Every original public/login/offline/storage/logout gate remains mandatory.
+Passing proof requires all four added native tests plus all four readbacks.
+Generated context, values, activities and results stay private on the runner.
+
+The normal root `npm run check` passes lint, types, builds and 2,048 local cases;
+all 257 database cases are explicitly skipped pending PostgreSQL-backed CI.
+This includes all 64 native proof/privacy/readback cases. Native Swift/Ruby
+compilation and actual editor interactions still require current-head macOS CI;
+they are not accepted from these local cases. Review and exact-head
+standard/native acceptance remain required before merging. No app runtime,
+schema, dependency or SDK changes are included. Original deployment, physical
+device, account-deletion and source-local constraints remain active.
+
+### Xcode/UUID release repair — merged #103 history
+
+The accepted outcome is recorded above. This section preserves the earlier
+pre-merge verification and failure chronology.
 
 Branch `codex/xcode-uuid-release` starts from merged main `86bc966`. The existing
 Xcode 3.0.1 generator now has a narrow UUID 11.1.1 override and an explicit root
