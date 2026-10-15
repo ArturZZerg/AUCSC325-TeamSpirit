@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { once, EventEmitter } from 'node:events';
 import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary, saveFlowTimeline,
-  stopOwnedApiProcess, assertStorageAcceptanceProof, assertDayReviewTasks } from './ios-storage-acceptance.mjs';
+  stopOwnedApiProcess, assertStorageAcceptanceProof, assertDayReviewTasks, privateHierarchyShape, privateFailureCounts } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
 
 test('stops an owned real child and makes repeated cleanup after a signal exit idempotent', { timeout: 5000 }, async t => {
@@ -50,6 +50,7 @@ test('rejects missing, partial, replayed and failed proof without echoing privat
   const privateValue = 'private-token-must-not-appear';
   for (const value of [undefined, {}, { ...complete(), result: 'failed' }, { ...complete(), cleanup: undefined },
     { ...complete(), commit: 'b'.repeat(40) }, { ...complete(), api: privateValue }, { ...complete(), failedStage: privateValue },
+    { ...complete(), failureDiagnostics: { activeSessions: 1, ownedTasks: 0 } },
     { ...complete(), checks: complete().checks.slice(0, 3) }, { ...complete(), checks: complete().checks.toReversed() },
     { ...complete(), dayReview: undefined }, { ...complete(), dayReview: { ...complete().dayReview, cancel: 'changed' } },
     { ...complete(), dayReview: { ...complete().dayReview, save: undefined } },
@@ -84,6 +85,8 @@ test('private flow timeline publishes only known actions, states and numeric tim
     { sequence: 2, action: 'inputTextCommand', status: 'COMPLETED', durationMs: 500 }]);
   assert.ok(!JSON.stringify(result).includes(privateText));
   assert.deepEqual(privateFlowTimeline(undefined), []);
+  assert.deepEqual(privateFlowTimeline([{ command: { pressKeyCommand: { privateText } }, metadata: { status: 'COMPLETED' } }]),
+    [{ sequence: 0, action: 'pressKeyCommand', status: 'COMPLETED', durationMs: null }]);
 });
 
 const fixtureRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.local/ios-timeline-tests');
@@ -124,7 +127,8 @@ test('private screen diagnostics output fixed label-presence booleans only', () 
     { attributes: { text: 'private@example.test', input: 'secret-password', token: 'private-token' } }] });
   assert.deepEqual(result, { auth: false, today: true, editor: false, capture: true, titleInput: false, save: false, cleanupRetry: false,
     savePassword: false, notNow: false, passwords: false, settingsTab: false, settings: false, signOut: false, unavailable: false,
-    dayReview: false, existingEditor: false });
+    dayReview: false, existingEditor: false, emailInput: false, passwordInput: false, signIn: false, invalidCredentials: false,
+    networkFailure: false, showPassword: false, hidePassword: false });
   assert.ok(Object.values(result).every(value => typeof value === 'boolean'));
   assert.ok(!JSON.stringify(result).includes('private'));
   const overlay = privateViewSummary({ children: [{ attributes: { text: 'Save Password' } },
@@ -142,6 +146,36 @@ test('private screen diagnostics output fixed label-presence booleans only', () 
   assert.equal(privateViewSummary({ attributes: { text: 'This page isn’t available.' } }).unavailable, true);
   const review = privateViewSummary({ children: [{ attributes: { text: 'Leave the day a little lighter.' } }, { attributes: { text: 'Edit task' } }] });
   assert.equal(review.dayReview, true); assert.equal(review.existingEditor, true);
+});
+
+test('failure screen diagnostics recognize auth controls and fixed errors without exposing inputs', () => {
+  const privateValue = 'private@example.test secret-password private-token';
+  const summary = privateViewSummary({ children: [{ attributes: { id: 'auth-email', value: privateValue } },
+    { attributes: { id: 'auth-password', value: privateValue } }, { attributes: { text: 'Invalid email or password' } }] });
+  assert.equal(summary.emailInput, true); assert.equal(summary.passwordInput, true); assert.equal(summary.invalidCredentials, true);
+  assert.ok(Object.values(summary).every(value => typeof value === 'boolean'));
+  assert.ok(!JSON.stringify(summary).includes(privateValue));
+});
+
+test('hierarchy diagnostics distinguish empty and populated trees using bounded counts only', () => {
+  assert.deepEqual(privateHierarchyShape({}), { objects: 1, strings: 0, depthLimited: false, truncated: false });
+  const value = { children: [{ attributes: { text: 'private@example.test', token: 'private-token', password: 'secret-password' } }] };
+  const summary = privateHierarchyShape(value);
+  assert.deepEqual(summary, { objects: 4, strings: 3, depthLimited: false, truncated: false });
+  assert.ok(!/private|secret/.test(JSON.stringify(summary)));
+  value.children.push(value);
+  assert.equal(privateHierarchyShape(value).truncated, false);
+  assert.equal(privateHierarchyShape(Array(5000).fill('private-token')).truncated, true);
+  let deep = {}; for (let i = 0; i < 50; i++) deep = { children: deep };
+  assert.equal(privateHierarchyShape(deep).depthLimited, true);
+});
+
+test('database failure diagnostics allow nonnegative aggregate counts and omit all record fields', () => {
+  assert.deepEqual(privateFailureCounts({ activeSessions: 2, ownedTasks: 1, userId: 'private-id', accessToken: 'private-token' }), { activeSessions: 2, ownedTasks: 1 });
+  for (const invalid of [undefined, -1, NaN, Infinity, 'private-token', { secret: 'private-password' }]) {
+    assert.deepEqual(privateFailureCounts({ activeSessions: invalid, ownedTasks: invalid }), { activeSessions: null, ownedTasks: null });
+  }
+  assert.deepEqual(privateFailureCounts(undefined), { activeSessions: null, ownedTasks: null });
 });
 
 const task = { id: '11111111-2222-4333-8444-555555555555', title: 'Synthetic study', description: null,

@@ -4,6 +4,25 @@ Updated: 2026-10-14
 
 ### Current coursework edit preservation
 
+Source `0b238fc` passes both standard CI runs with 2,278 cases, including the
+new PostgreSQL persistence/reminder test. The actual signed x86 Android build
+also passes the failed-refresh/reopen workflow, no-op Save, disconnected draft
+and explicit retry with independent real API readback. Its morning overview
+additionally posts while backgrounded/offline, opens cached Today from Settings,
+deduplicates repeated refreshes and cancels/restores pending alarms on opt-out/in;
+see [native evidence](../docs/requirements/android-morning-overview-2026-10-14.md).
+
+Both iOS attempts in run `38665540567` at `0b238fc` pass all seven public groups
+but fail the first private post-login wait before accepted task/storage checks.
+Cleanup passes; the existing label summary is all false and does not establish
+cause. No third unchanged retry is accepted. The follow-up settles keyboard/focus
+before password input and submission, adds fixed auth-control/error booleans,
+bounded hierarchy shape and owned aggregate session/task counts on failure.
+Passing proof rejects failure-only diagnostics. All original API, Secure Store,
+SQLite, day-review and logout assertions remain mandatory. Local 43 native proof/
+privacy cases and lint pass; complete new-head CI/native acceptance remains open.
+No app/API runtime file or dependency changes in this follow-up.
+
 The former full-payload coursework editor reproduced a data-loss sequence:
 acknowledge a title save, fail list refetch, reopen the retained cached row, then
 save a deadline and silently resend the old title. Sparse PATCH requests now

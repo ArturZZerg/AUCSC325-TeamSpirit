@@ -18,7 +18,7 @@ const requiredChecks = ['ordinary native sign-in, Secure Store write, and API-co
 
 export function assertStorageAcceptanceProof(value, commit) {
   if (!/^[0-9a-f]{40}$/i.test(commit ?? '') || !value || value.commit !== commit || value.api !== apiUrl
-    || value.result !== 'passed' || value.cleanup !== 'passed' || Object.hasOwn(value, 'failedStage')
+    || value.result !== 'passed' || value.cleanup !== 'passed' || Object.hasOwn(value, 'failedStage') || Object.hasOwn(value, 'failureDiagnostics')
     || !Array.isArray(value.checks) || value.checks.length !== requiredChecks.length
     || !value.checks.every((check, index) => check === requiredChecks[index])
     || value.dayReview?.cancel !== 'unchanged' || value.dayReview?.save !== 'tomorrow with deadline retained'
@@ -98,7 +98,7 @@ export function publicFlowFailure(log, privateValues) {
 export function privateFlowTimeline(records) {
   const actions = new Set(['launchAppCommand', 'openLinkCommand', 'runFlowCommand', 'tapOnElement', 'inputTextCommand',
     'hideKeyboardCommand', 'assertConditionCommand', 'waitForAnimationToEndCommand', 'scrollUntilVisible', 'scrollUntilVisibleCommand',
-    'stopAppCommand', 'applyConfigurationCommand', 'defineVariablesCommand', 'takeScreenshotCommand']);
+    'stopAppCommand', 'applyConfigurationCommand', 'defineVariablesCommand', 'takeScreenshotCommand', 'pressKeyCommand']);
   const states = new Set(['COMPLETED', 'FAILED', 'RUNNING', 'PENDING']);
   if (!Array.isArray(records)) return [];
   return records.slice(0, 200).map((record, index) => {
@@ -115,7 +115,9 @@ export function privateViewSummary(hierarchy) {
     titleInput: 'task-title', save: 'Save task', cleanupRetry: 'Retry device cleanup',
     savePassword: 'Save Password', notNow: 'Not Now', passwords: 'Passwords',
     settingsTab: 'Settings, tab, 5 of 5', settings: 'Settings', signOut: 'Sign out', unavailable: 'This page isn’t available.',
-    dayReview: 'Leave the day a little lighter.', existingEditor: 'Edit task' };
+    dayReview: 'Leave the day a little lighter.', existingEditor: 'Edit task',
+    emailInput: 'auth-email', passwordInput: 'auth-password', signIn: 'Sign in', invalidCredentials: 'Invalid email or password',
+    networkFailure: 'Network request failed', showPassword: 'Show password', hidePassword: 'Hide password' };
   const result = Object.fromEntries(Object.keys(known).map(name => [name, false]));
   function visit(value, depth) {
     if (depth > 40 || value === null || typeof value !== 'object') return;
@@ -127,6 +129,31 @@ export function privateViewSummary(hierarchy) {
   }
   visit(hierarchy, 0);
   return result;
+}
+
+/** Structural diagnostics contain counts only, never UI attributes or text. */
+export function privateHierarchyShape(hierarchy) {
+  let objects = 0, strings = 0, visited = 0, depthLimited = false, truncated = false;
+  const seen = new WeakSet();
+  function visit(value, depth) {
+    if (depth > 40) { depthLimited = true; return; }
+    if (visited++ >= 4000) { truncated = true; return; }
+    if (typeof value === 'string') { strings++; return; }
+    if (!value || typeof value !== 'object' || seen.has(value)) return;
+    seen.add(value); objects++;
+    for (const child of Object.values(value)) {
+      if (visited >= 4000) { truncated = true; break; }
+      visit(child, depth + 1);
+    }
+  }
+  visit(hierarchy, 0);
+  return { objects, strings, depthLimited, truncated };
+}
+
+/** Only aggregate counts from this disposable account may enter failed proof. */
+export function privateFailureCounts(value) {
+  const count = input => Number.isSafeInteger(input) && input >= 0 ? input : null;
+  return { activeSessions: count(value?.activeSessions), ownedTasks: count(value?.ownedTasks) };
 }
 
 export function saveFlowTimeline(directory, output, depth = 0) {
@@ -172,7 +199,7 @@ async function run() {
     PGPASSWORD: dbPassword, NODE_ENV: 'development', PORT: '3000', HOST: '127.0.0.1', REGISTRATION_MODE: 'preview',
     CANVAS_MODE: 'disabled', RECOVERY_DELIVERY: 'disabled' };
   // No real accounts, SMTP, external Canvas, global PostgreSQL service or Metro.
-  let apiProcess, dbStarted = false, prisma, failure, stage = 'database setup';
+  let apiProcess, dbStarted = false, prisma, registeredUserId, failure, stage = 'database setup';
   const proof = { commit: process.env.CAMPUSFLOW_BUILD_SHA ?? process.env.GITHUB_SHA,
     api: apiUrl, database: 'disposable PostgreSQL 17 with ordinary NestJS preview registration', checks: [] };
   const command = (executable, args, name, extraEnv = {}) => new Promise((resolve, reject) => {
@@ -217,7 +244,7 @@ async function run() {
         await command(cli, ['--device', config.udid, 'hierarchy', '--no-reinstall-driver'], 'private-hierarchy');
         const raw = readFileSync(path.join(runDir, 'private-hierarchy.log'), 'utf8');
         const hierarchy = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
-        writeFileSync(path.join(root, `artifacts/ios/evidence/${name}-view.json`), `${JSON.stringify(privateViewSummary(hierarchy), null, 2)}\n`);
+        writeFileSync(path.join(root, `artifacts/ios/evidence/${name}-view.json`), `${JSON.stringify({ ...privateViewSummary(hierarchy), structure: privateHierarchyShape(hierarchy) }, null, 2)}\n`);
       } catch { /* No raw hierarchy fallback. Failure stage/timeline remain available. */ }
       throw error;
     }
@@ -238,6 +265,7 @@ async function run() {
     const response = await fetch(`${apiUrl}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, displayName: 'iOS simulator acceptance', timeZone: 'UTC' }), signal: AbortSignal.timeout(15_000) });
     assert.equal(response.status, 201); const session = sessionSchema.parse(await response.json());
+    registeredUserId = session.user.id;
     // Registration token stays in memory; the UI logs in normally and gets its own token.
     console.log(`::add-mask::${session.accessToken}`);
     stage = 'native login and task capture';
@@ -309,6 +337,14 @@ async function run() {
     proof.result = 'passed';
   } catch {
     proof.result = 'failed'; proof.failedStage = stage;
+    if (prisma && registeredUserId) {
+      try {
+        proof.failureDiagnostics = privateFailureCounts({
+          activeSessions: await prisma.session.count({ where: { userId: registeredUserId, revokedAt: null } }),
+          ownedTasks: await prisma.personalTask.count({ where: { userId: registeredUserId } }),
+        });
+      } catch { proof.failureDiagnostics = privateFailureCounts(undefined); }
+    }
     failure = new Error(`iOS storage acceptance failed at ${stage}. Credentials, UI dumps and private logs are not published.`);
   } finally {
     const cleanup = await Promise.allSettled([stopApi(), ...(prisma ? [prisma.$disconnect()] : []),

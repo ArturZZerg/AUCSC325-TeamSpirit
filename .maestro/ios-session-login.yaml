@@ -14,7 +14,10 @@ name: iOS ordinary sign-in and owned task capture
     id: auth-email
 - inputText: ${IOS_QA_EMAIL}
 - pressKey: Enter
+# Let the native focus/keyboard transition finish before entering the password.
+- waitForAnimationToEnd
 - inputText: ${IOS_QA_PASSWORD}
+- waitForAnimationToEnd
 - pressKey: Enter
 - extendedWaitUntil:
     # The system password sheet can hide the app's accessibility tree. Requiring
