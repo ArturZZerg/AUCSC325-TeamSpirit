@@ -89,8 +89,8 @@ function tail(file) {
   } catch { return ''; }
   finally { if (descriptor !== undefined) closeSync(descriptor); }
 }
-const exited = child => new Promise(resolve => {
-  child.once('error', () => resolve(-1)); child.once('close', code => resolve(code ?? -1));
+const exited = (child, onError) => new Promise(resolve => {
+  child.once('error', error => { onError?.(error); resolve(-1); }); child.once('close', code => resolve(code ?? -1));
 });
 
 async function run() {
@@ -124,7 +124,9 @@ async function run() {
     finally { closeSync(descriptor); }
     let timer, sampleStage = 'sampler execution';
     try {
-      const code = await Promise.race([exited(sampleProcess), new Promise(resolve => { timer = setTimeout(() => resolve(-1), 10_000); })]);
+      // Recording takes five seconds; symbolicating the report on a loaded runner can take much longer.
+      const code = await Promise.race([exited(sampleProcess, error => { proof.sampleSpawnError = String(error?.code ?? error).slice(0, 200); }),
+        new Promise(resolve => { timer = setTimeout(() => { proof.sampleTimedOut = true; resolve(-1); }, 60_000); })]);
       proof.sampleExitCode = code;
       if (code !== 0) throw new Error('Public sample did not complete.');
       sampleStage = 'sample report validation';
@@ -134,7 +136,10 @@ async function run() {
       copyFileSync(rawSample, path.join(evidence, 'public-cold-start.sample.txt'));
       proof.result = 'captured';
     } catch { proof.result = 'sample-failed'; proof.failureStage = sampleStage; }
-    finally { clearTimeout(timer); await stopOwnedApiProcess(sampleProcess, { termMs: 1000, killMs: 1000 }); }
+    finally {
+      clearTimeout(timer); await stopOwnedApiProcess(sampleProcess, { termMs: 1000, killMs: 1000 });
+      try { copyFileSync(path.join(directory, 'sampler.log'), path.join(evidence, 'public-sampler.log')); } catch { /* diagnostics only */ }
+    }
   };
   const monitor = async () => {
     const deadline = Date.now() + 900_000;
