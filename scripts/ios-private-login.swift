@@ -53,6 +53,176 @@ final class NativePrivateLoginTests: XCTestCase {
     }
 
     @MainActor
+    private func revealCoursework(_ element: XCUIElement, in app: XCUIApplication, towardTop: Bool = false) {
+        let scroll = app.scrollViews.firstMatch
+        XCTAssertTrue(scroll.exists, "The coursework scroll view must exist.")
+        for _ in 0..<8 {
+            if element.exists && element.isHittable { return }
+            if towardTop { scroll.swipeDown() } else { scroll.swipeUp() }
+        }
+        XCTAssertTrue(element.exists && element.isHittable, "The coursework control must be reachable.")
+    }
+
+    @MainActor
+    private func replaceChecked(_ value: String, into field: XCUIElement, in app: XCUIApplication) {
+        revealCoursework(field, in: app, towardTop: true)
+        // These short synthetic values fit the ordinary input. Tap its right
+        // edge to put the caret after the text, then observe every deletion.
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        guard let initial = field.value as? String else {
+            XCTFail("The controlled input must expose its value.")
+            return
+        }
+        var remaining = initial == field.placeholderValue ? "" : initial
+        while !remaining.isEmpty {
+            field.typeText(XCUIKeyboardKey.delete.rawValue)
+            remaining.removeLast()
+            let expected = remaining
+            let observed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let actual = field.value as? String
+                return actual == expected || expected.isEmpty && actual == field.placeholderValue
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [observed], timeout: 3), .completed,
+                           "Each ordinary deletion must update the controlled input.")
+        }
+        typeChecked(value, into: field)
+        let returnKey = keyboard("Return", in: app)
+        let done = keyboard("Done", in: app)
+        if returnKey.exists && returnKey.isHittable { returnKey.tap() }
+        else {
+            XCTAssertTrue(done.exists && done.isHittable, "The ordinary keyboard dismissal must be reachable.")
+            done.tap()
+        }
+    }
+
+    @MainActor
+    private func courseworkApp() throws -> XCUIApplication {
+        let app = XCUIApplication(bundleIdentifier: "com.campusflow.mobile")
+        app.launch()
+        XCUIDevice.shared.system.open(try XCTUnwrap(URL(string: "campusflow:///academics")))
+        for bundle in ["com.apple.springboard", "com.apple.mobilesafari"] {
+            let host = XCUIApplication(bundleIdentifier: bundle)
+            if host.state == .runningForeground && host.staticTexts.matching(
+                NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "Open in", "CampusFlow")
+            ).firstMatch.exists {
+                let confirmation = host.buttons["Open"]
+                XCTAssertTrue(confirmation.isHittable)
+                confirmation.tap()
+            }
+        }
+        XCTAssertTrue(label("Stay ahead of deadlines.", in: app).waitForExistence(timeout: 30))
+        XCTAssertFalse(label("Welcome back", in: app).exists)
+        return app
+    }
+
+    @MainActor
+    private func editCoursework(_ title: String, in app: XCUIApplication) {
+        revealCoursework(label(title, in: app), in: app)
+        let edit = app.buttons["Edit"]
+        revealCoursework(edit, in: app)
+        edit.tap()
+        XCTAssertTrue(label("Update your deadline.", in: app).waitForExistence(timeout: 15))
+        XCTAssertEqual(app.textFields["Coursework title"].value as? String, title)
+    }
+
+    @MainActor
+    private func saveCoursework(in app: XCUIApplication, creating: Bool = false) {
+        let save = app.buttons[creating ? "Add coursework" : "Save coursework"]
+        revealCoursework(save, in: app)
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        let message = creating ? "Coursework added. You can plan study time from it below." : "Coursework updated."
+        XCTAssertTrue(label(message, in: app).waitForExistence(timeout: 30))
+        XCTAssertFalse(label("Update your deadline.", in: app).exists)
+        XCTAssertFalse(label("One less thing to remember.", in: app).exists)
+    }
+
+    @MainActor
+    func testCourseworkNoOpAndCancel() throws {
+        continueAfterFailure = false
+        print("CAMPUSFLOW_COURSEWORK_CANCEL_CONTEXT=\(PrivateLoginContext.value)")
+        let app = try courseworkApp()
+        editCoursework(PrivateLoginContext.academicTitle, in: app)
+        print("CAMPUSFLOW_COURSEWORK_CANCEL_OPENED")
+        let save = app.buttons["Save coursework"]
+        revealCoursework(save, in: app)
+        XCTAssertFalse(save.isEnabled)
+        XCTAssertTrue(label("No changes to save.", in: app).exists)
+        print("CAMPUSFLOW_COURSEWORK_CANCEL_NO_OP")
+        replaceChecked(PrivateLoginContext.editedAcademicTitle, into: app.textFields["Coursework title"], in: app)
+        let cancel = app.buttons["Cancel"]
+        revealCoursework(cancel, in: app, towardTop: true)
+        cancel.tap()
+        XCTAssertTrue(label("Stay ahead of deadlines.", in: app).waitForExistence(timeout: 15))
+        revealCoursework(label(PrivateLoginContext.academicTitle, in: app), in: app)
+        XCTAssertFalse(label(PrivateLoginContext.editedAcademicTitle, in: app).exists)
+        print("CAMPUSFLOW_COURSEWORK_CANCEL_CANCELLED")
+        app.terminate()
+        XCTAssertEqual(app.state, .notRunning)
+        print("CAMPUSFLOW_COURSEWORK_CANCEL_COMPLETE")
+    }
+
+    @MainActor
+    func testCourseworkTitleSave() throws {
+        continueAfterFailure = false
+        print("CAMPUSFLOW_COURSEWORK_TITLE_CONTEXT=\(PrivateLoginContext.value)")
+        let app = try courseworkApp()
+        editCoursework(PrivateLoginContext.academicTitle, in: app)
+        print("CAMPUSFLOW_COURSEWORK_TITLE_OPENED")
+        replaceChecked(PrivateLoginContext.editedAcademicTitle, into: app.textFields["Coursework title"], in: app)
+        print("CAMPUSFLOW_COURSEWORK_TITLE_TITLE_CHANGED")
+        saveCoursework(in: app)
+        print("CAMPUSFLOW_COURSEWORK_TITLE_SAVED")
+        app.terminate()
+        XCTAssertEqual(app.state, .notRunning)
+        print("CAMPUSFLOW_COURSEWORK_TITLE_COMPLETE")
+    }
+
+    @MainActor
+    func testCourseworkDeadlineClear() throws {
+        continueAfterFailure = false
+        print("CAMPUSFLOW_COURSEWORK_CLEAR_CONTEXT=\(PrivateLoginContext.value)")
+        let app = try courseworkApp()
+        editCoursework(PrivateLoginContext.editedAcademicTitle, in: app)
+        print("CAMPUSFLOW_COURSEWORK_CLEAR_OPENED")
+        let none = label("No deadline", in: app)
+        revealCoursework(none, in: app)
+        none.tap()
+        print("CAMPUSFLOW_COURSEWORK_CLEAR_DEADLINE_CLEARED")
+        saveCoursework(in: app)
+        print("CAMPUSFLOW_COURSEWORK_CLEAR_SAVED")
+        app.terminate()
+        XCTAssertEqual(app.state, .notRunning)
+        print("CAMPUSFLOW_COURSEWORK_CLEAR_COMPLETE")
+    }
+
+    @MainActor
+    func testCourseworkCreation() throws {
+        continueAfterFailure = false
+        print("CAMPUSFLOW_COURSEWORK_CREATE_CONTEXT=\(PrivateLoginContext.value)")
+        let app = try courseworkApp()
+        let add = app.buttons["Add coursework"]
+        revealCoursework(add, in: app, towardTop: true)
+        add.tap()
+        XCTAssertTrue(label("One less thing to remember.", in: app).waitForExistence(timeout: 15))
+        print("CAMPUSFLOW_COURSEWORK_CREATE_OPENED")
+        replaceChecked(PrivateLoginContext.createdAcademicTitle, into: app.textFields["Coursework title"], in: app)
+        let quiz = label("Quiz", in: app)
+        revealCoursework(quiz, in: app)
+        quiz.tap()
+        let day = label("Day only", in: app)
+        revealCoursework(day, in: app)
+        day.tap()
+        replaceChecked(PrivateLoginContext.academicDate, into: app.textFields["Deadline date"], in: app)
+        print("CAMPUSFLOW_COURSEWORK_CREATE_DRAFT_READY")
+        saveCoursework(in: app, creating: true)
+        print("CAMPUSFLOW_COURSEWORK_CREATE_SAVED")
+        app.terminate()
+        XCTAssertEqual(app.state, .notRunning)
+        print("CAMPUSFLOW_COURSEWORK_CREATE_COMPLETE")
+    }
+
+    @MainActor
     func testOfflineRecovery() throws {
         continueAfterFailure = false
         print("CAMPUSFLOW_OFFLINE_CONTEXT=\(PrivateLoginContext.value)")

@@ -7,7 +7,8 @@ import { spawn } from 'node:child_process';
 import { once, EventEmitter } from 'node:events';
 import { storageAcceptanceConfig, assertOwnedTask, publicFlowFailure, privateFlowTimeline, privateViewSummary, saveFlowTimeline,
   stopOwnedApiProcess, assertStorageAcceptanceProof, assertDayReviewTasks, privateHierarchyShape, privateFailureCounts,
-  verifyNativeLogin, verifyNativeOfflineRecovery, privateLoginStages, privateLoginDiagnostics } from './ios-storage-acceptance.mjs';
+  verifyNativeLogin, verifyNativeOfflineRecovery, verifyNativeCoursework, privateLoginStages, privateLoginDiagnostics,
+  assertCourseworkEdited, assertCourseworkCreated } from './ios-storage-acceptance.mjs';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_OS: 'macOS', IOS_SIMULATOR_UDID: '11111111-2222-3333-4444-555555555555', IOS_PG_BIN: '/opt/postgres/bin' };
 
 test('stops an owned real child and makes repeated cleanup after a signal exit idempotent', { timeout: 5000 }, async t => {
@@ -47,8 +48,24 @@ const loginLog = () => `Private activities stay here: private@example.test secre
 const offlineLog = () => loginLog().replaceAll('CAMPUSFLOW_LOGIN_', 'CAMPUSFLOW_OFFLINE_')
   .replace('EMAIL_AND_NEXT', 'RESTORED').replace('PASSWORD_AND_HIDE', 'UNAVAILABLE').replace('OFFLINE_TODAY', 'OFFLINE_RETURNED')
   .replace('testOrdinaryNativeLogin', 'testOfflineRecovery');
+const courseworkCases = {
+  Cancel: ['COURSEWORK_CANCEL', 'testCourseworkNoOpAndCancel', ['OPENED', 'NO_OP', 'CANCELLED', 'COMPLETE']],
+  Title: ['COURSEWORK_TITLE', 'testCourseworkTitleSave', ['OPENED', 'TITLE_CHANGED', 'SAVED', 'COMPLETE']],
+  Clear: ['COURSEWORK_CLEAR', 'testCourseworkDeadlineClear', ['OPENED', 'DEADLINE_CLEARED', 'SAVED', 'COMPLETE']],
+  Create: ['COURSEWORK_CREATE', 'testCourseworkCreation', ['OPENED', 'DRAFT_READY', 'SAVED', 'COMPLETE']],
+};
+const courseworkLog = name => {
+  const [prefix, method, stages] = courseworkCases[name];
+  return `Private activities: private@example.test secret-password\nCAMPUSFLOW_${prefix}_CONTEXT=${Object.values(loginContext).join('|')}\n`
+    + stages.map(stage => `CAMPUSFLOW_${prefix}_${stage}\n`).join('')
+    + `Test Case '-[PrivateLoginTests.NativePrivateLoginTests ${method}]' passed (1.0 seconds).\n`
+    + 'Executed 1 test, with 0 failures (0 unexpected)\n** TEST SUCCEEDED **\n';
+};
 const complete = () => ({ commit, api: 'http://127.0.0.1:3000', result: 'passed', cleanup: 'passed',
   signedOut: { serverRevocation: 'observed', ownedCacheRows: 0, appTermination: 'after revocation and cache proof' },
+  coursework: { noOp: 'disabled', cancel: 'unchanged', titleSave: 'exact instant preserved', deadlineClear: 'explicit null',
+    creation: 'date-only quiz', itemCount: 2, ...Object.fromEntries(Object.keys(courseworkCases).map(name => [
+      `native${name}`, verifyNativeCoursework(courseworkLog(name), loginContext, `coursework${name}`)])) },
   nativeLogin: verifyNativeLogin(loginLog(), loginContext),
   nativeOfflineRecovery: verifyNativeOfflineRecovery(offlineLog(), loginContext),
   dayReview: { cancel: 'unchanged', save: 'tomorrow with deadline retained', taskCount: 2, studySeconds: 1500, studyBlocks: 1 }, checks: [
@@ -71,6 +88,11 @@ test('rejects missing, partial, replayed and failed proof without echoing privat
     { ...complete(), signedOut: { ...complete().signedOut, serverRevocation: undefined } },
     { ...complete(), signedOut: { ...complete().signedOut, ownedCacheRows: 1 } },
     { ...complete(), signedOut: { ...complete().signedOut, appTermination: 'before revocation' } },
+    { ...complete(), coursework: undefined },
+    ...['noOp', 'cancel', 'titleSave', 'deadlineClear', 'creation', 'itemCount', 'nativeCancel', 'nativeTitle', 'nativeClear', 'nativeCreate']
+      .map(field => ({ ...complete(), coursework: { ...complete().coursework, [field]: undefined } })),
+    ...Object.keys(courseworkCases).map(name => ({ ...complete(), coursework: { ...complete().coursework,
+      [`native${name}`]: { ...complete().coursework[`native${name}`], runId: '124' } } })),
     { ...complete(), nativeLogin: undefined }, { ...complete(), nativeLogin: { ...complete().nativeLogin, commit: 'b'.repeat(40) } },
     { ...complete(), nativeLogin: { ...complete().nativeLogin, result: 'failed' } },
     { ...complete(), nativeLogin: { ...complete().nativeLogin, checks: loginMarkers.slice(0, 3) } },
@@ -307,4 +329,77 @@ test('native review assertions reject an unusable date, shared task identity or 
     assert.throws(() => assertDayReviewTasks([task, reviewTask], task, reviewTask, date, 'cancelled'));
   assert.throws(() => assertDayReviewTasks([task, task], task, { ...reviewTask, id: task.id }, '2026-10-13', 'cancelled'));
   assert.throws(() => assertDayReviewTasks([task, reviewTask], task, reviewTask, '2026-10-13', 'unknown'));
+});
+
+for (const [name, [prefix, method, stages]] of Object.entries(courseworkCases)) {
+  test(`native coursework ${name} requires every stage and exactly the named successful UI test`, () => {
+    const result = verifyNativeCoursework(courseworkLog(name), loginContext, `coursework${name}`);
+    assert.deepEqual(result, { ...loginContext, result: 'passed', checks: stages });
+    assert.ok(!/private@example|secret-password/.test(JSON.stringify(result)));
+    assert.deepEqual(privateLoginStages(courseworkLog(name), `coursework${name}`), stages);
+    assert.deepEqual(privateLoginDiagnostics(`Test Case '-[PrivateLoginTests.NativePrivateLoginTests ${method}]' started.\n`,
+      `coursework${name}`), { completed: [], started: true, failed: false, sourceLines: [] });
+  });
+  test(`native coursework ${name} rejects incomplete, reordered, replayed and wrong-test results`, () => {
+    const log = courseworkLog(name);
+    const invalid = ['', log.replace('Executed 1 test', 'Executed 0 tests'), log.replace(method, 'testWrongCase'),
+      log.replace('0 failures', '1 failure'), log.replace('** TEST SUCCEEDED **', '** TEST FAILED **'),
+      log.replace(stages[0], 'UNACCEPTED_STAGE'), log + `CAMPUSFLOW_${prefix}_${stages[0]}\n`,
+      log.replace(`CAMPUSFLOW_${prefix}_${stages[0]}\n`, '') + `CAMPUSFLOW_${prefix}_${stages[0]}\n`,
+      log.replace(loginContext.commit, 'b'.repeat(40)), log.replace('|123|1', '|124|1'), log.replace('|123|1', '|123|2')];
+    for (const value of invalid) assert.throws(() => verifyNativeCoursework(value, loginContext, `coursework${name}`),
+      error => /proof required/.test(error.message) && !/private@example|secret-password/.test(error.message));
+    assert.throws(() => verifyNativeCoursework(log, { ...loginContext, udid: '22222222-2222-3333-4444-555555555555' }, `coursework${name}`));
+  });
+}
+test('coursework verification cannot substitute the existing login or offline test', () => {
+  for (const kind of ['login', 'offline', 'unsupported', undefined])
+    assert.throws(() => verifyNativeCoursework(loginLog(), loginContext, kind), /Unsupported private native coursework test/);
+});
+
+const coursework = { id: '33333333-4444-4555-8666-777777777777', title: 'Native coursework original', kind: 'discussion',
+  courseId: '44444444-5555-4666-8777-888888888888', due: { kind: 'instant', at: '2026-11-01T08:30:45.123Z' },
+  source: 'manual', externalId: 'owned-coursework', submissionState: 'unsubmitted', mainGoalDate: null, updatedAt: '2026-10-15T12:00:00Z' };
+const titleSaved = () => ({ ...coursework, title: 'Native revised title', updatedAt: '2026-10-15T12:01:00Z' });
+const cleared = () => ({ ...titleSaved(), due: null, updatedAt: '2026-10-15T12:02:00Z' });
+const createdCoursework = () => ({ ...coursework, id: '55555555-6666-4777-8888-999999999999', title: 'Native added quiz',
+  kind: 'quiz', courseId: null, due: { kind: 'date', date: '2026-11-29' }, externalId: 'new-owned-coursework', updatedAt: '2026-10-15T12:03:00Z' });
+
+test('coursework Cancel readback preserves the full exact record and version', () => {
+  assert.deepEqual(assertCourseworkEdited([coursework], coursework, 'cancelled'), coursework);
+  for (const value of [titleSaved(), { ...coursework, due: null }, { ...coursework, updatedAt: titleSaved().updatedAt }])
+    assert.throws(() => assertCourseworkEdited([value], coursework, 'cancelled'));
+});
+test('coursework title-only Save readback preserves deadline seconds, course and kind', () => {
+  assert.deepEqual(assertCourseworkEdited([titleSaved()], coursework, 'title', titleSaved().title), titleSaved());
+  for (const value of [coursework, { ...titleSaved(), due: { kind: 'instant', at: '2026-11-01T08:30:00Z' } },
+    { ...titleSaved(), due: { kind: 'date', date: '2026-11-01' } }, { ...titleSaved(), courseId: null },
+    { ...titleSaved(), kind: 'assignment' }, { ...titleSaved(), source: 'canvas' }, { ...titleSaved(), updatedAt: coursework.updatedAt }])
+    assert.throws(() => assertCourseworkEdited([value], coursework, 'title', titleSaved().title));
+});
+test('explicit deadline clearing changes only deadline and record version', () => {
+  assert.deepEqual(assertCourseworkEdited([cleared()], titleSaved(), 'cleared'), cleared());
+  for (const value of [titleSaved(), { ...cleared(), title: coursework.title }, { ...cleared(), submissionState: 'submitted' },
+    { ...cleared(), externalId: 'different' }, { ...cleared(), updatedAt: titleSaved().updatedAt }])
+    assert.throws(() => assertCourseworkEdited([value], titleSaved(), 'cleared'));
+});
+test('native edit readback rejects missing, duplicate, foreign-source and unrelated records', () => {
+  for (const values of [[], [coursework, coursework], [{ ...coursework, id: createdCoursework().id }]])
+    assert.throws(() => assertCourseworkEdited(values, coursework, 'cancelled'));
+  assert.throws(() => assertCourseworkEdited([{ ...coursework, source: 'canvas' }], { ...coursework, source: 'canvas' }, 'cancelled'));
+  assert.throws(() => assertCourseworkEdited([titleSaved()], coursework, 'unsupported', titleSaved().title));
+  assert.throws(() => assertCourseworkEdited([coursework], coursework, 'title', coursework.title));
+});
+test('native creation readback requires a new manual date-only quiz and preserves the edited record', () => {
+  assert.deepEqual(assertCourseworkCreated([createdCoursework(), cleared()], cleared(), createdCoursework().title, '2026-11-29'), createdCoursework());
+});
+test('native creation rejects absent, duplicate, stale and partially saved results', () => {
+  const invalid = [[cleared()], [cleared(), cleared()], [coursework, createdCoursework()],
+    ...[{ ...createdCoursework(), due: null }, { ...createdCoursework(), due: { kind: 'instant', at: '2026-11-29T00:00:00Z' } },
+      { ...createdCoursework(), title: 'Wrong title' }, { ...createdCoursework(), kind: 'assignment' },
+      { ...createdCoursework(), courseId: coursework.courseId }, { ...createdCoursework(), source: 'canvas' },
+      { ...createdCoursework(), submissionState: 'submitted' }, { ...createdCoursework(), mainGoalDate: '2026-11-29' }]
+      .map(value => [cleared(), value])];
+  for (const values of invalid) assert.throws(() => assertCourseworkCreated(values, cleared(), createdCoursework().title, '2026-11-29'));
+  assert.throws(() => assertCourseworkCreated([cleared(), createdCoursework()], cleared(), createdCoursework().title, '2026-02-30'));
 });

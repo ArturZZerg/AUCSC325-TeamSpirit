@@ -6,7 +6,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createServer } from 'node:net';
-import { sessionSchema, personalTaskSchema, createPersonalTaskSchema, dateSchema, saveFocusSessionSchema, focusSessionSchema } from '@campusflow/contracts';
+import { sessionSchema, personalTaskSchema, createPersonalTaskSchema, dateSchema, saveFocusSessionSchema, focusSessionSchema,
+  academicItemSchema, createManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
 import { addCalendarDays } from '@campusflow/domain';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -18,8 +19,16 @@ const requiredChecks = ['ordinary native sign-in, Secure Store write, and API-co
 const loginStages = ['EMAIL_AND_NEXT', 'PASSWORD_AND_HIDE', 'TODAY', 'COMPLETE'];
 const offlineStages = ['RESTORED', 'UNAVAILABLE', 'RETURNED', 'COMPLETE'];
 const nativeCases = {
-  login: { prefix: 'LOGIN', method: 'testOrdinaryNativeLogin', stages: loginStages },
-  offline: { prefix: 'OFFLINE', method: 'testOfflineRecovery', stages: offlineStages },
+  login: { prefix: 'LOGIN', method: 'testOrdinaryNativeLogin', stages: loginStages, label: 'login' },
+  offline: { prefix: 'OFFLINE', method: 'testOfflineRecovery', stages: offlineStages, label: 'offline recovery' },
+  courseworkCancel: { prefix: 'COURSEWORK_CANCEL', method: 'testCourseworkNoOpAndCancel',
+    stages: ['OPENED', 'NO_OP', 'CANCELLED', 'COMPLETE'], label: 'coursework cancellation' },
+  courseworkTitle: { prefix: 'COURSEWORK_TITLE', method: 'testCourseworkTitleSave',
+    stages: ['OPENED', 'TITLE_CHANGED', 'SAVED', 'COMPLETE'], label: 'coursework title save' },
+  courseworkClear: { prefix: 'COURSEWORK_CLEAR', method: 'testCourseworkDeadlineClear',
+    stages: ['OPENED', 'DEADLINE_CLEARED', 'SAVED', 'COMPLETE'], label: 'coursework deadline clearing' },
+  courseworkCreate: { prefix: 'COURSEWORK_CREATE', method: 'testCourseworkCreation',
+    stages: ['OPENED', 'DRAFT_READY', 'SAVED', 'COMPLETE'], label: 'coursework creation' },
 };
 const nativeCase = kind => {
   if (!Object.hasOwn(nativeCases, kind)) throw new Error('Unsupported private native test.');
@@ -44,8 +53,8 @@ export function privateLoginDiagnostics(log, kind = 'login') {
 }
 
 function verifyNativeTest(log, context, kind) {
-  const { prefix, method, stages } = nativeCase(kind);
-  const fail = () => { throw new Error(`Complete source/device/run-matched native ${kind === 'login' ? 'login' : 'offline recovery'} proof required.`); };
+  const { prefix, method, stages, label } = nativeCase(kind);
+  const fail = () => { throw new Error(`Complete source/device/run-matched native ${label} proof required.`); };
   if (!context || !/^[0-9a-f]{40}$/i.test(context.commit ?? '')
     || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(context.udid ?? '')
     || !/^[1-9][0-9]*$/.test(context.runId ?? '') || !/^[1-9][0-9]*$/.test(context.attempt ?? '')
@@ -65,6 +74,11 @@ function verifyNativeTest(log, context, kind) {
 }
 export const verifyNativeLogin = (log, context) => verifyNativeTest(log, context, 'login');
 export const verifyNativeOfflineRecovery = (log, context) => verifyNativeTest(log, context, 'offline');
+export function verifyNativeCoursework(log, context, kind) {
+  if (!['courseworkCancel', 'courseworkTitle', 'courseworkClear', 'courseworkCreate'].includes(kind))
+    throw new Error('Unsupported private native coursework test.');
+  return verifyNativeTest(log, context, kind);
+}
 
 export function assertStorageAcceptanceProof(value, commit, context) {
   if (!/^[0-9a-f]{40}$/i.test(commit ?? '') || !value || value.commit !== commit || value.api !== apiUrl
@@ -74,10 +88,13 @@ export function assertStorageAcceptanceProof(value, commit, context) {
     || value.dayReview?.cancel !== 'unchanged' || value.dayReview?.save !== 'tomorrow with deadline retained'
     || value.dayReview?.taskCount !== 2 || value.dayReview?.studySeconds !== 1500 || value.dayReview?.studyBlocks !== 1
     || value.signedOut?.serverRevocation !== 'observed' || value.signedOut?.ownedCacheRows !== 0
-    || value.signedOut?.appTermination !== 'after revocation and cache proof')
+    || value.signedOut?.appTermination !== 'after revocation and cache proof'
+    || value.coursework?.noOp !== 'disabled' || value.coursework?.cancel !== 'unchanged'
+    || value.coursework?.titleSave !== 'exact instant preserved' || value.coursework?.deadlineClear !== 'explicit null'
+    || value.coursework?.creation !== 'date-only quiz' || value.coursework?.itemCount !== 2)
     throw new Error('Incomplete iOS storage acceptance proof for this source commit.');
-  for (const [key, stages] of [['nativeLogin', loginStages], ['nativeOfflineRecovery', offlineStages]]) {
-    const native = value[key];
+  for (const [native, stages] of [[value.nativeLogin, loginStages], [value.nativeOfflineRecovery, offlineStages],
+    ...['Cancel', 'Title', 'Clear', 'Create'].map(name => [value.coursework[`native${name}`], nativeCases[`coursework${name}`].stages])]) {
     if (native?.commit !== commit || native.result !== 'passed'
       || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(native.udid ?? '')
       || !/^[1-9][0-9]*$/.test(native.runId ?? '') || !/^[1-9][0-9]*$/.test(native.attempt ?? '')
@@ -86,6 +103,38 @@ export function assertStorageAcceptanceProof(value, commit, context) {
       || JSON.stringify(native.checks) !== JSON.stringify(stages))
       throw new Error('Incomplete iOS storage acceptance private native proof.');
   }
+}
+
+/** Real API reads prove native modal edits changed only the requested fields. */
+export function assertCourseworkEdited(values, beforeValue, outcome, title) {
+  const before = academicItemSchema.parse(beforeValue);
+  assert.equal(before.source, manualAcademicSource); assert.equal(before.due?.kind, 'instant');
+  assert.equal(values.length, 1);
+  const actual = academicItemSchema.parse(values[0]);
+  if (outcome === 'cancelled') assert.deepEqual(actual, before);
+  else {
+    assert.ok(['title', 'cleared'].includes(outcome));
+    const changes = outcome === 'title' ? { title: createManualAcademicItemSchema.shape.title.parse(title) } : { due: null };
+    if (outcome === 'title') assert.notEqual(changes.title, before.title);
+    assert.deepEqual(actual, { ...before, ...changes, updatedAt: actual.updatedAt });
+    assert.notEqual(actual.updatedAt, before.updatedAt);
+  }
+  return actual;
+}
+
+export function assertCourseworkCreated(values, beforeValue, title, date) {
+  const before = academicItemSchema.parse(beforeValue);
+  assert.equal(before.source, manualAcademicSource);
+  const expected = createManualAcademicItemSchema.parse({ title, kind: 'quiz', courseId: null, due: { kind: 'date', date } });
+  assert.equal(values.length, 2);
+  const items = values.map(value => academicItemSchema.parse(value));
+  assert.equal(new Set(items.map(item => item.id)).size, 2);
+  assert.deepEqual(items.find(item => item.id === before.id), before);
+  const created = items.find(item => item.id !== before.id);
+  assert.deepEqual({ title: created.title, kind: created.kind, courseId: created.courseId, due: created.due }, expected);
+  assert.equal(created.source, manualAcademicSource); assert.equal(created.submissionState, 'unsubmitted');
+  assert.equal(created.mainGoalDate, null);
+  return created;
 }
 
 /** Only stop the child created by this harness. Signal exits are terminal too. */
@@ -255,7 +304,11 @@ async function run() {
   const dbPassword = randomBytes(24).toString('hex'), password = randomBytes(24).toString('hex');
   const email = `ios-${randomUUID()}@example.test`, title = `iOS study ${randomUUID().slice(0, 8)}`,
     reviewTitle = `iOS review ${randomUUID().slice(0, 8)}`;
-  for (const value of [dbPassword, password, email, title, reviewTitle]) console.log(`::add-mask::${value}`);
+  const academicTitle = `Native coursework ${randomUUID().slice(0, 8)}`,
+    editedAcademicTitle = `Native revised ${randomUUID().slice(0, 8)}`,
+    createdAcademicTitle = `Native added ${randomUUID().slice(0, 8)}`,
+    academicDate = addCalendarDays(new Date().toISOString().slice(0, 10), 45);
+  for (const value of [dbPassword, password, email, title, reviewTitle, academicTitle, editedAcademicTitle, createdAcademicTitle]) console.log(`::add-mask::${value}`);
   writeFileSync(path.join(runDir, 'pg-password'), dbPassword, { mode: 0o600 });
   const env = { ...process.env, DATABASE_URL: `postgresql://campusflow_ios:${dbPassword}@127.0.0.1:55439/campusflow_ios_test`,
     PGPASSWORD: dbPassword, NODE_ENV: 'development', PORT: '3000', HOST: '127.0.0.1', REGISTRATION_MODE: 'preview',
@@ -274,7 +327,8 @@ async function run() {
       if (code === 0) return resolve();
       // Publish only a bounded assertion summary, never raw Maestro commands/UI dumps.
       const failed = name.startsWith('private-') ? undefined
-        : publicFlowFailure(readFileSync(path.join(runDir, `${name}.log`), 'utf8'), [email, password, dbPassword, title, reviewTitle]);
+        : publicFlowFailure(readFileSync(path.join(runDir, `${name}.log`), 'utf8'),
+          [email, password, dbPassword, title, reviewTitle, academicTitle, editedAcademicTitle, createdAcademicTitle]);
       if (failed) console.error(failed);
       reject(new Error(`Acceptance command failed: ${name}. Private diagnostics stay on the runner.`));
     });
@@ -349,9 +403,22 @@ async function run() {
     registeredUserId = session.user.id;
     // Registration token stays in memory; the UI logs in normally and gets its own token.
     console.log(`::add-mask::${session.accessToken}`);
+    stage = 'coursework fixture creation';
+    const academicResponse = await fetch(`${apiUrl}/academic-items`, { method: 'POST',
+      headers: { Authorization: `Bearer ${session.accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(createManualAcademicItemSchema.parse({ title: academicTitle, kind: 'discussion', courseId: null,
+        due: { kind: 'instant', at: `${academicDate}T12:34:56.789Z` } })), signal: AbortSignal.timeout(5000) });
+    assert.equal(academicResponse.status, 201);
+    const academicItem = academicItemSchema.parse(await academicResponse.json());
+    const readAcademic = async () => {
+      const response = await fetch(`${apiUrl}/academic-items`, { headers: { Authorization: `Bearer ${session.accessToken}` }, signal: AbortSignal.timeout(5000) });
+      assert.equal(response.status, 200); return response.json();
+    };
+    assertCourseworkEdited(await readAcademic(), academicItem, 'cancelled');
     stage = 'ordinary native XCTest login';
     const loginContext = { commit: proof.commit, udid: config.udid, runId: env.GITHUB_RUN_ID, attempt: env.GITHUB_RUN_ATTEMPT };
-    writeFileSync(path.join(runDir, 'login-context.json'), JSON.stringify({ ...loginContext, email, password, task: title }), { mode: 0o600 });
+    writeFileSync(path.join(runDir, 'login-context.json'), JSON.stringify({ ...loginContext, email, password, task: title,
+      academicTitle, editedAcademicTitle, createdAcademicTitle, academicDate }), { mode: 0o600 });
     await command('ruby', ['scripts/ios-private-login.rb', runDir], 'private-login-project');
     proof.nativeLogin = await nativeTest('login', loginContext);
     assert.equal(await prisma.session.count({ where: { userId: session.user.id, revokedAt: null } }), 2);
@@ -404,6 +471,24 @@ async function run() {
     assertDayReviewTasks(await readTasks(), task, reviewTask, reviewDate, 'saved');
     assert.equal(await prisma.personalTask.count({ where: { userId: session.user.id } }), 2);
     proof.dayReview = { cancel: 'unchanged', save: 'tomorrow with deadline retained', taskCount: 2, studySeconds: 1500, studyBlocks: 1 };
+
+    // Native UI must perform every operation; ordinary API reads independently
+    // verify each result. No API mutation substitutes for a failed UI action.
+    stage = 'native coursework no-op and cancellation';
+    const nativeCancel = await nativeTest('courseworkCancel', loginContext);
+    assertCourseworkEdited(await readAcademic(), academicItem, 'cancelled');
+    stage = 'native coursework title save';
+    const nativeTitle = await nativeTest('courseworkTitle', loginContext);
+    const revisedAcademic = assertCourseworkEdited(await readAcademic(), academicItem, 'title', editedAcademicTitle);
+    stage = 'native coursework deadline clearing';
+    const nativeClear = await nativeTest('courseworkClear', loginContext);
+    const clearedAcademic = assertCourseworkEdited(await readAcademic(), revisedAcademic, 'cleared');
+    stage = 'native coursework creation';
+    const nativeCreate = await nativeTest('courseworkCreate', loginContext);
+    assertCourseworkCreated(await readAcademic(), clearedAcademic, createdAcademicTitle, academicDate);
+    proof.coursework = { noOp: 'disabled', cancel: 'unchanged', titleSave: 'exact instant preserved',
+      deadlineClear: 'explicit null', creation: 'date-only quiz', itemCount: 2,
+      nativeCancel, nativeTitle, nativeClear, nativeCreate };
 
     stage = 'offline cold restoration'; await stopApi(); await unusedPort(3000);
     await flow('ios-session-offline');
