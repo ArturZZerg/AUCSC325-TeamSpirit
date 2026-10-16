@@ -230,8 +230,14 @@ export function privateViewSummary(hierarchy) {
     emailInput: 'auth-email', passwordInput: 'auth-password', signIn: 'Sign in', invalidCredentials: 'Invalid email or password',
     networkFailure: 'Network request failed', showPassword: 'Show password', hidePassword: 'Hide password' };
   const result = Object.fromEntries(Object.keys(known).map(name => [name, false]));
+  const seen = new WeakSet();
+  let visited = 0;
   function visit(value, depth) {
-    if (depth > 40 || value === null || typeof value !== 'object') return;
+    // Native navigation wrappers can put ordinary controls beyond depth 40.
+    // Keep a total work bound as well as cycle/depth guards; publish only the
+    // fixed allowlisted booleans, never the hierarchy or its private values.
+    if (depth > 120 || visited++ >= 4000 || value === null || typeof value !== 'object' || seen.has(value)) return;
+    seen.add(value);
     for (const child of Object.values(value)) {
       if (typeof child === 'string') {
         for (const [name, label] of Object.entries(known)) if (child === label) result[name] = true;
@@ -247,7 +253,7 @@ export function privateHierarchyShape(hierarchy) {
   let objects = 0, strings = 0, visited = 0, depthLimited = false, truncated = false;
   const seen = new WeakSet();
   function visit(value, depth) {
-    if (depth > 40) { depthLimited = true; return; }
+    if (depth > 120) { depthLimited = true; return; }
     if (visited++ >= 4000) { truncated = true; return; }
     if (typeof value === 'string') { strings++; return; }
     if (!value || typeof value !== 'object' || seen.has(value)) return;

@@ -280,8 +280,19 @@ test('hierarchy diagnostics distinguish empty and populated trees using bounded 
   value.children.push(value);
   assert.equal(privateHierarchyShape(value).truncated, false);
   assert.equal(privateHierarchyShape(Array(5000).fill('private-token')).truncated, true);
-  let deep = {}; for (let i = 0; i < 50; i++) deep = { children: deep };
+  let deep = {}; for (let i = 0; i < 130; i++) deep = { children: deep };
   assert.equal(privateHierarchyShape(deep).depthLimited, true);
+});
+
+test('native screen diagnostics recognize controls below navigation wrappers without leaking private data', () => {
+  let hierarchy = { attributes: { text: 'New task', id: 'task-title', value: 'secret-password' } };
+  for (let i = 0; i < 50; i++) hierarchy = { children: hierarchy };
+  const summary = privateViewSummary(hierarchy);
+  assert.equal(summary.editor, true); assert.equal(summary.titleInput, true);
+  assert.equal(privateHierarchyShape(hierarchy).depthLimited, false);
+  assert.ok(!JSON.stringify(summary).includes('secret-password'));
+  hierarchy.cycle = hierarchy;
+  assert.deepEqual(privateViewSummary(hierarchy), summary);
 });
 
 test('database failure diagnostics allow nonnegative aggregate counts and omit all record fields', () => {
