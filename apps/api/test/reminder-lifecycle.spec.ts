@@ -31,8 +31,8 @@ runWithDatabase('personal task reminder lifecycle', () => {
 
     const first = await client().post('/auth/register').send(account('owner')).expect(201);
     const second = await client().post('/auth/register').send(account('other')).expect(201);
-    token = String(first.body.accessToken);
-    otherToken = String(second.body.accessToken);
+    token = `Bearer ${String(first.body.accessToken)}`;
+    otherToken = `Bearer ${String(second.body.accessToken)}`;
   });
 
   afterAll(async () => {
