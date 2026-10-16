@@ -15,6 +15,20 @@ deadline entry independent of Canvas approval; ownership is defined in ADR 003.
   courses and academic items, and imported-item edits/deletion return 404.
 - Changes reconcile reminder intent under the same account/item locks as sync.
   Deletion removes reminders, including legacy unlinked target records.
+- Archiving/restoring a student-created course reconciles its owned academic
+  items in the same transaction, including retries of an explicit activity state.
+  Preserve reminder identity and lead configuration; use existing eligibility
+  rules for timed deadlines, unfinished state and course activity. `leadMinutes:
+  null` is explicit No reminder; `Reminder.enabled` is derived eligibility, not
+  a separate user setting. Course changes leave notification categories intact.
+- Deleting a student-created course preserves coursework through `ON DELETE SET
+  NULL`, then reconciles the affected items against no-course eligibility in that
+  transaction. Configured eligible intent may return; disabled configuration,
+  finished work and absent/date-only deadlines do not acquire delivery intent.
+- Course activity/deletion takes the existing academic account lock before the
+  course and academic rows. Concurrent academic edits/reassignment and explicit
+  reminder changes serialize; a reconciliation failure rolls back course state,
+  relation clearing and reminder writes together.
 - Show saved success only after the API confirms the write; failed saves retain
   the draft. Guard repeated taps and dismissal during a save. Ask before deletion.
   Session changes discard private drafts. Previously cached reads remain useful.
@@ -28,3 +42,10 @@ requires actual native no-op/Cancel, exact deadline preservation, explicit
 clearing and creation, each followed by independent API readback. Local harness
 tests validate its rejection rules; only a complete source-matched simulator run
 accepts those native interactions.
+
+`apps/api/test/course-reminders-db.spec.ts` provides PostgreSQL evidence for
+course archive/restore/delete, eligibility and opt-out, stable reminder identity,
+retry/duplicate prevention, rollback, ownership and both concurrency orders.
+Its concurrency cases observe real PostgreSQL lock waits and verify another
+account can progress. Local native schedules still learn these backend changes
+through successful refresh; physical notification delivery is separate acceptance.
