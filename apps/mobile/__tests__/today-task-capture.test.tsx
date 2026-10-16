@@ -25,6 +25,20 @@ beforeEach(() => {
 });
 
 describe('Today task capture (ToR 4, 7, 19)', () => {
+  it('opens one draft on repeated capture presses and writes only once after explicit Save', async () => {
+    render(<TodayScreen/>);
+    const captureButton = screen.getByRole('button', { name: 'Add a task to this day' });
+    act(() => { fireEvent.press(captureButton); fireEvent.press(captureButton); });
+    expect(screen.getAllByText('New task')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Add a task to this day' })).toBeNull();
+    expect(save).not.toHaveBeenCalled();
+    fireEvent.changeText(screen.getByLabelText('Title'), 'Read chapter five');
+    fireEvent.press(screen.getByText('Save task'));
+    await waitFor(() => expect(screen.queryByText('New task')).toBeNull());
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0][0].body.scheduled).toEqual({ kind: 'date', date });
+  });
+
   it('saves work on the displayed calendar day without inventing a deadline or timed instant', async () => {
     render(<TodayScreen/>); capture();
     expect(screen.getByLabelText('Scheduled date')).toHaveDisplayValue(date);

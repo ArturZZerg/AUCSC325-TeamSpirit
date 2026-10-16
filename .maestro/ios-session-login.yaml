@@ -9,9 +9,14 @@ name: iOS owned task capture after verified ordinary XCTest sign-in
 - scrollUntilVisible:
     element:
       id: today-add-task
+      enabled: true
     direction: UP
 - tapOn:
     id: today-add-task
+    enabled: true
+    # Opening the draft is idempotent. Retry only if the native hierarchy did
+    # not change; a delivered tap removes this button and opens the editor.
+    retryTapIfNoChange: true
 - extendedWaitUntil:
     visible: New task
     timeout: 30000
