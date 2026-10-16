@@ -1,4 +1,4 @@
-import { eventQuerySchema, completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema } from '../src';
+import { eventQuerySchema, completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema, notificationPreferencesSchema, updateNotificationPreferencesSchema } from '../src';
 
 describe('public contract validation', () => {
   it('keeps date-only and timed task values unambiguous', () => {
@@ -52,5 +52,42 @@ describe('event range query boundary', () => {
   it('rejects duplicate and unknown query parameters', () => {
     expect(eventQuerySchema.safeParse({ from: ['2026-03-08', '2026-03-09'] }).success).toBe(false);
     expect(eventQuerySchema.safeParse({ sourceScope: 'public' }).success).toBe(false);
+  });
+});
+
+describe('notification preference boundary', () => {
+  const defaults = {
+    academicEnabled: true,
+    personalEnabled: true,
+    goalEnabled: true,
+    eventEnabled: true,
+    dailyOverviewEnabled: false,
+    quietHoursStart: null,
+    quietHoursEnd: null,
+  };
+
+  it('accepts the persisted preference shape and nullable quiet hours', () => {
+    expect(notificationPreferencesSchema.parse(defaults)).toEqual(defaults);
+    expect(notificationPreferencesSchema.parse({
+      ...defaults,
+      quietHoursStart: '22:30',
+      quietHoursEnd: '07:00',
+    })).toMatchObject({ quietHoursStart: '22:30', quietHoursEnd: '07:00' });
+  });
+
+  it('accepts partial preference updates', () => {
+    expect(updateNotificationPreferencesSchema.parse({ personalEnabled: false })).toEqual({ personalEnabled: false });
+    expect(updateNotificationPreferencesSchema.parse({ quietHoursStart: null, quietHoursEnd: '07:00' }))
+      .toEqual({ quietHoursStart: null, quietHoursEnd: '07:00' });
+  });
+
+  it.each([
+    { personalEnabled: 'false' },
+    { quietHoursStart: '7:00' },
+    { quietHoursEnd: '24:00' },
+    { quietHoursStart: 'not-a-time' },
+    { unknownCategory: true },
+  ])('rejects invalid preference update %j', value => {
+    expect(updateNotificationPreferencesSchema.safeParse(value).success).toBe(false);
   });
 });

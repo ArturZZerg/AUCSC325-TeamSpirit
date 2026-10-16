@@ -62,7 +62,7 @@ export const wellnessEntrySchema = z.object({ id: idSchema, date: dateSchema, mo
 export const createWellnessEntrySchema = wellnessEntrySchema.pick({ date: true, mood: true, energy: true, stress: true, note: true });
 export const localTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:MM');
 export const notificationPreferencesSchema = z.object({ academicEnabled: z.boolean(), personalEnabled: z.boolean(), goalEnabled: z.boolean(), eventEnabled: z.boolean(), dailyOverviewEnabled: z.boolean(), quietHoursStart: localTimeSchema.nullable(), quietHoursEnd: localTimeSchema.nullable() });
-export const updateNotificationPreferencesSchema = notificationPreferencesSchema.partial();
+export const updateNotificationPreferencesSchema = notificationPreferencesSchema.partial().strict();
 export const reminderSchema = z.object({ id: idSchema, targetKind: z.enum(['personalTask', 'goal', 'savedEvent', 'academicItem']), targetId: idSchema, occurrenceKey: dateSchema.nullable(), fireAt: instantSchema, enabled: z.boolean() });
 
 export const canvasConnectionStatusSchema = z.object({ connected: z.boolean(), baseUrl: z.string().url().nullable(), externalAccountId: z.string().nullable(), lastSuccessfulSyncAt: instantSchema.nullable(), lastSyncAttemptAt: instantSchema.nullable(), lastError: z.string().nullable() });
