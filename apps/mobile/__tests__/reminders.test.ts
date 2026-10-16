@@ -2,8 +2,10 @@ import * as Notifications from 'expo-notifications';
 import { waitFor } from '@testing-library/react-native';
 import { clearScheduledReminders, overviewSchedule, reconcileReminders, type ReminderContext } from '../src/services/reminders';
 import type { Reminder } from '@campusflow/contracts';
+import { readCache } from '../src/services/cache';
 import { useReminderStatus } from '../src/store/reminder-status';
 
+jest.mock('../src/services/cache', () => ({ readCache: jest.fn().mockResolvedValue(undefined), writeCache: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('expo-notifications', () => ({ getPermissionsAsync: jest.fn(), requestPermissionsAsync: jest.fn(),
   getAllScheduledNotificationsAsync: jest.fn(), cancelScheduledNotificationAsync: jest.fn(), scheduleNotificationAsync: jest.fn(),
   SchedulableTriggerInputTypes: { DATE: 'date' } }));
@@ -19,7 +21,7 @@ function notification(identifier: string, data: Record<string, unknown>): Notifi
 }
 beforeEach(() => {
   jest.clearAllMocks(); ownerCurrent = true; scheduled = [];
-  useReminderStatus.setState({ accountId: undefined, error: undefined });
+  useReminderStatus.setState({ accountId: undefined, error: undefined, persistenceError: undefined });
   jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2025-03-09T17:00:00Z'));
   jest.mocked(Notifications.getPermissionsAsync).mockReset().mockResolvedValue({ granted: true } as Notifications.NotificationPermissionsStatus);
   jest.mocked(Notifications.getAllScheduledNotificationsAsync).mockReset().mockImplementation(async () => [...scheduled]);
@@ -220,4 +222,12 @@ describe('morning overview (ToR 13)', () => {
     jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue({ granted: false } as Notifications.NotificationPermissionsStatus);
     await reconcileReminders([], withOverview()); expect(scheduled).toHaveLength(0);
   });
+});
+
+it('does not carry another account’s persistence warning into a failed reconciliation', async () => {
+  await clearScheduledReminders();
+  useReminderStatus.setState({ accountId: 'previous-account', persistenceError: 'Previous account cleanup warning' });
+  jest.mocked(readCache).mockRejectedValueOnce(new Error('Current account cache unavailable'));
+  await expect(reconcileReminders([reminder], context())).rejects.toThrow('Current account cache unavailable');
+  expect(useReminderStatus.getState()).toMatchObject({ accountId: context().accountId, persistenceError: undefined });
 });

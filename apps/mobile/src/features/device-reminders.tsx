@@ -37,6 +37,6 @@ export function DeviceReminderSync() {
     });
     return () => { active = false; subscription.remove(); };
   }, [session, reminders.refetch, preferences.refetch]);
-  return session && failure.accountId === session.user.id && failure.error
-    ? <Text accessibilityRole="alert" style={{ color: colors.coral, padding: 12 }}>{failure.error}</Text> : null;
+  return session && failure.accountId === session.user.id && (failure.error || failure.persistenceError)
+    ? <Text accessibilityRole="alert" style={{ color: colors.coral, padding: 12 }}>{failure.persistenceError ?? failure.error}</Text> : null;
 }

@@ -123,7 +123,7 @@ export default function Tasks() {
         <Text style={styles.section}>Delete task?</Text><Text style={styles.meta}>Delete “{deleting.title}” and its reminder?</Text>
         {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
         <Button title={disabled ? 'Deleting…' : 'Delete task'} tone="danger" disabled={disabled} onPress={() => {
-          void run({ path: `/tasks/${deleting.id}`, method: 'DELETE' }).then(saved => { if (saved) setDeleting(undefined); });
+          void run({ path: `/tasks/${deleting.id}`, method: 'DELETE', deletedTask: deleting }).then(saved => { if (saved) setDeleting(undefined); });
         }}/>
         <Button title="Keep task" tone="plain" disabled={disabled} onPress={() => setDeleting(undefined)}/>
       </Card></SafeAreaView>

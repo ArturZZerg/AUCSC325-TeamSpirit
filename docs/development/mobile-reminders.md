@@ -123,3 +123,30 @@ them. The content is deliberately generic: it is scheduled in advance and must
 not claim counts that may change. Tapping it opens Today for the same signed-in
 account only; other accounts, mismatched identities and malformed dates are
 ignored. Opening the app at least weekly keeps the window filled.
+
+## Confirmed one-time task changes
+
+After an acknowledged nonrecurring task deletion or completion, mobile suppresses
+that task's obsolete delivery intent before invalidating reads. A small record in
+the existing account-scoped SQLite cache (`task-reminder-suppression:v1`) survives
+process restart. Reminder queries and native reconciliation both honor it; an
+older fetch, delayed SQLite fallback or remount cannot authorize delivery again.
+Deletion passes the displayed task as local mutation context when its list came
+only from SQLite. That context is never sent to the API.
+
+Only a successful reminder read started after the acknowledgment can authorize
+eligible IDs again, including after undo or a change made on another device.
+The record retains those allowed IDs so an older fallback cannot restore a
+retired ID. Entries are disposable device state and are removed by the existing
+account-cache cleanup on logout. Recurring occurrence completion, coursework,
+course activity and backend reminder rules are unchanged.
+
+Native cancellation and persistence failures leave the server mutation successful.
+The account-scoped root warning distinguishes saved server state from unfinished
+device cleanup. Settings' existing reminder retry and foreground reconciliation
+retry local cleanup without resubmitting the mutation. If storage is unavailable,
+suppression remains in memory; retry before closing the app, because a process
+termination before any durable save cannot preserve newly acknowledged knowledge.
+`confirmed-task-reminders.test.tsx` exercises production hooks, cache and native
+service with controlled API, SQLite driver and Expo boundaries (ToR 7, 13, 19).
+Physical-device cancellation and delivery remain native acceptance gates.

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { academicItemSchema, academicReminderConfigurationSchema, campusEventSchema, courseSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { academicItemSchema, academicReminderConfigurationSchema, campusEventSchema, completePersonalTaskSchema, courseSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
 import { goalOccurrenceDate } from '@campusflow/domain';
 import { classScheduleSchema } from '@campusflow/contracts';
@@ -17,6 +17,9 @@ import type { Session } from '@/lib/types';
 import { useTodayClock } from '@/features/today-clock';
 import { composeOfflineToday } from '@/features/offline-today';
 import { beginTaskWrite, taskEditBaselineCurrent, taskEditWriteCurrent, taskOwnerCurrent, taskOwnershipGeneration, taskCredentialsGeneration, type TaskEditBaseline } from '@/features/task-edit-freshness';
+
+import { acceptTaskReminderRead, filterTaskReminders, loadTaskReminderSuppression, subscribeTaskReminders, taskReminderReadEpoch, taskReminderRevision, taskRemindersLoaded } from '@/services/task-reminder-suppression';
+import { suppressConfirmedTaskReminders } from '@/services/reminders';
 
 const schemas = {
   courses: courseSchema.array(),
@@ -53,10 +56,14 @@ function cachedQuery<T>(key: string, path: string, schema: z.ZodType<T, z.ZodTyp
     enabled: !!accountId, queryKey: ['account', accountId, key],
     queryFn: async ({ signal }) => {
       if (!accountId || !isCurrent()) throw new CancelledError();
+      const reminderEpoch = key === 'reminders' ? taskReminderReadEpoch(accountId) : undefined;
       const fresh = schema.parse(await api<unknown>(path, { signal }));
       if (signal.aborted || !isCurrent()) throw new CancelledError();
+      if (reminderEpoch !== undefined && !await acceptTaskReminderRead(accountId, fresh as Reminder[], reminderEpoch, () => !signal.aborted && isCurrent())) throw new CancelledError();
       // Cache failure must not turn a successful server read into an error.
-      await writeCache(accountId, cacheKey, fresh).catch(() => undefined);
+      await (key === 'reminders'
+        ? writeCache(accountId, cacheKey, fresh, () => !signal.aborted && isCurrent())
+        : writeCache(accountId, cacheKey, fresh)).catch(() => undefined);
       if (signal.aborted || !isCurrent()) throw new CancelledError();
       return fresh;
     },
@@ -204,9 +211,19 @@ export function useWellnessJournal(from: string, through: string) {
   return cachedQuery(`wellnessJournal:${from}:${through}:${session?.user.timeZone}`, `/wellness/journal?from=${from}&through=${through}`, schema);
 }
 export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences', notificationPreferencesSchema);
-export const useReminders = () => cachedQuery<Reminder[]>('reminders', '/reminders', schemas.reminders);
+export function useReminders() {
+  const query = cachedQuery<Reminder[]>('reminders', '/reminders', schemas.reminders);
+  const accountId = useSessionStore(state => state.session?.user.id);
+  const revision = useSyncExternalStore(subscribeTaskReminders, taskReminderRevision);
+  useEffect(() => {
+    if (accountId) void loadTaskReminderSuppression(accountId).catch(() => { /* Reconciliation exposes a retryable cleanup error. */ });
+  }, [accountId]);
+  const data = useMemo(() => accountId && taskRemindersLoaded(accountId) && query.data
+    ? filterTaskReminders(accountId, query.data) : undefined, [accountId, query.data, revision]);
+  return { ...query, data, isLoading: query.isLoading && data === undefined };
+}
 
-type ActionRequest = { path: string; method?: string; body?: unknown; taskEditBaseline?: TaskEditBaseline };
+type ActionRequest = { path: string; method?: string; body?: unknown; taskEditBaseline?: TaskEditBaseline; deletedTask?: PersonalTask };
 export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) => Promise<void>, options?: { awaitRefresh: boolean }) {
   const client = useQueryClient();
   const session = useSessionStore(state => state.session);
@@ -218,7 +235,7 @@ export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) =
       const endWrite = beginTaskWrite(owner, request.path);
       try { await client.cancelQueries({ queryKey: ['account', owner.user.id] }); }
       catch (error) { endWrite?.(); throw error; }
-      return { endWrite };
+      return { endWrite, deletedTask: request.deletedTask ?? client.getQueryData<PersonalTask[]>(['account', owner.user.id, 'tasks'])?.find(task => task.id === request.path.split('/')[2]) };
     },
     mutationFn: async ({ request: { path, method = 'POST', body, taskEditBaseline }, owner, ownershipGeneration }: { request: ActionRequest; owner: typeof session; ownershipGeneration: number; credentialsGeneration: number }) => {
       // Recheck after cancellation: an account switch must not submit an old
@@ -231,6 +248,20 @@ export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) =
       context?.endWrite?.();
       if (owner && useSessionStore.getState().session?.user.id === owner.user.id
         && useSessionStore.getState().session?.accessToken === owner.accessToken && credentialsGeneration === taskCredentialsGeneration()) {
+        const completed = personalTaskSchema.safeParse(data);
+        const deleted = personalTaskSchema.safeParse(context?.deletedTask);
+        const taskId = request.path.split('/')[2];
+        const completion = completePersonalTaskSchema.safeParse(request.body);
+        const confirmedClosed = completion.success && completion.data.completed && request.path === `/tasks/${taskId}/complete` && request.method !== 'DELETE'
+          && completed.success && completed.data.id === taskId && !completed.data.recurrence && !!completed.data.completedAt;
+        const confirmedDeleted = request.path === `/tasks/${taskId}` && request.method === 'DELETE'
+          && deleted.success && deleted.data.id === taskId && !deleted.data.recurrence;
+        if (confirmedClosed || confirmedDeleted) {
+          await suppressConfirmedTaskReminders(taskId, owner.user.id,
+            () => useSessionStore.getState().session?.user.id === owner.user.id
+              && useSessionStore.getState().session?.accessToken === owner.accessToken && credentialsGeneration === taskCredentialsGeneration(),
+            client.getQueryData<Reminder[]>(['account', owner.user.id, 'reminders']) ?? []).catch(() => undefined);
+        }
         // Derived local cleanup runs before refresh; it cannot undo a confirmed
         // server write. Feature callbacks report their own cleanup retry state.
         await afterCommit?.(data, owner).catch(() => undefined);

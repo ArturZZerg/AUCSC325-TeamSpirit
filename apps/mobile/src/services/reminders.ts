@@ -3,6 +3,9 @@ import { Platform } from 'react-native';
 import type { Reminder } from '@campusflow/contracts';
 import { addCalendarDays, instantAtLocalTime, localDateAt, reminderAfterQuietHours } from '@campusflow/domain';
 import type { NotificationPreferences } from '@/lib/types';
+import { readCache } from './cache';
+import { reminderSchema } from '@campusflow/contracts';
+import { confirmTaskReminderSuppression, filterTaskReminders, loadTaskReminderSuppression, persistTaskReminderSuppression, resetTaskReminderSuppression } from './task-reminder-suppression';
 import { useReminderStatus } from '@/store/reminder-status';
 
 const prefix = 'campusflow:';
@@ -41,11 +44,12 @@ export function clearScheduledReminders(): Promise<void> {
   // Invalidate already-queued reconciliation immediately, then wait for any
   // native scheduling call already in progress before clearing its result.
   ++revision;
+  resetTaskReminderSuppression();
   if (Platform.OS === 'web') return Promise.resolve();
   return serialize(async () => {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     for (const item of scheduled.filter(ownedNotification)) await Notifications.cancelScheduledNotificationAsync(item.identifier);
-    useReminderStatus.setState({ accountId: undefined, error: undefined });
+    useReminderStatus.setState({ accountId: undefined, error: undefined, persistenceError: undefined });
   });
 }
 
@@ -54,6 +58,9 @@ export function reconcileReminders(reminders: Reminder[], context: ReminderConte
   const current = () => requestedRevision === revision && context.isCurrent();
   return serialize(async () => {
     if (!current()) return;
+    await loadTaskReminderSuppression(context.accountId);
+    await persistTaskReminderSuppression(context.accountId, current).catch(() => undefined);
+    if (!current()) return;
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     if (!current()) return;
     const permission = await Notifications.getPermissionsAsync();
@@ -61,7 +68,7 @@ export function reconcileReminders(reminders: Reminder[], context: ReminderConte
     const preferences = context.preferences;
     const categoryEnabled = { personalTask: preferences.personalEnabled, academicItem: preferences.academicEnabled,
       goal: preferences.goalEnabled, savedEvent: preferences.eventEnabled };
-    const expected = new Map<string, string>(reminders.filter(reminder => permission.granted && reminder.enabled && categoryEnabled[reminder.targetKind]).map(reminder => {
+    const expected = new Map<string, string>(filterTaskReminders(context.accountId, reminders).filter(reminder => permission.granted && reminder.enabled && categoryEnabled[reminder.targetKind]).map(reminder => {
       const fireAt = new Date(reminderAfterQuietHours(reminder.fireAt, context.timeZone, preferences.quietHoursStart, preferences.quietHoursEnd)).toISOString();
       return [`${prefix}${context.accountId}:${reminder.id}`, fireAt] as const;
     }).filter(([, fireAt]) => Date.parse(fireAt) > Date.now()));
@@ -79,19 +86,52 @@ export function reconcileReminders(reminders: Reminder[], context: ReminderConte
     for (const [key, fireAt] of expected) {
       if (!current()) return;
       if (kept.has(key) || Date.parse(fireAt) <= Date.now()) continue;
+      const taskTarget = reminders.find(reminder => reminder.id === key.split(':')[2] && reminder.targetKind === 'personalTask');
       await Notifications.scheduleNotificationAsync({ identifier: key,
         content: isOverview(key)
           ? { title: 'Your plan for today', body: 'See what’s due, planned and coming up in CampusFlow.',
             data: { campusFlowOverview: true, accountId: context.accountId, stableId: key, fireAt } }
           : { title: 'CampusFlow reminder', body: 'Something in your plan is coming up.',
-            data: { campusFlowReminder: true, accountId: context.accountId, reminderId: key.split(':')[2], stableId: key, fireAt } },
+            data: { campusFlowReminder: true, accountId: context.accountId, reminderId: key.split(':')[2], stableId: key, fireAt,
+              ...(taskTarget ? { targetKind: 'personalTask', targetId: taskTarget.targetId } : {}) } },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(fireAt) },
       });
     }
   }).then(() => {
     if (current()) useReminderStatus.setState({ accountId: context.accountId, error: undefined });
   }).catch(error => {
-    if (current()) useReminderStatus.setState({ accountId: context.accountId, error: 'Couldn’t update device reminders. Retry in Settings.' });
+    if (current()) useReminderStatus.setState(status => ({ accountId: context.accountId, error: 'Couldn’t update device reminders. Retry in Settings.',
+      persistenceError: status.accountId === context.accountId ? status.persistenceError : undefined }));
+    throw error;
+  });
+}
+
+/** Cancel confirmed obsolete task intent without requiring preferences or a successful refetch. */
+export function suppressConfirmedTaskReminders(taskId: string, accountId: string, isCurrent: () => boolean, known: Reminder[]): Promise<void> {
+  if (!isCurrent()) return Promise.resolve();
+  ++revision; // Obsolete reconciliation must finish before this cancellation.
+  confirmTaskReminderSuppression(accountId, taskId);
+  return serialize(async () => {
+    await persistTaskReminderSuppression(accountId, isCurrent).catch(() => undefined);
+    if (!isCurrent() || Platform.OS === 'web') return;
+    let mappingUnavailable = false;
+    const cached = reminderSchema.array().safeParse(await readCache(accountId, 'reminders').catch(() => { mappingUnavailable = true; return undefined; }));
+    const ids = new Set([...known, ...(cached.success ? cached.data : [])]
+      .filter(reminder => reminder.targetKind === 'personalTask' && reminder.targetId === taskId).map(reminder => reminder.id));
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const item of scheduled.filter(ownedNotification)) {
+      if (!isCurrent()) return;
+      const data = item.content.data;
+      const stableId = String(data?.stableId ?? '');
+      const ownedByAccount = data?.accountId === accountId || data?.accountId === undefined && stableId.startsWith(`${prefix}${accountId}:`);
+      const reminderId = String(data?.reminderId ?? stableId.split(':')[2] ?? '');
+      if (ownedByAccount && (ids.has(reminderId)
+        || data?.targetKind === 'personalTask' && data.targetId === taskId)) await Notifications.cancelScheduledNotificationAsync(item.identifier);
+    }
+    if (mappingUnavailable) throw new Error('The saved reminder mapping could not be read.');
+    if (isCurrent()) useReminderStatus.setState({ accountId, error: undefined });
+  }).catch(error => {
+    if (isCurrent()) useReminderStatus.setState({ accountId, error: 'Your task change is saved. Couldn’t cancel its device reminder. Retry reminders in Settings.' });
     throw error;
   });
 }
