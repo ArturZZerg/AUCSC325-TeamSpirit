@@ -19,7 +19,7 @@ const refreshReminders = jest.fn(); const refreshPreferences = jest.fn();
 let listener: (state: AppStateStatus) => void; const remove = jest.fn(); const originalState = AppState.currentState;
 beforeEach(() => {
   jest.clearAllMocks(); useSessionStore.setState({ session, ready: true }); AppState.currentState = 'active';
-  useReminderStatus.setState({ accountId: undefined, error: undefined });
+  useReminderStatus.setState({ accountId: undefined, error: undefined, persistenceError: undefined });
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, callback) => { listener = callback; return { remove }; });
   refreshReminders.mockReset().mockResolvedValue({ data: [] }); refreshPreferences.mockReset().mockResolvedValue({ data: preferences });
   jest.mocked(usePreferences).mockReturnValue({ data: preferences, dataUpdatedAt: 1, refetch: refreshPreferences } as unknown as ReturnType<typeof usePreferences>);
@@ -83,4 +83,12 @@ it('reconciles the synchronized timezone and invalidates pending schedules for t
   const current = jest.mocked(reconcileReminders).mock.calls.at(-1)![1];
   expect(current.timeZone).toBe('UTC'); expect(current.accountId).toBe(session.user.id);
   expect(current.isCurrent()).toBe(true);
+});
+
+it('keeps the saved-change persistence warning visible after native success and hides another account’s warning', async () => {
+  useReminderStatus.setState({ accountId: session.user.id, persistenceError: 'Your task change is saved. Retry reminders in Settings before closing the app.' });
+  render(<DeviceReminderSync/>); await act(async () => {});
+  expect(screen.getByRole('alert')).toHaveTextContent(/task change is saved/);
+  await act(async () => { useReminderStatus.setState({ accountId: 'another-account' }); });
+  expect(screen.queryByRole('alert')).toBeNull();
 });

@@ -16,7 +16,7 @@ import type { Session } from '../src/lib/types';
 
 jest.mock('../src/lib/api', () => ({ ...jest.requireActual('../src/lib/api'), api: jest.fn() }));
 jest.mock('../src/services/cache', () => ({ readCache: jest.fn(), writeCache: jest.fn(), clearAccountCache: jest.fn(), clearWellnessCache: jest.fn(), deleteCache: jest.fn().mockResolvedValue(undefined) }));
-jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn().mockResolvedValue(undefined), suppressConfirmedTaskReminders: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
 
 const first: Session = { accessToken: 'first-token', expiresAt: '2099-01-01T00:00:00Z', user: {

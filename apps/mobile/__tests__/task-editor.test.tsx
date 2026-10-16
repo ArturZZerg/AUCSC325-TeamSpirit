@@ -135,7 +135,7 @@ describe('task forms and actions (ToR 7)', () => {
     await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Delete task' })); });
     expect(save).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(screen.queryByText('Delete task?')).toBeNull());
-    expect(save).toHaveBeenLastCalledWith({ path: `/tasks/${task.id}`, method: 'DELETE' });
+    expect(save).toHaveBeenLastCalledWith({ path: `/tasks/${task.id}`, method: 'DELETE', deletedTask: task });
   });
 
   it('exposes completion failure and allows undoing one-time completion', async () => {
