@@ -33,7 +33,7 @@ runWithDatabase('notification preference API', () => {
 
   it('returns the default preferences for a newly registered account', async () => {
     const registration = await client().post('/auth/register').send(account('defaults')).expect(201);
-    const token = String(registration.body.accessToken);
+    const token = `Bearer ${String(registration.body.accessToken)}`;
 
     await client().get('/notification-preferences').set('Authorization', token).expect(200)
       .expect(response => {
@@ -51,7 +51,7 @@ runWithDatabase('notification preference API', () => {
 
   it('applies partial updates without resetting unrelated preferences', async () => {
     const registration = await client().post('/auth/register').send(account('partial')).expect(201);
-    const token = String(registration.body.accessToken);
+    const token = `Bearer ${String(registration.body.accessToken)}`;
 
     await client().patch('/notification-preferences').set('Authorization', token).send({
       academicEnabled: false,
@@ -77,7 +77,7 @@ runWithDatabase('notification preference API', () => {
 
   it('allows quiet hours to be cleared explicitly', async () => {
     const registration = await client().post('/auth/register').send(account('clear')).expect(201);
-    const token = String(registration.body.accessToken);
+    const token = `Bearer ${String(registration.body.accessToken)}`;
 
     await client().patch('/notification-preferences').set('Authorization', token).send({
       quietHoursStart: '22:00',
@@ -99,7 +99,7 @@ runWithDatabase('notification preference API', () => {
     { unsupported: true },
   ])('rejects invalid preference update %j', async body => {
     const registration = await client().post('/auth/register').send(account(`invalid-${Math.random().toString(16).slice(2)}`)).expect(201);
-    const token = String(registration.body.accessToken);
+    const token = `Bearer ${String(registration.body.accessToken)}`;
 
     await client().patch('/notification-preferences').set('Authorization', token).send(body).expect(400);
   });
@@ -107,8 +107,8 @@ runWithDatabase('notification preference API', () => {
   it('keeps preferences isolated between accounts', async () => {
     const first = await client().post('/auth/register').send(account('first')).expect(201);
     const second = await client().post('/auth/register').send(account('second')).expect(201);
-    const firstToken = String(first.body.accessToken);
-    const secondToken = String(second.body.accessToken);
+    const firstToken = `Bearer ${String(first.body.accessToken)}`;
+    const secondToken = `Bearer ${String(second.body.accessToken)}`;
 
     await client().patch('/notification-preferences').set('Authorization', firstToken)
       .send({ academicEnabled: false, eventEnabled: false }).expect(200);
