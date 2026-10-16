@@ -33,8 +33,8 @@ describe('Today task capture (ToR 4, 7, 19)', () => {
     expect(screen.queryByRole('button', { name: 'Add a task to this day' })).toBeNull();
     expect(save).not.toHaveBeenCalled();
     fireEvent.changeText(screen.getByLabelText('Title'), 'Read chapter five');
-    fireEvent.press(screen.getByText('Save task'));
-    await waitFor(() => expect(screen.queryByText('New task')).toBeNull());
+    await act(async () => { fireEvent.press(screen.getByText('Save task')); });
+    expect(screen.queryByText('New task')).toBeNull();
     expect(save).toHaveBeenCalledTimes(1);
     expect(save.mock.calls[0][0].body.scheduled).toEqual({ kind: 'date', date });
   });
