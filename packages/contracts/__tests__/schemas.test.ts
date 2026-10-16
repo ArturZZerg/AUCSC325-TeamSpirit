@@ -1,4 +1,4 @@
-import { eventQuerySchema, completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema, notificationPreferencesSchema, updateNotificationPreferencesSchema } from '../src';
+import { eventQuerySchema, completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema, notificationPreferencesSchema, updateNotificationPreferencesSchema, reminderSchema } from '../src';
 
 describe('public contract validation', () => {
   it('keeps date-only and timed task values unambiguous', () => {
@@ -73,6 +73,38 @@ describe('notification preference boundary', () => {
       quietHoursStart: '22:30',
       quietHoursEnd: '07:00',
     })).toMatchObject({ quietHoursStart: '22:30', quietHoursEnd: '07:00' });
+  });
+
+  describe('reminder boundary', () => {
+    it('accepts each supported reminder target kind', () => {
+      for (const targetKind of ['personalTask', 'goal', 'savedEvent', 'academicItem'] as const) {
+        expect(reminderSchema.parse({
+          id: '00000000-0000-4000-8000-000000000001',
+          targetKind,
+          targetId: '00000000-0000-4000-8000-000000000002',
+          occurrenceKey: null,
+          fireAt: '2026-09-21T18:00:00.000Z',
+          enabled: true,
+        }).targetKind).toBe(targetKind);
+      }
+    });
+
+    it.each([
+      { targetKind: 'unsupported' },
+      { fireAt: 'tomorrow' },
+      { occurrenceKey: '2026-02-30' },
+      { enabled: 'true' },
+    ])('rejects invalid reminder data %j', value => {
+      expect(reminderSchema.safeParse({
+        id: '00000000-0000-4000-8000-000000000001',
+        targetKind: 'personalTask',
+        targetId: '00000000-0000-4000-8000-000000000002',
+        occurrenceKey: null,
+        fireAt: '2026-09-21T18:00:00.000Z',
+        enabled: true,
+        ...value,
+      }).success).toBe(false);
+    });
   });
 
   it('accepts partial preference updates', () => {
