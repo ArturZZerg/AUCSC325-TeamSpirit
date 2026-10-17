@@ -356,14 +356,22 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  }
  @Patch('courses/:id') async updateCourse(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(updateCourseSchema)) b: z.infer<typeof updateCourseSchema>) {
    return this.prisma.$transaction(async tx => {
+     // Academic writers take User NO KEY UPDATE before Course/AcademicItem.
+     // Taking it after the course lock could deadlock a concurrent reassignment.
+     if (b.active !== undefined) await this.reminders.lockAcademicReminders(u.id, tx);
      await lockCourse(tx, u.id, id);
      const course = await tx.course.findFirst({ where: { id, userId: u.id } });
      if (!course) throw new NotFoundException('Course not found');
      if (course.source !== manualCourseSource && (b.name !== undefined || b.code !== undefined || b.active !== undefined)) {
        throw new BadRequestException('Imported courses follow Canvas. You can still choose their colour.');
      }
-     return courseSchema.parse(await tx.course.update({ where: { id }, data: b }));
-   });
+     const updated = await tx.course.update({ where: { id }, data: b });
+     if (b.active !== undefined) {
+       const items = await tx.academicItem.findMany({ where: { userId: u.id, courseId: id }, select: { id: true }, orderBy: { id: 'asc' } });
+       for (const item of items) await this.reminders.reconcileAcademicItem(u.id, item.id, tx);
+     }
+     return courseSchema.parse(updated);
+   }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
  }
  // Assessments are read-modified-written under the account lock (as course edits are).
  @Post('courses/:id/assessments') async addAssessment(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
@@ -404,14 +412,18 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
  }
  @Delete('courses/:id') async deleteCourse(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {
    return this.prisma.$transaction(async tx => {
+     await this.reminders.lockAcademicReminders(u.id, tx);
      await lockCourse(tx, u.id, id);
      const course = await tx.course.findFirst({ where: { id, userId: u.id } });
      if (!course) return { deleted: true };
      if (course.source !== manualCourseSource) throw new BadRequestException('Imported courses follow Canvas and can’t be deleted here.');
-     // Coursework stays; the relation clears its course (onDelete: SetNull).
+     // Capture membership while academic writers are excluded. The FK clears
+     // courseId; reconcile afterward so eligibility sees the no-course state.
+     const items = await tx.academicItem.findMany({ where: { userId: u.id, courseId: id }, select: { id: true }, orderBy: { id: 'asc' } });
      await tx.course.delete({ where: { id } });
+     for (const item of items) await this.reminders.reconcileAcademicItem(u.id, item.id, tx);
      return { deleted: true };
-   });
+   }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
  }
  @Get('academic-items') async items(@CurrentUser() u:RequestUser){return (await this.prisma.academicItem.findMany({where:{userId:u.id},orderBy:{updatedAt:'desc'}})).map(r=>academicItemSchema.parse({...r,updatedAt:toIso(r.updatedAt)}));}
  @Patch('academic-items/:id/main-goal') async main(@CurrentUser() u: RequestUser,
