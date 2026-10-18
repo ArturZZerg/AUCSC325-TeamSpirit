@@ -86,6 +86,9 @@ databaseSuite('demo account', () => {
     for (let attempt = 0; attempt < 9; attempt++) await signIn('wrong-password-123');
     await signIn().expect(429);
     const user = await db.user.findUniqueOrThrow({ where: { email: demoEmail } });
+    // Production quotas are shared rows keyed by address; local tests count in memory, so plant one.
+    await db.recoveryRateBucket.create({ data: { key: `demo-test-${randomUUID()}`, recipientHash: recoveryRecipientHash(demoEmail),
+      count: 9, expiresAt: new Date(Date.now() + 15 * 60 * 1000) } });
     const { token } = await reset('2026-10-18T16:00:00Z');
     expect(await db.recoveryRateBucket.count({ where: { recipientHash: recoveryRecipientHash(demoEmail) } })).toBe(0);
     expect(await db.user.count({ where: { id: user.id } })).toBe(0);

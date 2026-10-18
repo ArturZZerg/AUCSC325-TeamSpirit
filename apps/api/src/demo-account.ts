@@ -131,10 +131,12 @@ async function main() {
   try {
     const token = await resetDemoUser(prisma, password);
     const send: DemoSend = async (method, path, body) => {
+      // Method, path and status only: request bodies and the session never reach logs.
+      const label = `${method} ${path.split('?')[0]}`;
       const response = await fetch(`${base}${path}`, { method, signal: AbortSignal.timeout(15000),
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
-      // Status and path only: request bodies and the session never reach logs.
-      if (!response.ok) throw new DemoFailure(`${method} ${path.split('?')[0]} failed with ${response.status}.`);
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
+        .catch(() => { throw new DemoFailure(`${label} did not respond.`); });
+      if (!response.ok) throw new DemoFailure(`${label} failed with ${response.status}.`);
       return response.status === 204 ? null : response.json();
     };
     try {

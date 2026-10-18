@@ -10,4 +10,4 @@ exec 9> /run/campusflow.lock
 flock -w 600 9 || { echo "$(date -u +%FT%TZ) demo reset skipped: lock busy" >&2; exit 1; }
 secret=/etc/campusflow/demo.password
 [ -s "$secret" ] || openssl rand -base64 18 > "$secret"
-timeout 300 docker exec -i campusflow-api node apps/api/dist/src/demo-account.js < "$secret"
+timeout 300 docker exec -i campusflow-api timeout 280 node apps/api/dist/src/demo-account.js < "$secret"
