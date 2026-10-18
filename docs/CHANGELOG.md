@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- ops: API deployed to the owner's server with `deploy.sh`, daily verified
-  backups (`backup.sh`, restore tested) and a 5-minute readiness watchdog
+- ops: API deployed to the owner's server with `deploy.sh`, daily read-back-checked
+  backups (`backup.sh`, restore rehearsed once) and a 5-minute readiness watchdog
   (`healthcheck.sh`).
 
 - docs: production audit (`STATE`, `PRODUCT`, `COMPETITORS`, `APIS`, `ROADMAP`,

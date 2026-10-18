@@ -78,7 +78,7 @@ limits; a synthetic acceptance account is not proof of mailbox delivery.
 Record source commit/image digest, configuration setting names (not secrets),
 migration/readiness result, HTTPS live/ready and anonymous rejection, actual
 synthetic authenticated reads/writes, container UID/binding/resource limits,
-unchanged other-app health, and restart persistence. Rehearse encrypted backup
+unchanged other-app health, and restart persistence. Rehearse backup
 restore into an exact generated disposable database on this host; preserve the
 source. Daily same-host backups alone do not establish off-host recovery.
 
@@ -135,18 +135,31 @@ site file is backed up under `/var/backups/campusflow/`.
 
 Operations, all from the repository's `ops/vps/`:
 
-- `deploy.sh` (run locally from a clean, pushed `main`) builds and transfers
-  commit-tagged images, backs up, migrates, recreates and smoke-tests, and
-  rolls back the image if the new container is not ready. On a network with
+- `deploy.sh` (run locally from a clean, pushed `main` with no untracked files
+  in the build context) always rebuilds, transfers the images when the server's
+  image ID differs, stages files under `/opt/campusflow/releases/<commit>`,
+  backs up, migrates, recreates and waits for readiness. On failure it restores
+  the previous image and release files, verifies them, and prints the latest
+  backup path. Only after success are the staged files promoted. It keeps the
+  current and previous image tags and the three newest release directories.
+  Migrations must be expand/contract compatible with the previous image.
+  A failed migration leaves Prisma's P3009 record. The old container keeps
+  serving; resolve it with `prisma migrate resolve` from the build image after
+  review, before the next deploy. On a network with
   TLS inspection, pass the inspecting proxy's **public** root certificate as
   `BUILD_CA`.
-- `backup.sh`: root cron at 03:40 UTC writes verified `pg_dump` custom-format
-  files to `/var/backups/campusflow` (mode 700) with 14-day retention. A restore
+- `backup.sh`: root cron at 03:40 UTC writes plaintext `pg_dump` custom-format
+  files (mode 600) to `/var/backups/campusflow` (enforced mode 700), with 14-day
+  retention. Each dump is fully read back with `pg_restore` before it is kept.
+  The script refuses to run with less than 1 GB free and removes partial files. A restore
   into a generated `campusflow_restore_*` database matched the source (18
   migrations, 91 events, 24 tables) and was then dropped.
 - `healthcheck.sh`: root cron every 5 minutes logs readiness failures to
-  `/var/log/campusflow-health.log`, and restarts only this container once Docker
-  marks it unhealthy.
+  `/var/log/campusflow-health.log`. It restarts only this container, only when
+  liveness also fails, and at most once per 30 minutes. A database outage is
+  logged, not restarted.
+- All three scripts share `/run/campusflow.lock`, so a deploy, backup and probe
+  never act at the same time.
 
 Still open: an authenticated production smoke (needs the demo account), off-host
 backups, mail, and public signup.
