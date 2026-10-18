@@ -161,5 +161,13 @@ Operations, all from the repository's `ops/vps/`:
 - All three scripts share `/run/campusflow.lock`, so a deploy, backup and probe
   never act at the same time.
 
-Still open: an authenticated production smoke (needs the demo account), off-host
-backups, mail, and public signup.
+- `demo-account.sh`: root cron at 04:10 UTC resets the synthetic demo account
+  (`demo@example.com`, an RFC 2606 reserved address that can never be
+  registered or verified) inside the running container. It generates its
+  password once into root-only `/etc/campusflow/demo.password` and sends it on
+  stdin, so it never appears in arguments or logs. The CLI deletes only that
+  address, then seeds through the public HTTP API so every record passes normal
+  validation. It doubles as the authenticated production smoke check. Share the
+  password with reviewers privately; never commit or post it.
+
+Still open: off-host backups, mail, and public signup.
