@@ -121,3 +121,32 @@ screen insets is the next separate slice. The HTTPS preview is built but its
 endpoint is not deployed. No source was
 uploaded, and no CampusFlow server service/database/route was installed.
 Production availability, mail, iOS, store and backup policy remain unverified.
+
+## Deployed state (2026-10-18, ADR 017)
+
+`main` @ `59bd8c0258e4` runs as `campusflow-api` (Compose project `campusflow`)
+at `https://workout.vakula-dev.com/campusflow-api`. Observed: readiness 200,
+closed signup capability, anonymous `/today` 401, ready again after
+`docker restart`, non-root `node` user, read-only root, 768 MB / 128-pid limits,
+loopback-only `127.0.0.1:8780`, and the four existing host routes unchanged (200
+before and after the Nginx reload). `CAMPUS_CALENDARS=augustana` imported 91
+events. The Nginx include sits only in the HTTPS server block; the pre-change
+site file is backed up under `/var/backups/campusflow/`.
+
+Operations, all from the repository's `ops/vps/`:
+
+- `deploy.sh` (run locally from a clean, pushed `main`) builds and transfers
+  commit-tagged images, backs up, migrates, recreates and smoke-tests, and
+  rolls back the image if the new container is not ready. On a network with
+  TLS inspection, pass the inspecting proxy's **public** root certificate as
+  `BUILD_CA`.
+- `backup.sh`: root cron at 03:40 UTC writes verified `pg_dump` custom-format
+  files to `/var/backups/campusflow` (mode 700) with 14-day retention. A restore
+  into a generated `campusflow_restore_*` database matched the source (18
+  migrations, 91 events, 24 tables) and was then dropped.
+- `healthcheck.sh`: root cron every 5 minutes logs readiness failures to
+  `/var/log/campusflow-health.log`, and restarts only this container once Docker
+  marks it unhealthy.
+
+Still open: an authenticated production smoke (needs the demo account), off-host
+backups, mail, and public signup.
