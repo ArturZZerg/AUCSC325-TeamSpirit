@@ -16,4 +16,5 @@ if [ -f "$last" ] && [ $(( $(date +%s) - $(stat -c %Y "$last") )) -lt 1800 ]; th
   echo "$(stamp) liveness failed; restarted within 30 minutes, leaving it for an operator"; exit 0
 fi
 touch "$last"
-docker restart campusflow-api > /dev/null && echo "$(stamp) liveness failed; restarted campusflow-api"
+if docker restart campusflow-api > /dev/null; then echo "$(stamp) liveness failed; restarted campusflow-api"
+else echo "$(stamp) liveness failed; restart FAILED"; fi

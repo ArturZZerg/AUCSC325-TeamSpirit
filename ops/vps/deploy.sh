@@ -47,10 +47,10 @@ ready() { for _ in $(seq 1 30); do curl -fsS --max-time 4 http://127.0.0.1:8780/
 
 FLOCK_HELD=1 "$RELEASE/backup.sh"
 docker run --rm --network host --env-file /etc/campusflow/api.env --workdir /app/apps/api \
-  "campusflow-build:$COMMIT" node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
+  "campusflow-build:$COMMIT" /app/node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
 
 rollback() {
-  trap - ERR
+  trap - ERR HUP INT TERM
   echo "Deploy of $COMMIT failed; restoring ${previous:-nothing}" >&2
   docker logs --tail 30 campusflow-api >&2 2>&1 || true
   echo "Latest backup: $(ls -t /var/backups/campusflow/campusflow-*.dump 2>/dev/null | head -1 || true)" >&2
@@ -60,17 +60,18 @@ rollback() {
   exit 1
 }
 trap rollback ERR
+trap rollback HUP INT TERM
 CAMPUSFLOW_IMAGE="campusflow-api:$COMMIT" docker compose -p campusflow -f "$RELEASE/compose.yaml" up -d --force-recreate
 ready
 # Accept the release: cron and future rollbacks use these files from now on.
 cp -p "$RELEASE"/compose.yaml "$RELEASE"/*.sh /opt/campusflow/
 echo "$COMMIT" > /opt/campusflow/current
-trap - ERR
+trap - ERR HUP INT TERM
 # Keep the current and previous images only; never prune anything else.
 keep="campusflow-api:$COMMIT campusflow-build:$COMMIT $previous ${previous/campusflow-api/campusflow-build}"
 docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^campusflow-(api|build):' |
-  while read -r image; do case " $keep " in *" $image "*) ;; *) docker rmi "$image" > /dev/null || true;; esac; done
-ls -1dt /opt/campusflow/releases/* | tail -n +4 | xargs -r rm -rf --
+  while read -r image; do case " $keep " in *" $image "*) ;; *) docker rmi "$image" > /dev/null || true;; esac; done || true
+ls -1dt /opt/campusflow/releases/* | tail -n +4 | xargs -r rm -rf -- || true
 echo "ready campusflow-api:$COMMIT"
 REMOTE
 
