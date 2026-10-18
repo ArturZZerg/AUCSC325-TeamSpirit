@@ -36,6 +36,15 @@ const accountFields = {
     lastSyncAttemptAt: true, coveredFrom: true, coveredThrough: true } },
 } satisfies Prisma.UserSelect;
 
+/** Removes an account and the rows that do not cascade from it (address-keyed mail and quotas, private events). */
+export async function eraseAccount(tx: Prisma.TransactionClient, account: { id: string; email: string }) {
+  const recipientHash = recoveryRecipientHash(account.email);
+  await tx.recoveryMail.deleteMany({ where: { recipientHash } });
+  await tx.recoveryRateBucket.deleteMany({ where: { recipientHash } });
+  await tx.event.deleteMany({ where: { sourceScope: `user:${account.id}` } });
+  await tx.user.delete({ where: { id: account.id } });
+}
+
 @Injectable()
 export class AccountService {
   constructor(private readonly prisma: PrismaService, private readonly auth: AuthService) {}
@@ -59,11 +68,7 @@ export class AccountService {
       const [record] = await tx.$queryRaw<{ id: string; email: string; passwordHash: string }[]>`SELECT "id", "email", "passwordHash" FROM "User" WHERE "id" = ${userId}::uuid FOR UPDATE`;
       if (!record) throw new UnauthorizedException('Account is unavailable.');
       await this.auth.confirmCurrentPassword(currentPassword, record.passwordHash);
-      const recipientHash = recoveryRecipientHash(record.email);
-      await tx.recoveryMail.deleteMany({ where: { recipientHash } });
-      await tx.recoveryRateBucket.deleteMany({ where: { recipientHash } });
-      await tx.event.deleteMany({ where: { sourceScope: `user:${userId}` } });
-      await tx.user.delete({ where: { id: userId } });
+      await eraseAccount(tx, record);
       return { deleted: true as const };
     }, { timeout: 30000, maxWait: 10000 });
   }

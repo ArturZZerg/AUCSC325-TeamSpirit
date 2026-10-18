@@ -11,7 +11,7 @@ can install and use. Priority is top to bottom. Blocked items link to
 | 1 | Hosted API on the existing server | L | Done 2026-10-18 |
 | 2 | Automated daily backups with a tested restore | S | Done 2026-10-18 |
 | 3 | Uptime check and structured error logging | M | Probe done; JSON logging pending |
-| 4 | Demo account with realistic sample data | S | Next |
+| 4 | Demo account with realistic sample data | S | Done 2026-10-18 |
 | 5 | Hosted web app (installable, mobile-first) | M | Blocked: Q2 |
 | 6 | Android build against the hosted API, with acceptance on emulator | M | Pending (after 1) |
 | 7 | Privacy policy, terms and support pages | M | Draft pending; publish blocked: Q3 |
