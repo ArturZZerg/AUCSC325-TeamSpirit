@@ -53,8 +53,9 @@ auth token and quota tables).
 
 ## What is missing or broken
 
-- **Not deployed.** No CampusFlow container, database or route exists on the
-  server (verified read-only on 2026-10-18).
+- **API deployed 2026-10-18** at `https://workout.vakula-dev.com/campusflow-api`
+  (see the [server runbook](development/server-beta.md)). No web app or
+  store build points at it yet.
 - **No mail provider.** In production, signup is `closed` and recovery mail is
   `disabled`, so a brand-new user cannot register yet.
 - **Canvas** works with fixtures only; institutional OAuth is unapproved.

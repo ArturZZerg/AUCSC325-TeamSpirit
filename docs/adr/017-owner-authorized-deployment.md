@@ -19,10 +19,15 @@ from reviewed commits on `main`. Source archives are still not uploaded and
 nothing is built on the server. Images are built locally, tagged by commit and
 transferred with `docker save | ssh docker load`.
 
-Every deployment backs up the `campusflow` database before migrations, runs
-migrations with the matching build image, then recreates the runtime container
-and smoke-tests health, an authenticated read and other apps on the host. It
-rolls back to the previous image tag on failure. All other ADR 013 constraints
+Every deployment backs up the `campusflow` database before migrations and runs
+migrations with the matching build image. It then recreates the runtime
+container from staged release files and waits for loopback readiness. If the
+recreate or readiness fails, the previous image and release files are restored
+and their readiness is verified and reported. Public smoke checks (readiness,
+closed-signup capability, anonymous rejection) run afterwards. A failure there
+is reported for a fix-forward or redeploy, not rolled back automatically.
+Migrations must be backward-compatible with the previous image
+(expand/contract), because an image rollback does not roll back the schema. All other ADR 013 constraints
 stay: loopback binding, a dedicated database and role, protected env file,
 closed signup and disabled mail until a provider is approved, and no changes to
 other applications.
