@@ -1,13 +1,14 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Temporal } from '@js-temporal/polyfill';
 import { addCalendarDays, instantAtLocalTime, localDateAt } from '@campusflow/domain';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { eraseAccount } from './account';
 import { hashPassword } from './password';
 
 /**
  * Synthetic demo account for reviewers and first-time visitors. The address is
- * reserved (RFC 2606), so no real student can register or verify it, and reset
- * only ever deletes this one account. Data is written through the public API so
+ * reserved (RFC 2606), so no real student can verify it, and reset only ever
+ * deletes this one account. Data is written through the public API so
  * it passes the same validation as anything a student saves.
  */
 export const demoEmail = 'demo@example.com';
@@ -16,19 +17,31 @@ export const demoTimeZone = 'America/Edmonton';
 type Json = Record<string, unknown>;
 export type DemoSend = (method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown) => Promise<unknown>;
 
+const SEED_SESSION_MS = 15 * 60 * 1000;
+const eraseDemo = async (tx: Prisma.TransactionClient) => {
+  const existing = await tx.user.findUnique({ where: { email: demoEmail }, select: { id: true, email: true } });
+  if (existing) await eraseAccount(tx, existing);
+};
+
+/**
+ * Recreates the demo account and returns a short-lived session for seeding.
+ * The session is issued here rather than through sign-in, so published-address
+ * login quotas can never stop the nightly reset.
+ */
 export async function resetDemoUser(prisma: PrismaClient, password: string, now = new Date()) {
   if (password.length < 12 || password.length > 128) throw new Error('Demo password must be 12-128 characters.');
-  const passwordHash = await hashPassword(password);
+  const passwordHash = await hashPassword(password), token = randomBytes(32).toString('base64url');
   await prisma.$transaction(async tx => {
-    const existing = await tx.user.findUnique({ where: { email: demoEmail }, select: { id: true } });
-    if (existing) {
-      await tx.event.deleteMany({ where: { sourceScope: `user:${existing.id}` } });
-      await tx.user.delete({ where: { id: existing.id } });
-    }
-    await tx.user.create({ data: { email: demoEmail, passwordHash, emailVerifiedAt: now, displayName: 'Demo Student',
+    await eraseDemo(tx);
+    const user = await tx.user.create({ data: { email: demoEmail, passwordHash, emailVerifiedAt: now, displayName: 'Demo Student',
       timeZone: demoTimeZone, notificationPreference: { create: {} } } });
+    await tx.session.create({ data: { userId: user.id, tokenHash: createHash('sha256').update(token).digest('hex'),
+      expiresAt: new Date(Date.now() + SEED_SESSION_MS) } });
   }, { timeout: 30000 });
+  return token;
 }
+
+export const removeDemoUser = (prisma: PrismaClient) => prisma.$transaction(eraseDemo, { timeout: 30000 });
 
 export async function seedDemoAccount(send: DemoSend, now = new Date().toISOString()) {
   const today = localDateAt(now, demoTimeZone), day = (offset: number) => addCalendarDays(today, offset);
@@ -101,27 +114,44 @@ async function readStdin() {
   return input.trim();
 }
 
-/** `node demo-account.js < password-file`: resets the demo account against this host's running API. */
+class DemoFailure extends Error {}
+
+/**
+ * `node demo-account.js < password-file`: resets the demo account against this
+ * host's running API and fails unless the resulting Today plan is non-empty.
+ * Run it after local midnight in Edmonton so "today" matches the viewer's day.
+ */
 async function main() {
-  const base = `http://127.0.0.1:${process.env.PORT ?? 3000}`;
+  const host = process.env.HOST?.includes(':') ? `[${process.env.HOST}]` : process.env.HOST ?? '127.0.0.1';
+  const base = `http://${host}:${process.env.PORT ?? 3000}`;
   const password = await readStdin();
-  const prisma = new PrismaClient();
-  try { await resetDemoUser(prisma, password); } finally { await prisma.$disconnect(); }
-  const login = await fetch(`${base}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: demoEmail, password }) });
-  if (!login.ok) throw new Error(`Demo sign-in failed with ${login.status}.`);
-  const token = (await login.json() as { accessToken: string }).accessToken;
-  const send: DemoSend = async (method, path, body) => {
-    const response = await fetch(`${base}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body) });
-    // Status and path only: request bodies and the session never reach logs.
-    if (!response.ok) throw new Error(`${method} ${path.split('?')[0]} failed with ${response.status}.`);
-    return response.status === 204 ? null : response.json();
-  };
-  const summary = await seedDemoAccount(send);
-  const today = await send('GET', '/today') as { items?: unknown[] };
-  await fetch(`${base}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-  console.log(JSON.stringify({ demo: demoEmail, ...summary, todayItems: today.items?.length ?? null }));
+  const url = new URL(process.env.DATABASE_URL ?? 'postgresql://invalid');
+  url.searchParams.set('connection_limit', '1');
+  const prisma = new PrismaClient({ datasources: { db: { url: url.toString() } } });
+  try {
+    const token = await resetDemoUser(prisma, password);
+    const send: DemoSend = async (method, path, body) => {
+      const response = await fetch(`${base}${path}`, { method, signal: AbortSignal.timeout(15000),
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+      // Status and path only: request bodies and the session never reach logs.
+      if (!response.ok) throw new DemoFailure(`${method} ${path.split('?')[0]} failed with ${response.status}.`);
+      return response.status === 204 ? null : response.json();
+    };
+    try {
+      const summary = await seedDemoAccount(send);
+      const today = await send('GET', '/today') as { items?: unknown[] };
+      if (!today.items?.length) throw new DemoFailure('Seeded Today plan is empty.');
+      console.log(JSON.stringify({ demo: demoEmail, ...summary, todayItems: today.items.length }));
+    } catch (error) {
+      // A half-seeded demo is worse than none: remove it so the failure is obvious.
+      await removeDemoUser(prisma);
+      throw error;
+    }
+  } finally { await prisma.$disconnect(); }
 }
 
-if (require.main === module) main().catch(error => { console.error(error instanceof Error ? error.message : 'Demo reset failed.'); process.exitCode = 1; });
+if (require.main === module) main().catch(error => {
+  // Prisma errors can echo call arguments, so only our own messages are printed.
+  console.error(error instanceof DemoFailure || (error instanceof Error && error.message.startsWith('Demo password')) ? error.message : 'Demo reset failed.');
+  process.exitCode = 1;
+});

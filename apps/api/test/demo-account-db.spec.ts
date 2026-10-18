@@ -3,7 +3,8 @@ import { Test } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { demoEmail, DemoSend, resetDemoUser, seedDemoAccount } from '../src/demo-account';
+import { recoveryRecipientHash } from '../src/auth-recovery/recovery-secrets';
+import { demoEmail, DemoSend, removeDemoUser, resetDemoUser, seedDemoAccount } from '../src/demo-account';
 import { PrismaService } from '../src/prisma.service';
 
 const databaseSuite = process.env.DATABASE_URL ? describe : describe.skip;
@@ -18,8 +19,7 @@ databaseSuite('demo account', () => {
     return response.body;
   };
   const reset = async (now: string) => {
-    await resetDemoUser(db, password);
-    const token = (await signIn().expect(201)).body.accessToken as string;
+    const token = await resetDemoUser(db, password);
     return { token, summary: await seedDemoAccount(sender(token), now) };
   };
   const counts = async () => {
@@ -42,13 +42,13 @@ databaseSuite('demo account', () => {
   });
 
   it('builds a non-empty Today for a weekday morning', async () => {
-    // Wednesday 2026-10-14, 08:00 in Edmonton.
-    const { token, summary } = await reset('2026-10-14T14:00:00Z');
+    // The nightly run at 10:00 UTC is 04:00 MDT on Wednesday 2026-10-14, the day viewers see.
+    const { token, summary } = await reset('2026-10-14T10:00:00Z');
     expect(summary).toMatchObject({ courses: 3, classes: 4, coursework: 4, tasks: 4, goals: 2 });
     const today = (await client().get('/today?date=2026-10-14').set('Authorization', `Bearer ${token}`).expect(200)).body;
-    const kinds = new Set((today.items as { kind?: string; type?: string }[]).map(item => item.kind ?? item.type));
+    const kinds = new Set((today.items as { kind: string }[]).map(item => item.kind));
     expect(today.items.length).toBeGreaterThanOrEqual(4);
-    expect(kinds.size).toBeGreaterThanOrEqual(3);
+    expect([...kinds]).toEqual(expect.arrayContaining(['academic', 'personalTask', 'goal']));
     const grades = (await client().get('/courses').set('Authorization', `Bearer ${token}`).expect(200)).body as { code: string; assessments: unknown[] }[];
     expect(grades.find(course => course.code === 'BIOL 107')?.assessments).toHaveLength(4);
   });
@@ -66,11 +66,34 @@ databaseSuite('demo account', () => {
     expect(others.map(task => task.title)).toEqual(['Someone else’s task']);
   });
 
+  it('removes a half-seeded account when asked', async () => {
+    const { token } = await reset('2026-10-18T16:00:00Z');
+    await removeDemoUser(db);
+    expect(await db.user.count({ where: { email: demoEmail } })).toBe(0);
+    await client().get('/today').set('Authorization', `Bearer ${token}`).expect(401);
+  });
+
   it('rejects a short password without touching the existing demo account', async () => {
     await reset('2026-10-18T16:00:00Z');
     const before = await counts();
     await expect(resetDemoUser(db, 'short')).rejects.toThrow('12-128');
     expect(await counts()).toEqual(before);
     await signIn().expect(201);
+  });
+
+  it('resets even after the published address exhausts its sign-in quota', async () => {
+    await reset('2026-10-18T16:00:00Z');
+    for (let attempt = 0; attempt < 9; attempt++) await signIn('wrong-password-123');
+    await signIn().expect(429);
+    const user = await db.user.findUniqueOrThrow({ where: { email: demoEmail } });
+    const { token } = await reset('2026-10-18T16:00:00Z');
+    expect(await db.recoveryRateBucket.count({ where: { recipientHash: recoveryRecipientHash(demoEmail) } })).toBe(0);
+    expect(await db.user.count({ where: { id: user.id } })).toBe(0);
+    // The fresh seed session works even while sign-in for the address is throttled.
+    await client().get('/today').set('Authorization', `Bearer ${token}`).expect(200);
+    const sessions = await db.session.findMany({ where: { user: { email: demoEmail } } });
+    const seed = sessions.find(row => row.expiresAt.getTime() <= Date.now() + 15 * 60 * 1000);
+    expect(seed).toBeDefined();
+    expect(token).toHaveLength(43);
   });
 });
