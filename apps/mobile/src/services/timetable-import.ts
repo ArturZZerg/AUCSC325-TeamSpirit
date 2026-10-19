@@ -14,6 +14,8 @@ export async function pickCalendarFile(): Promise<PickedCalendar | undefined> {
   const asset = result.assets[0];
   if ((asset.size ?? 0) > classImportMaxBytes) throw new Error('Calendar files can be up to 1 MB. Export a shorter date range and try again.');
   const text = asset.file ? await asset.file.text() : await new File(asset.uri).text();
+  // Some pickers report no size, so check what was actually read.
+  if (new TextEncoder().encode(text).length > classImportMaxBytes) throw new Error('Calendar files can be up to 1 MB. Export a shorter date range and try again.');
   return { name: asset.name, text };
 }
 

@@ -13,6 +13,10 @@ const MAX_BYTES = 1024 * 1024;
 const MAX_STEPS = 20000;
 const MAX_EVENTS = 2000;
 class IcsIssue extends Error {}
+/** Ends a partial (student upload) parse early: the time budget is spent. */
+class IcsStop extends Error {}
+export type IcsLimits = { steps: number; seriesSteps: number; events: number; components: number; deadlineMs?: number };
+const defaultLimits: IcsLimits = { steps: MAX_STEPS, seriesSteps: MAX_STEPS, events: MAX_EVENTS, components: MAX_EVENTS };
 const fail = (message: string): never => { throw new IcsIssue(message); };
 const text = (c: Component, name: string): string | null => {
   const value: unknown = c.getFirstPropertyValue(name);
@@ -91,8 +95,12 @@ function rule(c: Component) {
 }
 
 export class IcsEventProvider implements EventProvider {
-  /** `partial` keeps valid events when others fail (student file imports); campus feeds stay all-or-nothing. */
-  constructor(private readonly load: CalendarLoader, private readonly options: { timeZone?: string; timeoutMs?: number; partial?: boolean } = {}) {
+  /**
+   * `partial` keeps valid events when others fail (student file imports): it skips non-event components, drops a
+   * failed series whole, starts open-ended series near the coverage window and stops at the event cap or deadline.
+   * Campus feeds stay all-or-nothing with the default limits.
+   */
+  constructor(private readonly load: CalendarLoader, private readonly options: { timeZone?: string; timeoutMs?: number; partial?: boolean; limits?: IcsLimits } = {}) {
     if (options.timeZone) timeZoneSchema.parse(options.timeZone);
     if (options.timeoutMs !== undefined && (!Number.isInteger(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 30000)) throw new Error('Invalid timeout');
   }
@@ -131,7 +139,11 @@ export class IcsEventProvider implements EventProvider {
       const calendar = new ICAL.Component(ICAL.parse(payload));
       if (calendar.name !== 'vcalendar' || text(calendar, 'version') !== '2.0' || (text(calendar, 'method') && text(calendar, 'method') !== 'PUBLISH')) fail('unsupported-calendar');
       const components = calendar.getAllSubcomponents('vevent');
-      if (components.length > MAX_EVENTS || calendar.getAllSubcomponents().some(c => !['vevent', 'vtimezone'].includes(c.name))) fail('component-limit-or-type');
+      const limits = this.options.limits ?? defaultLimits, partial = !!this.options.partial;
+      const deadline = limits.deadlineMs === undefined ? Infinity : Date.now() + limits.deadlineMs;
+      const others = calendar.getAllSubcomponents().filter(c => !['vevent', 'vtimezone'].includes(c.name));
+      if (components.length > limits.components || others.length && !partial) fail('component-limit-or-type');
+      if (others.length) issues.push(...others.map(() => 'ignored-component'));
       const groups = new Map<string, Component[]>();
       for (const c of components) {
         const uid = text(c, 'uid');
@@ -139,7 +151,13 @@ export class IcsEventProvider implements EventProvider {
         groups.set(uid, [...(groups.get(uid) ?? []), c]);
       }
       let steps = 0;
+      const step = (amount = 1) => {
+        steps += amount;
+        if (steps > limits.steps) { if (partial) throw new IcsStop('expansion-limit'); fail('expansion-limit'); }
+        if (Date.now() > deadline) throw new IcsStop('time-limit');
+      };
       for (const [uid, group] of groups) {
+        const groupEvents: ImportedEvent[] = [];
         try {
           for (const c of group) {
             for (const key of ['uid', 'dtstart', 'dtend', 'summary', 'rrule', 'recurrence-id', 'status'])
@@ -164,6 +182,7 @@ export class IcsEventProvider implements EventProvider {
           }
           const exclusions = new Set<string>();
           const dates = (name: string) => master.getAllProperties(name).flatMap(p => (p.toJSON().slice(3) as unknown[]).map(v => {
+            step();
             if (typeof v !== 'string') return fail('unsupported-recurrence-date');
             return stamp(p, this.options.timeZone, v);
           }));
@@ -175,8 +194,19 @@ export class IcsEventProvider implements EventProvider {
             let count = 0;
             const anchor = Temporal.PlainDate.from(start.local.slice(0, 10));
             const until = recurrence.until;
-            for (let offset = 0; ; offset++) {
-              if (++steps > MAX_STEPS) fail('expansion-limit');
+            // Uploads may hold open-ended series from years ago. Start them just before coverage, keeping interval
+            // alignment and a margin for the event's own length; skipped days are outside coverage anyway.
+            let first = 0;
+            if (partial && recurrence.count === Infinity) {
+              const lengthDays = end ? Temporal.PlainDate.from(start.local.slice(0, 10)).until(Temporal.PlainDate.from(end.local.slice(0, 10))).days : 0;
+              const gap = anchor.until(Temporal.PlainDate.from(coverage.from)).days - 7 - lengthDays;
+              const period = recurrence.frequency === 'DAILY' ? recurrence.interval : 7 * recurrence.interval;
+              if (gap > 0) first = Math.floor(gap / period) * period;
+            }
+            let seriesSteps = 0;
+            for (let offset = first; ; offset++) {
+              step();
+              if (++seriesSteps > limits.seriesSteps) fail('expansion-limit');
               const date = anchor.add({ days: offset });
               // One extra local day covers zones west/east of the coverage zone.
               if (Temporal.PlainDate.compare(date, Temporal.PlainDate.from(coverage.through).add({ days: 1 })) > 0) break;
@@ -198,21 +228,29 @@ export class IcsEventProvider implements EventProvider {
             add(s, occurrenceEnd(start, end, s));
           }
           for (const [key, occurrence] of occurrences) {
+            if (Date.now() > deadline) throw new IcsStop('time-limit');
             if (exclusions.has(key) || overrides.has(key)) continue;
             const event = normalize(master, uid, occurrence.start, occurrence.end, recurring ? occurrence.start : undefined);
-            if (!recurring || inCoverage(event, coverage)) events.push(event);
+            if (!recurring || inCoverage(event, coverage)) groupEvents.push(event);
           }
           // Detached moved instances may now overlap coverage even if their original date did not.
           for (const { c, original } of overrides.values()) {
             if (text(c, 'status') === 'CANCELLED') continue;
             const event = normalize(c, uid, stamp(c.getFirstProperty('dtstart'), this.options.timeZone),
               c.hasProperty('dtend') ? stamp(c.getFirstProperty('dtend'), this.options.timeZone) : undefined, original);
-            events.push(event);
+            groupEvents.push(event);
           }
-          if (events.length > MAX_EVENTS) fail('event-limit');
-        } catch (error) { issues.push(error instanceof IcsIssue ? error.message : 'invalid-event'); }
+          if (events.length + groupEvents.length > limits.events) {
+            if (partial) throw new IcsStop('event-limit');
+            fail('event-limit');
+          }
+          events.push(...groupEvents);
+        } catch (error) {
+          if (error instanceof IcsStop) { if (!partial) return { status: 'failed', issues: [error.message] }; issues.push(error.message); break; }
+          issues.push(error instanceof IcsIssue ? error.message : 'invalid-event');
+        }
       }
-      if (events.length > MAX_EVENTS || new Set(events.map(e => e.externalId)).size !== events.length) issues.push('event-limit-or-duplicate');
+      if (events.length > limits.events || new Set(events.map(e => e.externalId)).size !== events.length) issues.push('event-limit-or-duplicate');
       return { status: issues.length ? 'incomplete' : 'complete', coverage, events: issues.length && !this.options.partial ? [] : events, issues };
     } catch { return { status: 'failed', issues: ['malformed-or-unsupported-calendar'] }; }
   }

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import type { ClassImportDraft, ClassImportPreview } from '@campusflow/contracts';
 import TimetableImportScreen from '../app/timetable-import';
 import { useAction } from '../src/features/queries';
+import { ApiError } from '../src/lib/api';
 import { pickCalendarFile, previewCalendar } from '../src/services/timetable-import';
 
 const mockReplace = jest.fn(); const save = jest.fn();
@@ -41,7 +42,7 @@ it('previews classes, leaves likely duplicates unselected and saves only what th
 });
 
 it('keeps saved classes after a partial failure and retries only the rest', async () => {
-  save.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('Offline'));
+  save.mockResolvedValueOnce({}).mockRejectedValueOnce(new TypeError('Network request failed'));
   render(<TimetableImportScreen/>);
   await choose(preview([draft('Psychology'), draft('Biology')]));
   fireEvent.press(screen.getByText('Add 2 classes'));
@@ -50,6 +51,17 @@ it('keeps saved classes after a partial failure and retries only the rest', asyn
   fireEvent.press(screen.getByText('Retry 1 class'));
   await screen.findByText('2 classes added to your timetable.');
   expect(posted()).toEqual(['Psychology', 'Biology', 'Biology']);
+});
+
+it('shows why a class was refused and does not offer a pointless retry', async () => {
+  save.mockResolvedValueOnce({}).mockRejectedValueOnce(new ApiError(400, 'Term end must be on or after its start.'));
+  render(<TimetableImportScreen/>);
+  await choose(preview([draft('Psychology'), draft('Biology')]));
+  fireEvent.press(screen.getByText('Add 2 classes'));
+  await screen.findByText('1 class added to your timetable.');
+  expect(screen.getByText('Not added: Term end must be on or after its start.')).toBeTruthy();
+  expect(screen.getByText('1 couldn’t be added as imported. Add it from the timetable instead.')).toBeTruthy();
+  expect(screen.queryByText(/^Retry/)).toBeNull(); expect(posted()).toEqual(['Psychology', 'Biology']);
 });
 
 it('does nothing when the student cancels the picker', async () => {

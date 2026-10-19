@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, PayloadTooLargeException, Post, Put, Req,
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpException, NotFoundException, Param, PayloadTooLargeException, Post, Put, Req,
   UnprocessableEntityException, UnsupportedMediaTypeException, UseGuards } from '@nestjs/common';
 import type { IncomingMessage } from 'node:http';
 import { classImportMaxBytes, classImportPreviewSchema, classScheduleSchema, saveClassScheduleSchema, type SaveClassSchedule } from '@campusflow/contracts';
@@ -7,7 +7,10 @@ import type { ClassSchedule as ClassRow, Prisma } from '@prisma/client';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, parseUuid } from './common';
 import { PrismaService } from './prisma.service';
 import { IcsEventProvider } from './integrations/events/ics-event-provider';
-import { detectClassPatterns } from './integrations/timetable/timetable-import';
+import { countRateBucket } from './rate-bucket';
+import { detectClassPatterns, uploadLimits } from './integrations/timetable/timetable-import';
+
+const previewsPerHour = 20;
 
 /** Reads a raw text/calendar body; JSON parsing never sees it. */
 async function calendarBody(request: IncomingMessage) {
@@ -50,10 +53,14 @@ export class ClassesController {
   }
   /** Detects weekly classes in an uploaded calendar. Reads the file and saved classes only; saving is POST /classes. */
   @Post('import-preview') @HttpCode(200) async importPreview(@CurrentUser() user: RequestUser, @Req() request: IncomingMessage) {
+    const allowed = await this.prisma.$transaction(async tx =>
+      await countRateBucket(tx, `classes:import:user:${user.id}`, 60 * 60_000, null, user.id) <= previewsPerHour);
+    if (!allowed) { request.resume(); throw new HttpException('You’ve previewed many files this hour. Try again later.', 429); }
     const calendar = await calendarBody(request);
     const today = localDateAt(new Date().toISOString(), user.timeZone);
-    const batch = await new IcsEventProvider(async () => calendar, { timeZone: user.timeZone, partial: true })
-      .fetchEvents({ from: addCalendarDays(today, -150), through: addCalendarDays(today, 210), timeZone: user.timeZone });
+    // Look further ahead than back: a full-year course imported in August still keeps its April end.
+    const batch = await new IcsEventProvider(async () => calendar, { timeZone: user.timeZone, partial: true, limits: uploadLimits })
+      .fetchEvents({ from: addCalendarDays(today, -90), through: addCalendarDays(today, 275), timeZone: user.timeZone });
     if (batch.status === 'failed' || !batch.events.length && batch.issues.length)
       throw new UnprocessableEntityException('CampusFlow couldn’t read classes from this file. Export the calendar again as .ics and retry.');
     const saved = await this.prisma.classSchedule.findMany({ where: { userId: user.id }, select: { id: true, title: true, startTime: true, weekdays: true } });

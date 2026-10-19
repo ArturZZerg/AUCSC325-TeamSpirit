@@ -21,10 +21,19 @@ of typing every class.* Roadmap item 9. It extends the
   saves independently. On a failure, the saved ones stay saved and are shown as
   done, and the rest can be retried. Nothing is saved before the student
   confirms.
-- One-time events, all-day events, events without an end, overnight events and
-  patterns that finished before today are skipped and counted in the preview.
-  Events using calendar features the reader doesn't support are skipped and
-  reported, without discarding the rest of the file.
+- One-time events, all-day events, events without an end, untitled or
+  overnight events and patterns that finished before today are skipped and
+  counted in the preview, once per calendar event. Events using calendar
+  features the reader doesn't support, and non-event components such as tasks,
+  are skipped and counted without discarding the rest of the file. A file whose
+  recurrence rules are malformed at the text level (for example `INTERVAL=0`)
+  is refused as a whole.
+- Term dates come from the meetings found from 90 days ago to 275 days ahead,
+  so a full-year course keeps its spring end. A saved class repeats every week
+  of its term, so holidays excluded in the calendar (`EXDATE`) are not carried
+  over; the student edits the class if needed.
+- Classes the API refuses (for example invalid times) are shown with the
+  reason and not retried. Only lost connections and server errors offer retry.
 - An empty, oversized, malformed or class-free file gets a clear message and a
   way to pick another file. The preview is not cached and never leaves the
   student's account.
@@ -32,8 +41,14 @@ of typing every class.* Roadmap item 9. It extends the
 ## API
 
 `POST /classes/import-preview` with a `text/calendar` body (authenticated, up
-to 1 MB) returns `{ classes, skipped, issues }`. It reads nothing and writes
-nothing beyond the request.
+to 1 MB) returns `{ classes, skipped }`. It saves nothing.
+
+Parsing runs on the API's single event loop on a shared server, so uploads have
+strict budgets: 20 previews per account per hour, at most 60,000 expansion
+steps (1,500 per series, explicit dates included), 3,000 events, 5,000
+components and 3 seconds of work. Open-ended series start just before the scan
+window instead of at their first date. A crafted file stops early and previews
+what it found so far.
 
 ## Verification
 

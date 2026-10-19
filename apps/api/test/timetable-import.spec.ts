@@ -1,13 +1,13 @@
 import { addCalendarDays } from '@campusflow/domain';
 import { IcsEventProvider } from '../src/integrations/events/ics-event-provider';
-import { detectClassPatterns } from '../src/integrations/timetable/timetable-import';
+import { detectClassPatterns, uploadLimits } from '../src/integrations/timetable/timetable-import';
 
 const zone = 'America/Edmonton', today = '2026-10-18';
 const calendar = (...events: string[]) => ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Test//EN', ...events, 'END:VCALENDAR'].join('\r\n');
 const event = (uid: string, lines: string[]) => ['BEGIN:VEVENT', `UID:${uid}`, 'DTSTAMP:20260901T000000Z', ...lines, 'END:VEVENT'].join('\r\n');
 async function preview(ics: string, saved: { id: string; title: string; startTime: string; weekdays: number[] }[] = []) {
-  const batch = await new IcsEventProvider(async () => ics, { timeZone: zone, partial: true })
-    .fetchEvents({ from: addCalendarDays(today, -150), through: addCalendarDays(today, 210), timeZone: zone });
+  const batch = await new IcsEventProvider(async () => ics, { timeZone: zone, partial: true, limits: uploadLimits })
+    .fetchEvents({ from: addCalendarDays(today, -90), through: addCalendarDays(today, 275), timeZone: zone });
   if (batch.status === 'failed') throw new Error(batch.issues.join());
   return detectClassPatterns(batch.events, { timeZone: zone, today, saved, unsupported: batch.issues.length });
 }
@@ -39,12 +39,13 @@ describe('timetable import', () => {
     const result = await preview(calendar(
       event('once', ['SUMMARY:Advising appointment', `DTSTART;TZID=${zone}:20261021T130000`, `DTEND;TZID=${zone}:20261021T133000`]),
       event('allday', ['SUMMARY:Reading week', 'DTSTART;VALUE=DATE:20261109', 'DTEND;VALUE=DATE:20261114']),
-      event('done', ['SUMMARY:Summer course', `DTSTART;TZID=${zone}:20260601T090000`, `DTEND;TZID=${zone}:20260601T100000`, 'RRULE:FREQ=WEEKLY;COUNT=6']),
+      event('done', ['SUMMARY:Summer course', `DTSTART;TZID=${zone}:20260727T090000`, `DTEND;TZID=${zone}:20260727T100000`, 'RRULE:FREQ=WEEKLY;COUNT=6']),
       event('night', ['SUMMARY:Night shift', `DTSTART;TZID=${zone}:20261019T230000`, `DTEND;TZID=${zone}:20261020T010000`, 'RRULE:FREQ=WEEKLY;COUNT=4']),
       event('duration', ['SUMMARY:Odd export', `DTSTART;TZID=${zone}:20261019T090000`, 'DURATION:PT1H', 'RRULE:FREQ=WEEKLY;COUNT=4']),
       event('seminar', ['SUMMARY:ENGL 102 Seminar', `DTSTART;TZID=${zone}:20261019T130000`, `DTEND;TZID=${zone}:20261019T135000`, 'RRULE:FREQ=WEEKLY;COUNT=8'])));
     expect(result.classes.map(item => item.title)).toEqual(['ENGL 102 Seminar']);
-    expect(result.skipped).toEqual({ oneTime: 1, allDay: 1, unsupported: 5, finished: 6, overLimit: 0 });
+    // Counted once per calendar event: the DURATION series and the overnight series are unsupported.
+    expect(result.skipped).toEqual({ oneTime: 1, allDay: 1, unsupported: 2, finished: 1, overLimit: 0 });
   });
 
   it('reads UTC-only exports in the student’s zone and marks classes that are already saved', async () => {
@@ -65,5 +66,39 @@ describe('timetable import', () => {
     const result = await preview(calendar(...many));
     expect(result.classes).toHaveLength(40);
     expect(result.skipped.overLimit).toBe(5);
+  });
+
+  it('keeps going past untitled meetings and non-event components', async () => {
+    const result = await preview(calendar(
+      event('blank', ['SUMMARY: ', `DTSTART;TZID=${zone}:20261019T090000`, `DTEND;TZID=${zone}:20261019T095000`, 'RRULE:FREQ=WEEKLY;COUNT=6']),
+      ['BEGIN:VTODO', 'UID:todo', 'DTSTAMP:20260901T000000Z', 'SUMMARY:Buy textbook', 'END:VTODO'].join('\r\n'),
+      event('seminar', ['SUMMARY:ENGL 102 Seminar', `DTSTART;TZID=${zone}:20261019T130000`, `DTEND;TZID=${zone}:20261019T135000`, 'RRULE:FREQ=WEEKLY;COUNT=8'])));
+    expect(result.classes.map(item => item.title)).toEqual(['ENGL 102 Seminar']);
+    expect(result.skipped.unsupported).toBe(2);
+  });
+
+  it('keeps the term end of a full-year course imported in August', async () => {
+    const batch = await new IcsEventProvider(async () => calendar(event('year', ['SUMMARY:Year-long seminar', `DTSTART;TZID=${zone}:20250903T150000`,
+      `DTEND;TZID=${zone}:20250903T155000`, 'RRULE:FREQ=WEEKLY;UNTIL=20260415T235959Z'])), { timeZone: zone, partial: true, limits: uploadLimits })
+      .fetchEvents({ from: addCalendarDays('2025-08-20', -90), through: addCalendarDays('2025-08-20', 275), timeZone: zone });
+    if (batch.status === 'failed') throw new Error('failed');
+    const result = detectClassPatterns(batch.events, { timeZone: zone, today: '2025-08-20', saved: [], unsupported: 0 });
+    expect(result.classes[0]).toMatchObject({ termStart: '2025-09-03', termEnd: '2026-04-15' });
+  });
+
+  // Regression for crafted uploads that once blocked the API for 30+ seconds.
+  it.each([
+    ['sixty open-ended daily series', Array.from({ length: 60 }, (_, index) => event(`d${index}`, [`SUMMARY:Daily ${index}`,
+      `DTSTART;TZID=${zone}:20261001T${String(index % 24).padStart(2, '0')}0000`, `DTEND;TZID=${zone}:20261001T${String(index % 24).padStart(2, '0')}3000`, 'RRULE:FREQ=DAILY']))],
+    ['old daily series from 2010', Array.from({ length: 4 }, (_, index) => event(`o${index}`, [`SUMMARY:Old ${index}`,
+      `DTSTART;TZID=${zone}:20100104T0${index}0000`, `DTEND;TZID=${zone}:20100104T0${index}3000`, 'RRULE:FREQ=DAILY']))],
+    ['a flood of explicit dates', Array.from({ length: 300 }, (_, index) => event(`r${index}`, [`SUMMARY:Dates ${index}`,
+      `DTSTART;TZID=${zone}:20261019T090000`, `DTEND;TZID=${zone}:20261019T095000`,
+      `RDATE;TZID=${zone}:${Array.from({ length: 50 }, (_, week) => addCalendarDays('2026-10-26', week * 7).replace(/-/g, '') + 'T090000').join(',')}`]))],
+  ])('bounds the work for %s', async (_name, events) => {
+    const started = Date.now();
+    const result = await preview(calendar(...events));
+    expect(Date.now() - started).toBeLessThan(8_000);
+    expect(result.classes.length).toBeLessThanOrEqual(40);
   });
 });

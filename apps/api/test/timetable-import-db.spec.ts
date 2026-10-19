@@ -55,4 +55,13 @@ databaseSuite('timetable import preview endpoint', () => {
     expect((await upload('BEGIN:VCALENDAR\r\nnot a calendar').expect(422)).body.message).toContain('couldn’t read');
     expect((await upload(ics.replace('RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=10', '')).expect(200)).body).toMatchObject({ classes: [], skipped: { oneTime: 1 } });
   });
+
+  it('limits each account to twenty previews an hour', async () => {
+    const third = `Bearer ${(await client().post('/auth/register').send({ email: `${marker}-third@example.test`, displayName: 'third',
+      password: 'timetable-import-123', timeZone: 'America/Edmonton' }).expect(201)).body.accessToken}`;
+    for (let index = 0; index < 20; index++) await upload(ics, third).expect(200);
+    expect((await upload(ics, third).expect(429)).body.message).toContain('Try again later');
+    // Other accounts keep their own allowance.
+    await upload(ics, other).expect(200);
+  });
 });
