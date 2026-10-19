@@ -24,3 +24,24 @@ export const classScheduleSchema = classScheduleFieldsSchema.extend({
 }).superRefine(validateClassPattern);
 export type ClassSchedule = z.infer<typeof classScheduleSchema>;
 export type SaveClassSchedule = z.infer<typeof saveClassScheduleSchema>;
+
+/** Upper bound for an uploaded calendar file in the timetable import preview. */
+export const classImportMaxBytes = 1024 * 1024;
+export const classImportDraftLimit = 40;
+/** A weekly pattern detected in an uploaded calendar; saved only through POST /classes. */
+export const classImportDraftSchema = classScheduleFieldsSchema.omit({ courseId: true }).extend({
+  meetings: z.number().int().min(2),
+  /** A saved class with the same title, start time and an overlapping weekday. */
+  duplicateOf: idSchema.nullable(),
+}).strict().superRefine(validateClassPattern);
+export const classImportPreviewSchema = z.object({
+  classes: z.array(classImportDraftSchema).max(classImportDraftLimit),
+  skipped: z.object({
+    oneTime: z.number().int().min(0), allDay: z.number().int().min(0), unsupported: z.number().int().min(0),
+    finished: z.number().int().min(0), overLimit: z.number().int().min(0),
+  }).strict(),
+  /** The file was too large to read completely, so classes later in it may be missing. */
+  truncated: z.boolean(),
+}).strict();
+export type ClassImportDraft = z.infer<typeof classImportDraftSchema>;
+export type ClassImportPreview = z.infer<typeof classImportPreviewSchema>;
