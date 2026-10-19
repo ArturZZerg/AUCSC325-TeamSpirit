@@ -56,8 +56,8 @@ auth token and quota tables).
 - **API deployed 2026-10-18** at `https://workout.vakula-dev.com/campusflow-api`
   (see the [server runbook](development/server-beta.md)). No web app or
   store build points at it yet.
-- **No mail provider.** In production, signup is `closed` and recovery mail is
-  `disabled`, so a brand-new user cannot register yet.
+- **No mail provider, by decision (ADR 018).** Signup is open without email
+  verification, and password reset by email is unavailable.
 - **Canvas** works with fixtures only; institutional OAuth is unapproved.
 - **iOS cold start** has a recorded 20-second watchdog failure in one native run.
 - No owner-approved privacy policy, terms or support URL, and no demo account.

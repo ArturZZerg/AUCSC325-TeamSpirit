@@ -23,6 +23,7 @@ export class AuthService {
   async register(input: z.infer<typeof registerRequestSchema>, source = 'unknown') {
     if (this.registration.mode === 'closed') throw new ServiceUnavailableException('New accounts are currently unavailable. Existing users can sign in.');
     const quota = this.registration.mode === 'verified' ? await this.verification.admit(source, input.email) : null;
+    if (!quota) await this.rates.admitRegistration(source);
     const passwordHash = await hashPassword(input.password);
     try {
       return await this.prisma.$transaction(async tx => {

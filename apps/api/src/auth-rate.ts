@@ -20,6 +20,8 @@ export function authRateConfig(env: NodeJS.ProcessEnv = process.env): AuthRateCo
 }
 
 const quarterHour = 15 * 60_000, hour = 60 * 60_000;
+/** Room for a class signing up together behind one campus NAT address. */
+export const registrationsPerSource = 30;
 type LocalCounter = { count: number; resetAt: number };
 @Injectable()
 export class AuthRateService {
@@ -47,6 +49,21 @@ export class AuthRateService {
       if (await countRateBucket(tx, `${prefix}:global`, hour) > 2000) return false;
       if (await countRateBucket(tx, `${prefix}:source:${sourceId}`, quarterHour) > 40) return false;
       return await countRateBucket(tx, `${prefix}:recipient:${recipientId}`, quarterHour, recipientHash) <= 8;
+    }, { timeout: 5000, maxWait: 5000 });
+    if (!allowed) this.limited();
+  }
+  /**
+   * Unverified signup (ADR 018) has no mailbox proof to slow it down, so every
+   * attempt counts against shared global and per-source hourly buckets before
+   * any password hashing. Local development keeps unlimited signup.
+   */
+  async admitRegistration(source: string) {
+    if (this.config.mode === 'local') return;
+    const prefix = `${this.namespace}:register`, sourceId = this.id('source', source.slice(0, 512) || 'unknown');
+    const allowed = await this.prisma.$transaction(async tx => {
+      // Source first: a capped source must not keep consuming everyone's global allowance.
+      if (await countRateBucket(tx, `${prefix}:source:${sourceId}`, hour) > registrationsPerSource) return false;
+      return await countRateBucket(tx, `${prefix}:global`, hour) <= 300;
     }, { timeout: 5000, maxWait: 5000 });
     if (!allowed) this.limited();
   }

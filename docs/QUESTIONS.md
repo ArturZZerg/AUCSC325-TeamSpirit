@@ -2,7 +2,12 @@
 
 Work continues on unblocked tasks while these are open.
 
-## Q1. Email provider (blocks public signup and password reset)
+## Q1. Email provider — resolved 2026-10-18
+
+Not needed for this school project. Signup is open without verification and
+email password reset is off (ADR 018).
+
+### Original question
 
 Production refuses unverified signup, so a brand-new user can't register until
 real mail delivery exists. The API already speaks SMTP. Free options that need
@@ -15,7 +20,12 @@ you to create the account (I won't sign up for services):
 Which provider, and which sender address/domain? Put SMTP credentials in
 `/etc/campusflow/api.env` on the server yourself, or tell me where they are.
 
-## Q2. Where should the web app live?
+## Q2. Where should the web app live? — resolved 2026-10-18
+
+No DNS access for a subdomain, so it is served at
+`https://workout.vakula-dev.com/campusflow/` (ADR 018).
+
+### Original question
 
 Options: a path on the existing host (`https://workout.vakula-dev.com/campusflow/`),
 which needs the web build to support a base path, or a new subdomain such as
