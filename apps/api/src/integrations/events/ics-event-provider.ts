@@ -91,7 +91,8 @@ function rule(c: Component) {
 }
 
 export class IcsEventProvider implements EventProvider {
-  constructor(private readonly load: CalendarLoader, private readonly options: { timeZone?: string; timeoutMs?: number } = {}) {
+  /** `partial` keeps valid events when others fail (student file imports); campus feeds stay all-or-nothing. */
+  constructor(private readonly load: CalendarLoader, private readonly options: { timeZone?: string; timeoutMs?: number; partial?: boolean } = {}) {
     if (options.timeZone) timeZoneSchema.parse(options.timeZone);
     if (options.timeoutMs !== undefined && (!Number.isInteger(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 30000)) throw new Error('Invalid timeout');
   }
@@ -212,7 +213,7 @@ export class IcsEventProvider implements EventProvider {
         } catch (error) { issues.push(error instanceof IcsIssue ? error.message : 'invalid-event'); }
       }
       if (events.length > MAX_EVENTS || new Set(events.map(e => e.externalId)).size !== events.length) issues.push('event-limit-or-duplicate');
-      return { status: issues.length ? 'incomplete' : 'complete', coverage, events: issues.length ? [] : events, issues };
+      return { status: issues.length ? 'incomplete' : 'complete', coverage, events: issues.length && !this.options.partial ? [] : events, issues };
     } catch { return { status: 'failed', issues: ['malformed-or-unsupported-calendar'] }; }
   }
 }

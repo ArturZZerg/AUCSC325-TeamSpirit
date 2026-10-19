@@ -49,6 +49,7 @@ function TimetableContent({ timeZone }: { timeZone: string }) {
     <View style={styles.hero}><Ionicons name="school-outline" size={28} color={colors.moss}/>
       <Text style={styles.title}>Know where to be.</Text><Text style={styles.copy}>Your classes, rooms and weekly rhythm in one place.</Text></View>
     <Button title="Add a class" disabled={!!removing} onPress={() => setEditing(null)}/>
+    <Button title="Import from a calendar file" tone="plain" disabled={!!removing} onPress={() => router.push('/timetable-import')}/>
     <State loading={query.isLoading} error={query.error}/>
     {query.data && <Text style={styles.meta}>{query.isCached || query.isError ? 'Saved timetable · refresh to check for changes' : 'Timetable refreshed'} · Times in {timeZone}</Text>}
     <View style={styles.navigation}>
@@ -81,7 +82,7 @@ function TimetableContent({ timeZone }: { timeZone: string }) {
     </View>; })}
     {!query.data && !query.isLoading && <Card><Text style={styles.item}>Your timetable isn’t available yet.</Text><Text style={styles.copy}>Connect and refresh to load your saved classes.</Text><Button title="Retry timetable" onPress={() => { void query.refetch(); }}/></Card>}
     <Text style={styles.section}>Your saved classes</Text>
-    {query.data?.length === 0 && <Text style={styles.copy}>Start with one class from your syllabus. You can add lectures and labs separately.</Text>}
+    {query.data?.length === 0 && <Text style={styles.copy}>Start with one class from your syllabus, or import your schedule from a calendar file. You can add lectures and labs separately.</Text>}
     {failure && <Text accessibilityRole="alert" style={styles.warning}>{failure}</Text>}
     {query.data?.map(item => <Card key={item.id}>
       <View style={styles.heading}><Text style={styles.item}>{item.title}</Text><View style={[styles.swatch, { backgroundColor: classPalette[item.color] }]}/></View>

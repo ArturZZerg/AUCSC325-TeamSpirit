@@ -41,4 +41,5 @@ cache validation and isolation.
 Run `npm.cmd run check` and mobile web export, plus responsive browser QA.
 Native-device acceptance is a separate gate. Holidays, rotating weeks,
 overnight classes, automatic notifications and Canvas timetable import are
-outside this slice.
+outside this slice. Calendar-file import is covered in
+[timetable import](timetable-import.md).

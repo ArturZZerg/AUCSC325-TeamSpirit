@@ -16,7 +16,7 @@ can install and use. Priority is top to bottom. Blocked items link to
 | 6 | Android build against the hosted API, with acceptance on emulator | M | Pending (after 1) |
 | 7 | Privacy policy, terms and support pages | M | Draft pending; publish blocked: Q3 |
 | 8 | Public signup | M | Done without email (ADR 018) |
-| 9 | Import class timetable from an ICS file | M | Pending |
+| 9 | Import class timetable from an ICS file | M | Done ([requirements](requirements/timetable-import.md)) |
 | 10 | Lighthouse 90+ on main web screens | M | Pending |
 | 11 | Home-screen next-class/today widget (Android) | L | Pending |
 | 12 | Full new-user production run and release report | M | Pending |

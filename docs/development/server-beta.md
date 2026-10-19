@@ -197,4 +197,9 @@ Web app and signup (ADR 018):
   redeploying a commit never touches the live files. Pruning keeps the three
   newest by name and never removes the symlink's target.
 
+`nginx-location.conf` also has an exact location for
+`/campusflow-api/classes/import-preview`, the only API route that accepts bodies
+up to 1 MB (calendar files). `deploy.sh` doesn't install Nginx snippets: after
+changing them, copy them to `/etc/nginx/snippets/` and reload behind `nginx -t`.
+
 Still open: off-host backups.

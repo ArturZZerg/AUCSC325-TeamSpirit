@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Timetable import: choose an `.ics` export, preview the detected weekly
+  classes (duplicates unselected), and add the ones you keep. Uses the campus
+  ICS reader in a new partial mode; adds `expo-document-picker` 55.0.17.
+
 - Web app hosted at `https://workout.vakula-dev.com/campusflow/`, built by
   `scripts/build-hosted-web.mjs` and released atomically by `deploy.sh`.
 - Signup open without email verification in production behind
