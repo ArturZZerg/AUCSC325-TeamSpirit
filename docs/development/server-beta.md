@@ -190,6 +190,11 @@ Web app and signup (ADR 018):
   headers, `no-cache` HTML and immutable hashed bundles.
 - `api.env` sets `REGISTRATION_MODE=preview` and `ALLOW_UNVERIFIED_SIGNUP=true`.
   Change these only after the image that understands the opt-in is serving,
-  because older images refuse `preview` in production.
+  because older images refuse `preview` in production. For the same reason, a
+  rollback to a commit before ADR 018 needs `REGISTRATION_MODE=closed` (and
+  the opt-in removed) first.
+- Each web upload goes to its own `<commit>-<UTC stamp>` directory, so
+  redeploying a commit never touches the live files. Pruning keeps the three
+  newest by name and never removes the symlink's target.
 
 Still open: off-host backups.

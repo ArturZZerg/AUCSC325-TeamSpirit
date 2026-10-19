@@ -50,6 +50,20 @@ export class AuthRateService {
     }, { timeout: 5000, maxWait: 5000 });
     if (!allowed) this.limited();
   }
+  /**
+   * Unverified signup (ADR 018) has no mailbox proof to slow it down, so every
+   * attempt counts against shared global and per-source hourly buckets before
+   * any password hashing. Local development keeps unlimited signup.
+   */
+  async admitRegistration(source: string) {
+    if (this.config.mode === 'local') return;
+    const prefix = `${this.namespace}:register`, sourceId = this.id('source', source.slice(0, 512) || 'unknown');
+    const allowed = await this.prisma.$transaction(async tx => {
+      if (await countRateBucket(tx, `${prefix}:global`, hour) > 200) return false;
+      return await countRateBucket(tx, `${prefix}:source:${sourceId}`, hour) <= 10;
+    }, { timeout: 5000, maxWait: 5000 });
+    if (!allowed) this.limited();
+  }
   loginFailed(email: string) { if (this.config.mode === 'local') this.local(this.failures, email, true); }
   loginSucceeded(email: string) { this.failures.delete(email); }
   async admitPassword(userId: string, source: string) {
