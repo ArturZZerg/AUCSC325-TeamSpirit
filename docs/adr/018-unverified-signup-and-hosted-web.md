@@ -35,14 +35,15 @@ Anyone can register with any address, including one they don't own, and a
 forgotten password can't be recovered by email. Accounts created this way have
 no verified mailbox. Switching back to `verified` would lock them out until they
 verify, and an address someone else squatted can't be reclaimed without mail
-recovery for unverified users. Plan that migration before the switch.
+recovery for unverified users. Plan that migration before the switch. That is
+acceptable for a course project and must be revisited (back to `verified` with
+a provider) before any real public release.
 
 The web app shares its origin with the host's other applications. Its session
 token lives only in memory, but its SQLite cache and its requests are within
 reach of script on any page of that origin, including a service worker
 registered at `/`. This is acceptable only because the owner controls every
 co-hosted app. A dedicated subdomain removes the assumption. Framing is denied
-(`X-Frame-Options`, CSP `frame-ancestors`). That is acceptable for a
-course project and must be revisited (back to `verified` with a provider)
-before any real public release. Native builds and local development are
-unchanged.
+(`X-Frame-Options`, CSP `frame-ancestors`).
+
+Native builds and local development are unchanged.
