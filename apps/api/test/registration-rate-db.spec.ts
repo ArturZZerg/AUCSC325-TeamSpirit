@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { REGISTRATION_CONFIG } from '../src/auth-config';
-import { AUTH_RATE_CONFIG, AuthRateService } from '../src/auth-rate';
+import { AUTH_RATE_CONFIG, AuthRateService, registrationsPerSource } from '../src/auth-rate';
 import { RECOVERY_CONFIG } from '../src/auth-recovery/recovery-config';
 import { RecoveryWorker } from '../src/auth-recovery/recovery-worker';
 import { PrismaService } from '../src/prisma.service';
@@ -31,15 +31,16 @@ import { PrismaService } from '../src/prisma.service';
     if (app) await app.close();
   });
 
-  it('issues sessions, then limits one source to ten attempts an hour without creating accounts', async () => {
+  it('issues sessions, then limits one source per hour without creating accounts or draining the global allowance', async () => {
     const first = await register('first').expect(201);
     expect(first.body.accessToken).toEqual(expect.any(String));
     // A duplicate still counts, so the 409 cannot be used for unlimited address probing.
     await register('first').expect(409);
-    for (let index = 0; index < 8; index++) await register(`bulk-${index}`).expect(201);
-    await register('over-limit').expect(429);
-    await register('first').expect(429);
-    expect(await db.user.count({ where: { email: `${namespace}-over-limit@example.test` } })).toBe(0);
-    expect(await db.user.count({ where: { email: { startsWith: namespace } } })).toBe(9);
+    for (let index = 0; index < registrationsPerSource - 2; index++) await register(`bulk-${index}`).expect(201);
+    for (let index = 0; index < 5; index++) await register(`over-${index}`).expect(429);
+    expect(await db.user.count({ where: { email: { startsWith: `${namespace}-over` } } })).toBe(0);
+    expect(await db.user.count({ where: { email: { startsWith: namespace } } })).toBe(registrationsPerSource - 1);
+    const global = await db.recoveryRateBucket.findUniqueOrThrow({ where: { key: `${namespace}:register:global` } });
+    expect(global.count).toBe(registrationsPerSource);
   });
 });

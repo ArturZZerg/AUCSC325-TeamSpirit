@@ -99,9 +99,10 @@ WEB_URL=${WEB_URL:-https://workout.vakula-dev.com/campusflow/}
 headers=$(curl -fsS -D - -o /dev/null --max-time 10 "$WEB_URL") || fail "web app"
 grep -qi '^cross-origin-embedder-policy: require-corp' <<< "$headers" || fail "web isolation headers"
 page=$(curl -fsS --max-time 10 "$WEB_URL") || fail "web app body"
-entry=$(grep -o '/campusflow/_expo/static/js/web/entry-[a-f0-9]*\.js' <<< "$page" | head -1)
+entry=$(grep -o '/campusflow/_expo/static/js/web/entry-[a-f0-9]*\.js' <<< "$page" | head -1 || true)
 [ -n "$entry" ] || fail "web entry bundle"
-curl -fsS -D - -o /dev/null --max-time 10 "https://workout.vakula-dev.com$entry" | grep -qi '^cross-origin-embedder-policy: require-corp' || fail "bundle isolation headers"
+bundle=$(curl -fsS -D - -o /dev/null --max-time 10 "${WEB_URL%/campusflow/}$entry") || fail "entry bundle"
+grep -qi '^cross-origin-embedder-policy: require-corp' <<< "$bundle" || fail "bundle isolation headers"
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$PUBLIC_URL/today")
 [ "$code" = 401 ] || fail "anonymous /today returned $code"
 echo "deployed $commit"

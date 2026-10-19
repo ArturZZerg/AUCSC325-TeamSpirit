@@ -20,8 +20,9 @@ subdomain, so it shares the existing HTTPS host.
   is set as well. Either setting alone keeps the previous behaviour. Mail
   delivery and password recovery stay disabled, and the sign-up screen says so.
 - ADR 011 never limited signup, so unverified signup gets its own shared
-  admission before any password hashing: 10 attempts per source and 200
-  overall per hour, counting duplicates, so a 409 can't be used for unlimited
+  admission before any password hashing: 30 attempts per source (room for a
+  class behind one campus address) and 300 overall per hour. A source over
+  its limit no longer counts toward the overall one. Duplicates count, so a 409 can't be used for unlimited
   address probing. Local development, without a shared key, stays unlimited.
 - The Expo web export is built with base path `/campusflow` and the hosted API
   URL. It is served by the existing Nginx at

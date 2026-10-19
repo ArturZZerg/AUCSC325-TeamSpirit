@@ -20,6 +20,8 @@ export function authRateConfig(env: NodeJS.ProcessEnv = process.env): AuthRateCo
 }
 
 const quarterHour = 15 * 60_000, hour = 60 * 60_000;
+/** Room for a class signing up together behind one campus NAT address. */
+export const registrationsPerSource = 30;
 type LocalCounter = { count: number; resetAt: number };
 @Injectable()
 export class AuthRateService {
@@ -59,8 +61,9 @@ export class AuthRateService {
     if (this.config.mode === 'local') return;
     const prefix = `${this.namespace}:register`, sourceId = this.id('source', source.slice(0, 512) || 'unknown');
     const allowed = await this.prisma.$transaction(async tx => {
-      if (await countRateBucket(tx, `${prefix}:global`, hour) > 200) return false;
-      return await countRateBucket(tx, `${prefix}:source:${sourceId}`, hour) <= 10;
+      // Source first: a capped source must not keep consuming everyone's global allowance.
+      if (await countRateBucket(tx, `${prefix}:source:${sourceId}`, hour) > registrationsPerSource) return false;
+      return await countRateBucket(tx, `${prefix}:global`, hour) <= 300;
     }, { timeout: 5000, maxWait: 5000 });
     if (!allowed) this.limited();
   }
