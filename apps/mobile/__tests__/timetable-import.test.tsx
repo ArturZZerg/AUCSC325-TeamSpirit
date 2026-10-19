@@ -15,8 +15,8 @@ jest.mock('@expo/vector-icons/Ionicons', () => 'Icon');
 
 const draft = (title: string, fields: Partial<ClassImportDraft> = {}): ClassImportDraft => ({ title, weekdays: [1, 3], termStart: '2026-09-09', termEnd: '2026-12-09',
   startTime: '09:00', endTime: '09:50', timeZone: 'America/Edmonton', location: 'Arts 101', instructor: null, notes: null, color: 'moss', meetings: 28, duplicateOf: null, ...fields });
-const preview = (classes: ClassImportDraft[], skipped: Partial<ClassImportPreview['skipped']> = {}): ClassImportPreview =>
-  ({ classes, skipped: { oneTime: 0, allDay: 0, unsupported: 0, finished: 0, overLimit: 0, ...skipped } });
+const preview = (classes: ClassImportDraft[], skipped: Partial<ClassImportPreview['skipped']> = {}, truncated = false): ClassImportPreview =>
+  ({ classes, skipped: { oneTime: 0, allDay: 0, unsupported: 0, finished: 0, overLimit: 0, ...skipped }, truncated });
 const choose = async (result: ClassImportPreview) => {
   jest.mocked(pickCalendarFile).mockResolvedValueOnce({ name: 'fall.ics', text: 'BEGIN:VCALENDAR' });
   jest.mocked(previewCalendar).mockResolvedValueOnce(result);
@@ -46,7 +46,7 @@ it('keeps saved classes after a partial failure and retries only the rest', asyn
   render(<TimetableImportScreen/>);
   await choose(preview([draft('Psychology'), draft('Biology')]));
   fireEvent.press(screen.getByText('Add 2 classes'));
-  await screen.findByText('1 class couldn’t be saved. Your other classes are saved. Check your connection and try again.');
+  await screen.findByText('1 class couldn’t be saved. 1 is saved. Check your connection and try again.');
   expect(screen.getByText('Added')).toBeTruthy(); expect(screen.getByText('Not saved yet')).toBeTruthy();
   fireEvent.press(screen.getByText('Retry 1 class'));
   await screen.findByText('2 classes added to your timetable.');
@@ -77,6 +77,13 @@ it('explains unreadable files and lets the student choose again', async () => {
   render(<TimetableImportScreen/>); fireEvent.press(screen.getByText('Choose a calendar file'));
   expect(await screen.findByRole('alert')).toHaveTextContent(/couldn’t read classes/);
   expect(screen.getByText('Choose a calendar file')).toBeEnabled();
+});
+
+it('warns when a large file could only be read in part', async () => {
+  render(<TimetableImportScreen/>);
+  await choose(preview([draft('Psychology')], {}, true));
+  expect(screen.getByRole('alert')).toHaveTextContent(/too large to read completely/);
+  expect(screen.getByText('Add 1 class')).toBeTruthy();
 });
 
 it('guides the student when a file has no weekly classes', async () => {

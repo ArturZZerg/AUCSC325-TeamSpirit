@@ -79,6 +79,7 @@ function TimetableImport() {
       <Text style={styles.section}>{preview.classes.length ? `${preview.classes.length} weekly ${preview.classes.length === 1 ? 'class' : 'classes'} found` : 'No weekly classes found'}</Text>
       {file && <Text style={styles.meta}>From {file} · times in your account time zone</Text>}
       <Skipped preview={preview}/>
+      {preview.truncated && <Text accessibilityRole="alert" style={styles.warning}>This file was too large to read completely, so some classes may be missing. Export only your class calendar and choose it again.</Text>}
       {!preview.classes.length && <Text style={styles.copy}>Classes need to repeat at least twice at the same time and place. Check that you exported your class schedule, not a single event, then choose the file again.</Text>}
       {preview.classes.map((item, index) => <Draft key={index} item={item} checked={selected.has(index)} status={status[index]} reason={reasons[index]}
         saving={saving === index} disabled={working || status[index] === 'saved' || status[index] === 'rejected'} onToggle={() => toggle(index)}/>)}
@@ -87,7 +88,7 @@ function TimetableImport() {
         {rejectedCount > 0 && <Text style={styles.copy}>{rejectedCount} couldn’t be added as imported. Add {rejectedCount === 1 ? 'it' : 'them'} from the timetable instead.</Text>}
         <Button title="Open timetable" onPress={() => router.replace('/timetable')}/>
       </Card> : preview.classes.length > 0 && <>
-        {failedCount > 0 && <Text accessibilityRole="alert" style={styles.warning}>{failedCount} {failedCount === 1 ? 'class' : 'classes'} couldn’t be saved. Your other classes are saved. Check your connection and try again.</Text>}
+        {failedCount > 0 && <Text accessibilityRole="alert" style={styles.warning}>{failedCount} {failedCount === 1 ? 'class' : 'classes'} couldn’t be saved. {savedCount ? `${savedCount} ${savedCount === 1 ? 'is' : 'are'} saved. ` : ''}Check your connection and try again.</Text>}
         <Button title={saving !== undefined ? 'Saving classes…' : failedCount ? `Retry ${chosen.length} ${chosen.length === 1 ? 'class' : 'classes'}` : `Add ${chosen.length} ${chosen.length === 1 ? 'class' : 'classes'}`}
           disabled={working || chosen.length === 0} onPress={() => { void save(); }}/>
       </>}

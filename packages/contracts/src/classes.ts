@@ -40,6 +40,8 @@ export const classImportPreviewSchema = z.object({
     oneTime: z.number().int().min(0), allDay: z.number().int().min(0), unsupported: z.number().int().min(0),
     finished: z.number().int().min(0), overLimit: z.number().int().min(0),
   }).strict(),
+  /** The file was too large to read completely, so classes later in it may be missing. */
+  truncated: z.boolean(),
 }).strict();
 export type ClassImportDraft = z.infer<typeof classImportDraftSchema>;
 export type ClassImportPreview = z.infer<typeof classImportPreviewSchema>;

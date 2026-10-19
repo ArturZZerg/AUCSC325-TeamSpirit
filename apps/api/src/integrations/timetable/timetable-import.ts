@@ -20,7 +20,7 @@ const sourceOf = (externalId: string) => { try { const [uid] = JSON.parse(extern
  * weekday at least twice; weekdays that share title, room, times and term
  * merge into one class. Everything else is counted, never guessed.
  */
-export function detectClassPatterns(events: readonly ImportedEvent[], options: { timeZone: string; today: string; saved: readonly Saved[]; unsupported: number }): ClassImportPreview {
+export function detectClassPatterns(events: readonly ImportedEvent[], options: { timeZone: string; today: string; saved: readonly Saved[]; unsupported: number; truncated?: boolean }): ClassImportPreview {
   const sources = { oneTime: new Set<string>(), allDay: new Set<string>(), unsupported: new Set<string>(), finished: new Set<string>() };
   const meetings = new Map<string, Meeting[]>();
   const seen = new Set<string>();
@@ -80,5 +80,5 @@ export function detectClassPatterns(events: readonly ImportedEvent[], options: {
   // One odd pattern is dropped and counted, never allowed to fail the whole preview.
   const classes: ClassImportDraft[] = drafts.flatMap(result => result.success ? [result.data] : []);
   skipped.unsupported += drafts.length - classes.length;
-  return { classes, skipped };
+  return { classes, skipped, truncated: options.truncated ?? false };
 }

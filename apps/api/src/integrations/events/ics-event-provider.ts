@@ -15,6 +15,8 @@ const MAX_EVENTS = 2000;
 class IcsIssue extends Error {}
 /** Ends a partial (student upload) parse early: the time budget is spent. */
 class IcsStop extends Error {}
+/** Issues meaning a partial parse stopped early, so later events were never read. */
+export const icsStopIssues = ['step-limit', 'time-limit', 'event-cap'];
 export type IcsLimits = { steps: number; seriesSteps: number; events: number; components: number; deadlineMs?: number };
 const defaultLimits: IcsLimits = { steps: MAX_STEPS, seriesSteps: MAX_STEPS, events: MAX_EVENTS, components: MAX_EVENTS };
 const fail = (message: string): never => { throw new IcsIssue(message); };
@@ -143,7 +145,6 @@ export class IcsEventProvider implements EventProvider {
       const deadline = limits.deadlineMs === undefined ? Infinity : Date.now() + limits.deadlineMs;
       const others = calendar.getAllSubcomponents().filter(c => !['vevent', 'vtimezone'].includes(c.name));
       if (components.length > limits.components || others.length && !partial) fail('component-limit-or-type');
-      if (others.length) issues.push(...others.map(() => 'ignored-component'));
       const groups = new Map<string, Component[]>();
       for (const c of components) {
         const uid = text(c, 'uid');
@@ -153,7 +154,7 @@ export class IcsEventProvider implements EventProvider {
       let steps = 0;
       const step = (amount = 1) => {
         steps += amount;
-        if (steps > limits.steps) { if (partial) throw new IcsStop('expansion-limit'); fail('expansion-limit'); }
+        if (steps > limits.steps) { if (partial) throw new IcsStop('step-limit'); fail('expansion-limit'); }
         if (Date.now() > deadline) throw new IcsStop('time-limit');
       };
       for (const [uid, group] of groups) {
@@ -182,7 +183,8 @@ export class IcsEventProvider implements EventProvider {
           }
           const exclusions = new Set<string>();
           const dates = (name: string) => master.getAllProperties(name).flatMap(p => (p.toJSON().slice(3) as unknown[]).map(v => {
-            step();
+            // Campus feeds keep their original budget; uploads also pay for explicit dates.
+            if (partial) step();
             if (typeof v !== 'string') return fail('unsupported-recurrence-date');
             return stamp(p, this.options.timeZone, v);
           }));
@@ -241,7 +243,7 @@ export class IcsEventProvider implements EventProvider {
             groupEvents.push(event);
           }
           if (events.length + groupEvents.length > limits.events) {
-            if (partial) throw new IcsStop('event-limit');
+            if (partial) throw new IcsStop('event-cap');
             fail('event-limit');
           }
           events.push(...groupEvents);

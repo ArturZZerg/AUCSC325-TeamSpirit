@@ -1,5 +1,5 @@
-import { addCalendarDays } from '@campusflow/domain';
-import { IcsEventProvider } from '../src/integrations/events/ics-event-provider';
+import { addCalendarDays, localClockAt } from '@campusflow/domain';
+import { IcsEventProvider, icsStopIssues } from '../src/integrations/events/ics-event-provider';
 import { detectClassPatterns, uploadLimits } from '../src/integrations/timetable/timetable-import';
 
 const zone = 'America/Edmonton', today = '2026-10-18';
@@ -9,7 +9,8 @@ async function preview(ics: string, saved: { id: string; title: string; startTim
   const batch = await new IcsEventProvider(async () => ics, { timeZone: zone, partial: true, limits: uploadLimits })
     .fetchEvents({ from: addCalendarDays(today, -90), through: addCalendarDays(today, 275), timeZone: zone });
   if (batch.status === 'failed') throw new Error(batch.issues.join());
-  return detectClassPatterns(batch.events, { timeZone: zone, today, saved, unsupported: batch.issues.length });
+  return detectClassPatterns(batch.events, { timeZone: zone, today, saved, unsupported: batch.issues.filter(issue => !icsStopIssues.includes(issue)).length,
+    truncated: batch.issues.some(issue => icsStopIssues.includes(issue)) });
 }
 // Seven explicit Tuesday/Thursday meetings per weekday, as some schedule exports write them.
 const explicit = (title: string, days: string[], time: [string, string], room: string) => days.map(date => event(`${title}-${date}-${time[0]}`, [
@@ -48,16 +49,23 @@ describe('timetable import', () => {
     expect(result.skipped).toEqual({ oneTime: 1, allDay: 1, unsupported: 2, finished: 1, overLimit: 0 });
   });
 
+  // Expected local times come from the runtime's zone data: Alberta's clock rules differ between tzdata releases.
+  const weekly = (first: string, weeks: number) => Array.from({ length: weeks }, (_, week) => localClockAt(`${addCalendarDays(first, week * 7)}T15:00:00Z`, zone).time);
+
   it('reads UTC-only exports in the student’s zone and marks classes that are already saved', async () => {
-    // After the Nov 1 change, 15:00Z is 08:00 MST.
-    const result = await preview(calendar(event('utc', ['SUMMARY:PSYC 104 Lecture', 'DTSTART:20261102T150000Z', 'DTEND:20261102T155000Z', 'RRULE:FREQ=WEEKLY;COUNT=6'])),
-      [{ id: '00000000-0000-4000-8000-000000000001', title: 'psyc 104  lecture', startTime: '08:00', weekdays: [1, 3] }]);
-    expect(result.classes).toEqual([expect.objectContaining({ startTime: '08:00', endTime: '08:50', weekdays: [1], duplicateOf: '00000000-0000-4000-8000-000000000001' })]);
+    const [local] = weekly('2026-11-02', 1);
+    const result = await preview(calendar(event('utc', ['SUMMARY:PSYC 104 Lecture', 'DTSTART:20261102T150000Z', 'DTEND:20261102T155000Z', 'RRULE:FREQ=WEEKLY;COUNT=2'])),
+      [{ id: '00000000-0000-4000-8000-000000000001', title: 'psyc 104  lecture', startTime: local, weekdays: [1, 3] }]);
+    expect(result.classes).toEqual([expect.objectContaining({ startTime: local, weekdays: [1], duplicateOf: '00000000-0000-4000-8000-000000000001' })]);
+    expect(local).not.toBe('15:00');
   });
 
-  it('splits a UTC-defined series that crosses a DST change rather than inventing one local time', async () => {
+  it('groups a UTC-defined series by its real local times rather than inventing one', async () => {
     const result = await preview(calendar(event('utc', ['SUMMARY:PSYC 104 Lecture', 'DTSTART:20261019T150000Z', 'DTEND:20261019T155000Z', 'RRULE:FREQ=WEEKLY;COUNT=6'])));
-    expect(result.classes.map(item => [item.startTime, item.meetings])).toEqual([['08:00', 4], ['09:00', 2]]);
+    const expected = new Map<string, number>();
+    for (const time of weekly('2026-10-19', 6)) expected.set(time, (expected.get(time) ?? 0) + 1);
+    const patterns = [...expected].filter(([, meetings]) => meetings >= 2).sort(([a], [b]) => a.localeCompare(b));
+    expect(result.classes.map(item => [item.startTime, item.meetings])).toEqual(patterns);
   });
 
   it('caps the preview at forty classes and reports the rest', async () => {
@@ -73,8 +81,10 @@ describe('timetable import', () => {
       event('blank', ['SUMMARY: ', `DTSTART;TZID=${zone}:20261019T090000`, `DTEND;TZID=${zone}:20261019T095000`, 'RRULE:FREQ=WEEKLY;COUNT=6']),
       ['BEGIN:VTODO', 'UID:todo', 'DTSTAMP:20260901T000000Z', 'SUMMARY:Buy textbook', 'END:VTODO'].join('\r\n'),
       event('seminar', ['SUMMARY:ENGL 102 Seminar', `DTSTART;TZID=${zone}:20261019T130000`, `DTEND;TZID=${zone}:20261019T135000`, 'RRULE:FREQ=WEEKLY;COUNT=8'])));
+    // The untitled series counts as unsupported; a task is simply not a class.
     expect(result.classes.map(item => item.title)).toEqual(['ENGL 102 Seminar']);
-    expect(result.skipped.unsupported).toBe(2);
+    expect(result.skipped.unsupported).toBe(1);
+    expect(result.truncated).toBe(false);
   });
 
   it('keeps the term end of a full-year course imported in August', async () => {
@@ -100,5 +110,12 @@ describe('timetable import', () => {
     const result = await preview(calendar(...events));
     expect(Date.now() - started).toBeLessThan(8_000);
     expect(result.classes.length).toBeLessThanOrEqual(40);
+  });
+
+  it('reports a preview cut short instead of silently dropping later classes', async () => {
+    // Sixty open-ended daily series hold far more meetings than one upload may expand.
+    const result = await preview(calendar(...Array.from({ length: 60 }, (_, index) => event(`d${index}`, [`SUMMARY:Daily ${index}`,
+      `DTSTART;TZID=${zone}:20261001T${String(index % 24).padStart(2, '0')}0000`, `DTEND;TZID=${zone}:20261001T${String(index % 24).padStart(2, '0')}3000`, 'RRULE:FREQ=DAILY']))));
+    expect(result.truncated).toBe(true);
   });
 });

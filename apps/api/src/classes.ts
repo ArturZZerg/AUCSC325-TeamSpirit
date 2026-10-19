@@ -6,7 +6,7 @@ import { addCalendarDays, localDateAt } from '@campusflow/domain';
 import type { ClassSchedule as ClassRow, Prisma } from '@prisma/client';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, parseUuid } from './common';
 import { PrismaService } from './prisma.service';
-import { IcsEventProvider } from './integrations/events/ics-event-provider';
+import { IcsEventProvider, icsStopIssues } from './integrations/events/ics-event-provider';
 import { countRateBucket } from './rate-bucket';
 import { detectClassPatterns, uploadLimits } from './integrations/timetable/timetable-import';
 
@@ -64,7 +64,9 @@ export class ClassesController {
     if (batch.status === 'failed' || !batch.events.length && batch.issues.length)
       throw new UnprocessableEntityException('CampusFlow couldn’t read classes from this file. Export the calendar again as .ics and retry.');
     const saved = await this.prisma.classSchedule.findMany({ where: { userId: user.id }, select: { id: true, title: true, startTime: true, weekdays: true } });
-    return classImportPreviewSchema.parse(detectClassPatterns(batch.events, { timeZone: user.timeZone, today, saved, unsupported: batch.issues.length }));
+    const truncated = batch.issues.some(issue => icsStopIssues.includes(issue));
+    const unsupported = batch.issues.filter(issue => !icsStopIssues.includes(issue)).length;
+    return classImportPreviewSchema.parse(detectClassPatterns(batch.events, { timeZone: user.timeZone, today, saved, unsupported, truncated }));
   }
   @Put(':id') async replace(@CurrentUser() user: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
     @Body(new ZodPipe(saveClassScheduleSchema)) body: SaveClassSchedule) {
