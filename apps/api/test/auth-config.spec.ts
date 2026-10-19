@@ -25,6 +25,13 @@ it('closes public signup by default without inventing verified users', () => {
 it.each(['preview', 'invalid', '', 'verified-with-fixtures'])('rejects unsupported production modes without leaking the value: %s', REGISTRATION_MODE => {
   expect(() => registrationConfig(smtp, { NODE_ENV: 'production', REGISTRATION_MODE })).toThrow(/^Invalid REGISTRATION_MODE$/);
 });
+it('allows unverified production signup only with the explicit opt-in', () => {
+  expect(registrationConfig(disabled, { NODE_ENV: 'production', REGISTRATION_MODE: 'preview', ALLOW_UNVERIFIED_SIGNUP: 'true' })).toEqual({ mode: 'preview' });
+  for (const ALLOW_UNVERIFIED_SIGNUP of [undefined, '', 'false', 'TRUE', '1'])
+    expect(() => registrationConfig(disabled, { NODE_ENV: 'production', REGISTRATION_MODE: 'preview', ALLOW_UNVERIFIED_SIGNUP })).toThrow(/^Invalid REGISTRATION_MODE$/);
+  // The opt-in alone never opens signup.
+  expect(registrationConfig(disabled, { NODE_ENV: 'production', ALLOW_UNVERIFIED_SIGNUP: 'true' })).toEqual({ mode: 'closed' });
+});
 it('requires SMTP for verified signup and permits an explicit closed deployment', () => {
   expect(() => registrationConfig(disabled, { REGISTRATION_MODE: 'verified' })).toThrow('requires SMTP');
   expect(registrationConfig(smtp, { NODE_ENV: 'production', REGISTRATION_MODE: 'verified' })).toEqual({ mode: 'verified' });

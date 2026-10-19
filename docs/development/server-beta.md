@@ -177,4 +177,19 @@ Operations, all from the repository's `ops/vps/`:
   then. Share the
   password with reviewers privately; never commit or post it.
 
-Still open: off-host backups, mail, and public signup.
+Web app and signup (ADR 018):
+
+- `deploy.sh` builds the web export locally with
+  `scripts/build-hosted-web.mjs` (base `/campusflow`, hosted API URL, verified
+  script paths). It uploads it to `/var/www/campusflow-site/releases/<commit>`
+  and, after the API is ready, atomically repoints the
+  `/var/www/campusflow-site/campusflow` symlink. It keeps three releases.
+- `ops/vps/nginx-web.conf` is installed as
+  `/etc/nginx/snippets/campusflow-web.conf` and included in the HTTPS server
+  block after the API snippet. It serves the SPA with COOP/COEP/CORP isolation
+  headers, `no-cache` HTML and immutable hashed bundles.
+- `api.env` sets `REGISTRATION_MODE=preview` and `ALLOW_UNVERIFIED_SIGNUP=true`.
+  Change these only after the image that understands the opt-in is serving,
+  because older images refuse `preview` in production.
+
+Still open: off-host backups.

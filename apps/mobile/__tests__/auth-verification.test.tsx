@@ -57,7 +57,7 @@ it('makes local preview signup explicit and allows a failed capability check to 
   call.mockRejectedValueOnce(new Error('offline')); render(<Auth/>); await press('Create an account');
   await screen.findByText('Couldn’t check signup availability. Retry or sign in to an existing account.'); expect(screen.getByText('Create account')).toBeDisabled();
   call.mockResolvedValueOnce({ registration: 'preview', verificationAvailable: false }); await press('Check again');
-  expect(screen.getByText('Preview accounts don’t verify email. Use a test address.')).toBeTruthy(); expect(screen.getByText('Create account')).toBeEnabled();
+  expect(screen.getByText('Email isn’t verified and there’s no email password reset, so keep your password somewhere safe.')).toBeTruthy(); expect(screen.getByText('Create account')).toBeEnabled();
 });
 it('retains failed sign-in drafts without accepting a malformed result', async () => {
   render(<Auth/>); enterLogin(); call.mockResolvedValueOnce({ verificationRequired: true, accessToken: 'bad' }); await press('Sign in');

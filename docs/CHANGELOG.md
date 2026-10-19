@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Web app hosted at `https://workout.vakula-dev.com/campusflow/`, built by
+  `scripts/build-hosted-web.mjs` and released atomically by `deploy.sh`.
+- Signup open without email verification in production behind
+  `ALLOW_UNVERIFIED_SIGNUP=true` (ADR 018); the sign-up screen says reset by
+  email is unavailable.
+
 - api/ops: synthetic demo account (`demo@example.com`) seeded through the public
   API with courses, grades, classes, coursework, a study plan, tasks, routines,
   journal entries and a saved campus event, reset nightly.

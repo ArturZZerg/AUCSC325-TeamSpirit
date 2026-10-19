@@ -16,7 +16,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "Deploy only from main" >&2; exit 1; }
 # Untracked files inside the build context would enter an image tagged as this commit.
-[ -z "$(git status --porcelain --untracked-files=all -- package.json package-lock.json tsconfig.base.json apps/api apps/mobile/package.json packages ops/vps)" ] ||
+[ -z "$(git status --porcelain --untracked-files=all -- package.json package-lock.json tsconfig.base.json apps/api apps/mobile packages ops/vps scripts/build-hosted-web.mjs)" ] ||
   { echo "Build context has local changes or untracked files" >&2; exit 1; }
 git fetch -q origin main
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "HEAD is not origin/main" >&2; exit 1; }
@@ -32,6 +32,14 @@ remote_id=$(ssh "$SERVER" "docker image inspect --format '{{.Id}}' campusflow-ap
 if [ "$local_id" != "$remote_id" ] || ! ssh "$SERVER" "docker image inspect campusflow-build:$commit" > /dev/null 2>&1; then
   docker save "campusflow-api:$commit" "campusflow-build:$commit" | gzip -1 | ssh "$SERVER" docker load
 fi
+# Build and verify the web app before anything on the server changes.
+web=$(mktemp -d)
+trap 'rm -rf "$web"' EXIT
+npm run build:shared > /dev/null
+node scripts/build-hosted-web.mjs "$web/out" > /dev/null
+ssh "$SERVER" "install -d -m 755 /var/www/campusflow-site/releases && rm -rf /var/www/campusflow-site/releases/$commit.partial && install -d -m 755 /var/www/campusflow-site/releases/$commit.partial"
+tar -C "$web/out" -czf - . | ssh "$SERVER" "tar -xzf - --no-same-owner -C /var/www/campusflow-site/releases/$commit.partial && chmod -R a+rX,go-w /var/www/campusflow-site/releases/$commit.partial && rm -rf /var/www/campusflow-site/releases/$commit && mv /var/www/campusflow-site/releases/$commit.partial /var/www/campusflow-site/releases/$commit"
+
 release="/opt/campusflow/releases/$commit"
 ssh "$SERVER" "install -d -m 700 '$release'"
 scp -q ops/vps/compose.yaml ops/vps/*.sh "$SERVER:$release/"
@@ -67,6 +75,9 @@ ready
 cp -p "$RELEASE"/compose.yaml "$RELEASE"/*.sh /opt/campusflow/
 echo "$COMMIT" > /opt/campusflow/current
 trap - ERR HUP INT TERM
+# Point the web app at this release only now that its API is serving (atomic rename).
+ln -sfn "releases/$COMMIT" /var/www/campusflow-site/campusflow.next && mv -T /var/www/campusflow-site/campusflow.next /var/www/campusflow-site/campusflow
+ls -1dt /var/www/campusflow-site/releases/* | tail -n +4 | xargs -r rm -rf -- || true
 # Keep the current and previous images only; never prune anything else.
 keep="campusflow-api:$COMMIT campusflow-build:$COMMIT $previous ${previous/campusflow-api/campusflow-build}"
 docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^campusflow-(api|build):' |
@@ -78,6 +89,10 @@ REMOTE
 fail() { echo "Public smoke failed: $1. The new container is serving; run deploy for the previous commit or fix forward." >&2; exit 1; }
 curl -fsS --max-time 10 "$PUBLIC_URL/health/ready" || fail "readiness"; echo
 curl -fsS --max-time 10 "$PUBLIC_URL/auth/capability" || fail "capability"; echo
+WEB_URL=${WEB_URL:-https://workout.vakula-dev.com/campusflow/}
+headers=$(curl -fsS -D - -o /dev/null --max-time 10 "$WEB_URL") || fail "web app"
+grep -qi '^cross-origin-embedder-policy: require-corp' <<< "$headers" || fail "web isolation headers"
+curl -fsS --max-time 10 "$WEB_URL" | grep -q "/campusflow/_expo/static/js/web/entry-" || fail "web entry bundle"
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$PUBLIC_URL/today")
 [ "$code" = 401 ] || fail "anonymous /today returned $code"
 echo "deployed $commit"

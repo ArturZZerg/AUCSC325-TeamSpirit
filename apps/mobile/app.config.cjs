@@ -11,6 +11,8 @@ module.exports = () => {
   return {
     ...expo,
     ios: { ...expo.ios, ...(simulator ? { entitlements: { ...entitlements } } : {}) },
+    // Hosted web is served below a path on a shared host (ADR 018); native and local builds keep the root.
+    experiments: { ...expo.experiments, ...(process.env.CAMPUSFLOW_WEB_BASE_URL ? { baseUrl: process.env.CAMPUSFLOW_WEB_BASE_URL } : {}) },
     plugins: [
       // Entitlement mods execute in reverse registration order. Remove APNs last.
       './plugins/with-local-reminders-ios.cjs',
