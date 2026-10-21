@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { academicItemSchema, academicReminderConfigurationSchema, campusEventSchema, completePersonalTaskSchema, courseSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
+import { academicItemSchema, academicReminderConfigurationSchema, campusEventSchema, canvasConnectionStatusSchema, completePersonalTaskSchema, courseSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
 import { goalOccurrenceDate } from '@campusflow/domain';
 import { classScheduleSchema } from '@campusflow/contracts';
@@ -158,6 +158,7 @@ export function useStudyPlans() {
 }
 export const useAcademic = () => cachedQuery<AcademicItem[]>('academic', '/academic-items', schemas.academic);
 export const useCourses = () => cachedQuery('courses', '/courses', schemas.courses);
+export const useCanvasStatus = () => cachedQuery('canvasStatus', '/canvas/status', canvasConnectionStatusSchema);
 export function useClasses() {
   const query = cachedQuery('classes', '/classes', schemas.classes);
   const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');

@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Screen, State, colors } from '@/components/ui';
-import { useAction, usePreferences, useReminders } from '@/features/queries';
+import { useAction, useCanvasStatus, usePreferences, useReminders } from '@/features/queries';
 import { useSessionStore } from '@/store/session';
 import { ensureNotificationPermission, overviewTime, reconcileReminders } from '@/services/reminders';
 import { QuietHoursEditor } from '@/features/quiet-hours-editor';
@@ -22,6 +22,7 @@ export default function SettingsScreen() {
   const signOut = useSessionStore(state => state.signOut);
   const preferences = usePreferences();
   const reminders = useReminders();
+  const canvas = useCanvasStatus();
   const action = useAction();
   const guard = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -51,6 +52,18 @@ export default function SettingsScreen() {
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]!.toUpperCase()).join('') || '?';
   const quiet = preferences.data?.quietHoursStart && preferences.data.quietHoursEnd && preferences.data.quietHoursStart !== preferences.data.quietHoursEnd
     ? `Quiet hours: ${preferences.data.quietHoursStart}–${preferences.data.quietHoursEnd} · ${session?.user.timeZone}` : 'Quiet hours: off';
+  const canvasConnected = canvas.data?.connected ?? false;
+  const canvasDetail = canvas.isLoading ? 'Checking connection…'
+    : canvas.error ? 'Could not check the Canvas connection.'
+    : canvasConnected ? `Connected${canvas.data?.lastSuccessfulSyncAt ? ` · Synced ${new Date(canvas.data.lastSuccessfulSyncAt).toLocaleString()}` : ' · Ready to sync'}`
+    : 'Not connected. Use the development fixture to preview imported coursework.';
+  const runCanvas = (path: string, successMessage: string) => {
+    void run(async () => {
+      await action.mutateAsync({ path, method: 'POST', body: {} });
+      await canvas.refetch({ cancelRefetch: false });
+      setMessage(successMessage);
+    });
+  };
 
   return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}>
     <Text accessibilityRole="header" style={styles.title}>Settings</Text>
@@ -106,11 +119,20 @@ export default function SettingsScreen() {
     </Group>
 
     <Group title="Connections">
-      <View style={styles.row}>
+      <View style={styles.connectionCard}>
         <View style={[styles.icon, { backgroundColor: colors.blue }]}><Ionicons name="link-outline" size={17} color="#fff"/></View>
         <View style={styles.rowText}><Text style={styles.rowTitle}>Canvas</Text>
-          <Text style={styles.muted}>Canvas authorization will appear here after the university approves a developer key, scopes, and HTTPS callback. This build does not ask for or store a personal Canvas token.</Text></View>
-        <Text style={styles.badge}>Pending</Text>
+          <Text style={styles.muted}>{canvasDetail}</Text>
+          <Text style={styles.muted}>Authorization stays on the server. This app never asks for or stores a personal Canvas token.</Text>
+          {canvas.data?.lastError && <Text style={styles.error}>{canvas.data.lastError}</Text>}
+          <View style={styles.connectionActions}>
+            {!canvasConnected && <Pressable accessibilityRole="button" accessibilityLabel="Connect demo Canvas" disabled={disabled} onPress={() => runCanvas('/canvas/dev/connect', 'Demo Canvas connected. Sync to load coursework.')}
+              style={({ pressed }) => [styles.actionButton, pressed && styles.pressed, disabled && styles.dim]}><Text style={styles.action}>{disabled ? 'Connecting…' : 'Connect demo'}</Text></Pressable>}
+            {canvasConnected && <Pressable accessibilityRole="button" accessibilityLabel="Sync Canvas coursework" disabled={disabled} onPress={() => runCanvas('/canvas/sync', 'Canvas coursework synced.')}
+              style={({ pressed }) => [styles.actionButton, pressed && styles.pressed, disabled && styles.dim]}><Text style={styles.action}>{disabled ? 'Syncing…' : 'Sync coursework'}</Text></Pressable>}
+          </View>
+        </View>
+        <Text style={styles.badge}>{canvasConnected ? 'Connected' : 'Not connected'}</Text>
       </View>
     </Group>
 
@@ -151,8 +173,10 @@ const styles = StyleSheet.create({
   group: { borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   icon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  rowText: { flex: 1, gap: 2 }, rowTitle: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '600' },
+  rowText: { flex: 1, gap: 2 }, connectionCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 14, paddingVertical: 14, minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  rowTitle: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '600' },
   action: { color: colors.moss, fontWeight: '700' }, muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  connectionActions: { flexDirection: 'row', marginTop: 6 }, actionButton: { paddingVertical: 4, paddingRight: 8 },
   badge: { color: colors.warnText, backgroundColor: colors.warnSurface, fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9, overflow: 'hidden' },
   track: { width: 46, height: 28, borderRadius: 14, backgroundColor: colors.line, padding: 3 }, trackOn: { backgroundColor: colors.moss },
   knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' }, knobOn: { transform: [{ translateX: 18 }] },

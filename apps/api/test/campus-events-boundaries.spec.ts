@@ -1,11 +1,11 @@
 import { IcsEventProvider } from '../src/integrations/events/ics-event-provider';
 import { EventCoverage, ImportedEvent, inCoverage } from '../src/integrations/events/event-provider';
 
-// AUCSC 325 Assignment 4 - Artur Vakula.
-// The three sections deliberately separate the required testing techniques.
+// The three sections deliberately separate boundary, partition, and
+// combinatorial testing techniques.
 // Helpers only build inputs; expected outputs are fixed independently of the SUT.
 const coverage: EventCoverage = { from: '2025-03-09', through: '2025-03-10', timeZone: 'UTC' };
-const calendar = (...events: string[]) => ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CampusFlow Assignment 4//EN', ...events, 'END:VCALENDAR'].join('\r\n');
+const calendar = (...events: string[]) => ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CampusFlow Campus Events Tests//EN', ...events, 'END:VCALENDAR'].join('\r\n');
 const vevent = (fields: string, uid = 'campus-lecture') => ['BEGIN:VEVENT', `UID:${uid}`, 'SUMMARY:Campus lecture', fields, 'END:VEVENT'].join('\r\n');
 const fetchCalendar = (body: string, timeZone?: string, window = coverage) =>
   new IcsEventProvider(async () => body, { timeZone }).fetchEvents(window);
@@ -17,7 +17,7 @@ const point = (startsAt: string) => imported({ kind: 'timed', startsAt, endsAt: 
 const interval = (startsAt: string, endsAt: string) => imported({ kind: 'timed', startsAt, endsAt });
 const allDay = (startDate: string, endDateExclusive: string) => imported({ kind: 'allDay', startDate, endDateExclusive });
 
-describe('Assignment 4 / Artur / Boundary value testing', () => {
+describe('Campus events / Boundary value testing', () => {
   it.each([
     ['B01', 0, false], ['B02', 1, true], ['B03', 2, true],
     ['B04', 29999, true], ['B05', 30000, true], ['B06', 30001, false],
@@ -144,7 +144,7 @@ describe('Assignment 4 / Artur / Boundary value testing', () => {
   });
 });
 
-describe('Assignment 4 / Artur / Equivalence class partitioning', () => {
+describe('Campus events / Equivalence class partitioning', () => {
   it('P01 constructor accepts omitted options and defers loading', () => {
     const load = jest.fn(async () => calendar());
     expect(new IcsEventProvider(load)).toBeInstanceOf(IcsEventProvider);
@@ -262,7 +262,7 @@ describe('Assignment 4 / Artur / Equivalence class partitioning', () => {
   });
 });
 
-describe('Assignment 4 / Artur / Combinatorial testing', () => {
+describe('Campus events / Combinatorial testing', () => {
   // Full Cartesian product: 3 formats x 2 fallback settings x 3 end relations.
   // Explicit expected statuses avoid duplicating provider validation logic.
   const combinations = [

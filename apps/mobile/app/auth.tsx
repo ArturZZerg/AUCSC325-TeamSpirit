@@ -24,6 +24,7 @@ export default function Auth() {
   const [capabilityRetry, setCapabilityRetry] = useState(0), [verification, setVerification] = useState<{ codeRequested: boolean } | null>(null);
   const [pending, setPending] = useState(false), mounted = useRef(false), revision = useRef(0), busy = useRef(false), request = useRef<AbortController | null>(null);
   const { session, setSession, accountDeleted, sessionUnavailable, cleanupError, retryCleanup } = useSessionStore();
+  const previewOnly = __DEV__;
   const { control, handleSubmit, clearErrors, setValue, reset, formState: { errors } } = useForm<AuthFormValues>({
     resolver: zodResolver(authFormSchema(registering)),
     defaultValues: { email: '', displayName: '', password: '', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
@@ -67,6 +68,27 @@ export default function Auth() {
     if (busy.current) return; ++revision.current; reset(); setValue('password', '');
     router.replace(next === 'account' ? '/verify?next=account' : '/verify');
   }
+  if (previewOnly) return <SafeAreaView style={styles.safe}>
+    <View style={styles.previewPage}>
+      <View style={styles.brand}>
+        <View style={styles.brandRow}><View style={styles.mark}><Ionicons name="leaf" size={22} color={colors.onAccent}/></View>
+          <Text style={styles.logo}>CampusFlow</Text></View>
+        <Text style={styles.subtitle}>Your student day, in one calm place.</Text>
+      </View>
+      <View style={styles.previewCard}>
+        <Text style={styles.title}>Preview CampusFlow</Text>
+        <Text style={styles.body}>Sign-in is hidden in this development preview. Continue to explore the app UI with a local demo account.</Text>
+        <Button title="Continue to preview" onPress={() => void setSession({
+          accessToken: 'local-preview',
+          expiresAt: '2099-01-01T00:00:00.000Z',
+          user: { id: '00000000-0000-4000-8000-000000000001', email: 'preview@campusflow.local',
+            displayName: 'Preview Student', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+            createdAt: '2026-01-01T00:00:00.000Z' },
+        }).then(() => router.replace('/today'))}/>
+        <Text style={styles.previewNote}>Development only. Real authentication remains enabled for production builds.</Text>
+      </View>
+    </View>
+  </SafeAreaView>;
   return <SafeAreaView style={styles.safe}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.safe}>
       <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
@@ -129,6 +151,9 @@ function TextLink({ title, disabled, onPress, role = 'button' }: { title: string
 }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas }, page: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 24, width: '100%', maxWidth: 588, alignSelf: 'center' },
+  previewPage: { flex: 1, justifyContent: 'center', padding: 24, gap: 28, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  previewCard: { backgroundColor: colors.card, borderColor: colors.line, borderWidth: 1, borderRadius: 20, padding: 20, gap: 14 },
+  previewNote: { color: colors.muted, fontSize: 12, lineHeight: 17, textAlign: 'center' },
   brand: { gap: 8 }, brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 }, mark: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center' },
   logo: { color: colors.ink, fontSize: 34, fontWeight: '800' }, subtitle: { color: colors.muted, fontSize: 17 },
   points: { gap: 8, marginTop: 8 }, point: { flexDirection: 'row', alignItems: 'center', gap: 10 }, pointText: { color: colors.ink, fontSize: 15, flexShrink: 1 },
