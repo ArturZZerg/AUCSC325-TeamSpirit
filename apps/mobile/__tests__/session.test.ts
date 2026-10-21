@@ -7,11 +7,13 @@ import { clearAccountCache, deleteCache } from '../src/services/cache';
 import { clearScheduledReminders } from '../src/services/reminders';
 import { clearAccountExports } from '../src/services/account-export';
 import type { Session } from '../src/lib/types';
+import { clearUnownedDeviceData } from '../src/services/startup-cleanup';
 
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
 jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn().mockResolvedValue(undefined), deleteCache: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../src/services/reminders', () => ({ clearScheduledReminders: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../src/services/account-export', () => ({ clearAccountExports: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/services/startup-cleanup', () => ({ clearUnownedDeviceData: jest.fn().mockResolvedValue(undefined) }));
 
 const first: Session = { accessToken: 'first-token', expiresAt: '2099-01-01T00:00:00Z', user: {
   id: '10000000-0000-4000-8000-000000000001', email: 'first@example.test', displayName: 'First', timeZone: 'America/Edmonton', createdAt: '2026-10-03T00:00:00Z',
@@ -139,4 +141,29 @@ it('serializes a pending profile write before logout cleanup and a newer login',
   expect(SecureStore.setItemAsync).toHaveBeenLastCalledWith('campusflow.session.v1', JSON.stringify(second));
   expect(jest.mocked(SecureStore.deleteItemAsync).mock.invocationCallOrder[0])
     .toBeLessThan(jest.mocked(SecureStore.setItemAsync).mock.invocationCallOrder[1]);
+});
+
+describe('device data without an owner', () => {
+  it('clears unowned device data when no session is restored, and keeps it for a restored owner', async () => {
+    await useSessionStore.getState().restore();
+    expect(useSessionStore.getState()).toMatchObject({ session: null, ready: true });
+    expect(clearUnownedDeviceData).toHaveBeenCalledTimes(1);
+    jest.mocked(clearUnownedDeviceData).mockClear();
+    jest.mocked(SecureStore.getItemAsync).mockResolvedValue(JSON.stringify(first));
+    await useSessionStore.getState().restore();
+    expect(useSessionStore.getState().session?.user.id).toBe(first.user.id);
+    expect(clearUnownedDeviceData).not.toHaveBeenCalled();
+  });
+  it('still becomes ready when startup cleanup fails', async () => {
+    jest.mocked(clearUnownedDeviceData).mockRejectedValueOnce(new Error('storage locked'));
+    await useSessionStore.getState().restore();
+    expect(useSessionStore.getState()).toMatchObject({ session: null, ready: true });
+  });
+  it('clears every cached account on the web, where a new tab never owns cached data', async () => {
+    const cache = jest.requireMock<{ clearAllCache: jest.Mock }>('../src/services/cache');
+    cache.clearAllCache = jest.fn().mockResolvedValue(undefined);
+    const web = jest.requireActual<typeof import('../src/services/startup-cleanup.web')>('../src/services/startup-cleanup.web');
+    await web.clearUnownedDeviceData();
+    expect(cache.clearAllCache).toHaveBeenCalledTimes(1);
+  });
 });

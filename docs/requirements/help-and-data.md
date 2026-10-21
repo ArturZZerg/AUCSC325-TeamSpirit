@@ -26,12 +26,17 @@ existing workflows; it does not replace an approved public privacy policy.
 - Answers accurately disclose no queued offline writes, explicit focus saving,
   uncertain closed-app time, per-device reminder refresh, optional check-in data
   sent when saved, server-saved export and separate offline copies/exported files.
-  No server backup/log retention period is invented.
+  Retention periods match the published privacy policy.
 
 ## Published links
 
-Set `EXPO_PUBLIC_PRIVACY_URL` and `EXPO_PUBLIC_SUPPORT_URL` only after the owner
-approves the public pages and their content. Expo configuration rejects configured
+The hosted web build (`scripts/build-hosted-web.mjs`) sets
+`EXPO_PUBLIC_PRIVACY_URL`, `EXPO_PUBLIC_TERMS_URL` and `EXPO_PUBLIC_SUPPORT_URL`
+to the pages in `apps/mobile/public/legal/`, which ship in the same export. It
+refuses an export missing any of them. Native builds don't set these yet; until
+they do, native Help shows the links as unavailable and native sign-up shows no
+consent line. Help offers all three, and sign-up shows a consent line linking
+the terms and privacy policy only when both are configured. Expo configuration rejects configured
 values that are not HTTPS website URLs, exceed 2,048 characters, contain surrounding
 whitespace, credentials, query parameters or fragments, or use local/IP hosts.
 Diagnostics identify the configuration field without echoing its value.

@@ -33,7 +33,7 @@ export const helpArticles: readonly HelpArticle[] = [
     answer: 'Open Account & privacy and prepare a copy of your server-saved data. You choose whether to download or share the JSON file. It excludes passwords and access tokens, and does not include unsaved device drafts. Store the exported file somewhere you trust.',
     action: { label: 'Open data export', path: '/account' } },
   { id: 'delete', topic: 'Your data', question: 'What happens when I delete my account?', keywords: 'erase remove log backup retention sign out cleanup',
-    answer: 'Confirm deletion in Account & privacy with your password. A confirmed deletion removes your linked student records and revokes server access. This device clears its session, caches, focus recovery and reminders, with a retry if cleanup fails. Downloaded exports and copies on other offline devices are separate; this is not a promise about backup or log retention periods.',
+    answer: 'Confirm deletion in Account & privacy with your password. A confirmed deletion removes your linked student records and revokes server access. This device clears its session, caches, focus recovery and reminders, with a retry if cleanup fails. Downloaded exports and copies on other offline devices are separate. Server backups keep deleted data for about two weeks; the privacy policy has the details.',
     action: { label: 'Open account controls', path: '/account' } },
 ];
 
