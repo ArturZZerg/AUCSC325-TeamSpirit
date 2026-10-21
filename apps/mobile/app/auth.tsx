@@ -28,6 +28,7 @@ export default function Auth() {
     resolver: zodResolver(authFormSchema(registering)),
     defaultValues: { email: '', displayName: '', password: '', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
   });
+  const openPolicy = (url: string, failure: string) => { void Linking.openURL(url).catch(() => { if (mounted.current) setMessage(failure); }); };
   const isCurrent = (epoch: number) => mounted.current && epoch === revision.current && !useSessionStore.getState().session;
   useEffect(() => {
     mounted.current = true; ++revision.current; busy.current = false; setPending(false); setVerification(null); setValue('password', '');
@@ -102,9 +103,9 @@ export default function Auth() {
           <Text style={styles.error}>{errors.email?.message || errors.displayName?.message || errors.password?.message || errors.timeZone?.message || message}</Text>
           {registering && termsUrl && privacyUrl && ['preview', 'verified'].includes(capability) && <View style={styles.consent}>
             <Text style={styles.body}>By creating an account, you agree to the</Text>
-            <TextLink title="Terms of use" disabled={pending} onPress={() => { void Linking.openURL(termsUrl).catch(() => setMessage('Couldn’t open the terms. Check your connection and try again.')); }}/>
+            <TextLink title="Terms of use" role="link" disabled={pending} onPress={() => openPolicy(termsUrl, 'Couldn’t open the terms. Check your connection and try again.')}/>
             <Text style={styles.body}>and</Text>
-            <TextLink title="Privacy policy" disabled={pending} onPress={() => { void Linking.openURL(privacyUrl).catch(() => setMessage('Couldn’t open the privacy policy. Check your connection and try again.')); }}/>
+            <TextLink title="Privacy policy" role="link" disabled={pending} onPress={() => openPolicy(privacyUrl, 'Couldn’t open the privacy policy. Check your connection and try again.')}/>
           </View>}
           <Button title={pending ? 'Please wait…' : registering ? 'Create account' : 'Sign in'} onPress={() => { void handleSubmit(submit)(); }} disabled={pending || registering && !['preview', 'verified'].includes(capability)}/>
           {!registering && <View style={styles.links}>
@@ -122,8 +123,8 @@ export default function Auth() {
     </KeyboardAvoidingView>
   </SafeAreaView>;
 }
-function TextLink({ title, disabled, onPress }: { title: string; disabled?: boolean; onPress(): void }) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress} hitSlop={8} style={styles.linkHit}>
+function TextLink({ title, disabled, onPress, role = 'button' }: { title: string; disabled?: boolean; onPress(): void; role?: 'button' | 'link' }) {
+  return <Pressable accessibilityRole={role} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress} hitSlop={8} style={styles.linkHit}>
     <Text style={[styles.link, disabled && styles.dim]}>{title}</Text></Pressable>;
 }
 const styles = StyleSheet.create({

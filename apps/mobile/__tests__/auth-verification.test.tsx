@@ -93,6 +93,10 @@ it('links the published terms and privacy policy from sign-up, and only when bot
     expect(screen.getByText('By creating an account, you agree to the')).toBeTruthy();
     await press('Terms of use'); await press('Privacy policy');
     expect(open.mock.calls).toEqual([['https://policy.example.test/terms'], ['https://policy.example.test/privacy']]);
+    // Closed signup shows no agreement for an account nobody can create.
+    call.mockImplementation(async path => path === '/auth/capability' ? { registration: 'closed', verificationAvailable: false } : {});
+    render(<Auth/>); await press('Create an account');
+    expect(screen.queryByText('Terms of use')).toBeNull();
   } finally {
     open.mockRestore();
     if (prior.terms === undefined) delete process.env.EXPO_PUBLIC_TERMS_URL; else process.env.EXPO_PUBLIC_TERMS_URL = prior.terms;
