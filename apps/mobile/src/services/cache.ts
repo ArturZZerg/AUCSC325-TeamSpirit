@@ -35,7 +35,10 @@ export function clearAccountCache(accountId: string) {
 /** Removes every account's snapshots, after any pending per-account writes. */
 export async function clearAllCache() {
   await Promise.allSettled([...writes.values()]);
-  await (await database()).runAsync('DELETE FROM snapshots');
+  const db = await database();
+  await db.runAsync('DELETE FROM snapshots');
+  // Rewrite the file so deleted rows do not linger in free pages.
+  await db.execAsync('VACUUM');
 }
 export function clearWellnessCache(accountId: string, isCurrent = () => true) {
   return accountWrite(accountId, async () => {
