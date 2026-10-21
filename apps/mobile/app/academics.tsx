@@ -78,8 +78,8 @@ function AcademicsContent() {
     </View>
     {savedMessage && <Text accessibilityRole="alert" style={styles.notice}>{savedMessage}</Text>}
     {studySaved && <Card><Text accessibilityRole="alert" style={styles.item}>Study task added to your plan.</Text><Text style={styles.meta}>You can edit it, set a reminder or check it off in Tasks.</Text><Button title="View my tasks" tone="plain" onPress={() => router.push('/tasks')}/></Card>}
-    {fixtureData && <Text style={styles.notice}>Demo coursework is shown. Live Canvas access still needs an approved connection.</Text>}
-    {snapshot.data?.sourceStatus.availability === 'notConnected' && !fixtureData && <Card><Text style={styles.item}>Bring your courses together.</Text><Text style={styles.meta}>Add your own coursework now. Canvas imports appear after a successful connection and sync.</Text><Button title="Canvas settings" tone="plain" onPress={() => router.push('/settings')}/></Card>}
+    {fixtureData && <Text style={styles.notice}>Demo coursework is shown. Connect your own Canvas account in Settings → Canvas.</Text>}
+    {snapshot.data?.sourceStatus.availability === 'notConnected' && !fixtureData && <Card><Text style={styles.item}>Bring your courses together.</Text><Text style={styles.meta}>Add your own coursework now. Canvas imports appear after a successful connection and sync.</Text><Button title="Connect Canvas" tone="plain" onPress={() => router.push('/canvas')}/></Card>}
     {snapshot.data && ['stale', 'unavailable'].includes(snapshot.data.sourceStatus.availability) && <Text style={styles.notice}>Canvas coursework may be out of date. Last successful sync: {snapshot.data.sourceStatus.lastSuccessfulSyncAt ? new Date(snapshot.data.sourceStatus.lastSuccessfulSyncAt).toLocaleString(undefined, { timeZone }) : 'not yet available'}.</Text>}
     <State loading={academic.isLoading} error={academic.error}/>
     {courses.error && <Text style={styles.meta}>Course names couldn’t refresh. Saved coursework is still shown when available.</Text>}

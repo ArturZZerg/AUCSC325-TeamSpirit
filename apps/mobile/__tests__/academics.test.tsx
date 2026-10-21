@@ -41,7 +41,7 @@ describe('Coursework workspace', () => {
   });
   it('filters by course, search and submission view without rewriting imported data', () => {
     render(<AcademicsScreen/>);
-    expect(screen.getByText('Demo coursework is shown. Live Canvas access still needs an approved connection.')).toBeOnTheScreen();
+    expect(screen.getByText('Demo coursework is shown. Connect your own Canvas account in Settings → Canvas.')).toBeOnTheScreen();
     expect(screen.queryByText('Submitted essay')).toBeNull();
     fireEvent.press(screen.getByRole('radio', { name: 'AUCSC 325' })); expect(screen.queryByText('Graph quiz')).toBeNull();
     fireEvent.changeText(screen.getByLabelText('Search coursework'), 'testing'); expect(screen.queryByText('Missing worksheet')).toBeNull();

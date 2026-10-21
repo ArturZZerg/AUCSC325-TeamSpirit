@@ -106,9 +106,11 @@ Invoke-RestMethod -Method Get `
 	-Uri "http://127.0.0.1:3000/academic-items" -Headers $headers
 ```
 
-Live Canvas connection and synchronization remain disabled until
-institution-approved backend OAuth is implemented. The API does not accept
-personal Canvas tokens or client-selected Canvas URLs. Fixtures require
+To use real Canvas data, start the API with `CANVAS_MODE=token` and a
+`CANVAS_TOKEN_KEY` (see `apps/api/.env.example`). Each student then opens
+Settings → Canvas in the app, follows the steps to create a Canvas access token,
+and connects ([ADR 019](docs/adr/019-canvas-personal-access-tokens.md)). The token
+stays encrypted on the API. Institutional OAuth is still future work. Fixtures require
 `NODE_ENV=development` (or `test`) and `CANVAS_MODE=fixture`; production cannot
 enable them. See [Canvas development](docs/development/canvas.md) for scope and
 verification.

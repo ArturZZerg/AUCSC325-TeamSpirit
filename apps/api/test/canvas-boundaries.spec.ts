@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AuthGuard } from '../src/common';
 import { CanvasController, CanvasService, fixtureBaseUrl } from '../src/canvas';
+import { CanvasHttpClient } from '../src/integrations/canvas/canvas-http';
 import { CanvasProvider, FixtureCanvasProvider } from '../src/integrations/canvas/canvas-provider';
 import { ReminderService } from '../src/data';
 import { PrismaService } from '../src/prisma.service';
@@ -13,13 +14,13 @@ describe('Canvas HTTP connection and sync boundaries', () => {
   const env = { NODE_ENV: process.env.NODE_ENV, CANVAS_MODE: process.env.CANVAS_MODE };
   const prisma = {
     $transaction: jest.fn(), $queryRaw: jest.fn(), session: { findUnique: jest.fn() },
-    canvasConnection: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn() },
+    canvasConnection: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), deleteMany: jest.fn() },
     course: { upsert: jest.fn() }, academicItem: { upsert: jest.fn(), findMany: jest.fn() },
   };
   const provider = { fetchAcademicSnapshot: jest.fn() };
   const post = (path: string) => request(app.getHttpServer()).post(path).set('Authorization', 'Bearer campusflow-session');
   beforeAll(async () => {
-    const module = await Test.createTestingModule({ controllers: [CanvasController], providers: [AuthGuard, CanvasService, ReminderService,
+    const module = await Test.createTestingModule({ controllers: [CanvasController], providers: [AuthGuard, CanvasService, ReminderService, CanvasHttpClient,
       { provide: PrismaService, useValue: prisma }, { provide: CanvasProvider, useValue: provider }] }).compile();
     app = module.createNestApplication(); app.useLogger(false); await app.init();
   });
@@ -43,10 +44,10 @@ describe('Canvas HTTP connection and sync boundaries', () => {
     await request(app.getHttpServer()).post(path).expect(401);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
-  it('never accepts personal tokens or client-selected URLs', async () => {
+  it('accepts no personal tokens or client-selected URLs outside token mode', async () => {
     const fetch = jest.spyOn(global, 'fetch').mockRejectedValue(new Error('no network'));
     try {
-      await post('/canvas/connect').send({ baseUrl: 'http://127.0.0.1', accessToken: 'private-token' }).expect(503);
+      await post('/canvas/connect').send({ baseUrl: 'school.instructure.com', accessToken: 'private-token-private-token' }).expect(503);
       await request(app.getHttpServer()).get('/canvas/connect/start').set('Authorization', 'Bearer campusflow-session').expect(503);
       await post('/canvas/dev/connect').send({ accessToken: 'private-token' }).expect(400);
       expect(fetch).not.toHaveBeenCalled(); expect(prisma.canvasConnection.upsert).not.toHaveBeenCalled();

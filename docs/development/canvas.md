@@ -1,3 +1,20 @@
+# Canvas synchronization
+
+## Personal access tokens (ADR 019)
+
+With `CANVAS_MODE=token` and `CANVAS_TOKEN_KEY` set, students open Settings →
+Canvas in the app, follow the in-app guide to create a token (Canvas → Account →
+Settings → Approved Integrations → + New Access Token), and paste their Canvas
+address and token. `POST /canvas/connect` verifies the token with Canvas and
+stores it sealed; `POST /canvas/sync` imports active courses and assignments;
+`DELETE /canvas/connection` forgets the token. See
+[ADR 019](../adr/019-canvas-personal-access-tokens.md) for the safeguards.
+`canvas-token.spec.ts` covers address validation, sealing, pagination, mapping,
+rejected tokens and the HTTP flow. A rejected token was checked against a real
+Canvas instance; no real student account has been synced yet.
+
+The rest of this page describes fixture mode, which is unchanged.
+
 # Canvas fixture synchronization
 
 Scope: ToR sections 9, 10 and 19. Live institutional Canvas access remains an
@@ -11,12 +28,10 @@ Authenticated `POST /canvas/dev/connect` establishes an account-specific fixture
 connection. Repeating it preserves successful sync timestamps. Production,
 unspecified environments and other modes cannot enable fixture writes.
 
-`POST /canvas/connect` and `GET /canvas/connect/start` return 503 until an
-institution-approved backend OAuth implementation exists. No public endpoint
-accepts Canvas tokens or client-selected Canvas URLs. Legacy nonfixture
+`GET /canvas/connect/start` returns 503 until an institution-approved backend
+OAuth implementation exists. Outside token mode, `POST /canvas/connect` also
+returns 503 and accepts no Canvas tokens or client-selected Canvas URLs. Legacy nonfixture
 connections cannot be overwritten or synchronized by the fixture service.
-No HTTP Canvas fetching, pagination, token exchange or refresh is enabled.
-No live account was used to validate this feature.
 
 ## Provider and persistence
 

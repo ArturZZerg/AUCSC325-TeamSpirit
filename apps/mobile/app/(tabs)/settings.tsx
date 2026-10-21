@@ -106,12 +106,7 @@ export default function SettingsScreen() {
     </Group>
 
     <Group title="Connections">
-      <View style={styles.row}>
-        <View style={[styles.icon, { backgroundColor: colors.blue }]}><Ionicons name="link-outline" size={17} color="#fff"/></View>
-        <View style={styles.rowText}><Text style={styles.rowTitle}>Canvas</Text>
-          <Text style={styles.muted}>Canvas authorization will appear here after the university approves a developer key, scopes, and HTTPS callback. This build does not ask for or store a personal Canvas token.</Text></View>
-        <Text style={styles.badge}>Pending</Text>
-      </View>
+      <Row icon="link-outline" tint={colors.blue} title="Canvas" action="Open Canvas connection" detail="Import your courses and assignments with a Canvas access token" onPress={() => router.push('/canvas')}/>
     </Group>
 
     <Pressable accessibilityRole="button" accessibilityLabel="Sign out" onPress={() => void signOut()} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
@@ -153,7 +148,6 @@ const styles = StyleSheet.create({
   icon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   rowText: { flex: 1, gap: 2 }, rowTitle: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '600' },
   action: { color: colors.moss, fontWeight: '700' }, muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
-  badge: { color: colors.warnText, backgroundColor: colors.warnSurface, fontSize: 12, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9, overflow: 'hidden' },
   track: { width: 46, height: 28, borderRadius: 14, backgroundColor: colors.line, padding: 3 }, trackOn: { backgroundColor: colors.moss },
   knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' }, knobOn: { transform: [{ translateX: 18 }] },
   signOut: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 50, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
