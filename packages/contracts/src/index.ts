@@ -164,7 +164,13 @@ export const notificationPreferencesSchema = z.object({ academicEnabled: z.boole
 export const updateNotificationPreferencesSchema = notificationPreferencesSchema.partial();
 export const reminderSchema = z.object({ id: idSchema, targetKind: z.enum(['personalTask', 'goal', 'savedEvent', 'academicItem']), targetId: idSchema, occurrenceKey: dateSchema.nullable(), fireAt: instantSchema, enabled: z.boolean() });
 
-export const canvasConnectionStatusSchema = z.object({ connected: z.boolean(), baseUrl: z.string().url().nullable(), externalAccountId: z.string().nullable(), lastSuccessfulSyncAt: instantSchema.nullable(), lastSyncAttemptAt: instantSchema.nullable(), lastError: z.string().nullable() });
+/** How this deployment can connect Canvas: a personal access token held by the API (ADR 019), development fixtures, or not at all. */
+export const canvasConnectModeSchema = z.enum(['token', 'fixture', 'unavailable']);
+export const canvasConnectionStatusSchema = z.object({ connected: z.boolean(), connectMode: canvasConnectModeSchema, baseUrl: z.string().url().nullable(), externalAccountId: z.string().nullable(), lastSuccessfulSyncAt: instantSchema.nullable(), lastSyncAttemptAt: instantSchema.nullable(), lastError: z.string().nullable() });
+/** A Canvas site address and a personal access token. The token goes to the API only and is never returned. */
+export const canvasTokenConnectSchema = z.object({ baseUrl: z.string().trim().min(1).max(200), accessToken: z.string().trim().min(20).max(400).regex(/^[!-~]+$/, 'Paste the token exactly as Canvas shows it') }).strict();
+export type CanvasConnectionStatus = z.infer<typeof canvasConnectionStatusSchema>;
+export type CanvasTokenConnect = z.infer<typeof canvasTokenConnectSchema>;
 export const canvasSyncResultSchema = z.object({ startedAt: instantSchema, finishedAt: instantSchema, coursesUpdated: z.number().int().nonnegative(), academicItemsUpdated: z.number().int().nonnegative(), eventsUpdated: z.number().int().nonnegative(), status: z.enum(['succeeded', 'failed']) });
 export const sourceFreshnessSchema = z.object({ lastSuccessfulSyncAt: instantSchema.nullable(), availability: z.enum(['available', 'stale', 'unavailable', 'notConnected']), coveredFrom: dateSchema.nullable(), coveredThrough: dateSchema.nullable() });
 

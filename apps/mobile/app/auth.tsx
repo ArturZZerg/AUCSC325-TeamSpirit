@@ -24,7 +24,8 @@ export default function Auth() {
   const [capabilityRetry, setCapabilityRetry] = useState(0), [verification, setVerification] = useState<{ codeRequested: boolean } | null>(null);
   const [pending, setPending] = useState(false), mounted = useRef(false), revision = useRef(0), busy = useRef(false), request = useRef<AbortController | null>(null);
   const { session, setSession, accountDeleted, sessionUnavailable, cleanupError, retryCleanup } = useSessionStore();
-  const previewOnly = __DEV__;
+  // Opt-in only: a plain dev build or test run keeps real sign-in.
+  const previewOnly = __DEV__ && process.env.EXPO_PUBLIC_LOCAL_PREVIEW === '1';
   const { control, handleSubmit, clearErrors, setValue, reset, formState: { errors } } = useForm<AuthFormValues>({
     resolver: zodResolver(authFormSchema(registering)),
     defaultValues: { email: '', displayName: '', password: '', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
@@ -85,7 +86,7 @@ export default function Auth() {
             displayName: 'Preview Student', timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             createdAt: '2026-01-01T00:00:00.000Z' },
         }).then(() => router.replace('/today'))}/>
-        <Text style={styles.previewNote}>Development only. Real authentication remains enabled for production builds.</Text>
+        <Text style={styles.previewNote}>Development only (EXPO_PUBLIC_LOCAL_PREVIEW=1). Real authentication remains enabled otherwise.</Text>
       </View>
     </View>
   </SafeAreaView>;

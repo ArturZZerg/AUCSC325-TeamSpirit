@@ -21,7 +21,8 @@ the directories and contracts below govern continued development.
   table or use a generic Today endpoint to mutate different entity types.
 * Keep Canvas/Event provider ports and implementations inside the API integration
   modules. Return normalized records; application services own persistence.
-* Keep Canvas OAuth credentials and tokens on the backend. Institutional OAuth
+* Keep Canvas OAuth credentials and tokens on the backend. ADR 019 lets students
+  connect a personal access token, sealed by the API. Institutional OAuth
   approval is unverified; use fixtures until a supported connection is available.
 * Store timed values as UTC instants, date-only values as calendar dates, and
   recurrence zones as IANA identifiers. Apply shared domain rules for day bounds.

@@ -13,7 +13,7 @@ export const helpArticles: readonly HelpArticle[] = [
     answer: 'Add your weekly classes in Class timetable, then open Weekly planner to see classes and saved commitments together. Suggested study windows use the information you’ve saved; review a window before booking a task into it.',
     action: { label: 'Open Weekly planner', path: '/planner' } },
   { id: 'coursework', topic: 'Study & planning', question: 'Can I add coursework without Canvas?', keywords: 'assignment quiz exam manual university connection',
-    answer: 'Yes. Coursework lets you add and manage your own assignments, quizzes and exams. Canvas authorization is not available in this preview. Coursework you enter yourself remains useful without a Canvas connection.',
+    answer: 'Yes. Coursework lets you add and manage your own assignments, quizzes and exams. To import from Canvas, open Settings → Canvas and follow the steps to create an access token. Coursework you enter yourself remains useful without a Canvas connection.',
     action: { label: 'Open Coursework', path: '/academics' } },
   { id: 'preparation', topic: 'Study & planning', question: 'How do I break a deadline into study sessions?', keywords: 'preparation assignment exam estimate catch up',
     answer: 'Use Prepare from a coursework item to review a plan of smaller tasks before saving. My study plans brings those sessions together so you can edit, reschedule, focus on and complete them. Completing a study session does not submit coursework to your university.',

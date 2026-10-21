@@ -1,4 +1,5 @@
 import { requestSourceMode } from './request-source';
+import { canvasTokenKey } from './integrations/canvas/canvas-token';
 
 export interface RuntimeConfig { port: number; host: string; schema: string; corsOrigins: true | string[] }
 
@@ -33,7 +34,8 @@ export function runtimeConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConf
         /^\[::ffff:7f[0-9a-f]{2}:[0-9a-f]{1,4}\]$/.test(url.hostname) ||
         ['[::1]', '[::ffff:0:0]', '0.0.0.0'].includes(url.hostname)) throw new Error('Invalid CORS_ORIGIN');
     }
-    if (env.CANVAS_MODE && env.CANVAS_MODE !== 'disabled') throw new Error('CANVAS_MODE must be disabled in production');
+    if (env.CANVAS_MODE && !['disabled', 'token'].includes(env.CANVAS_MODE)) throw new Error('CANVAS_MODE must be disabled or token in production');
+    if (env.CANVAS_MODE === 'token') canvasTokenKey(env);
   }
   return { port, host, schema, corsOrigins: origins ?? true };
 }
