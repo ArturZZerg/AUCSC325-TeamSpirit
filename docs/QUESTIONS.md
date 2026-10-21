@@ -32,7 +32,13 @@ which needs the web build to support a base path, or a new subdomain such as
 `campusflow.vakula-dev.com`, which needs a DNS record from you and a new
 certificate. A subdomain is cleaner and recommended.
 
-## Q3. Privacy policy, terms and support contact — drafted 2026-10-20, awaiting approval
+## Q3. Privacy policy, terms and support contact — approved 2026-10-20
+
+The owner approved the wording. The operator is named as "the AUCSC 325
+TeamSpirit project team", and support is GitHub issues only, with no private
+email. The policy says locked-out accounts can't be deleted on request.
+
+### Earlier status (drafted, awaiting approval)
 
 Drafts are in `apps/mobile/public/legal/` (PR #128) and are not published until
 you approve them. They state 14-day backup and access-log retention, as

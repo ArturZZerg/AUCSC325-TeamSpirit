@@ -14,7 +14,7 @@ can install and use. Priority is top to bottom. Blocked items link to
 | 4 | Demo account with realistic sample data | S | Done 2026-10-18 |
 | 5 | Hosted web app at `/campusflow/` | M | Done (ADR 018) |
 | 6 | Android build against the hosted API, with acceptance on emulator | M | Pending (after 1) |
-| 7 | Privacy policy, terms and support pages | M | Built; awaiting owner approval (Q3) |
+| 7 | Privacy policy, terms and support pages | M | Done (approved 2026-10-20) |
 | 8 | Public signup | M | Done without email (ADR 018) |
 | 9 | Import class timetable from an ICS file | M | Done ([requirements](requirements/timetable-import.md)) |
 | 10 | Lighthouse 90+ on main web screens | M | Pending |
