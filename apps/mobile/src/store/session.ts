@@ -6,6 +6,7 @@ import type { Session } from '@/lib/types';
 import { queryClient } from '@/lib/query-client';
 import { clearAccountCache, deleteCache } from '@/services/cache';
 import { clearScheduledReminders } from '@/services/reminders';
+import { clearUnownedDeviceData } from '@/services/startup-cleanup';
 
 let revision = 0;
 let transition = Promise.resolve();
@@ -48,6 +49,10 @@ export const useSessionStore = create<State>((set, get) => ({
         if (result.success) session = result.data;
       }
     } catch { /* Unreadable session data returns the user to sign-in. */ }
+    if (!session) {
+      // Without a restored owner, nothing cached on this device may stay readable (web tabs never restore one).
+      try { await clearUnownedDeviceData(); } catch { /* A later sign-out or account switch retries cleanup. */ }
+    }
     if (restoringRevision === revision) set({ session, ready: true });
   },
   async setSession(value) {

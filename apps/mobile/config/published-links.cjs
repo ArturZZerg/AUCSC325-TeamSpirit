@@ -11,7 +11,7 @@ function publishedLink(value) {
   } catch { return undefined; }
 }
 function validatePublishedLinks(env) {
-  for (const name of ['EXPO_PUBLIC_PRIVACY_URL', 'EXPO_PUBLIC_SUPPORT_URL']) {
+  for (const name of ['EXPO_PUBLIC_PRIVACY_URL', 'EXPO_PUBLIC_SUPPORT_URL', 'EXPO_PUBLIC_TERMS_URL']) {
     if (env[name] !== undefined && env[name] !== '' && !publishedLink(env[name]))
       throw new Error(`${name} must be an HTTPS website URL without credentials, query or fragment.`);
   }

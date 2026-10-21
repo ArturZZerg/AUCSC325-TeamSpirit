@@ -13,6 +13,7 @@ export default function HelpScreen() {
   const active = useRef(true), busy = useRef(false);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const privacy = publishedLink(process.env.EXPO_PUBLIC_PRIVACY_URL), support = publishedLink(process.env.EXPO_PUBLIC_SUPPORT_URL);
+  const terms = publishedLink(process.env.EXPO_PUBLIC_TERMS_URL);
   const answers = findHelp(search, topic);
   async function openWebsite(url: string) {
     if (busy.current) return;
@@ -51,6 +52,7 @@ export default function HelpScreen() {
     <Card><Text accessibilityRole="header" style={styles.section}>Policy & contact</Text>
       <Text style={styles.copy}>Published policy and support pages open in your browser. Searches here stay on this screen and aren’t sent to support.</Text>
       {privacy && <Button title="Read privacy policy" tone="plain" disabled={opening} onPress={() => void openWebsite(privacy)}/>}
+      {terms && <Button title="Read terms of use" tone="plain" disabled={opening} onPress={() => void openWebsite(terms)}/>}
       {support && <Button title="Visit support" tone="plain" disabled={opening} onPress={() => void openWebsite(support)}/>}
       {(!privacy || !support) && <Text style={styles.copy}>{!privacy && !support ? 'Published policy and contact links are not yet available in this preview.'
         : !privacy ? 'The published privacy policy is not yet available in this preview.' : 'A support contact page is not yet available in this preview.'}</Text>}

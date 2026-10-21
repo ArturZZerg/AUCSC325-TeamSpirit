@@ -32,6 +32,14 @@ export function clearAccountCache(accountId: string) {
   // A read that was already saving cannot recreate rows after sign-out clears them.
   return accountWrite(accountId, async () => { await (await database()).runAsync('DELETE FROM snapshots WHERE account_id = ?', [accountId]); });
 }
+/** Removes every account's snapshots, after any pending per-account writes. */
+export async function clearAllCache() {
+  await Promise.allSettled([...writes.values()]);
+  const db = await database();
+  await db.runAsync('DELETE FROM snapshots');
+  // Rewrite the file so deleted rows do not linger in free pages.
+  await db.execAsync('VACUUM');
+}
 export function clearWellnessCache(accountId: string, isCurrent = () => true) {
   return accountWrite(accountId, async () => {
     if (!isCurrent()) return;

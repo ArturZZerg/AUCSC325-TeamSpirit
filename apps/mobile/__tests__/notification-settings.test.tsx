@@ -1,11 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import Settings from '../app/(tabs)/settings';
-import { useAction, usePreferences, useReminders } from '../src/features/queries';
+import { useAction, useCanvasStatus, usePreferences, useReminders } from '../src/features/queries';
 import { useSessionStore } from '../src/store/session';
 import { ensureNotificationPermission, reconcileReminders } from '../src/services/reminders';
 import type { Session } from '../src/lib/types';
 
-jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), usePreferences: jest.fn(), useReminders: jest.fn() }));
+jest.mock('../src/features/queries', () => ({ useAction: jest.fn(), useCanvasStatus: jest.fn(), usePreferences: jest.fn(), useReminders: jest.fn() }));
 jest.mock('../src/services/reminders', () => ({ overviewTime: '08:00', ensureNotificationPermission: jest.fn(), reconcileReminders: jest.fn(), clearScheduledReminders: jest.fn() }));
 jest.mock('../src/services/cache', () => ({ clearAccountCache: jest.fn() }));
 jest.mock('expo-secure-store', () => ({ getItemAsync: jest.fn(), setItemAsync: jest.fn(), deleteItemAsync: jest.fn() }));
@@ -15,13 +15,16 @@ const session: Session = { accessToken: 'settings-test', expiresAt: '2099-01-01T
 const preferences = { academicEnabled: true, personalEnabled: true, goalEnabled: true, eventEnabled: true,
   dailyOverviewEnabled: false, quietHoursStart: null, quietHoursEnd: null };
 const save = jest.fn(); const refreshReminders = jest.fn(); const refreshPreferences = jest.fn();
+const refreshCanvas = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks(); save.mockReset().mockResolvedValue({});
   useSessionStore.setState({ session, ready: true });
   refreshReminders.mockReset().mockResolvedValue({ data: [] }); refreshPreferences.mockReset().mockResolvedValue({ data: preferences });
+  refreshCanvas.mockReset().mockResolvedValue({ data: { connected: false, baseUrl: null, externalAccountId: null, lastSuccessfulSyncAt: null, lastSyncAttemptAt: null, lastError: null } });
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>);
   jest.mocked(usePreferences).mockReturnValue({ data: preferences, refetch: refreshPreferences, isLoading: false } as unknown as ReturnType<typeof usePreferences>);
   jest.mocked(useReminders).mockReturnValue({ data: [], refetch: refreshReminders } as unknown as ReturnType<typeof useReminders>);
+  jest.mocked(useCanvasStatus).mockReturnValue({ data: { connected: false, baseUrl: null, externalAccountId: null, lastSuccessfulSyncAt: null, lastSyncAttemptAt: null, lastError: null }, refetch: refreshCanvas, isLoading: false } as unknown as ReturnType<typeof useCanvasStatus>);
   jest.mocked(ensureNotificationPermission).mockReset().mockResolvedValue(true);
   jest.mocked(reconcileReminders).mockReset().mockResolvedValue(undefined);
 });

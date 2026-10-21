@@ -13,7 +13,7 @@ it.each([
   ['IPv4', 'https://127.0.0.1/policy'], ['IPv6', 'https://[::1]/policy'], ['malformed', 'https://'],
   ['oversized', `https://policy.example.test/${'x'.repeat(2048)}`],
 ])('rejects a %s website instead of opening it', (_label, value) => expect(publishedLink(value)).toBeUndefined());
-it.each(['EXPO_PUBLIC_PRIVACY_URL', 'EXPO_PUBLIC_SUPPORT_URL'])('rejects malformed configured %s before export without echoing it', name => {
+it.each(['EXPO_PUBLIC_PRIVACY_URL', 'EXPO_PUBLIC_SUPPORT_URL', 'EXPO_PUBLIC_TERMS_URL'])('rejects malformed configured %s before export without echoing it', name => {
   const value = 'https://person:private-config-password@policy.example.test';
   expect(() => validatePublishedLinks({ [name]: value })).toThrow(new RegExp(name));
   try { validatePublishedLinks({ [name]: value }); } catch (error) { expect((error as Error).message).not.toContain('private-config-password'); }

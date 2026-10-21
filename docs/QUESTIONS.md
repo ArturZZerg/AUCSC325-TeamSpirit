@@ -32,7 +32,29 @@ which needs the web build to support a base path, or a new subdomain such as
 `campusflow.vakula-dev.com`, which needs a DNS record from you and a new
 certificate. A subdomain is cleaner and recommended.
 
-## Q3. Privacy policy, terms and support contact
+## Q3. Privacy policy, terms and support contact — approved 2026-10-20
+
+The owner approved the wording. The operator is named as "the AUCSC 325
+TeamSpirit project team", and support is GitHub issues only, with no private
+email. The policy says locked-out accounts can't be deleted on request.
+
+### Earlier status (drafted, awaiting approval)
+
+Drafts are in `apps/mobile/public/legal/` (PR #128) and are not published until
+you approve them. They state 14-day backup and access-log retention, as
+configured, and the Hetzner Helsinki location. Needed from you:
+
+1. Who runs CampusFlow, as it should be named publicly (for example your name
+   and course, or "the AUCSC 325 TeamSpirit project team").
+2. A private contact email, for privacy requests and for people locked out of an
+   account. Without email reset, they can't delete their data any other way.
+3. Approval of the wording, or the changes you want.
+
+When Canvas personal-token sync (PR #127) is enabled, the privacy policy must
+first say that an encrypted Canvas access token and synced course data are
+stored.
+
+### Original question
 
 I can draft accurate pages. You need to approve the wording, the data-retention
 period for backups (I propose 14 days) and a support email address.

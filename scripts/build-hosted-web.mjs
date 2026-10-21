@@ -9,6 +9,9 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const hostedWeb = { baseUrl: '/campusflow', apiUrl: 'https://workout.vakula-dev.com/campusflow-api' };
+// Public pages shipped from apps/mobile/public/legal inside this same export.
+const legal = 'https://workout.vakula-dev.com/campusflow/legal';
+const links = { EXPO_PUBLIC_PRIVACY_URL: `${legal}/privacy.html`, EXPO_PUBLIC_TERMS_URL: `${legal}/terms.html`, EXPO_PUBLIC_SUPPORT_URL: `${legal}/support.html` };
 
 function fail(message) { console.error(message); process.exit(1); }
 const out = process.argv[2] ? path.resolve(process.argv[2]) : fail('Usage: build-hosted-web.mjs <out-dir>');
@@ -16,7 +19,7 @@ if (existsSync(out) && readdirSync(out).length) fail(`Output directory must be e
 
 // Only these public values reach the bundle: drop inherited EXPO_PUBLIC_* and ignore .env files.
 const inherited = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('EXPO_PUBLIC_')));
-const env = { ...inherited, EXPO_NO_DOTENV: '1', CAMPUSFLOW_WEB_BASE_URL: hostedWeb.baseUrl, EXPO_PUBLIC_API_URL: hostedWeb.apiUrl };
+const env = { ...inherited, ...links, EXPO_NO_DOTENV: '1', CAMPUSFLOW_WEB_BASE_URL: hostedWeb.baseUrl, EXPO_PUBLIC_API_URL: hostedWeb.apiUrl };
 const result = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--clear', '--output-dir', out],
   { cwd: path.join(root, 'apps/mobile'), env, stdio: 'inherit', shell: process.platform === 'win32' });
 if (result.status !== 0) fail('Web export failed.');
@@ -30,4 +33,7 @@ if (!entry.includes(hostedWeb.apiUrl)) fail('The entry bundle does not use the h
 if (/https?:\/\/(localhost|127\.0\.0\.1)/.test(entry)) fail('The entry bundle still references a local API.');
 const wasm = readdirSync(path.join(out, 'assets'), { recursive: true }).filter(file => String(file).endsWith('.wasm'));
 if (!wasm.length) fail('The SQLite web worker asset is missing.');
+for (const page of ['privacy.html', 'terms.html', 'support.html', 'legal.css'])
+  if (!existsSync(path.join(out, 'legal', page))) fail(`The published page legal/${page} is missing from the export.`);
+for (const url of Object.values(links)) if (!entry.includes(url)) fail(`The entry bundle does not link ${url}.`);
 console.log(`Hosted web built in ${out} (${scripts.length} script, base ${hostedWeb.baseUrl})`);

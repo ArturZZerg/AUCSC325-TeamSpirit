@@ -78,3 +78,12 @@ it('does not advertise an invalid or unconfigured website as a published policy'
   process.env.EXPO_PUBLIC_PRIVACY_URL = 'javascript:alert(1)'; render(<Help/>);
   expect(screen.queryByRole('button', { name: 'Read privacy policy' })).toBeNull();
 });
+
+it('offers the published terms alongside the privacy policy', async () => {
+  const prior = process.env.EXPO_PUBLIC_TERMS_URL; process.env.EXPO_PUBLIC_TERMS_URL = 'https://policy.example.test/terms';
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined); render(<Help/>);
+  try {
+    await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Read terms of use' })));
+    expect(open).toHaveBeenCalledWith('https://policy.example.test/terms');
+  } finally { open.mockRestore(); if (prior === undefined) delete process.env.EXPO_PUBLIC_TERMS_URL; else process.env.EXPO_PUBLIC_TERMS_URL = prior; }
+});

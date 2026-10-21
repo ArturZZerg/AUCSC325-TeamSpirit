@@ -202,4 +202,12 @@ Web app and signup (ADR 018):
 up to 1 MB (calendar files). `deploy.sh` doesn't install Nginx snippets: after
 changing them, copy them to `/etc/nginx/snippets/` and reload behind `nginx -t`.
 
+Before touching the database or container, `deploy.sh` runs the new image's
+startup configuration check against `/etc/campusflow/api.env`. On 2026-10-21 the
+env was switched to `CANVAS_MODE=token` ahead of code that supports it. The next
+deploy recreated the container, and both the new image and the rollback image
+refused to start, causing about 3 minutes of downtime. Now such a deploy stops
+with nothing changed. Change `api.env` only together with, or after, the release
+that understands the new values.
+
 Still open: off-host backups.

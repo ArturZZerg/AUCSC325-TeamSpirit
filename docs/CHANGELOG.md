@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Privacy policy, terms of use and support pages at
+  `/campusflow/legal/`, linked from Help and the sign-up form.
+
 - Timetable import: choose an `.ics` export, preview the detected weekly
   classes (duplicates unselected), and add the ones you keep. Uses the campus
   ICS reader in a new partial mode; adds `expo-document-picker` 55.0.17.

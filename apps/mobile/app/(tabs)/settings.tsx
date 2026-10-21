@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Screen, State, colors } from '@/components/ui';
-import { useAction, usePreferences, useReminders } from '@/features/queries';
+import { useAction, useCanvasStatus, usePreferences, useReminders } from '@/features/queries';
 import { useSessionStore } from '@/store/session';
 import { ensureNotificationPermission, overviewTime, reconcileReminders } from '@/services/reminders';
 import { QuietHoursEditor } from '@/features/quiet-hours-editor';
@@ -22,6 +22,7 @@ export default function SettingsScreen() {
   const signOut = useSessionStore(state => state.signOut);
   const preferences = usePreferences();
   const reminders = useReminders();
+  const canvas = useCanvasStatus();
   const action = useAction();
   const guard = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -51,6 +52,9 @@ export default function SettingsScreen() {
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]!.toUpperCase()).join('') || '?';
   const quiet = preferences.data?.quietHoursStart && preferences.data.quietHoursEnd && preferences.data.quietHoursStart !== preferences.data.quietHoursEnd
     ? `Quiet hours: ${preferences.data.quietHoursStart}–${preferences.data.quietHoursEnd} · ${session?.user.timeZone}` : 'Quiet hours: off';
+  const canvasDetail = canvas.data?.connected
+    ? `Connected to ${canvas.data.baseUrl?.replace(/^https:\/\//, '') ?? 'Canvas'}${canvas.data.lastSuccessfulSyncAt ? ` · Synced ${new Date(canvas.data.lastSuccessfulSyncAt).toLocaleString()}` : ''}`
+    : 'Import your courses and assignments with a Canvas access token';
 
   return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}>
     <Text accessibilityRole="header" style={styles.title}>Settings</Text>
@@ -106,7 +110,7 @@ export default function SettingsScreen() {
     </Group>
 
     <Group title="Connections">
-      <Row icon="link-outline" tint={colors.blue} title="Canvas" action="Open Canvas connection" detail="Import your courses and assignments with a Canvas access token" onPress={() => router.push('/canvas')}/>
+      <Row icon="link-outline" tint={colors.blue} title="Canvas" action="Open Canvas connection" detail={canvasDetail} onPress={() => router.push('/canvas')}/>
     </Group>
 
     <Pressable accessibilityRole="button" accessibilityLabel="Sign out" onPress={() => void signOut()} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
@@ -146,7 +150,8 @@ const styles = StyleSheet.create({
   group: { borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   icon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  rowText: { flex: 1, gap: 2 }, rowTitle: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '600' },
+  rowText: { flex: 1, gap: 2 },
+  rowTitle: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '600' },
   action: { color: colors.moss, fontWeight: '700' }, muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   track: { width: 46, height: 28, borderRadius: 14, backgroundColor: colors.line, padding: 3 }, trackOn: { backgroundColor: colors.moss },
   knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' }, knobOn: { transform: [{ translateX: 18 }] },
