@@ -30,8 +30,12 @@ existing workflows; it does not replace an approved public privacy policy.
 
 ## Published links
 
-Set `EXPO_PUBLIC_PRIVACY_URL` and `EXPO_PUBLIC_SUPPORT_URL` only after the owner
-approves the public pages and their content. Expo configuration rejects configured
+The hosted web build (`scripts/build-hosted-web.mjs`) sets
+`EXPO_PUBLIC_PRIVACY_URL`, `EXPO_PUBLIC_TERMS_URL` and `EXPO_PUBLIC_SUPPORT_URL`
+to the pages in `apps/mobile/public/legal/`, which ship in the same export. It
+refuses an export missing any of them. Native builds set the same variables to
+the hosted URLs. Help offers all three, and sign-up shows a consent line linking
+the terms and privacy policy only when both are configured. Expo configuration rejects configured
 values that are not HTTPS website URLs, exceed 2,048 characters, contain surrounding
 whitespace, credentials, query parameters or fragments, or use local/IP hosts.
 Diagnostics identify the configuration field without echoing its value.

@@ -32,7 +32,15 @@ which needs the web build to support a base path, or a new subdomain such as
 `campusflow.vakula-dev.com`, which needs a DNS record from you and a new
 certificate. A subdomain is cleaner and recommended.
 
-## Q3. Privacy policy, terms and support contact
+## Q3. Privacy policy, terms and support contact — drafted and published 2026-10-20
+
+The pages are at `https://workout.vakula-dev.com/campusflow/legal/` and state
+14-day backup and access-log retention, as configured. Support points to public
+GitHub issues, because no private contact address has been chosen. Please read
+the wording and tell me what to change, including whether to add a private
+contact email.
+
+### Original question
 
 I can draft accurate pages. You need to approve the wording, the data-retention
 period for backups (I propose 14 days) and a support email address.

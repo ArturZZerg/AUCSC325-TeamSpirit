@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · CampusFlow</title>
+<meta name="description" content="How CampusFlow stores and protects the planning data you save.">
+<link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<main>
+<p class="kicker">CampusFlow</p>
+<h1>Privacy policy</h1>
+<p class="meta">Effective 20 October 2026</p>
+
+<p>CampusFlow is a student-built planner made as a university course project. It is not an official app of any university and is not endorsed by one. This page explains what the app stores, why, and what you can do about it.</p>
+
+<h2>What we store</h2>
+<ul>
+<li><strong>Your account:</strong> email address, display name, time zone and a scrypt hash of your password. We never see or store your password itself. Email addresses are not verified.</li>
+<li><strong>What you save in the app:</strong> tasks and their steps, courses, assessments and grades, classes, coursework and exams, study plans, focus sessions, routines and their check-ins, saved campus events, reminders and notification preferences.</li>
+<li><strong>Optional wellness check-ins:</strong> mood, energy and stress ratings and notes, only if you choose to save them.</li>
+<li><strong>Calendar files you import:</strong> read once to suggest classes and then discarded. Only the classes you choose to add are saved.</li>
+<li><strong>Security records:</strong> session tokens are stored only as one-way hashes, and sign-in and sign-up attempts are counted against keyed hashes of your address and network source to slow abuse. These counters expire within an hour.</li>
+</ul>
+<p>We don't use analytics, advertising, tracking cookies or third-party SDKs that collect your data. The web app keeps your session in memory only. It is gone when you close the tab.</p>
+
+<h2>Why we store it</h2>
+<p>Only to run the app for you: building your daily plan, syncing between your devices, reminding you, and protecting accounts from abuse. We don't sell, rent or share your data, and we don't use it to train AI models.</p>
+
+<h2>Where it lives</h2>
+<p>Your data is stored in a PostgreSQL database on a server rented from Hetzner in Helsinki, Finland, and is sent only over HTTPS. Your device also keeps a cache of your own data so the app works offline. Signing out or deleting your account clears that cache on the device.</p>
+<p>Campus events come from public university calendars that the server downloads. Nothing about you is sent to those calendars.</p>
+
+<h2>How long we keep it</h2>
+<ul>
+<li>Your data stays until you delete it or delete your account.</li>
+<li>Deleting your account removes your data from the live database immediately.</li>
+<li>Daily database backups are kept for 14 days, so deleted data disappears from backups within 14 days.</li>
+<li>The app's API requests aren't logged. The web server's access log records IP addresses and the addresses of pages loaded (never what you save) and is kept for 14 days.</li>
+<li>A demo account (<code>demo@example.com</code>) is shared and reset every night. Don't save anything personal in it.</li>
+</ul>
+
+<h2>Your choices and rights</h2>
+<ul>
+<li><strong>See and download your data:</strong> Settings → Account &amp; privacy → Prepare my copy.</li>
+<li><strong>Correct it:</strong> edit anything you saved directly in the app.</li>
+<li><strong>Delete it:</strong> Settings → Account &amp; privacy → Review account deletion. This is permanent.</li>
+<li><strong>Notifications:</strong> reminders are scheduled on your device. You can turn them off in Settings or in your device settings.</li>
+</ul>
+<p>For anything else, see <a href="support.html">Support</a>.</p>
+
+<h2>Children</h2>
+<p>CampusFlow is meant for university and college students. Please don't use it if you are under 16.</p>
+
+<h2>Changes</h2>
+<p>If this policy changes, the new version will be posted here with a new effective date.</p>
+
+<nav><a href="terms.html">Terms of use</a> · <a href="support.html">Support</a> · <a href="../">Open CampusFlow</a></nav>
+</main>
+</body>
+</html>

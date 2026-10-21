@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import Auth from '../app/auth';
 import { api } from '../src/lib/api';
 
@@ -79,4 +80,22 @@ it('ignores a late sign-in reply if a different session becomes active', async (
   const ui = render(<Auth/>); enterLogin(); let finish!: (value: unknown) => void; call.mockReturnValueOnce(new Promise(resolve => { finish = resolve; })); await press('Sign in');
   mockSession = { accessToken: 'another-owner' }; ui.rerender(<Auth/>); await act(async () => finish(session)); expect(mockSetSession).not.toHaveBeenCalled();
   expect(screen.getByLabelText('Password').props.value).toBe('');
+});
+
+it('links the published terms and privacy policy from sign-up, and only when both are configured', async () => {
+  const prior = { terms: process.env.EXPO_PUBLIC_TERMS_URL, privacy: process.env.EXPO_PUBLIC_PRIVACY_URL };
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  try {
+    process.env.EXPO_PUBLIC_TERMS_URL = 'https://policy.example.test/terms'; delete process.env.EXPO_PUBLIC_PRIVACY_URL;
+    const first = render(<Auth/>); await press('Create an account'); expect(screen.queryByText('Terms of use')).toBeNull(); first.unmount();
+    process.env.EXPO_PUBLIC_PRIVACY_URL = 'https://policy.example.test/privacy';
+    render(<Auth/>); await press('Create an account');
+    expect(screen.getByText('By creating an account, you agree to the')).toBeTruthy();
+    await press('Terms of use'); await press('Privacy policy');
+    expect(open.mock.calls).toEqual([['https://policy.example.test/terms'], ['https://policy.example.test/privacy']]);
+  } finally {
+    open.mockRestore();
+    if (prior.terms === undefined) delete process.env.EXPO_PUBLIC_TERMS_URL; else process.env.EXPO_PUBLIC_TERMS_URL = prior.terms;
+    if (prior.privacy === undefined) delete process.env.EXPO_PUBLIC_PRIVACY_URL; else process.env.EXPO_PUBLIC_PRIVACY_URL = prior.privacy;
+  }
 });
