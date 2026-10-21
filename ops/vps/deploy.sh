@@ -55,6 +55,10 @@ chmod 700 "$RELEASE"/*.sh
 previous=$(docker inspect --format '{{.Config.Image}}' campusflow-api 2>/dev/null || true)
 ready() { for _ in $(seq 1 30); do curl -fsS --max-time 4 http://127.0.0.1:8780/health/ready > /dev/null 2>&1 && return 0; sleep 2; done; return 1; }
 
+# Preflight: the new image must accept the server's current configuration before anything changes.
+# (2026-10-21: an env edited ahead of its code made both the new and the rollback image refuse to start.)
+docker run --rm --network none --read-only --env-file /etc/campusflow/api.env --entrypoint node "campusflow-api:$COMMIT"   -e "require('/app/apps/api/dist/src/runtime-config.js').runtimeConfig()" ||
+  { echo "Preflight failed: /etc/campusflow/api.env is not valid for campusflow-api:$COMMIT; nothing was changed." >&2; exit 1; }
 FLOCK_HELD=1 "$RELEASE/backup.sh"
 docker run --rm --network host --env-file /etc/campusflow/api.env --workdir /app/apps/api \
   "campusflow-build:$COMMIT" /app/node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma
