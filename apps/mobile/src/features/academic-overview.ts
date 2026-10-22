@@ -9,6 +9,23 @@ export const academicDueDate = (item: AcademicItem, timeZone: string) => item.du
 export const academicAttention = (item: AcademicItem, timeZone: string, now: string) => !academicFinished(item)
   && (item.submissionState === 'missing' || isOverdue(item.due ?? undefined, now, timeZone));
 
+/** Canvas reports the student's own submission state; show it in plain words. */
+export const submissionLabels: Record<string, string> = { graded: 'Graded', submitted: 'Submitted', unsubmitted: 'Not submitted', missing: 'Marked missing' };
+
+/**
+ * Open coursework for a compact list: today's Main Goal first, then by deadline,
+ * undated work last. Long Canvas imports (orientation modules, templates) must
+ * not push dated work out of view.
+ */
+export function upcomingAcademic(items: AcademicItem[], today: string, limit: number) {
+  const open = items.filter(item => !academicFinished(item));
+  const key = (item: AcademicItem) => item.due?.kind === 'instant' ? Date.parse(item.due.at)
+    : item.due?.kind === 'date' ? Date.parse(`${item.due.date}T23:59:59Z`) : Number.POSITIVE_INFINITY;
+  const sorted = [...open].sort((a, b) => Number(b.mainGoalDate === today) - Number(a.mainGoalDate === today)
+    || key(a) - key(b) || a.title.localeCompare(b.title));
+  return { shown: sorted.slice(0, limit), open: open.length };
+}
+
 const sectionNames = ['Needs attention', 'Due today', 'Next 7 days', 'Later', 'No deadline', 'Finished'] as const;
 type Section = (typeof sectionNames)[number];
 export function academicOverview(items: AcademicItem[], filters: AcademicFilters, timeZone: string, now: string) {

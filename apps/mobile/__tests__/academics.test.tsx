@@ -156,6 +156,14 @@ describe('Coursework workspace', () => {
     fireEvent.press(screen.getByText('Delete')); mockToken = 'another-login'; ui.rerender(<AcademicsScreen/>);
     expect(screen.queryByText('Delete coursework?')).toBeNull(); expect(save).not.toHaveBeenCalled();
   });
+  it('shows Canvas status and deadlines in plain words', () => {
+    show([essay, submitted, undated]); render(<AcademicsScreen/>);
+    expect(screen.getByText('Not submitted · Due today')).toBeOnTheScreen();
+    expect(screen.getAllByText('Assignment').length).toBeGreaterThan(0);
+    fireEvent.press(screen.getByRole('radio', { name: 'All work' }));
+    expect(screen.getByText('Submitted · Due yesterday')).toBeOnTheScreen();
+    expect(screen.getByText('Status not provided · No deadline')).toBeOnTheScreen();
+  });
   it('keeps imported titles and submission state read-only', () => {
     show([essay]); render(<AcademicsScreen/>);
     for (const title of ['Edit', 'Delete', 'Mark finished']) expect(screen.queryByRole('button', { name: title })).toBeNull();

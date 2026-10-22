@@ -46,6 +46,11 @@ function when(value: NonNullable<PlanItem['due']>, timeZone: string, date: strin
   return local === date ? clock(value.at, timeZone) : `${dayName(local, date)}, ${clock(value.at, timeZone)}`;
 }
 
+/** "Due tomorrow, 11:59 p.m." style deadline text relative to `date` in the account zone. */
+export function dueLabel(value: PlanItem['due'], timeZone: string, date: string): string {
+  return value ? `Due ${when(value, timeZone, date)}` : 'No deadline';
+}
+
 /** Short human timing for one row, relative to the displayed plan date in the account zone. */
 export function planTimingLabel(item: Pick<PlanItem, 'kind' | 'schedule' | 'due'>, timeZone: string, date: string): string | undefined {
   const parts: string[] = [];

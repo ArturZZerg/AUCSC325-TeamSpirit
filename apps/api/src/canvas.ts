@@ -135,7 +135,10 @@ export class CanvasService {
    * the write then rechecks under the account lock that the same token is still
    * stored, so a disconnect or reconnect during the fetch wins.
    */
-  private async syncToken(user: RequestUser) {
+  private async syncToken(user: RequestUser) { return this.syncAccount(user.id); }
+  /** Live sync for one account; also used by the background worker. */
+  async syncAccount(userId: string) {
+    const user = { id: userId };
     const connection = await this.prisma.canvasConnection.findUnique({ where: { userId: user.id } });
     if (!connection) throw new BadRequestException('Canvas is not connected');
     if (connection.baseUrl === fixtureBaseUrl) throw new ForbiddenException('Canvas fixtures require explicit development/test fixture mode');

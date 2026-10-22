@@ -8,13 +8,13 @@ import { Button, Card, Field, Screen, State, colors, BackLink } from '@/componen
 import { useAcademic, useAction, useCourses, usePlanningSnapshot } from '@/features/queries';
 import { Chip } from '@/features/task-row';
 import { courseColor } from '@/features/course-editor';
-import { academicAttention, academicFinished, academicOverview, type AcademicView } from '@/features/academic-overview';
+import { academicAttention, academicFinished, academicOverview, submissionLabels, type AcademicView } from '@/features/academic-overview';
 import { AcademicReminderEditor } from '@/features/academic-reminder-editor';
 import { StudyPlanEditor } from '@/features/study-plan-editor';
 import { PreparationPlanEditor } from '@/features/preparation-plan-editor';
 import { AcademicItemEditor } from '@/features/academic-item-editor';
 import { useTodayClock } from '@/features/today-clock';
-import { taskTimingLabel } from '@/features/task-form';
+import { dueLabel } from '@/features/today-plan';
 import { useSessionStore } from '@/store/session';
 import type { AcademicItem } from '@/lib/types';
 
@@ -101,11 +101,11 @@ function AcademicsContent() {
     {overview.groups.map(group => <View key={group.title} style={styles.group}>
       <View style={styles.heading}><Text style={styles.section}>{group.title}</Text><Text style={styles.meta}>{group.items.length}</Text></View>
       {group.items.map(item => <Card key={item.id}>
-        <View style={styles.heading}><View style={styles.courseLabel}>{item.courseId && byCourse.has(item.courseId) && <View style={[styles.courseDot, { backgroundColor: courseColor(byCourse.get(item.courseId)) }]}/>}<Text style={styles.kicker}>{byCourse.get(item.courseId ?? '')?.code ?? byCourse.get(item.courseId ?? '')?.name ?? 'OTHER COURSEWORK'}</Text></View><Text style={styles.meta}>{item.kind}</Text></View>
+        <View style={styles.heading}><View style={styles.courseLabel}>{item.courseId && byCourse.has(item.courseId) && <View style={[styles.courseDot, { backgroundColor: courseColor(byCourse.get(item.courseId)) }]}/>}<Text style={styles.kicker}>{byCourse.get(item.courseId ?? '')?.code ?? byCourse.get(item.courseId ?? '')?.name ?? 'OTHER COURSEWORK'}</Text></View><Text style={styles.meta}>{item.kind[0].toUpperCase() + item.kind.slice(1)}</Text></View>
         {item.source === manualAcademicSource && <Text style={styles.kicker}>ADDED BY YOU</Text>}
         {item.mainGoalDate === today && <Text style={styles.kicker}>★ MAIN GOAL TODAY</Text>}
         <Text style={[styles.item, academicFinished(item) && styles.finished]}>{item.title}</Text>
-        <Text style={[styles.meta, academicAttention(item, timeZone, now) && styles.attention]}>{item.source === manualAcademicSource ? academicFinished(item) ? 'Finished' : 'To do' : item.submissionState === 'missing' ? 'Marked missing' : item.submissionState ?? 'Status not provided'} · {taskTimingLabel(item.due, timeZone)}</Text>
+        <Text style={[styles.meta, academicAttention(item, timeZone, now) && styles.attention]}>{item.source === manualAcademicSource ? academicFinished(item) ? 'Finished' : 'To do' : submissionLabels[item.submissionState ?? ''] ?? 'Status not provided'} · {dueLabel(item.due, timeZone, today)}</Text>
         {byCourse.get(item.courseId ?? '')?.active === false && <Text style={styles.meta}>Inactive course · reminder delivery paused</Text>}
         <View style={styles.chips}>
           {!academicFinished(item) && <Button title="Build a study plan" disabled={disabled} tone="plain" onPress={() => { setSavedMessage(undefined); setPreparing(item); }}/>}
