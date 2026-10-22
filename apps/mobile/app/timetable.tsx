@@ -49,8 +49,13 @@ function TimetableContent({ timeZone }: { timeZone: string }) {
     <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>CLASS TIMETABLE</Text></View>
     <View style={styles.hero}><Ionicons name="school-outline" size={28} color={colors.moss}/>
       <Text style={styles.title}>Know where to be.</Text><Text style={styles.copy}>Your classes, rooms and weekly rhythm in one place.</Text></View>
-    <Button title="Add a class" disabled={!!removing} onPress={() => setEditing(null)}/>
-    <Button title="Import from a calendar file" tone="plain" disabled={!!removing} onPress={() => router.push('/timetable-import')}/>
+    {query.data?.length === 0 ? <>
+      <Button title="Import my class schedule" disabled={!!removing} onPress={() => router.push('/timetable-import')}/>
+      <Button title="Add a class" tone="plain" disabled={!!removing} onPress={() => setEditing(null)}/>
+    </> : <>
+      <Button title="Add a class" disabled={!!removing} onPress={() => setEditing(null)}/>
+      <Button title="Import from a calendar file" tone="plain" disabled={!!removing} onPress={() => router.push('/timetable-import')}/>
+    </>}
     <State loading={query.isLoading} error={query.error}/>
     {query.data && <Text style={styles.meta}>{query.isCached || query.isError ? 'Saved timetable · refresh to check for changes' : 'Timetable refreshed'} · Times in {timeZone}</Text>}
     <View style={styles.navigation}>

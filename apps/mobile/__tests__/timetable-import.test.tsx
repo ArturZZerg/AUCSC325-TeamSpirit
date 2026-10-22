@@ -93,3 +93,13 @@ it('guides the student when a file has no weekly classes', async () => {
   expect(screen.getByText(/Classes need to repeat at least twice/)).toBeTruthy();
   expect(screen.queryByText(/^Add /)).toBeNull();
 });
+
+it('explains where a schedule file comes from before one is chosen, and hides the guide once previewing', async () => {
+  render(<TimetableImportScreen/>);
+  expect(screen.getByText('How to get your schedule file')).toBeOnTheScreen();
+  expect(screen.getByText(/Bear Tracks or My Schedule Builder/)).toBeOnTheScreen();
+  expect(screen.getByText(/Canvas doesn’t include class times/)).toBeOnTheScreen();
+  fireEvent.press(screen.getByText('Add classes by hand instead')); expect(mockReplace).toHaveBeenCalledWith('/timetable');
+  await choose(preview([draft('Software Engineering')]));
+  expect(screen.queryByText('How to get your schedule file')).toBeNull(); expect(save).not.toHaveBeenCalled();
+});

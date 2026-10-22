@@ -30,7 +30,10 @@ export function DayAgenda({ date, timeZone, onPlan, compact = false }: {
     <Card><View style={styles.heading}><Text style={styles.section}>Your classes</Text><Button title="Timetable" tone="plain" onPress={() => router.push('/timetable')}/></View>
       {day.classesLoaded && (schedules.isCached || schedules.isError) && <Text style={styles.meta}>Saved timetable · may be out of date.</Text>}
       {!day.classesLoaded ? <Text style={styles.copy}>{schedules.isLoading ? 'Loading your classes…' : 'Your class schedule hasn’t been loaded. Connect and refresh.'}</Text>
-        : !day.classes.length && !day.classIssues.length ? <Text style={styles.copy}>No classes scheduled for this date.</Text> : null}
+        : schedules.data?.length === 0 ? <>
+          <Text style={styles.copy}>Add your weekly classes once and they show up here every day.</Text>
+          <Button title="Import my class schedule" onPress={() => router.push('/timetable-import')}/>
+        </> : !day.classes.length && !day.classIssues.length ? <Text style={styles.copy}>No classes scheduled for this date.</Text> : null}
       {day.classIssues.map((title, index) => <Text key={`${title}:${index}`} accessibilityRole="alert" style={styles.warning}>{title}: check its time around the clock change.</Text>)}
       {compact && day.classes.length > 0 && <Text style={styles.meta}>{day.classes.length} {day.classes.length === 1 ? 'class' : 'classes'} scheduled{currentDay && !next ? ' · All finished for today' : ''}</Text>}
       {visibleClasses.map(item => <View key={item.key} style={[styles.meeting, next?.key === item.key && styles.next]}>

@@ -58,3 +58,10 @@ it('offers sync and disconnect for a connected account and shows the last error'
   expect(await screen.findByText(/Canvas disconnected/)).toBeOnTheScreen();
   expect(save.mock.calls[0][0]).toMatchObject({ path: '/canvas/connection', method: 'DELETE' });
 });
+
+it('tells a connected student that class times come from a calendar file, not Canvas', async () => {
+  jest.mocked(api).mockResolvedValue(status({ connected: true, baseUrl: 'https://school.instructure.com' }));
+  view();
+  expect(await screen.findByText(/Canvas shares assignments, not when and where your classes meet/)).toBeOnTheScreen();
+  expect(screen.getByText('Import my class schedule')).toBeOnTheScreen();
+});

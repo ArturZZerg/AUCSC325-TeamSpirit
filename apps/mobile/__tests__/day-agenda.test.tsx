@@ -56,3 +56,9 @@ it('labels stale suggestions and explains why unknown durations prevent suggesti
   expect(screen.getByText(/Using saved information/)).toBeTruthy(); expect(screen.getByText(/A timed task needs/)).toBeTruthy();
   fireEvent.press(screen.getByText('Review scheduled tasks')); expect(router.push).toHaveBeenCalledWith('/tasks');
 });
+it('offers the schedule import when no classes are saved yet', () => {
+  jest.mocked(useClasses).mockReturnValue({ data: [], refetch: classRefresh } as unknown as ReturnType<typeof useClasses>);
+  render(<DayAgenda compact date="2025-03-10" timeZone="America/Edmonton" onPlan={jest.fn()}/>);
+  fireEvent.press(screen.getByText('Import my class schedule')); expect(router.push).toHaveBeenCalledWith('/timetable-import');
+  expect(screen.queryByText('No classes scheduled for this date.')).toBeNull();
+});

@@ -38,6 +38,20 @@ of typing every class.* Roadmap item 9. It extends the
   way to pick another file. The preview is not cached and never leaves the
   student's account.
 
+## Where class times come from
+
+Canvas does not hold class meeting times. On 2026-10-21 a read-only check of a
+real University of Alberta account through the API's own Canvas client found no
+calendar events (`type=event`) for the user or any of its three courses, only
+assignment due dates. Class times live in the university's own tools (Bear
+Tracks, My Schedule Builder), so the import stays file-based and Canvas is not
+extended. The import screen lists the steps to get an `.ics` file (university
+export, or a Google Calendar export as a fallback) and offers manual entry.
+Entry points: an empty timetable leads with **Import my class schedule**, the
+Today class card offers it while no classes are saved, Settings → School links
+the timetable, and the connected Canvas screen explains that class times come
+from a calendar file.
+
 ## API
 
 `POST /classes/import-preview` with a `text/calendar` body (authenticated, up

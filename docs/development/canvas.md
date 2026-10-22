@@ -12,8 +12,10 @@ connection about every 30 minutes (6 hours after a failure), so new assignments
 appear without a manual sync. See
 [ADR 019](../adr/019-canvas-personal-access-tokens.md) for the safeguards.
 `canvas-token.spec.ts` covers address validation, sealing, pagination, mapping,
-rejected tokens and the HTTP flow. A rejected token was checked against a real
-Canvas instance; no real student account has been synced yet.
+rejected tokens and the HTTP flow. A real student account (3 courses, about 65
+assignments) syncs in production. That account has no Canvas calendar events, so
+class times are imported from a calendar file instead; see
+[timetable import](../requirements/timetable-import.md).
 
 The rest of this page describes fixture mode, which is unchanged.
 
