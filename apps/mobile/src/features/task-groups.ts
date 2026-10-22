@@ -46,3 +46,10 @@ export function taskSummary(tasks: readonly PersonalTask[], today: string, timeZ
   const open = tasks.filter(task => !task.completedAt);
   return { open: open.length, overdue: open.filter(task => taskBucket(task, today, timeZone, now) === 'overdue').length };
 }
+
+/** "2 personal · 40 coursework open": the University list is part of this tab, so count it too. */
+export function tasksSummaryLabel(summary: { open: number; overdue: number }, coursework: number | undefined) {
+  const parts = [coursework ? `${summary.open} personal · ${coursework} coursework open` : `${summary.open} open`];
+  if (summary.overdue) parts.push(`${summary.overdue} overdue`);
+  return parts.join(' · ');
+}

@@ -8,6 +8,7 @@ import { useTodayClock } from './today-clock';
 import { taskTimingLabel } from './task-form';
 import { academicFormDefaults, academicFormRequest, academicFormSchema, type AcademicFormValues } from './academic-form';
 import type { AcademicItem } from '@/lib/types';
+import { courseLabel } from '@/features/course-label';
 
 export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClose, onSaved }: {
   item: AcademicItem | null; courses: { id: string; name: string; code: string | null; active: boolean }[];
@@ -62,7 +63,7 @@ export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClo
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choices}>
           <Choice label="No course" selected={!values.courseId} disabled={saving} onPress={() => update('courseId', '')}/>
           {item?.courseId && !courses.some(course => course.id === item.courseId) && <Choice label="Saved course" selected={values.courseId === item.courseId} disabled={saving} onPress={() => update('courseId', item.courseId!)}/>}
-          {courses.map(course => <Choice key={course.id} label={`${course.code ?? course.name}${course.active ? '' : ' · inactive'}`} selected={values.courseId === course.id} disabled={saving} onPress={() => update('courseId', course.id)}/>)}
+          {courses.map(course => <Choice key={course.id} label={`${courseLabel(course)}${course.active ? '' : ' · inactive'}`} selected={values.courseId === course.id} disabled={saving} onPress={() => update('courseId', course.id)}/>)}
         </ScrollView>
         <Text style={styles.section}>When is it due?</Text>
         <View style={styles.choices}>{([{ value: 'none', label: 'No deadline' }, { value: 'date', label: 'Day only' }, { value: 'instant', label: 'Date & time' }, ...(item?.due?.kind === 'instant' ? [{ value: 'existing' as const, label: 'Keep deadline' }] : [])] as const)

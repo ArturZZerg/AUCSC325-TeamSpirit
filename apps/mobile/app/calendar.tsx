@@ -12,6 +12,7 @@ import type { TaskFormValues } from '@/features/task-form';
 import { useSessionStore } from '@/store/session';
 import { courseColor } from '@/features/course-editor';
 import type { Course } from '@/lib/types';
+import { courseLabel } from '@/features/course-label';
 
 const kindColors: Record<CalendarKind, string> = { academic: colors.blue, personalTask: colors.moss, event: colors.coral };
 const kindLabels: Record<CalendarKind, string> = { academic: 'Coursework', personalTask: 'Task', event: 'Saved event' };
@@ -102,7 +103,7 @@ function CalendarContent({ timeZone, accountId }: { timeZone: string; accountId:
 
 function EntryRow({ entry, timeZone, course }: { entry: CalendarEntry; timeZone: string; course?: Course }) {
   const accent = course ? courseColor(course) : kindColors[entry.kind];
-  const kind = [entry.exam ? 'Exam' : kindLabels[entry.kind], course ? course.code ?? course.name : null].filter(Boolean).join(' · ');
+  const kind = [entry.exam ? 'Exam' : kindLabels[entry.kind], course ? courseLabel(course) : null].filter(Boolean).join(' · ');
   const time = entry.timing.kind === 'instant' ? new Date(entry.timing.at).toLocaleTimeString([], { timeZone, hour: 'numeric', minute: '2-digit' }) : undefined;
   const label = entry.role === 'due' ? (time ? `Due ${time}` : 'Due this day') : entry.role === 'planned' ? (time ? `Planned ${time}` : 'Planned for this day') : (time ? `Starts ${time}` : 'All day');
   return <View style={styles.entry}>

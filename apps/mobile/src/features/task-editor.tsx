@@ -11,6 +11,7 @@ import type { Course, PersonalTask } from '@/lib/types';
 import { api, ApiError } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
 import { taskCredentialsGeneration, taskOwnershipGeneration, taskOwnerCurrent, taskEditBaseline, taskEditBaselineCurrent, useTaskEditRevision, type TaskEditBaseline } from './task-edit-freshness';
+import { courseLabel } from '@/features/course-label';
 
 type EditorProps = {
   task: PersonalTask | null; onClose: () => void; timeZone?: string; initialValues?: Partial<TaskFormValues>;
@@ -184,7 +185,7 @@ export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initi
             // A course implies university work unless the student already chose otherwise.
             if (value && !dirtyFields.category && getValues('category') === 'personal') setValue('category', 'university', { shouldDirty: true });
           }} disabled={blocked} options={[{ value: '', label: 'No course' }, ...courses.filter(course => course.active || course.id === field.value)
-            .map(course => ({ value: course.id, label: course.code ?? course.name }))]}/>}/>}
+            .map(course => ({ value: course.id, label: courseLabel(course) }))]}/>}/>}
           <Controller name="priority" control={control} render={({ field }) => <Choices label="Priority" value={field.value} onChange={field.onChange} disabled={blocked} options={prioritySchema.options.map(value => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}/>}/>
           {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
           <Button title={isSubmitting ? 'Saving…' : 'Save task'} onPress={() => { void submit(); }} disabled={blocked}/>

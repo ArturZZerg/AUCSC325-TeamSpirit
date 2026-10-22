@@ -13,6 +13,7 @@ import { planTimingLabel } from '@/features/today-plan';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
 import type { Course } from '@/lib/types';
+import { courseLabel } from '@/features/course-label';
 
 type Assessment = NonNullable<Course['assessments']>[number];
 const pct = (value: number | null) => value === null ? '—' : `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
@@ -64,7 +65,7 @@ function CourseContent({ timeZone }: { timeZone: string }) {
     refreshControl={<RefreshControl refreshing={courses.isRefetching} onRefresh={() => { void courses.refetch(); void academic.refetch(); }}/>}>
     <View style={styles.heading}><BackLink to="Courses" onPress={() => router.replace('/courses')}/>
       <Pressable accessibilityRole="button" accessibilityLabel="Edit course" onPress={() => setEditingCourse(true)} hitSlop={8}><Text style={styles.link}>Edit</Text></Pressable></View>
-    <View style={styles.titleRow}><View style={[styles.tile, { backgroundColor: accent }]}><Text style={styles.tileText}>{(course.code ?? course.name).slice(0, 3).toUpperCase()}</Text></View>
+    <View style={styles.titleRow}><View style={[styles.tile, { backgroundColor: accent }]}><Text style={styles.tileText}>{courseLabel(course).slice(0, 3).toUpperCase()}</Text></View>
       <View style={styles.titleText}><Text accessibilityRole="header" style={styles.title}>{course.name}</Text>
         <Text style={styles.meta}>{[course.code, isManualCourse(course) ? 'Your course' : 'Imported from Canvas', course.active ? null : 'Archived'].filter(Boolean).join(' · ')}</Text></View></View>
 

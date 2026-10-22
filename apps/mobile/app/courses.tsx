@@ -8,6 +8,7 @@ import { useAcademic, useAction, useCourses } from '@/features/queries';
 import { CourseEditor, courseColor, isManualCourse } from '@/features/course-editor';
 import { useSessionStore } from '@/store/session';
 import type { Course } from '@/lib/types';
+import { courseLabel } from '@/features/course-label';
 
 export default function CoursesScreen() {
   const session = useSessionStore(state => state.session);
@@ -33,7 +34,7 @@ function CoursesContent() {
   const graded = active.map(course => gradeSummary(course.assessments ?? []).current).filter((value): value is number => value !== null);
   const row = (course: Course) => <View key={course.id} style={styles.course}><Pressable accessibilityRole="button" accessibilityLabel={`Open ${course.name}`} disabled={disabled}
     onPress={() => router.push({ pathname: '/course/[id]', params: { id: course.id } })} style={({ pressed }) => [styles.courseMain, pressed && styles.pressed]}>
-    <View style={[styles.swatch, { backgroundColor: courseColor(course) }]}><Text style={styles.swatchText}>{(course.code ?? course.name).slice(0, 3).toUpperCase()}</Text></View>
+    <View style={[styles.swatch, { backgroundColor: courseColor(course) }]}><Text style={styles.swatchText}>{courseLabel(course).slice(0, 3).toUpperCase()}</Text></View>
     <View style={styles.body}>
       <Text style={styles.name}>{course.name}</Text>
       <Text style={styles.meta}>{[course.code, isManualCourse(course) ? 'Your course' : 'Imported from Canvas',

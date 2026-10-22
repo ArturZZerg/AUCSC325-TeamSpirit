@@ -67,6 +67,11 @@ export default function SettingsScreen() {
       </View>
     </View>
 
+    <Group title="School">
+      <Row icon="link-outline" tint={colors.blue} title="Canvas" action="Open Canvas connection" detail={canvasDetail} onPress={() => router.push('/canvas')}/>
+      <Row icon="time-outline" tint={colors.plum} title="Class timetable" detail="Add or import your weekly classes" onPress={() => router.push('/timetable')}/>
+    </Group>
+
     <Group title="Account">
       <Row icon="shield-checkmark-outline" tint={colors.moss} title="Account & privacy" detail="Export or delete your data" onPress={() => router.push('/account')}/>
       <Row icon="help-buoy-outline" tint={colors.blue} title="Help & data" label="Open Help & data" detail="Answers and how your information is used" onPress={() => router.push('/help')}/>
@@ -107,10 +112,6 @@ export default function SettingsScreen() {
       }); }}/>
       <Row icon="refresh-outline" tint={colors.muted} title={busy ? 'Updating…' : 'Refresh device reminders'} label="Refresh device reminders" disabled={disabled} onPress={() => { void run(refresh); }}/>
       {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
-    </Group>
-
-    <Group title="Connections">
-      <Row icon="link-outline" tint={colors.blue} title="Canvas" action="Open Canvas connection" detail={canvasDetail} onPress={() => router.push('/canvas')}/>
     </Group>
 
     <Pressable accessibilityRole="button" accessibilityLabel="Sign out" onPress={() => void signOut()} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>

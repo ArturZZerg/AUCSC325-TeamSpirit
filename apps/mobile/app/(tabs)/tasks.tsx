@@ -12,7 +12,7 @@ import { filterPersonalTasks, useTaskFilters } from '@/features/task-filters';
 import { TaskFilterControls } from '@/features/task-filter-controls';
 import { TaskReminderEditor } from '@/features/task-reminder-editor';
 import { Chip, TaskRow, type TaskRowAction } from '@/features/task-row';
-import { groupTasks, taskSummary } from '@/features/task-groups';
+import { groupTasks, taskSummary, tasksSummaryLabel } from '@/features/task-groups';
 import { planTimingLabel } from '@/features/today-plan';
 import { academicFinished, submissionLabels, upcomingAcademic } from '@/features/academic-overview';
 
@@ -21,6 +21,7 @@ const universityLimit = 8;
 import type { PersonalTask } from '@/lib/types';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
+import { courseLabel } from '@/features/course-label';
 
 export default function Tasks() {
   const tasks = useTasks();
@@ -67,8 +68,8 @@ export default function Tasks() {
   };
   const pendingFor = (task: PersonalTask): TaskRowAction | undefined => pending === `/tasks/${task.id}/complete` ? 'toggle'
     : pending === `/tasks/${task.id}/main-goal` ? 'mainGoal' : undefined;
-  const courseLabel = (id: string | null | undefined) => { const course = id ? courses.data?.find(row => row.id === id) : undefined;
-    return course ? { label: course.code ?? course.name, color: courseColor(course) } : undefined; };
+  const courseTag = (id: string | null | undefined) => { const course = id ? courses.data?.find(row => row.id === id) : undefined;
+    return course ? { label: courseLabel(course), color: courseColor(course) } : undefined; };
   const summary = tasks.data ? taskSummary(tasks.data, today, timeZone, now) : undefined;
   const university = academic.data ? upcomingAcademic(academic.data, today, universityLimit) : undefined;
 
@@ -76,15 +77,13 @@ export default function Tasks() {
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.top}>
         <View style={styles.heading}><Text accessibilityRole="header" style={styles.title}>Tasks</Text>
-          {summary && <Text style={styles.summary}>{summary.open} open{summary.overdue ? ` · ${summary.overdue} overdue` : ''}</Text>}</View>
+          {summary && <Text style={styles.summary}>{tasksSummaryLabel(summary, university?.open)}</Text>}</View>
         <Pressable accessibilityRole="button" accessibilityLabel="Add task" accessibilityState={{ disabled }} disabled={disabled} onPress={() => setEditing(null)}
           style={({ pressed }) => [styles.add, pressed && styles.pressed, disabled && styles.dim]}><Ionicons name="add" size={26} color="#fff"/></Pressable>
       </View>
       <View style={styles.links}>
-        <Chip icon="layers-outline" label="My study plans" onPress={() => router.push('/study-plans')}/>
         <Chip icon="school-outline" label="Coursework" onPress={() => router.push('/academics')}/>
         <Chip icon="calendar-outline" label="Calendar" onPress={() => router.push('/calendar')}/>
-        <Chip icon="search-outline" label="Search everything" onPress={() => router.push('/search')}/>
       </View>
       {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
       <TaskFilterControls filters={filters} onChange={updateFilters} onReset={resetFilters}/>
@@ -98,7 +97,7 @@ export default function Tasks() {
           <Text style={styles.count}>{group.tasks.length}</Text></View>
         {group.tasks.map(task => <TaskRow key={task.id} task={task} today={today} timeZone={timeZone} expanded={expanded === task.id} disabled={disabled}
           pending={pendingFor(task)} isMainGoal={task.mainGoalDate === today} canChangeMainGoal={canSelectTask(task)}
-          course={courseLabel(task.courseId)}
+          course={courseTag(task.courseId)}
           onToggleExpanded={() => setExpanded(current => current === task.id ? undefined : task.id)} onAction={selected => onAction(task, selected)}/>)}
       </View>)}
 
@@ -106,18 +105,28 @@ export default function Tasks() {
         {university && <Text style={styles.count}>{university.open} open</Text>}</View>
       <State loading={academic.isLoading} error={academic.error} empty={academic.data?.length === 0 ? 'Canvas work appears here after a successful sync.'
         : university?.open === 0 ? 'No open coursework. Nice work.' : undefined}/>
-      {university?.shown.map(item => { const selected = item.mainGoalDate === today, done = academicFinished(item);
-        const timing = planTimingLabel({ kind: 'academic', schedule: null, due: item.due }, timeZone, today);
+      {university?.shown.map(item => { const selected = item.mainGoalDate === today, done = academicFinished(item), open = expanded === item.id;
+        const timing = planTimingLabel({ kind: 'academic', schedule: null, due: item.due }, timeZone, today), course = courseTag(item.courseId);
         return <View key={item.id} style={[styles.academic, selected && styles.main]}>
-          <View style={styles.academicIcon}><Ionicons name={done ? 'checkmark' : 'school-outline'} size={16} color={colors.blue}/></View>
-          <View style={styles.academicBody}>
-            {selected && <Text style={styles.star}>★ MAIN GOAL TODAY</Text>}
-            <Text style={[styles.item, done && styles.done]}>{item.title}</Text>
-            <Text style={styles.meta}>{item.kind[0].toUpperCase() + item.kind.slice(1)} · {submissionLabels[item.submissionState ?? 'unsubmitted'] ?? 'Not submitted'}{timing ? ` · ${timing}` : ' · No deadline'}</Text>
-            {(selected || (!!session && !done)) && <View style={styles.links}><Chip icon={selected ? 'star' : 'star-outline'} disabled={disabled}
-              label={pending === `/academic-items/${item.id}/main-goal` ? 'Saving…' : selected ? 'Remove Main Goal' : 'Make Main Goal today'}
-              onPress={() => mainGoal('academic', item.id, selected)}/></View>}
+          <View style={styles.academicTop}>
+            <View style={styles.academicIcon}><Ionicons name={done ? 'checkmark' : 'school-outline'} size={16} color={colors.blue}/></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={`${open ? 'Hide' : 'Show'} details for ${item.title}`} accessibilityState={{ expanded: open }}
+              onPress={() => setExpanded(current => current === item.id ? undefined : item.id)} style={styles.academicBody}>
+              {selected && <Text style={styles.star}>★ MAIN GOAL TODAY</Text>}
+              <Text style={[styles.item, done && styles.done]}>{item.title}</Text>
+              <Text style={styles.meta}>{course && <Text style={[styles.course, { color: course.color }]}>{course.label} · </Text>}{timing ?? 'No deadline'}</Text>
+            </Pressable>
+            <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} style={styles.chevron}/>
           </View>
+          {open && <View style={styles.academicDetails}>
+            <Text style={styles.meta}>{item.kind[0].toUpperCase() + item.kind.slice(1)} · {submissionLabels[item.submissionState ?? 'unsubmitted'] ?? 'Not submitted'}</Text>
+            <View style={styles.links}>
+              {(selected || (!!session && !done)) && <Chip icon={selected ? 'star' : 'star-outline'} disabled={disabled}
+                label={pending === `/academic-items/${item.id}/main-goal` ? 'Saving…' : selected ? 'Remove Main Goal' : 'Make Main Goal today'}
+                onPress={() => mainGoal('academic', item.id, selected)}/>}
+              <Chip icon="school-outline" label="Open Coursework" onPress={() => router.push('/academics')}/>
+            </View>
+          </View>}
         </View>; })}
       {university && university.open > university.shown.length && <Button title={`All coursework (${university.open} open)`} tone="plain" onPress={() => router.push('/academics')}/>}
       <View style={styles.spacer}/>
@@ -148,8 +157,8 @@ const styles = StyleSheet.create({
   section: { fontSize: 18, fontWeight: '800', color: colors.ink }, overdue: { color: colors.coral },
   count: { color: colors.muted, fontWeight: '700', backgroundColor: colors.sage, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 1, overflow: 'hidden', fontSize: 12 },
   empty: { alignItems: 'center', gap: 6, padding: 24, borderRadius: 18, backgroundColor: colors.sage },
-  academic: { flexDirection: 'row', gap: 12, backgroundColor: colors.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.line },
-  academicIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: colors.blueSurface, alignItems: 'center', justifyContent: 'center' }, academicBody: { flex: 1, gap: 4 },
+  academic: { gap: 10, backgroundColor: colors.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.line },
+  academicIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: colors.blueSurface, alignItems: 'center', justifyContent: 'center' }, academicBody: { flex: 1, gap: 4 }, chevron: { marginTop: 4 }, academicTop: { flexDirection: 'row', gap: 12 }, academicDetails: { gap: 8, paddingLeft: 40 }, course: { fontWeight: '700' },
   main: { borderColor: colors.goldLine, backgroundColor: colors.goldSurface }, star: { color: colors.gold, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   item: { fontSize: 16, fontWeight: '700', color: colors.ink }, done: { textDecorationLine: 'line-through', color: colors.muted }, meta: { color: colors.muted },
   error: { color: colors.coral }, pressed: { opacity: 0.75 }, dim: { opacity: 0.5 }, spacer: { height: 24 },

@@ -1,4 +1,5 @@
 import type { AcademicItem, CampusEvent, Course, Goal, PersonalTask } from '@/lib/types';
+import { courseLabel } from '@/features/course-label';
 
 export type SearchKind = 'task' | 'coursework' | 'course' | 'routine' | 'event';
 export type SearchResult = { key: string; kind: SearchKind; id: string; title: string; detail: string; score: number; done: boolean };
@@ -27,7 +28,7 @@ export function searchEverything(query: string, sources: SearchSources, limit = 
   const words = normalize(query).split(/\s+/).filter(Boolean);
   const missing = (['tasks', 'academic', 'courses', 'goals', 'events'] as const).filter(name => sources[name] === undefined);
   if (!words.length) return { results: [] as SearchResult[], missing };
-  const courseName = new Map(sources.courses?.map(course => [course.id, course.code ?? course.name]) ?? []);
+  const courseName = new Map(sources.courses?.map(course => [course.id, courseLabel(course)]) ?? []);
   const courseText = new Map(sources.courses?.map(course => [course.id, `${course.name} ${course.code ?? ''}`]) ?? []);
   const results: SearchResult[] = [];
   const push = (result: Omit<SearchResult, 'score' | 'key'>, score: number) => { if (score) results.push({ ...result, key: `${result.kind}:${result.id}`, score }); };

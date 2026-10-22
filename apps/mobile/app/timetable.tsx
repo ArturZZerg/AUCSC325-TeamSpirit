@@ -11,6 +11,7 @@ import { courseColor } from '@/features/course-editor';
 import { calendarLabel, weekStart } from '@/features/weekly-planner';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
+import { courseLabel } from '@/features/course-label';
 
 export default function TimetableScreen() {
   const session = useSessionStore(state => state.session);
@@ -74,7 +75,7 @@ function TimetableContent({ timeZone }: { timeZone: string }) {
     {day.occurrences.map(item => { const course = courseOf(item.classId); return <View key={item.key} style={[styles.meeting, { borderLeftColor: classPalette[item.color as keyof typeof classPalette] }]}>
       <Text style={styles.time}>{clock(item.startsAt)} – {clock(item.endsAt)}</Text>
       {course && <Pressable accessibilityRole="link" accessibilityLabel={`Open ${course.name}`} onPress={() => router.push({ pathname: '/course/[id]', params: { id: course.id } })}>
-        <Text style={[styles.course, { color: courseColor(course) }]}>{course.code ?? course.name}</Text></Pressable>}
+        <Text style={[styles.course, { color: courseColor(course) }]}>{courseLabel(course)}</Text></Pressable>}
       <Text style={styles.item}>{item.title}</Text>
       <Text style={styles.copy}>{item.location || 'Room not set'}{item.instructor ? ` · ${item.instructor}` : ''}</Text>
       {conflicts.has(item.key) && <Text style={styles.warning}>Overlaps another class</Text>}

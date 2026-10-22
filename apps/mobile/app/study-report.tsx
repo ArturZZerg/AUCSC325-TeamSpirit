@@ -9,6 +9,7 @@ import { useTodayClock } from '@/features/today-clock';
 import { calendarLabel, weekStart } from '@/features/weekly-planner';
 import { buildStudyReport, studyTimeByCourse, studyTimeLabel } from '@/features/study-report';
 import { useSessionStore } from '@/store/session';
+import { courseLabel } from '@/features/course-label';
 
 export default function StudyReportScreen() {
   const session = useSessionStore(state => state.session);
@@ -50,7 +51,7 @@ function ReportContent({ accountId, timeZone }: { accountId: string; timeZone: s
         const top = Math.max(...byCourse.courses.map(row => row.seconds), byCourse.other, 1);
         return <><Text style={styles.section}>By course</Text><Card>
           {byCourse.courses.map(({ course, seconds }) => <View key={course.id} accessible accessibilityLabel={`${course.name}: ${studyTimeLabel(seconds)}`} style={styles.dayRow}>
-            <Text style={[styles.courseCode, { color: courseColor(course) }]} numberOfLines={1}>{course.code ?? course.name}</Text>
+            <Text style={[styles.courseCode, { color: courseColor(course) }]} numberOfLines={1}>{courseLabel(course)}</Text>
             <View style={styles.track}><View style={[styles.fill, { width: `${100 * seconds / top}%`, backgroundColor: courseColor(course) }]}/></View>
             <Text style={styles.dayTime}>{studyTimeLabel(seconds)}</Text></View>)}
           {byCourse.other > 0 && <View accessible accessibilityLabel={`Other study: ${studyTimeLabel(byCourse.other)}`} style={styles.dayRow}>

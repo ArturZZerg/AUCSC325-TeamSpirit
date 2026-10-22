@@ -17,6 +17,7 @@ import { useTodayClock } from '@/features/today-clock';
 import { dueLabel } from '@/features/today-plan';
 import { useSessionStore } from '@/store/session';
 import type { AcademicItem } from '@/lib/types';
+import { courseLabel } from '@/features/course-label';
 
 export default function AcademicsScreen() {
   const session = useSessionStore(state => state.session);
@@ -39,6 +40,7 @@ function AcademicsContent() {
   const [deleting, setDeleting] = useState<AcademicItem>();
   const [savedMessage, setSavedMessage] = useState<string>();
   const [pending, setPending] = useState<string>();
+  const [expanded, setExpanded] = useState<string>();
   const [failure, setFailure] = useState<{ id: string; message: string }>();
   const busy = useRef(false);
   const lastResume = useRef(resumeCount);
@@ -50,6 +52,7 @@ function AcademicsContent() {
   const now = new Date().toISOString();
   const overview = academicOverview(academic.data ?? [], { search, courseId, view }, timeZone, now);
   const byCourse = new Map(courses.data?.map(course => [course.id, course]) ?? []);
+  const labelFor = (id: string | null) => { const course = id ? byCourse.get(id) : undefined; return course ? courseLabel(course) : undefined; };
   const disabled = !!pending || action.isPending;
   const modalOpen = editing !== undefined || !!deleting || !!planning || !!reminding || !!preparing;
   const writeItem = async (item: AcademicItem, request: { path: string; method: string; body?: unknown }) => {
@@ -87,7 +90,7 @@ function AcademicsContent() {
     <Field label="Search coursework" value={search} onChangeText={setSearch} placeholder="Assignment or quiz title" autoCorrect={false}/>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
       <Choice label="All courses" selected={!courseId} onPress={() => setCourseId(undefined)}/>
-      {courses.data?.map(course => <Choice key={course.id} label={`${course.code ?? course.name}${course.active ? '' : ' · inactive'}`} selected={courseId === course.id} onPress={() => setCourseId(course.id)}/>)}
+      {courses.data?.map(course => <Choice key={course.id} label={`${courseLabel(course)}${course.active ? '' : ' · inactive'}`} selected={courseId === course.id} onPress={() => setCourseId(course.id)}/>)}
     </ScrollView>
     <View style={styles.chips}>{([{ value: 'open', label: 'To do' }, { value: 'finished', label: 'Finished' }, { value: 'all', label: 'All work' }] as const)
       .map(option => <Choice key={option.value} label={option.label} selected={view === option.value} onPress={() => setView(option.value)}/>)}</View>
@@ -101,37 +104,38 @@ function AcademicsContent() {
     {overview.groups.map(group => <View key={group.title} style={styles.group}>
       <View style={styles.heading}><Text style={styles.section}>{group.title}</Text><Text style={styles.meta}>{group.items.length}</Text></View>
       {group.items.map(item => <Card key={item.id}>
-        <View style={styles.heading}><View style={styles.courseLabel}>{item.courseId && byCourse.has(item.courseId) && <View style={[styles.courseDot, { backgroundColor: courseColor(byCourse.get(item.courseId)) }]}/>}<Text style={styles.kicker}>{byCourse.get(item.courseId ?? '')?.code ?? byCourse.get(item.courseId ?? '')?.name ?? 'OTHER COURSEWORK'}</Text></View><Text style={styles.meta}>{item.kind[0].toUpperCase() + item.kind.slice(1)}</Text></View>
+        <View style={styles.heading}><View style={styles.courseLabel}>{item.courseId && byCourse.has(item.courseId) && <View style={[styles.courseDot, { backgroundColor: courseColor(byCourse.get(item.courseId)) }]}/>}<Text style={styles.kicker}>{labelFor(item.courseId) ?? 'OTHER COURSEWORK'}</Text></View><Text style={styles.meta}>{item.kind[0].toUpperCase() + item.kind.slice(1)}</Text></View>
         {item.source === manualAcademicSource && <Text style={styles.kicker}>ADDED BY YOU</Text>}
         {item.mainGoalDate === today && <Text style={styles.kicker}>★ MAIN GOAL TODAY</Text>}
         <Text style={[styles.item, academicFinished(item) && styles.finished]}>{item.title}</Text>
         <Text style={[styles.meta, academicAttention(item, timeZone, now) && styles.attention]}>{item.source === manualAcademicSource ? academicFinished(item) ? 'Finished' : 'To do' : submissionLabels[item.submissionState ?? ''] ?? 'Status not provided'} · {dueLabel(item.due, timeZone, today)}</Text>
         {byCourse.get(item.courseId ?? '')?.active === false && <Text style={styles.meta}>Inactive course · reminder delivery paused</Text>}
         <View style={styles.chips}>
-          {!academicFinished(item) && <Button title="Build a study plan" disabled={disabled} tone="plain" onPress={() => { setSavedMessage(undefined); setPreparing(item); }}/>}
-          {!academicFinished(item) && <Button title="Plan study time" disabled={disabled}
-            onPress={() => { setStudySaved(false); setPlanning(item); }}/>}
-          {(!academicFinished(item) || item.mainGoalDate === today) && <Button title={pending === item.id ? 'Saving…' : item.mainGoalDate === today ? 'Remove Main Goal' : 'Make Main Goal today'}
-            disabled={disabled} tone="plain" onPress={() => { void mainGoal(item); }}/>}
-          <Button title="Reminder" disabled={disabled} tone="plain" onPress={() => setReminding(item)}/>
+          {!academicFinished(item) && <Chip icon="time-outline" label="Plan study time" disabled={disabled} onPress={() => { setStudySaved(false); setPlanning(item); }}/>}
+          <Chip icon={expanded === item.id ? 'chevron-up' : 'ellipsis-horizontal'} label={expanded === item.id ? 'Fewer options' : 'More options'}
+            onPress={() => setExpanded(current => current === item.id ? undefined : item.id)}/>
         </View>
-        {item.source === manualAcademicSource && <>
-          <View style={styles.chips}>
-            <Button title={academicFinished(item) ? 'Reopen coursework' : 'Mark finished'} disabled={disabled} tone="plain" onPress={() => {
+        {expanded === item.id && <View style={styles.chips}>
+          {!academicFinished(item) && <Chip icon="layers-outline" label="Build a study plan" disabled={disabled} onPress={() => { setSavedMessage(undefined); setPreparing(item); }}/>}
+          {(!academicFinished(item) || item.mainGoalDate === today) && <Chip icon={item.mainGoalDate === today ? 'star' : 'star-outline'}
+            label={pending === item.id ? 'Saving…' : item.mainGoalDate === today ? 'Remove Main Goal' : 'Make Main Goal today'} disabled={disabled} onPress={() => { void mainGoal(item); }}/>}
+          <Chip icon="notifications-outline" label="Reminder" disabled={disabled} onPress={() => setReminding(item)}/>
+          {item.source === manualAcademicSource && <>
+            <Chip icon={academicFinished(item) ? 'refresh-outline' : 'checkmark-outline'} label={academicFinished(item) ? 'Reopen coursework' : 'Mark finished'} disabled={disabled} onPress={() => {
               void writeItem(item, { path: `/academic-items/${item.id}`, method: 'PATCH', body: { submissionState: academicFinished(item) ? 'unsubmitted' : 'submitted' } });
             }}/>
-            <Button title="Edit" disabled={disabled} tone="plain" onPress={() => { setSavedMessage(undefined); setEditing(item); }}/>
-            <Button title="Delete" disabled={disabled} tone="plain" onPress={() => { setFailure(undefined); setDeleting(item); }}/>
-          </View>
-          <Text style={styles.meta}>Finished tracks your progress here. Submit work in your learning platform.</Text>
-        </>}
+            <Chip icon="create-outline" label="Edit" disabled={disabled} onPress={() => { setSavedMessage(undefined); setEditing(item); }}/>
+            <Chip icon="trash-outline" label="Delete" danger disabled={disabled} onPress={() => { setFailure(undefined); setDeleting(item); }}/>
+          </>}
+        </View>}
+        {expanded === item.id && item.source === manualAcademicSource && <Text style={styles.meta}>Finished tracks your progress here. Submit work in your learning platform.</Text>}
         {failure?.id === item.id && !deleting && <Text accessibilityRole="alert" style={styles.attention}>{failure.message}</Text>}
       </Card>)}
     </View>)}
   </ScrollView>{preparing && <PreparationPlanEditor key={preparing.id} item={preparing} timeZone={timeZone} onClose={() => setPreparing(undefined)} onSaved={() => {
     setPreparing(undefined); setSavedMessage('Study plan saved. Your sessions are ready in Tasks and your daily plan.');
   }}/>}{reminding && <AcademicReminderEditor key={reminding.id} item={reminding} onClose={() => setReminding(undefined)}/>}
-    {planning && <StudyPlanEditor key={planning.id} item={planning} course={byCourse.get(planning.courseId ?? '')?.code ?? byCourse.get(planning.courseId ?? '')?.name}
+    {planning && <StudyPlanEditor key={planning.id} item={planning} course={labelFor(planning.courseId)}
       timeZone={timeZone} onClose={() => setPlanning(undefined)} onSaved={() => { setPlanning(undefined); setStudySaved(true); }}/>}
     {editing !== undefined && <AcademicItemEditor key={editing?.id ?? 'new'} item={editing} courses={courses.data ?? []} timeZone={timeZone} onClose={() => setEditing(undefined)} onSaved={message => {
       if (!editing) { setSearch(''); setCourseId(undefined); setView('open'); }

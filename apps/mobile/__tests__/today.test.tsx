@@ -52,9 +52,16 @@ it('opens the day-end review for the displayed calendar day without a mutation',
 });
 
 describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
-  it('opens the workload inbox from Today', () => {
-    render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Organise my workload' }));
-    expect(router.push).toHaveBeenCalledWith('/workload');
+  it('keeps Today to four shortcuts; workload, review and study plans live in Week and Coursework', () => {
+    render(<TodayScreen/>);
+    for (const name of ['Focus space', 'Plan your week', 'Month calendar', 'Coursework']) expect(screen.getByRole('button', { name })).toBeOnTheScreen();
+    for (const name of ['Organise my workload', 'Review your week', 'My study plans']) expect(screen.queryByRole('button', { name })).toBeNull();
+  });
+  it('points an empty plan at the next deadline instead of saying nothing is planned', () => {
+    jest.mocked(useToday).mockReturnValue({ date, timeZone: 'America/Edmonton', isLoading: false, isRefetching: false, refetch,
+      data: { ...plan([]), upcoming: [{ ...task, key: 'academic:1', kind: 'academic', title: 'Assignment 5', state: 'upcoming', due: { kind: 'date', date: '2026-10-05' } }] } } as unknown as ReturnType<typeof useToday>);
+    render(<TodayScreen/>);
+    expect(screen.getByText(/^Next due: Assignment 5 · /)).toBeOnTheScreen(); expect(screen.queryByText('Nothing planned yet')).toBeNull();
   });
   it('offers guided setup on an empty day and keeps the guide accessible with existing plans', () => {
     show([]); const ui = render(<TodayScreen/>);
@@ -67,19 +74,10 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Plan your week' }));
     expect(router.push).toHaveBeenCalledWith('/planner');
   });
-  it('opens the weekly review from Today', () => {
-    render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Review your week' }));
-    expect(router.push).toHaveBeenCalledWith('/review');
-  });
   it('opens the academic workspace from Today', () => {
     render(<TodayScreen/>);
     fireEvent.press(screen.getByRole('button', { name: 'Coursework' }));
     expect(router.push).toHaveBeenCalledWith('/academics');
-  });
-  it('opens preparation progress from Today', () => {
-    render(<TodayScreen/>);
-    fireEvent.press(screen.getByRole('button', { name: 'My study plans' }));
-    expect(router.push).toHaveBeenCalledWith('/study-plans');
   });
   it('opens free focus or preselects an open one-time task', () => {
     render(<TodayScreen/>); fireEvent.press(screen.getByRole('button', { name: 'Focus space' })); expect(router.push).toHaveBeenCalledWith('/focus');
