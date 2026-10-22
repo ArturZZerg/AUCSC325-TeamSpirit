@@ -15,6 +15,7 @@ import { TodayController, TodayService } from './today';
 import { CanvasController, CanvasService } from './canvas';
 import { CanvasProvider, FixtureCanvasProvider } from './integrations/canvas/canvas-provider';
 import { CanvasHttpClient } from './integrations/canvas/canvas-http';
+import { CanvasSyncWorker } from './integrations/canvas/canvas-sync-worker';
 import { RECOVERY_CONFIG, recoveryConfig } from './auth-recovery/recovery-config';
 import { RecoveryController, RecoveryService } from './auth-recovery/recovery-service';
 import { RecoveryRateService } from './auth-recovery/recovery-rate';
@@ -28,7 +29,7 @@ import { AUTH_RATE_CONFIG, AuthRateService, authRateConfig } from './auth-rate';
 @Module({
   controllers: [HealthController, AccountController, AuthController, RecoveryController, EmailVerificationController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController, ClassesController, StudyPlansController, FocusController, CampusSourcesController],
   providers: [HealthService, AccountService, EventSyncService, CampusFeedsService, { provide: CAMPUS_FEEDS, useFactory: configuredCampusFeeds }, PrismaService, AuthService, ReminderService, TodayService, CanvasService,
-    { provide: CanvasProvider, useClass: FixtureCanvasProvider }, CanvasHttpClient,
+    { provide: CanvasProvider, useClass: FixtureCanvasProvider }, CanvasHttpClient, CanvasSyncWorker,
     { provide: RECOVERY_CONFIG, useFactory: recoveryConfig }, RecoveryRateService, RecoveryService, RecoveryWorker,
     { provide: AUTH_RATE_CONFIG, useFactory: authRateConfig }, AuthRateService,
     { provide: REGISTRATION_CONFIG, useFactory: (mail: RecoveryConfig) => registrationConfig(mail), inject: [RECOVERY_CONFIG] }, EmailVerificationService,

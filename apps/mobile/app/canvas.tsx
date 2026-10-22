@@ -91,7 +91,7 @@ function Connected({ status, working, onSync, onDisconnect }: { status: CanvasCo
   const when = status.lastSuccessfulSyncAt ? new Date(status.lastSuccessfulSyncAt).toLocaleString() : 'not yet';
   return <Card>
     <View style={styles.step}><Ionicons name="checkmark-circle" size={22} color={colors.moss}/><Text style={[styles.item, styles.grow]}>Connected to {status.baseUrl?.replace(/^https:\/\//, '')}</Text></View>
-    <Text style={styles.meta}>Last successful sync: {when}</Text>
+    <Text style={styles.meta}>Last successful sync: {when}. CampusFlow checks Canvas for changes about every 30 minutes; use Sync now for an immediate update.</Text>
     {status.lastError && <Text accessibilityRole="alert" style={styles.warning}>{status.lastError}</Text>}
     <Button title={working === 'Syncing…' ? working : 'Sync now'} disabled={!!working} onPress={onSync}/>
     <Button title={working === 'Disconnecting…' ? working : 'Disconnect Canvas'} tone="plain" disabled={!!working} onPress={onDisconnect}/>

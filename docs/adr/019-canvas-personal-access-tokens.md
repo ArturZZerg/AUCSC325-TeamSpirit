@@ -33,6 +33,9 @@ Account → Settings → Approved Integrations.
   normalized batch is then written under the per-account lock with the existing
   idempotent upserts, using `source=canvas`. A sync is discarded if the stored
   token changed during the fetch.
+- A background worker (single API replica) syncs token connections whose last
+  attempt is over 30 minutes old, at most 20 per 5-minute pass. After a failure
+  it retries that account only every 6 hours, so a revoked token is not hammered.
 - A rejected Canvas token returns 409, never 401, so it can't end the CampusFlow
   session. `DELETE /canvas/connection` forgets the token; imported records stay.
 - Fixture records (`canvas:fixture`) and live records (`canvas`) never overwrite

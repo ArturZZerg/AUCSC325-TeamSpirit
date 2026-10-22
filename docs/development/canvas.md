@@ -7,7 +7,9 @@ Canvas in the app, follow the in-app guide to create a token (Canvas → Account
 Settings → Approved Integrations → + New Access Token), and paste their Canvas
 address and token. `POST /canvas/connect` verifies the token with Canvas and
 stores it sealed; `POST /canvas/sync` imports active courses and assignments;
-`DELETE /canvas/connection` forgets the token. See
+`DELETE /canvas/connection` forgets the token. `CanvasSyncWorker` re-syncs each
+connection about every 30 minutes (6 hours after a failure), so new assignments
+appear without a manual sync. See
 [ADR 019](../adr/019-canvas-personal-access-tokens.md) for the safeguards.
 `canvas-token.spec.ts` covers address validation, sealing, pagination, mapping,
 rejected tokens and the HTTP flow. A rejected token was checked against a real
