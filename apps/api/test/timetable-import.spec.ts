@@ -27,6 +27,28 @@ describe('timetable import', () => {
     expect(result.classes[0].meetings).toBe(39);
   });
 
+  it('keeps explicit local meetings across the 2026-11-01 Alberta change as one class ending on the last meeting', async () => {
+    // Edmonton stays on UTC−6 from 2026-11-01 (tzdata 2026c); older data falls back to UTC−7. Local wall times are the same either way.
+    const mondays = ['2026-10-19', '2026-10-26', '2026-11-02', '2026-11-09', '2026-11-16'];
+    const result = await preview(calendar(...explicit('AUCSC 325 LEC A01', mondays, ['1300', '1350'], 'Augustana Forum')));
+    expect(result.classes).toEqual([expect.objectContaining({ weekdays: [1], startTime: '13:00', endTime: '13:50',
+      termStart: '2026-10-19', termEnd: '2026-11-16', meetings: 5, timeZone: zone })]);
+  });
+
+  it('includes a final meeting that starts exactly at UNTIL as the end of term', async () => {
+    // 10:00 on Wed 9 Dec is 16:00Z at UTC−6 and 17:00Z at UTC−7; UNTIL is inclusive, so the last class counts under either time-zone data.
+    const result = await preview(calendar(event('until', ['SUMMARY:AUCSC 370 LEC A01', `DTSTART;TZID=${zone}:20260902T100000`,
+      `DTEND;TZID=${zone}:20260902T105000`, 'RRULE:FREQ=WEEKLY;BYDAY=WE,FR;UNTIL=20261209T170000Z'])));
+    expect(result.classes).toEqual([expect.objectContaining({ weekdays: [3, 5], startTime: '10:00', termStart: '2026-09-02', termEnd: '2026-12-09' })]);
+  });
+
+  it('skips and counts a timed series whose UNTIL is a bare date instead of guessing its last day', async () => {
+    // RFC 5545 requires UNTIL to match DTSTART's value type; the reader refuses the series rather than inventing a boundary.
+    const result = await preview(calendar(event('until', ['SUMMARY:AUCSC 370 LEC A01', `DTSTART;TZID=${zone}:20260902T100000`,
+      `DTEND;TZID=${zone}:20260902T105000`, 'RRULE:FREQ=WEEKLY;BYDAY=WE,FR;UNTIL=20261209'])));
+    expect(result.classes).toEqual([]); expect(result.skipped.unsupported).toBe(1);
+  });
+
   it('merges explicit per-meeting events into weekdays and keeps a lab at another time separate', async () => {
     const tuesdays = ['2026-10-06', '2026-10-13', '2026-10-20', '2026-10-27'], thursdays = tuesdays.map(date => addCalendarDays(date, 2));
     const result = await preview(calendar(...explicit('BIOL 107', tuesdays, ['1030', '1150'], 'Science 1-04'),

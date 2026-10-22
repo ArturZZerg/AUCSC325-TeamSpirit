@@ -53,3 +53,8 @@ it('labels a meeting with its course and opens the course', () => {
   fireEvent.press(screen.getByRole('link', { name: 'Open Cognitive Psychology' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/course/[id]', params: { id: psy.id } });
 });
+it('leads an empty timetable with the schedule import', () => {
+  show({ data: [] }); render(<TimetableScreen/>);
+  fireEvent.press(screen.getByText('Import my class schedule')); expect(mockPush).toHaveBeenCalledWith('/timetable-import');
+  expect(screen.getByText('Add a class')).toBeTruthy(); expect(screen.queryByText('Import from a calendar file')).toBeNull();
+});

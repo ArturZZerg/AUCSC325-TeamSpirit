@@ -82,6 +82,11 @@ function CanvasConnection({ userId }: { userId: string }) {
     {data && !data.connected && data.connectMode === 'fixture' && <Card><Text style={styles.copy}>This development server uses demo Canvas data.</Text>
       <Button title={working ?? 'Load demo coursework'} disabled={!!working} onPress={() => { void run('Loading…', async () => { await action.mutateAsync({ path: '/canvas/dev/connect', method: 'POST', body: {} }); return sync(); }); }}/></Card>}
     {data && !data.connected && data.connectMode === 'unavailable' && <Card><Text style={styles.copy}>This server doesn’t have Canvas connections turned on yet. You can still add coursework yourself.</Text></Card>}
+    {data?.connected && <Card>
+      <Text style={styles.section}>Class times</Text>
+      <Text style={styles.copy}>Canvas shares assignments, not when and where your classes meet. Import your weekly schedule from a calendar file to see classes on Today.</Text>
+      <Button title="Import my class schedule" tone="plain" onPress={() => router.push('/timetable-import')}/>
+    </Card>}
     {notice && <Card><Text accessibilityRole="alert" style={styles.done}>{notice}</Text></Card>}
     {failure && <Card><Text accessibilityRole="alert" style={styles.warning}>{failure}</Text></Card>}
   </ScrollView></Screen>;

@@ -11,6 +11,13 @@ import { pickCalendarFile, previewCalendar } from '@/services/timetable-import';
 import { useSessionStore } from '@/store/session';
 
 type Status = 'saved' | 'failed' | 'rejected';
+/** Canvas has no class meeting times, so the schedule comes from the university's own tools or a calendar the student keeps. */
+const scheduleFileSteps = [
+  'Sign in to your university’s schedule (at the U of A: Bear Tracks or My Schedule Builder) and open this term’s weekly schedule.',
+  'Look for Export, Download or Add to calendar, and save the calendar file (.ics) to this phone or your cloud drive.',
+  'No export option? Add your classes to Google Calendar as weekly events once, then use Settings → Import & export → Export and pick the class calendar.',
+  'Choose the file below. CampusFlow lists the weekly classes it finds, and you pick which ones to add.',
+];
 /** Only a lost connection or a server fault is worth retrying; a refused class needs a change first. */
 const retryable = (error: unknown) => error instanceof TypeError || error instanceof ApiError && (error.status >= 500 || error.status === 408 || error.status === 429);
 const message = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback;
@@ -72,6 +79,11 @@ function TimetableImport() {
     <View style={styles.hero}><Ionicons name="calendar-outline" size={28} color={colors.moss}/>
       <Text style={styles.title}>Bring your schedule in.</Text>
       <Text style={styles.copy}>Choose a calendar file (.ics) exported from your class schedule, Google Calendar, Outlook or Apple Calendar. CampusFlow finds your weekly classes and lets you pick which to add. Nothing is saved until you confirm.</Text></View>
+    {!preview && !loading && <Card>
+      <Text style={styles.section}>How to get your schedule file</Text>
+      {scheduleFileSteps.map((step, index) => <View key={step} style={styles.step}><Text style={styles.number}>{index + 1}</Text><Text style={[styles.copy, styles.grow]}>{step}</Text></View>)}
+      <Text style={styles.meta}>Canvas doesn’t include class times, so they can’t come from your Canvas connection.</Text>
+    </Card>}
     <Button title={preview ? 'Choose another file' : 'Choose a calendar file'} tone={preview ? 'plain' : 'primary'} disabled={working} onPress={() => { void choose(); }}/>
     {loading && <State loading/>}
     {failure && <Card><Text accessibilityRole="alert" style={styles.warning}>{failure}</Text></Card>}
@@ -93,7 +105,10 @@ function TimetableImport() {
           disabled={working || chosen.length === 0} onPress={() => { void save(); }}/>
       </>}
     </>}
-    {!preview && !loading && <Text style={styles.meta}>Tip: in Google Calendar, use Settings → Import & export → Export. CampusFlow never asks for your university password.</Text>}
+    {!preview && !loading && <>
+      <Button title="Add classes by hand instead" tone="plain" onPress={() => router.replace('/timetable')}/>
+      <Text style={styles.meta}>CampusFlow never asks for your university password.</Text>
+    </>}
   </ScrollView></Screen>;
 }
 
@@ -133,5 +148,6 @@ const styles = StyleSheet.create({
   item: { fontSize: 17, color: colors.ink, fontWeight: '700' }, warning: { color: colors.coral, lineHeight: 21 },
   note: { color: colors.muted, fontStyle: 'italic', lineHeight: 20 }, done: { color: colors.moss, fontWeight: '700' },
   draft: { padding: 16, gap: 8, borderRadius: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderLeftWidth: 4, minHeight: 48 },
-  checked: { borderColor: colors.moss }, row: { flexDirection: 'row', alignItems: 'center', gap: 10 }, grow: { flex: 1 },
+  checked: { borderColor: colors.moss }, step: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  number: { width: 24, height: 24, borderRadius: 12, overflow: 'hidden', textAlign: 'center', lineHeight: 24, fontWeight: '800', color: colors.onAccent, backgroundColor: colors.moss }, row: { flexDirection: 'row', alignItems: 'center', gap: 10 }, grow: { flex: 1 },
 });
