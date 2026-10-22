@@ -34,7 +34,7 @@ describe('Main Goal selection (ToR 6)', () => {
     expect(screen.queryByText('★ MAIN GOAL TODAY')).toBeNull();
   });
   it('uses PATCH for academic work and supports clearing the selection', async () => {
-    show([], [academic]); const view = render(<Tasks/>);
+    show([], [academic]); const view = render(<Tasks/>); expand(academic.title);
     await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
     await waitFor(() => expect(save).toHaveBeenCalledWith({ path: `/academic-items/${academic.id}/main-goal`, method: 'PATCH', body: { date } }));
     await waitFor(() => expect(screen.queryByText('Saving…')).toBeNull());
@@ -77,12 +77,18 @@ describe('Main Goal selection (ToR 6)', () => {
     ]); render(<Tasks/>); expand(task.title); expect(screen.queryByRole('button', { name: 'Make Main Goal today' })).toBeNull();
   });
   it('renders only the refreshed server selection when replacing a Main Goal', async () => {
-    show([{ ...task, mainGoalDate: date }], [academic]); const view = render(<Tasks/>);
+    show([{ ...task, mainGoalDate: date }], [academic]); const view = render(<Tasks/>); expand(academic.title);
     await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Make Main Goal today' })); });
     expect(save).toHaveBeenCalledWith({ path: `/academic-items/${academic.id}/main-goal`, method: 'PATCH', body: { date } });
     expect(screen.queryByText('Saving…')).toBeNull();
     expect(screen.getAllByText('★ MAIN GOAL TODAY')).toHaveLength(1);
     show([task], [{ ...academic, mainGoalDate: date }]); view.rerender(<Tasks/>);
     expect(screen.getAllByText('★ MAIN GOAL TODAY')).toHaveLength(1);
+  });
+  it('keeps University rows compact until opened and counts coursework in the header', () => {
+    show([], [academic]); render(<Tasks/>);
+    expect(screen.getByText('0 personal · 1 coursework open')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Make Main Goal today' })).toBeNull();
+    expand(academic.title); expect(screen.getByRole('button', { name: 'Open Coursework' })).toBeOnTheScreen();
   });
 });

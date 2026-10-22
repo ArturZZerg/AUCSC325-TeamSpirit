@@ -20,17 +20,16 @@ import { localDateAt } from '@campusflow/domain';
 import { PlanRow, kindColors, type PlanAction, type PlanRowContext } from '@/features/plan-row';
 import { greeting, groupPlan, isAccountToday, planProgress, planTimingLabel } from '@/features/today-plan';
 import { useSessionStore } from '@/store/session';
+import { courseLabel } from '@/features/course-label';
 
 type MutationAction = Exclude<PlanAction, 'focus'>;
 type IconName = ComponentProps<typeof Ionicons>['name'];
-const shortcuts: { label: string; title: string; icon: IconName; path: '/focus' | '/planner' | '/calendar' | '/academics' | '/study-plans' | '/workload' | '/review' }[] = [
+// Four shortcuts fit one row on a phone. Study plans, workload and weekly review stay one tap away in Coursework and Week.
+const shortcuts: { label: string; title: string; icon: IconName; path: '/focus' | '/planner' | '/calendar' | '/academics' }[] = [
   { label: 'Focus space', title: 'Focus', icon: 'timer-outline', path: '/focus' },
   { label: 'Plan your week', title: 'Week', icon: 'albums-outline', path: '/planner' },
   { label: 'Month calendar', title: 'Calendar', icon: 'calendar-outline', path: '/calendar' },
   { label: 'Coursework', title: 'Coursework', icon: 'school-outline', path: '/academics' },
-  { label: 'My study plans', title: 'Study plans', icon: 'layers-outline', path: '/study-plans' },
-  { label: 'Organise my workload', title: 'Workload', icon: 'file-tray-full-outline', path: '/workload' },
-  { label: 'Review your week', title: 'Weekly review', icon: 'stats-chart-outline', path: '/review' },
 ];
 
 export default function TodayScreen() {
@@ -89,13 +88,16 @@ export default function TodayScreen() {
     if (item.kind === 'personalTask') {
       const task = tasks.data?.find(row => row.id === item.entityId), course = task?.courseId ? courses.data?.find(row => row.id === task.courseId) : undefined;
       if (!task) return undefined;
-      return { ...(!task.recurrence ? { steps: checklistProgress(task) } : {}), ...(course ? { course: { label: course.code ?? course.name, color: courseColor(course) } } : {}) };
+      return { ...(!task.recurrence ? { steps: checklistProgress(task) } : {}), ...(course ? { course: { label: courseLabel(course), color: courseColor(course) } } : {}) };
     }
     if (item.kind !== 'academic') return undefined;
     const course = courses.data?.find(row => row.id === academic.data?.find(entry => entry.id === item.entityId)?.courseId);
-    return course ? { course: { label: course.code ?? course.name, color: courseColor(course) } } : undefined;
+    return course ? { course: { label: courseLabel(course), color: courseColor(course) } } : undefined;
   };
   const groups = groupPlan(items), progress = planProgress(items);
+  const next = query.data?.upcoming[0], nextTiming = next ? planTimingLabel(next, query.timeZone, date) : undefined;
+  const nextDue = next ? `${next.title}${nextTiming ? ` · ${nextTiming.replace(/^Due /, '')}` : ''}` : undefined;
+  const setupDone = (academic.data?.some(entry => !(entry.source ?? '').includes('fixture')) ?? false) || (tasks.data?.length ?? 0) > 0;
   const blocked = !!pending || action.isPending;
   const row = (item: PlanItem) => <PlanRow key={item.key} item={item} timeZone={query.timeZone} date={date} isCurrentDay={isCurrentDay}
     disabled={blocked} pendingAction={pending?.key === item.key ? pending.action : undefined}
@@ -112,16 +114,16 @@ export default function TodayScreen() {
       </View>
       <View style={styles.headerActions}><Pressable accessibilityRole="button" accessibilityLabel="Search" onPress={() => router.push('/search')} style={styles.searchButton} hitSlop={6}>
         <Ionicons name="search" size={18} color={colors.ink}/></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Get started" onPress={() => router.push('/get-started')} style={styles.setup} hitSlop={6}>
+      {!setupDone && <Pressable accessibilityRole="button" accessibilityLabel="Get started" onPress={() => router.push('/get-started')} style={styles.setup} hitSlop={6}>
         <Ionicons name="sparkles-outline" size={16} color={colors.moss}/><Text style={styles.setupText}>Get started</Text>
-      </Pressable></View>
+      </Pressable>}</View>
     </View>
 
     <View style={styles.hero}>
       <View style={styles.heroRow}>
         <View style={styles.heroCopy}>
           <Text style={styles.heroValue}>{progress.total ? `${progress.done} of ${progress.total}` : 'Clear'}</Text>
-          <Text style={styles.heroLabel}>{!progress.total ? 'Nothing planned yet' : progress.done === progress.total ? 'Everything done. Nice work.' : 'done in this day’s plan'}</Text>
+          <Text style={styles.heroLabel}>{!progress.total ? nextDue ? `Next due: ${nextDue}` : 'Nothing planned yet' : progress.done === progress.total ? 'Everything done. Nice work.' : 'done in this day’s plan'}</Text>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Review this day" onPress={() => router.push({ pathname: '/day-review', params: { date } })} style={styles.review}>
           <Ionicons name="moon-outline" size={16} color={colors.ink}/><Text style={styles.reviewText}>Review this day</Text>
@@ -131,13 +133,13 @@ export default function TodayScreen() {
         <View style={[styles.fill, { width: `${Math.round(progress.ratio * 100)}%` }]}/></View>}
     </View>
 
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcuts}>
+    <View style={styles.shortcuts}>
       {shortcuts.map(item => <Pressable key={item.path} accessibilityRole="button" accessibilityLabel={item.label} onPress={() => router.push(item.path)}
         style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
         <View style={styles.shortcutIcon}><Ionicons name={item.icon} size={22} color={colors.moss}/></View>
         <Text style={styles.shortcutText} numberOfLines={1}>{item.title}</Text>
       </Pressable>)}
-    </ScrollView>
+    </View>
 
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
     <FocusRecoveryCard/>
@@ -163,14 +165,14 @@ export default function TodayScreen() {
 
     <DayAgenda compact date={date} timeZone={query.timeZone} onPlan={setTaskDraft}/>
 
-    {query.data?.campusEvents.length ? <><Section title="Campus today" count={query.data.campusEvents.length}/>
-      {query.data.campusEvents.map(event => <View key={event.id} style={styles.compact}><View style={[styles.stripe, { backgroundColor: kindColors.event }]}/>
-        <View style={styles.compactBody}><Text style={styles.item}>{event.title}</Text><Text style={styles.meta}>{event.timing.kind === 'timed' ? new Date(event.timing.startsAt).toLocaleTimeString([], { timeZone: query.timeZone, hour: 'numeric', minute: '2-digit' }) : event.timing.startDate} · {event.location ?? 'Campus'}</Text></View></View>)}
-    </> : null}
     {query.data?.upcoming.length ? <><Section title="Coming up" count={query.data.upcoming.length}/>
       {query.data.upcoming.map(item => <View key={item.key} style={styles.compact}><View style={[styles.stripe, { backgroundColor: kindColors[item.kind] }]}/>
         <View style={styles.compactBody}><Text style={styles.item}>{item.title}</Text>
-          <Text style={styles.meta}>{planTimingLabel(item, query.timeZone, date) ?? 'No date'}</Text></View></View>)}
+          <Text style={styles.meta}>{[contextFor(item)?.course?.label, planTimingLabel(item, query.timeZone, date) ?? 'No date'].filter(Boolean).join(' · ')}</Text></View></View>)}
+    </> : null}
+    {query.data?.campusEvents.length ? <><Section title="Campus today" count={query.data.campusEvents.length}/>
+      {query.data.campusEvents.map(event => <View key={event.id} style={styles.compact}><View style={[styles.stripe, { backgroundColor: kindColors.event }]}/>
+        <View style={styles.compactBody}><Text style={styles.item}>{event.title}</Text><Text style={styles.meta}>{event.timing.kind === 'timed' ? new Date(event.timing.startsAt).toLocaleTimeString([], { timeZone: query.timeZone, hour: 'numeric', minute: '2-digit' }) : event.timing.startDate} · {event.location ?? 'Campus'}</Text></View></View>)}
     </> : null}
     <View style={styles.spacer}/>
   </ScrollView>
@@ -199,8 +201,8 @@ const styles = StyleSheet.create({
   review: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.card, borderRadius: 20, paddingHorizontal: 14, minHeight: 40 },
   reviewText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
   track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' }, fill: { height: 8, borderRadius: 4, backgroundColor: '#fff' },
-  shortcuts: { gap: 10, paddingVertical: 2 },
-  shortcut: { width: 84, alignItems: 'center', gap: 6, paddingVertical: 10, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  shortcuts: { flexDirection: 'row', gap: 8 },
+  shortcut: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6, paddingVertical: 10, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   shortcutIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.sage, alignItems: 'center', justifyContent: 'center' },
   shortcutText: { color: colors.ink, fontSize: 12, fontWeight: '700' },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },

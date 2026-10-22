@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { colors } from '@/components/ui';
 import { courseColor } from './course-editor';
 import { countdownLabel, type UpcomingExam } from './exams';
+import { courseLabel } from '@/features/course-label';
 
 /** Today's heads-up for exams in the next two weeks; links to Coursework for study planning. */
 export function ExamCountdown({ exams }: { exams: UpcomingExam[] }) {
@@ -12,7 +13,7 @@ export function ExamCountdown({ exams }: { exams: UpcomingExam[] }) {
   return <View style={styles.card}>
     <View style={styles.heading}><Ionicons name="school" size={18} color={colors.coral}/><Text accessibilityRole="header" style={styles.title}>Exams ahead</Text></View>
     {exams.slice(0, 3).map(exam => <Pressable key={exam.id} accessibilityRole="button"
-      accessibilityLabel={`${exam.title}${exam.course ? `, ${exam.course.code ?? exam.course.name}` : ''}, ${countdownLabel(exam.daysLeft).toLowerCase()}. Plan study in Coursework`}
+      accessibilityLabel={`${exam.title}${exam.course ? `, ${courseLabel(exam.course)}` : ''}, ${countdownLabel(exam.daysLeft).toLowerCase()}. Plan study in Coursework`}
       onPress={() => router.push('/academics')} style={({ pressed }) => [styles.exam, pressed && styles.pressed]}>
       <View style={[styles.days, exam.daysLeft <= 2 && styles.soon]}>
         <Text style={[styles.daysValue, exam.daysLeft <= 2 && styles.soonText]}>{exam.daysLeft === 0 ? '!' : exam.daysLeft}</Text>
@@ -20,7 +21,7 @@ export function ExamCountdown({ exams }: { exams: UpcomingExam[] }) {
       </View>
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={2}>{exam.title}</Text>
-        <Text style={styles.meta}>{[exam.course ? exam.course.code ?? exam.course.name : null, countdownLabel(exam.daysLeft),
+        <Text style={styles.meta}>{[exam.course ? courseLabel(exam.course) : null, countdownLabel(exam.daysLeft),
           new Date(`${exam.date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }) + (exam.time ? `, ${clock(exam.time)}` : '')]
           .filter(Boolean).join(' · ')}</Text>
       </View>

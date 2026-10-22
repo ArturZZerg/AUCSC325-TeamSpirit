@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import type { Course } from '@/lib/types';
+import { courseLabel } from '@/features/course-label';
 
 export const classFormSchema = classScheduleFieldsSchema.extend({
   location: z.string().trim().max(240), instructor: z.string().trim().max(240), notes: z.string().trim().max(2000),
@@ -62,7 +63,7 @@ export function ClassEditor({ item, date, timeZone, onClose, courses, initialCou
         {!!courses?.length && <><Text style={styles.label}>Course</Text>
           <Controller name="courseId" control={control} render={({ field }) => <View style={styles.options}>
             {[{ id: '', label: 'No course' }, ...courses.filter(course => course.active || course.id === field.value)
-              .map(course => ({ id: course.id, label: course.code ?? course.name, name: course.name }))].map(option =>
+              .map(course => ({ id: course.id, label: courseLabel(course), name: course.name }))].map(option =>
               <Pressable key={option.id || 'none'} accessibilityRole="radio" accessibilityLabel={option.id ? `${option.label} course` : option.label} aria-checked={field.value === option.id}
                 accessibilityState={{ checked: field.value === option.id, disabled: isSubmitting }} disabled={isSubmitting}
                 onPress={() => {

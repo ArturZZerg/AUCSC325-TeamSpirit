@@ -23,10 +23,11 @@ beforeEach(() => {
   jest.mocked(usePlanningSnapshot).mockReturnValue({ refetch, isRefetching: false } as unknown as ReturnType<typeof usePlanningSnapshot>); show();
 });
 afterEach(() => jest.useRealTimers());
+const more = () => fireEvent.press(screen.getByRole('button', { name: 'More options' }));
 describe('Coursework workspace', () => {
   it('opens saved study plans', () => { render(<AcademicsScreen/>); fireEvent.press(screen.getByText('My study plans')); expect(mockPush).toHaveBeenCalledWith('/study-plans'); });
   it('builds a preparation plan and confirms the saved sessions', async () => {
-    show([quiz]); render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Build a study plan'));
+    show([quiz]); render(<AcademicsScreen/>); more(); fireEvent.press(screen.getByText('Build a study plan'));
     expect(screen.getByRole('radio', { name: 'Exam revision', checked: true })).toBeOnTheScreen();
     fireEvent.press(screen.getByText('Preview my sessions'));
     await act(async () => fireEvent.press(screen.getByText('Save study plan')));
@@ -35,7 +36,7 @@ describe('Coursework workspace', () => {
     expect(screen.queryByLabelText('Session 1 title')).toBeNull();
   });
   it('discards a private preparation preview on session change', () => {
-    show([quiz]); const ui = render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Build a study plan')); fireEvent.press(screen.getByText('Preview my sessions'));
+    show([quiz]); const ui = render(<AcademicsScreen/>); more(); fireEvent.press(screen.getByText('Build a study plan')); fireEvent.press(screen.getByText('Preview my sessions'));
     fireEvent.changeText(screen.getByLabelText('Session 1 title'), 'Private prep'); mockToken = 'new-login'; ui.rerender(<AcademicsScreen/>);
     expect(screen.queryByLabelText('Session 1 title')).toBeNull(); expect(save).not.toHaveBeenCalled();
   });
@@ -51,7 +52,7 @@ describe('Coursework workspace', () => {
     expect(screen.queryByRole('button', { name: 'Complete' })).toBeNull();
   });
   it('sets the account-day Main Goal via PATCH and waits for refreshed state', async () => {
-    show([essay]); const ui = render(<AcademicsScreen/>);
+    show([essay]); const ui = render(<AcademicsScreen/>); more();
     await act(async () => fireEvent.press(screen.getByText('Make Main Goal today')));
     expect(save).toHaveBeenCalledWith({ path: `/academic-items/${essay.id}/main-goal`, method: 'PATCH', body: { date: '2025-03-09' } });
     expect(screen.queryByText('★ MAIN GOAL TODAY')).toBeNull();
@@ -61,7 +62,7 @@ describe('Coursework workspace', () => {
     expect(save).toHaveBeenLastCalledWith({ path: `/academic-items/${essay.id}/main-goal`, method: 'PATCH', body: { date: null } });
   });
   it('keeps a failed Main Goal change visible and lets the user retry', async () => {
-    show([essay]); save.mockRejectedValueOnce(new Error('Offline write')); render(<AcademicsScreen/>);
+    show([essay]); save.mockRejectedValueOnce(new Error('Offline write')); render(<AcademicsScreen/>); more();
     await act(async () => fireEvent.press(screen.getByText('Make Main Goal today')));
     expect(screen.getByRole('alert')).toHaveTextContent('Offline write');
     expect(screen.queryByText('★ MAIN GOAL TODAY')).toBeNull();
@@ -69,13 +70,13 @@ describe('Coursework workspace', () => {
     expect(save).toHaveBeenCalledTimes(2); expect(screen.queryByRole('alert')).toBeNull();
   });
   it('blocks repeated writes and reminder opening while a change is pending', async () => {
-    let resolve!: () => void; save.mockReturnValueOnce(new Promise<void>(done => { resolve = done; })); show([essay]); render(<AcademicsScreen/>);
+    let resolve!: () => void; save.mockReturnValueOnce(new Promise<void>(done => { resolve = done; })); show([essay]); render(<AcademicsScreen/>); more();
     const select = screen.getByText('Make Main Goal today'); act(() => { fireEvent.press(select); fireEvent.press(select); });
     expect(save).toHaveBeenCalledTimes(1); expect(screen.getByRole('button', { name: 'Reminder' })).toBeDisabled();
     await act(async () => resolve());
   });
   it('opens the reminder for the selected academic identity', () => {
-    show([essay]); render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Reminder'));
+    show([essay]); render(<AcademicsScreen/>); more(); fireEvent.press(screen.getByText('Reminder'));
     expect(screen.getByText('Reminder for Testing report')).toBeOnTheScreen();
   });
   it('retains saved coursework on refresh failure and refreshes all related reads', () => {
@@ -90,7 +91,7 @@ describe('Coursework workspace', () => {
   });
   it('remounts filters and dismisses a private reminder on a new session', () => {
     show([essay]); const ui = render(<AcademicsScreen/>);
-    fireEvent.changeText(screen.getByLabelText('Search coursework'), 'Testing'); fireEvent.press(screen.getByText('Reminder'));
+    fireEvent.changeText(screen.getByLabelText('Search coursework'), 'Testing'); more(); fireEvent.press(screen.getByText('Reminder'));
     mockToken = 'new-login'; ui.rerender(<AcademicsScreen/>);
     expect(screen.getByLabelText('Search coursework')).toHaveDisplayValue('');
     expect(screen.queryByText('Reminder for Testing report')).toBeNull();
@@ -136,13 +137,13 @@ describe('Coursework workspace', () => {
     expect(screen.getByRole('radio', { name: 'All courses', checked: true })).toBeOnTheScreen();
   });
   it('offers edits and personal completion only for manual records', async () => {
-    show([{ ...essay, source: 'manual' }]); render(<AcademicsScreen/>); expect(screen.getByText('ADDED BY YOU')).toBeOnTheScreen();
+    show([{ ...essay, source: 'manual' }]); render(<AcademicsScreen/>); expect(screen.getByText('ADDED BY YOU')).toBeOnTheScreen(); more();
     await act(async () => fireEvent.press(screen.getByText('Mark finished')));
     expect(save).toHaveBeenCalledWith({ path: `/academic-items/${essay.id}`, method: 'PATCH', body: { submissionState: 'submitted' } });
     fireEvent.press(screen.getByText('Edit')); expect(screen.getByLabelText('Coursework title')).toHaveDisplayValue(essay.title);
   });
   it('keeps a failed deletion open and allows a retry after confirmation', async () => {
-    show([{ ...essay, source: 'manual' }]); save.mockRejectedValueOnce(new Error('Offline delete')); render(<AcademicsScreen/>);
+    show([{ ...essay, source: 'manual' }]); save.mockRejectedValueOnce(new Error('Offline delete')); render(<AcademicsScreen/>); more();
     fireEvent.press(screen.getByText('Delete')); expect(save).not.toHaveBeenCalled();
     await act(async () => fireEvent.press(screen.getByText('Delete coursework')));
     expect(screen.getByRole('alert')).toHaveTextContent('Offline delete'); expect(screen.getByText('Keep coursework')).toBeOnTheScreen();
@@ -151,9 +152,9 @@ describe('Coursework workspace', () => {
     expect(screen.queryByText('Delete coursework?')).toBeNull(); expect(screen.getByText('Coursework deleted.')).toBeOnTheScreen();
   });
   it('discards manual edits and deletion confirmation on a new login', () => {
-    show([{ ...essay, source: 'manual' }]); const ui = render(<AcademicsScreen/>); fireEvent.press(screen.getByText('Edit'));
+    show([{ ...essay, source: 'manual' }]); const ui = render(<AcademicsScreen/>); more(); fireEvent.press(screen.getByText('Edit'));
     mockToken = 'new-login'; ui.rerender(<AcademicsScreen/>); expect(screen.queryByLabelText('Coursework title')).toBeNull();
-    fireEvent.press(screen.getByText('Delete')); mockToken = 'another-login'; ui.rerender(<AcademicsScreen/>);
+    more(); fireEvent.press(screen.getByText('Delete')); mockToken = 'another-login'; ui.rerender(<AcademicsScreen/>);
     expect(screen.queryByText('Delete coursework?')).toBeNull(); expect(save).not.toHaveBeenCalled();
   });
   it('shows Canvas status and deadlines in plain words', () => {
@@ -164,8 +165,20 @@ describe('Coursework workspace', () => {
     expect(screen.getByText('Submitted · Due yesterday')).toBeOnTheScreen();
     expect(screen.getByText('Status not provided · No deadline')).toBeOnTheScreen();
   });
-  it('keeps imported titles and submission state read-only', () => {
+  it('keeps one study action on the card and tucks the rest behind More options', () => {
     show([essay]); render(<AcademicsScreen/>);
+    expect(screen.getByRole('button', { name: 'Plan study time' })).toBeOnTheScreen();
+    for (const title of ['Build a study plan', 'Make Main Goal today', 'Reminder']) expect(screen.queryByRole('button', { name: title })).toBeNull();
+    more(); for (const title of ['Build a study plan', 'Make Main Goal today', 'Reminder']) expect(screen.getByRole('button', { name: title })).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole('button', { name: 'Fewer options' })); expect(screen.queryByRole('button', { name: 'Reminder' })).toBeNull();
+  });
+  it('shows a short catalog code for long cross-listed Canvas courses', () => {
+    jest.mocked(useCourses).mockReturnValue({ data: [{ ...courses[0], code: 'AUCSC 325 LAB D01 - AUCSC 325 LEC A01 - Fall 2026' }, courses[1]], refetch, isRefetching: false } as unknown as ReturnType<typeof useCourses>);
+    show([essay]); render(<AcademicsScreen/>);
+    expect(screen.getByRole('radio', { name: 'AUCSC 325' })).toBeOnTheScreen(); expect(screen.queryByText(/LAB D01/)).toBeNull();
+  });
+  it('keeps imported titles and submission state read-only', () => {
+    show([essay]); render(<AcademicsScreen/>); more();
     for (const title of ['Edit', 'Delete', 'Mark finished']) expect(screen.queryByRole('button', { name: title })).toBeNull();
   });
 });
