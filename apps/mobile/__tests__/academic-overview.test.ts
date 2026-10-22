@@ -1,4 +1,4 @@
-import { academicOverview } from '../src/features/academic-overview';
+import { academicOverview, upcomingAcademic } from '../src/features/academic-overview';
 import { courseId, essay, missing, now, quiz, submitted, undated } from './academic-fixture';
 const zone = 'America/Edmonton';
 const filters = { search: '', view: 'open' as const };
@@ -53,5 +53,11 @@ describe('Academic overview (ToR 3.1, 9, 17)', () => {
     const result = academicOverview([essay, early, { ...undated, id: 'z', title: 'Same' }, { ...undated, id: 'a', title: 'Same' }], filters, zone, now);
     expect(result.groups[0].items.map(item => item.id)).toEqual(['early', essay.id]);
     expect(result.groups[1].items.map(item => item.id)).toEqual(['a', 'z']);
+  });
+  it('lists open work for the Tasks tab by deadline, undated last and Main Goal first, within a cap', () => {
+    const today = '2025-03-09';
+    expect(upcomingAcademic([undated, quiz, submitted, essay], today, 8)).toEqual({ shown: [essay, quiz, undated], open: 3 });
+    const goal = { ...undated, mainGoalDate: today };
+    expect(upcomingAcademic([quiz, essay, goal], today, 2)).toEqual({ shown: [goal, essay], open: 3 });
   });
 });

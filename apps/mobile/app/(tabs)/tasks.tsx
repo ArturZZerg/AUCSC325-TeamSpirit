@@ -14,6 +14,10 @@ import { TaskReminderEditor } from '@/features/task-reminder-editor';
 import { Chip, TaskRow, type TaskRowAction } from '@/features/task-row';
 import { groupTasks, taskSummary } from '@/features/task-groups';
 import { planTimingLabel } from '@/features/today-plan';
+import { academicFinished, submissionLabels, upcomingAcademic } from '@/features/academic-overview';
+
+/** The University list stays short; the Coursework screen has everything. */
+const universityLimit = 8;
 import type { PersonalTask } from '@/lib/types';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
@@ -66,7 +70,7 @@ export default function Tasks() {
   const courseLabel = (id: string | null | undefined) => { const course = id ? courses.data?.find(row => row.id === id) : undefined;
     return course ? { label: course.code ?? course.name, color: courseColor(course) } : undefined; };
   const summary = tasks.data ? taskSummary(tasks.data, today, timeZone, now) : undefined;
-  const openAcademic = academic.data?.filter(item => item.submissionState !== 'submitted' && item.submissionState !== 'graded');
+  const university = academic.data ? upcomingAcademic(academic.data, today, universityLimit) : undefined;
 
   return <Screen safeArea edges={['top', 'left', 'right']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -99,21 +103,23 @@ export default function Tasks() {
       </View>)}
 
       <View style={styles.groupHeading}><Text accessibilityRole="header" style={styles.section}>University</Text>
-        {openAcademic && <Text style={styles.count}>{openAcademic.length} open</Text>}</View>
-      <State loading={academic.isLoading} error={academic.error} empty={academic.data?.length === 0 ? 'Canvas work appears here after a successful sync.' : undefined}/>
-      {academic.data?.map(item => { const selected = item.mainGoalDate === today, done = item.submissionState === 'submitted' || item.submissionState === 'graded';
+        {university && <Text style={styles.count}>{university.open} open</Text>}</View>
+      <State loading={academic.isLoading} error={academic.error} empty={academic.data?.length === 0 ? 'Canvas work appears here after a successful sync.'
+        : university?.open === 0 ? 'No open coursework. Nice work.' : undefined}/>
+      {university?.shown.map(item => { const selected = item.mainGoalDate === today, done = academicFinished(item);
         const timing = planTimingLabel({ kind: 'academic', schedule: null, due: item.due }, timeZone, today);
         return <View key={item.id} style={[styles.academic, selected && styles.main]}>
           <View style={styles.academicIcon}><Ionicons name={done ? 'checkmark' : 'school-outline'} size={16} color={colors.blue}/></View>
           <View style={styles.academicBody}>
             {selected && <Text style={styles.star}>★ MAIN GOAL TODAY</Text>}
             <Text style={[styles.item, done && styles.done]}>{item.title}</Text>
-            <Text style={styles.meta}>{item.kind[0].toUpperCase() + item.kind.slice(1)} · {(item.submissionState ?? 'unsubmitted').replace(/^\w/, letter => letter.toUpperCase())}{timing ? ` · ${timing}` : ' · No deadline'}</Text>
+            <Text style={styles.meta}>{item.kind[0].toUpperCase() + item.kind.slice(1)} · {submissionLabels[item.submissionState ?? 'unsubmitted'] ?? 'Not submitted'}{timing ? ` · ${timing}` : ' · No deadline'}</Text>
             {(selected || (!!session && !done)) && <View style={styles.links}><Chip icon={selected ? 'star' : 'star-outline'} disabled={disabled}
               label={pending === `/academic-items/${item.id}/main-goal` ? 'Saving…' : selected ? 'Remove Main Goal' : 'Make Main Goal today'}
               onPress={() => mainGoal('academic', item.id, selected)}/></View>}
           </View>
         </View>; })}
+      {university && university.open > university.shown.length && <Button title={`All coursework (${university.open} open)`} tone="plain" onPress={() => router.push('/academics')}/>}
       <View style={styles.spacer}/>
     </ScrollView>
     {editing !== undefined && <TaskEditor key={editing?.id ?? 'new'} task={editing} timeZone={timeZone} courses={courses.data} onClose={() => setEditing(undefined)}/>}

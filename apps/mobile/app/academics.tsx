@@ -8,16 +8,13 @@ import { Button, Card, Field, Screen, State, colors, BackLink } from '@/componen
 import { useAcademic, useAction, useCourses, usePlanningSnapshot } from '@/features/queries';
 import { Chip } from '@/features/task-row';
 import { courseColor } from '@/features/course-editor';
-import { academicAttention, academicFinished, academicOverview, type AcademicView } from '@/features/academic-overview';
+import { academicAttention, academicFinished, academicOverview, submissionLabels, type AcademicView } from '@/features/academic-overview';
 import { AcademicReminderEditor } from '@/features/academic-reminder-editor';
 import { StudyPlanEditor } from '@/features/study-plan-editor';
 import { PreparationPlanEditor } from '@/features/preparation-plan-editor';
 import { AcademicItemEditor } from '@/features/academic-item-editor';
 import { useTodayClock } from '@/features/today-clock';
 import { dueLabel } from '@/features/today-plan';
-
-// Canvas reports the student's own submission state; show it in plain words.
-const submissionLabels: Record<string, string> = { graded: 'Graded', submitted: 'Submitted', unsubmitted: 'Not submitted', missing: 'Marked missing' };
 import { useSessionStore } from '@/store/session';
 import type { AcademicItem } from '@/lib/types';
 
