@@ -9,6 +9,7 @@ import { focusClockLabel } from '@/features/focus-timer';
 import { useFocusTimer } from '@/features/use-focus-timer';
 import { TickRing } from '@/features/tick-ring';
 import { TaskChecklist } from '@/features/task-checklist';
+import { Chip } from '@/features/task-row';
 import { focusOwner } from '@/store/focus';
 import { useSessionStore } from '@/store/session';
 import type { PersonalTask } from '@/lib/types';
@@ -97,9 +98,8 @@ function FocusContent() {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
     accessibilityElementsHidden={confirmEnd} importantForAccessibility={confirmEnd ? 'no-hide-descendants' : 'auto'} aria-hidden={confirmEnd}>
     <View style={styles.heading}><BackLink to="Today" disabled={saving} onPress={() => router.replace('/today')}/><Text style={styles.kicker}>FOCUS SPACE</Text></View>
-    <Text style={styles.title}>One thing at a time.</Text>
-    <Text style={styles.meta}>Give yourself a little space to make progress.</Text>
-    <Button title="My focus history" tone="plain" disabled={saving} onPress={() => router.push('/focus-history')}/>
+    <View style={styles.titleRow}><Text accessibilityRole="header" style={[styles.title, styles.grow]}>One thing at a time.</Text>
+      <Chip icon="time-outline" label="My focus history" disabled={saving} onPress={() => router.push('/focus-history')}/></View>
     {deferredTask && <Card><Text style={styles.section}>Next: {deferredTask.title}</Text>
       <Text style={styles.meta}>{active || unsaved ? 'Your current block stays in place. Finish and save it, or discard it, before switching tasks.' : 'Your previous block is settled. Start the task you opened when you are ready.'}</Text>
       <Button title="Focus requested task" disabled={active || unsaved || saving} onPress={() => selectTask(deferredTask)}/>
@@ -126,6 +126,8 @@ function FocusContent() {
         <Text accessibilityLiveRegion="polite" style={styles.status}>{finished ? (timer.phase === 'focus' ? 'Block finished. Nice work.' : 'Break finished. Ready for another block?')
           : timer.status === 'paused' ? 'Paused · take your time' : timer.status === 'running' ? `${phase} in progress` : 'Ready when you are'}</Text>
       </TickRing>
+      {focus.recoveryReady && !active && !unsaved && <View style={styles.choices}>{[15, 25, 50].map(minutes => <Choice key={minutes} label={`${minutes} min`}
+        selected={timer.phase === 'focus' && timer.durationMs === minutes * 60_000} disabled={saving} onPress={() => { if (owner) focus.configure(owner, minutes); }}/>)}</View>}
       {timer.status === 'ready' && <Button title="Start focus" disabled={!owner || saving || !focus.recoveryReady}
         onPress={() => { if (owner) focus.start(owner); }}/>}
       {timer.status === 'running' && <Button title="Pause" disabled={saving}
@@ -153,9 +155,6 @@ function FocusContent() {
     </Card>}
     {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     {focus.recoveryReady && !active && !unsaved && <>
-      <Text style={styles.section}>Make it manageable</Text>
-      <View style={styles.choices}>{[15, 25, 50].map(minutes => <Choice key={minutes} label={`${minutes} min`} selected={timer.phase === 'focus' && timer.durationMs === minutes * 60_000} disabled={saving}
-        onPress={() => { if (owner) focus.configure(owner, minutes); }}/>)}</View>
       <Text style={styles.section}>What are you working on?</Text>
       <Choice label="Study freely" selected={!target} disabled={saving} onPress={() => selectTask(null)}/>
       <Field label="Find a task" value={search} onChangeText={setSearch} placeholder="Search your open tasks" editable={!saving}/>
@@ -183,6 +182,7 @@ function Choice({ label, selected, disabled, onPress }: { label: string; selecte
 }
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40, gap: 16, maxWidth: 680, width: '100%', alignSelf: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }, grow: { flexGrow: 1, flexShrink: 1 },
   heading: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 }, title: { color: colors.ink, fontSize: 28, fontWeight: '800', lineHeight: 34 },
   kicker: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: .7 }, meta: { color: colors.muted, lineHeight: 21 }, section: { color: colors.ink, fontSize: 18, fontWeight: '700' },
   timerCard: { backgroundColor: colors.sage, borderRadius: 24, padding: 24, gap: 18 }, target: { color: colors.ink, fontSize: 19, fontWeight: '700', textAlign: 'center', lineHeight: 26 },

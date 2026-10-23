@@ -7,6 +7,7 @@ import { useAction, useCanvasStatus, usePreferences, useReminders } from '@/feat
 import { useSessionStore } from '@/store/session';
 import { ensureNotificationPermission, overviewTime, reconcileReminders } from '@/services/reminders';
 import { QuietHoursEditor } from '@/features/quiet-hours-editor';
+import { syncedLabel } from '@/features/synced-label';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 const categories = [
@@ -53,7 +54,7 @@ export default function SettingsScreen() {
   const quiet = preferences.data?.quietHoursStart && preferences.data.quietHoursEnd && preferences.data.quietHoursStart !== preferences.data.quietHoursEnd
     ? `Quiet hours: ${preferences.data.quietHoursStart}–${preferences.data.quietHoursEnd} · ${session?.user.timeZone}` : 'Quiet hours: off';
   const canvasDetail = canvas.data?.connected
-    ? `Connected to ${canvas.data.baseUrl?.replace(/^https:\/\//, '') ?? 'Canvas'}${canvas.data.lastSuccessfulSyncAt ? ` · Synced ${new Date(canvas.data.lastSuccessfulSyncAt).toLocaleString()}` : ''}`
+    ? `Connected to ${canvas.data.baseUrl?.replace(/^https:\/\//, '') ?? 'Canvas'}${canvas.data.lastSuccessfulSyncAt ? ` · Synced ${syncedLabel(canvas.data.lastSuccessfulSyncAt, session?.user.timeZone ?? 'UTC')}` : ''}`
     : 'Import your courses and assignments with a Canvas access token';
 
   return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}>

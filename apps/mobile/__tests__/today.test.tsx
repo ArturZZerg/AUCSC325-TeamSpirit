@@ -98,7 +98,7 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     show([], { timeZone: 'Pacific/Honolulu', data });
     render(<TodayScreen/>);
     expect(useToday).toHaveBeenCalledWith(date);
-    expect(screen.getByText(/^0?8:00.* · Campus$/)).toBeOnTheScreen();
+    expect(screen.getByText(/^0?8:00\s(AM|am|a\.m\.)$/)).toBeOnTheScreen(); expect(screen.queryByText(/· Campus$/)).toBeNull();
   });
 
   it('completes a one-time task without sending an occurrence date', async () => {

@@ -72,10 +72,9 @@ function AcademicsContent() {
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content} aria-hidden={modalOpen} accessibilityElementsHidden={modalOpen} importantForAccessibility={modalOpen ? 'no-hide-descendants' : 'auto'}
     refreshControl={<RefreshControl refreshing={academic.isRefetching || courses.isRefetching || snapshot.isRefetching} onRefresh={refresh}/> }>
     <View style={styles.heading}><BackLink to="Today" onPress={() => router.replace('/today')}/><Text style={styles.kicker}>COURSEWORK</Text></View>
-    <Text style={styles.title}>Stay ahead of deadlines.</Text>
-    <Text style={styles.meta}>Find your next assignment and make time to work on it.</Text>
-    <Button title="Add coursework" disabled={disabled} onPress={() => { setSavedMessage(undefined); setEditing(null); }}/>
+    <Text accessibilityRole="header" style={styles.title}>Stay ahead of deadlines.</Text>
     <View style={styles.links}>
+      <Chip icon="add" label="Add coursework" disabled={disabled} onPress={() => { setSavedMessage(undefined); setEditing(null); }}/>
       <Chip icon="layers-outline" label="My study plans" disabled={disabled} onPress={() => router.push('/study-plans')}/>
       <Chip icon="color-palette-outline" label="Courses" disabled={disabled} onPress={() => router.push('/courses')}/>
     </View>
