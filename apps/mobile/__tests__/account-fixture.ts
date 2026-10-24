@@ -5,7 +5,7 @@ export function accountFixture() {
   return accountExportSchema.parse({ format: 'campusflow-account', version: 1, coverage: 'server-saved', capturedAt: snapshot.capturedAt,
     profile: { id: snapshot.accountId, email: 'student@example.test', displayName: 'Student', timeZone: snapshot.timeZone, createdAt: snapshot.capturedAt },
     personalTasks: snapshot.personalTasks.map(task => ({ ...task, studyPlanOrder: null })), taskCompletions: snapshot.taskCompletions, courses: snapshot.courses.map(course => ({ ...course, source: 'canvas' })),
-    academicItems: snapshot.academicItems.map(item => ({ ...item, reminderLeadMinutes: null })), classes: [], studyPlans: [], focusSessions: [], gymEnrollment: null, workouts: [],
+    academicItems: snapshot.academicItems.map(item => ({ ...item, reminderLeadMinutes: null })), classes: [], studyPlans: [], focusSessions: [], gymEnrollment: null, workouts: [], userExercises: [], userPrograms: [], bodyWeights: [],
     goals: snapshot.goals, goalCompletions: snapshot.goalCompletions, wellnessEntries: [], privateEvents: [], savedEvents: [],
     reminders: [], notificationPreferences: null, canvasConnection: null,
   });

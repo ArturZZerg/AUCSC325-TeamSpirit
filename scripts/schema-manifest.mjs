@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
 const directory = new URL('apps/api/prisma/migrations/', root);
-const types = { String: 'text', Int: 'int4', Boolean: 'bool', DateTime: 'timestamp', Json: 'jsonb' };
+const types = { String: 'text', Int: 'int4', Float: 'float8', Boolean: 'bool', DateTime: 'timestamp', Json: 'jsonb' };
 const natives = { Uuid: 'uuid' };
 const tables = Prisma.dmmf.datamodel.models.map(model => ({
   name: model.dbName ?? model.name,

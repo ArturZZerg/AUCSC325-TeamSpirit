@@ -1,0 +1,26 @@
+{
+  "unit": "lb",
+  "effort": "rir",
+  "customEx": [
+    { "id": "ex-bench", "n": "Жим лежа", "eq": "barbell", "tg": "pectorals", "img": "0025-EIeI8Vf.jpg" },
+    { "id": "ex-pullup", "n": "Подтягивания", "eq": "body weight", "tg": "lats", "img": "0652-lBDjFxJ.jpg" },
+    { "id": "ex-pullup-copy", "n": "Подтягивания", "eq": "body weight", "tg": "lats", "img": "0652-lBDjFxJ.jpg" },
+    { "id": "ex-own", "n": "Wrist roller", "eq": "other", "tg": "forearms" }
+  ],
+  "exNotes": { "ex-bench": "Lower under control." },
+  "routines": [
+    { "id": "day-push", "name": "Push", "ex": [ { "id": "ex-bench", "sets": 3, "repsMin": 6, "reps": 10, "restSec": 180, "note": "Bar to mid-chest" } ] },
+    { "id": "day-pull", "name": "Pull", "ex": [ { "id": "ex-pullup", "sets": 3, "repsMin": 6, "reps": 10, "restSec": 150 }, { "id": "ex-own", "sets": 2, "reps": 15 } ] },
+    { "id": "day-copy", "name": "Pull (copy)", "ex": [ { "id": "ex-pullup-copy", "sets": 3, "reps": 8 } ] }
+  ],
+  "week": { "1": ["day-push"], "3": ["day-pull"] },
+  "workouts": [
+    { "id": "w1", "d": "2026-10-19", "start": 1792440000000, "end": 1792443600000, "routineId": "day-push", "name": "Push",
+      "entries": [ { "id": "ex-bench", "sets": [ { "w": 135, "r": 10, "done": true, "rir": 2 }, { "w": 135, "r": 9, "done": true }, { "w": 135, "r": 8, "done": false } ] } ] },
+    { "id": "w2", "d": "2026-10-21", "start": 1792612800000, "end": 1792616400000, "routineId": "day-copy", "name": "Pull (copy)",
+      "entries": [ { "id": "ex-pullup", "sets": [ { "w": 0, "r": 8, "done": true } ] }, { "id": "ex-pullup-copy", "sets": [ { "w": 10, "r": 6, "done": true } ] },
+                   { "id": "cardio-run", "sets": [ { "dist": 3, "time": 900, "done": true } ] } ] },
+    { "id": "w3", "d": "2026-10-22", "end": null, "entries": [] }
+  ],
+  "bodyweight": [ { "d": "2026-10-19", "w": 173.1 }, { "d": "2026-10-21", "w": 172.6 }, { "d": "bad", "w": 1 } ]
+}

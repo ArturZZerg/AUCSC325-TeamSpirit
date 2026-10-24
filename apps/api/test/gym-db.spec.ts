@@ -1,6 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma.service';
@@ -55,15 +57,72 @@ databaseSuite('Gym enrollment and recorded workouts', () => {
     await client().delete(`/gym/workouts/${saved.body.id}`).set('Authorization', token).expect(200);
     await client().delete(`/gym/workouts/${saved.body.id}`).set('Authorization', token).expect(404);
   });
-  it('rejects exercises outside the day, wrong load kinds, future workouts and anonymous access', async () => {
+  it('accepts swapped exercises but rejects unknown ones, wrong load kinds, future workouts and anonymous access', async () => {
     const send = (change: object) => client().post('/gym/workouts').set('Authorization', token).send({ ...body(), ...change });
     await send({ dayId: 'push-a' }).expect(400);
-    await send({ exercises: [{ exerciseId: 'back-squat', sets: [{ weight: 100, reps: 5 }] }] }).expect(400);
+    await send({ exercises: [{ exerciseId: 'back-squat', sets: [{ weight: 100, reps: 5, rir: 2 }] }, { exerciseId: 'Barbell_Shrug', sets: [{ weight: 60, reps: 12 }] }] }).expect(201);
+    await send({ exercises: [{ exerciseId: 'not-an-exercise', sets: [{ weight: 100, reps: 5 }] }] }).expect(400);
     await send({ exercises: [{ exerciseId: 'bench-press', sets: [{ weight: null, reps: 5 }] }] }).expect(400);
     await send({ programId: 'dorm-room-starter', dayId: 'a', exercises: [{ exerciseId: 'incline-push-up', sets: [{ weight: 10, reps: 5 }] }] }).expect(400);
     await send({ programId: 'dorm-room-starter', dayId: 'a', exercises: [{ exerciseId: 'incline-push-up', sets: [{ weight: null, reps: 12 }] }] }).expect(201);
     await send({ startedAt: new Date(Date.now() + 3600_000).toISOString(), endedAt: new Date(Date.now() + 7200_000).toISOString() }).expect(400);
     await client().get('/gym').expect(401);
+  });
+  it('creates, edits and enrolls in an own program with own and library exercises', async () => {
+    const own = await client().post('/gym/exercises').set('Authorization', token).send({ name: 'Wrist roller', equipment: 'other', load: 'external',
+      muscles: ['forearms'], note: null, mediaId: null }).expect(201);
+    await client().post('/gym/exercises').set('Authorization', token).send({ name: 'Bad', equipment: 'other', load: 'external', muscles: ['core'], note: null, mediaId: 'Nope' }).expect(400);
+    const day = { id: 'arms', name: 'Arms', focus: 'Grip', exercises: [{ exerciseId: own.body.id, sets: 2, repMin: 10, repMax: 15, restSeconds: 60 },
+      { exerciseId: 'Hammer_Curls', sets: 3, repMin: 8, repMax: 12, restSeconds: 90, note: 'Slow' }] };
+    await client().post('/gym/programs').set('Authorization', token).send({ name: 'Bad', days: [{ ...day, exercises: [{ ...day.exercises[0], exerciseId: randomUUID() }] }] }).expect(400);
+    await client().post('/gym/programs').set('Authorization', otherToken).send({ name: 'Theirs', days: [day] }).expect(400);
+    const program = await client().post('/gym/programs').set('Authorization', token).send({ name: 'Grip', days: [day] }).expect(201);
+    const renamed = await client().put(`/gym/programs/${program.body.id}`).set('Authorization', token).send({ name: 'Grip & arms', days: [day] }).expect(200);
+    expect(renamed.body).toMatchObject({ name: 'Grip & arms', days: [day] });
+    await client().put(`/gym/programs/${program.body.id}`).set('Authorization', otherToken).send({ name: 'x', days: [{ ...day, exercises: [day.exercises[1]] }] }).expect(404);
+    await client().put('/gym/enrollment').set('Authorization', otherToken).send({ programId: program.body.id, unit: 'kg', weeklyTarget: 3 }).expect(400);
+    const enrolled = await client().put('/gym/enrollment').set('Authorization', token).send({ programId: program.body.id, unit: 'kg', weeklyTarget: 3, trackRir: true }).expect(200);
+    expect(enrolled.body).toMatchObject({ programId: program.body.id, trackRir: true });
+    await client().post('/gym/workouts').set('Authorization', token).send({ ...body(), programId: program.body.id, dayId: 'arms', title: 'Arms',
+      exercises: [{ exerciseId: own.body.id, sets: [{ weight: 5, reps: 15, rir: 1 }] }] }).expect(201);
+    await client().delete(`/gym/exercises/${own.body.id}`).set('Authorization', token).expect(409);
+    const overview = await client().get('/gym').set('Authorization', token).expect(200);
+    expect(overview.body.exercises.map((item: { id: string }) => item.id)).toContain(own.body.id);
+    expect(overview.body.programs.map((item: { id: string }) => item.id)).toContain(program.body.id);
+    await client().delete(`/gym/programs/${program.body.id}`).set('Authorization', token).expect(200);
+    expect((await client().get('/gym').set('Authorization', token).expect(200)).body.enrollment).toBeNull();
+  });
+  it('records one body weight per account date and rejects future dates', async () => {
+    await client().put('/gym/body-weight/2026-10-20').set('Authorization', token).send({ weight: 72.4, unit: 'kg' }).expect(200);
+    await client().put('/gym/body-weight/2026-10-20').set('Authorization', token).send({ weight: 72.1, unit: 'kg' }).expect(200);
+    await client().put('/gym/body-weight/2999-01-01').set('Authorization', token).send({ weight: 72, unit: 'kg' }).expect(400);
+    await client().put('/gym/body-weight/2026-10-21').set('Authorization', token).send({ weight: 5, unit: 'kg' }).expect(400);
+    const overview = await client().get('/gym').set('Authorization', token).expect(200);
+    expect(overview.body.bodyWeights.filter((entry: { date: string }) => entry.date === '2026-10-20')).toEqual([{ date: '2026-10-20', weight: 72.1, unit: 'kg' }]);
+    await client().delete('/gym/body-weight/2026-10-20').set('Authorization', token).expect(200);
+    await client().delete('/gym/body-weight/2026-10-20').set('Authorization', token).expect(404);
+  });
+  it('serves library instructions for known exercises only', async () => {
+    const details = await client().get('/gym/exercises/Barbell_Full_Squat/details').set('Authorization', token).expect(200);
+    expect(details.body.instructions.length).toBeGreaterThan(1);
+    await client().get('/gym/exercises/Not_An_Exercise/details').set('Authorization', token).expect(404);
+  });
+  it('imports an openGym backup idempotently and enrolls the student in it', async () => {
+    const registered = await client().post('/auth/register').send({ email: `${marker}-import@example.test`, displayName: 'Importer',
+      password: 'recorded-gym-test-123', timeZone: 'America/Edmonton' }).expect(201);
+    const importer = `Bearer ${registered.body.accessToken}`;
+    const backup = readFileSync(path.join(__dirname, 'fixtures/opengym/state.json'));
+    const upload = () => client().post('/gym/import/opengym').set('Authorization', importer).set('Content-Type', 'application/octet-stream').send(backup);
+    const first = await upload().expect(200);
+    expect(first.body).toMatchObject({ exercises: 3, programs: 1, workouts: 2, bodyWeights: 2, skipped: 2 });
+    const again = await upload().expect(200);
+    expect(again.body).toMatchObject({ exercises: 0, programs: 0, workouts: 0, bodyWeights: 0, programId: first.body.programId });
+    const overview = await client().get('/gym').set('Authorization', importer).expect(200);
+    expect(overview.body.enrollment).toMatchObject({ programId: first.body.programId, unit: 'lb', weeklyTarget: 2, trackRir: true });
+    expect(overview.body.workouts).toHaveLength(2);
+    expect(overview.body.programs[0].days.map((day: { id: string; archived?: boolean }) => [day.id, !!day.archived])).toEqual([['day-push', false], ['day-pull', false], ['day-copy', true]]);
+    await client().post('/gym/import/opengym').set('Authorization', importer).set('Content-Type', 'application/json').send({ unit: 'lb' }).expect(415);
+    await client().post('/gym/import/opengym').set('Authorization', importer).set('Content-Type', 'application/octet-stream').send(Buffer.from('{"hello":1}')).expect(400);
   });
   it('exports enrollment and workouts and erases them with the account', async () => {
     await client().put('/gym/enrollment').set('Authorization', otherToken).send({ programId: 'dorm-room-starter', unit: 'kg', weeklyTarget: 3 }).expect(200);

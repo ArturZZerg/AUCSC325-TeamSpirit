@@ -197,9 +197,17 @@ Web app and signup (ADR 018):
   redeploying a commit never touches the live files. Pruning keeps the three
   newest by name and never removes the symlink's target.
 
-`nginx-location.conf` also has an exact location for
-`/campusflow-api/classes/import-preview`, the only API route that accepts bodies
-up to 1 MB (calendar files). `deploy.sh` doesn't install Nginx snippets: after
+`nginx-location.conf` also has exact locations for
+`/campusflow-api/classes/import-preview` (calendar files up to 1 MB) and
+`/campusflow-api/gym/import/opengym` (openGym backups up to 4 MB, ADR 022), the
+only API routes above 256 KB.
+
+Exercise photos (ADR 022): `nginx-web.conf` serves `/campusflow-media/` from
+`/var/www/campusflow-media`. Fill it once, and again after library updates, with
+`ssh root@host python3 - < ops/vps/sync-exercise-media.py` (idempotent, about
+120 MB of public-domain JPEGs). Set `EXERCISE_MEDIA_URL` in `api.env` to the
+public `/campusflow-media/exercises` URL so exercise details list photo URLs;
+without it the app still shows instructions. `deploy.sh` doesn't install Nginx snippets: after
 changing them, copy them to `/etc/nginx/snippets/` and reload behind `nginx -t`.
 
 Before touching the database or container, `deploy.sh` runs the new image's

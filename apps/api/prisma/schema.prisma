@@ -24,6 +24,9 @@ model User {
   focusSessions FocusSession[]
   gymEnrollment GymEnrollment?
   workouts Workout[]
+  userExercises UserExercise[]
+  userPrograms UserProgram[]
+  bodyWeights BodyWeightEntry[]
   taskCompletions TaskCompletion[]
   courses Course[]
   classSchedules ClassSchedule[]
@@ -176,6 +179,7 @@ model GymEnrollment {
   programId String
   unit String
   weeklyTarget Int
+  trackRir Boolean @default(false)
   startedAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
@@ -197,6 +201,44 @@ model Workout {
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   @@unique([userId, requestKey])
   @@index([userId, endedAt])
+}
+model UserExercise {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  name String
+  equipment String
+  load String
+  muscles String[]
+  note String?
+  mediaId String?
+  sourceKey String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@unique([userId, sourceKey])
+  @@index([userId])
+}
+model UserProgram {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  name String
+  days Json
+  sourceKey String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@unique([userId, sourceKey])
+  @@index([userId])
+}
+model BodyWeightEntry {
+  userId String @db.Uuid
+  date String
+  weight Float
+  unit String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@id([userId, date])
 }
 model TaskCompletion {
   id String @id @default(uuid()) @db.Uuid

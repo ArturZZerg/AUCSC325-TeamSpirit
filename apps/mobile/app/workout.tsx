@@ -4,11 +4,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { Workout } from '@campusflow/contracts';
-import { findGymExercise, findProgramDay, gymWeek, lastPerformance, personalBests, progressionAdvice, workoutVolume, type ProgressionKind } from '@campusflow/domain';
+import { gymWeek, lastPerformance, personalBests, progressionAdvice, resolveExercise, resolveProgram, workoutVolume, type GymExercise, type ProgressionKind } from '@campusflow/domain';
 import { BackLink, Button, Card, Screen, colors } from '@/components/ui';
-import { useAction, useGym } from '@/features/queries';
+import { useAction, useExerciseDetails, useGym } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
-import { draftProgress, draftToWorkout, formatClock, formatDuration, formatSets, toLogged, type GymDraft } from '@/features/gym';
+import { adHocPrescription, draftExercise, draftProgress, draftToWorkout, exerciseName, formatClock, formatDuration, formatSets, ownGym, toLogged, type GymDraft } from '@/features/gym';
+import { ExercisePicker } from '@/features/exercise-picker';
+import { ExerciseAnimation, ExerciseThumb } from '@/features/exercise-media';
 import { gymOwner, useGymWorkout } from '@/store/gym-workout';
 import { useSessionStore } from '@/store/session';
 
@@ -36,10 +38,14 @@ export default function WorkoutScreen() {
 
 function ActiveWorkout({ draft, timeZone, onSaved }: { draft: GymDraft; timeZone: string; onSaved(summary: Summary): void }) {
   const router = useRouter(); const gym = useGym(); const action = useAction<Workout>();
-  const { updateSet, addSet, removeSet, setNote, discard } = useGymWorkout();
+  const { updateSet, addSet, removeSet, setNote, discard, addExercise, replaceExercise, removeExercise } = useGymWorkout();
   const { date: today } = useTodayClock(timeZone);
-  const day = findProgramDay(draft.programId, draft.dayId);
+  const own = useMemo(() => ownGym(gym.data), [gym.data]);
+  const known = !gym.data || !!resolveProgram(draft.programId, own.programs);
   const history = useMemo(() => toLogged(gym.data?.workouts ?? []), [gym.data?.workouts]);
+  const [picking, setPicking] = useState<{ replace?: number }>(); const [editing, setEditing] = useState<number>();
+  const [extra, setExtra] = useState<GymExercise[]>([]);
+  const all = useMemo(() => [...own.exercises, ...extra], [own.exercises, extra]);
   const [now, setNow] = useState(Date.now()); const [rest, setRest] = useState<{ until: number; total: number }>();
   const [message, setMessage] = useState<string>(); const [confirmDiscard, setConfirmDiscard] = useState(false); const [howTo, setHowTo] = useState<string>();
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
@@ -54,7 +60,7 @@ function ActiveWorkout({ draft, timeZone, onSaved }: { draft: GymDraft; timeZone
   const finish = async () => {
     setMessage(undefined);
     let body;
-    try { body = draftToWorkout(draft); } catch (error) { setMessage(error instanceof Error ? error.message : 'Check your sets.'); return; }
+    try { body = draftToWorkout(draft, new Date(), all); } catch (error) { setMessage(error instanceof Error ? error.message : 'Check your sets.'); return; }
     try {
       const saved = await action.mutateAsync({ path: '/gym/workouts', body });
       const earlier = gym.data?.workouts ?? [];
@@ -66,7 +72,7 @@ function ActiveWorkout({ draft, timeZone, onSaved }: { draft: GymDraft; timeZone
       setMessage(error instanceof Error ? `${error.message} Your sets are kept on this device.` : 'Could not save. Your sets are kept on this device.');
     }
   };
-  if (!day) return <Screen safeArea><View style={styles.content}><Card><Text style={styles.section}>This workout is no longer available.</Text>
+  if (!known) return <Screen safeArea><View style={styles.content}><Card><Text style={styles.section}>This workout is no longer available.</Text>
     <Button title="Discard workout" tone="danger" onPress={() => { discard(); router.replace('/gym'); }}/></Card></View></Screen>;
 
   return <Screen safeArea><ScrollView contentContainerStyle={[styles.content, rest && styles.restPadding]} keyboardShouldPersistTaps="handled">
@@ -77,22 +83,29 @@ function ActiveWorkout({ draft, timeZone, onSaved }: { draft: GymDraft; timeZone
     <Text style={styles.meta}>{progress.done} of {progress.total} sets done · tick a set to start the rest timer</Text>
 
     {draft.exercises.map((entry, exerciseIndex) => {
-      const exercise = findGymExercise(entry.exerciseId), prescription = day.exercises.find(item => item.exerciseId === entry.exerciseId);
-      if (!exercise || !prescription) return null;
+      const exercise = resolveExercise(entry.exerciseId, all), prescription = entry.prescription;
+      if (!exercise) return <View key={entry.exerciseId} style={styles.exercise}><Text style={styles.exerciseName}>{exerciseName(entry.exerciseId, all)}</Text>
+        <Text style={styles.meta}>This exercise was removed. Swap it or remove it from today's workout.</Text>
+        <View style={styles.setActions}><Pressable accessibilityRole="button" onPress={() => setPicking({ replace: exerciseIndex })}><Text style={styles.link}>Swap</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => removeExercise(exerciseIndex)}><Text style={styles.linkMuted}>Remove</Text></Pressable></View></View>;
       const last = lastPerformance(history, entry.exerciseId, draft.unit, timeZone);
       const advice = progressionAdvice(prescription, exercise, last, today, draft.unit), tone = adviceTone[advice.kind];
       const complete = entry.sets.every(set => set.done);
       return <View key={entry.exerciseId} style={[styles.exercise, complete && styles.exerciseDone]}>
-        <View style={styles.row}><View style={styles.flex}><Text style={styles.exerciseName}>{exercise.name}</Text>
+        <View style={styles.row}><ExerciseThumb mediaId={exercise.mediaId} size={44}/><View style={styles.flex}><Text style={styles.exerciseName}>{exercise.name}</Text>
           <Text style={styles.meta}>{prescription.sets} × {prescription.repMin}–{prescription.repMax}{exercise.perSide ? ' per side' : ''} · rest {formatClock(prescription.restSeconds)}</Text></View>
           <Pressable accessibilityRole="button" accessibilityLabel={`How to do ${exercise.name}`} accessibilityState={{ expanded: howTo === entry.exerciseId }} hitSlop={8}
             onPress={() => setHowTo(value => value === entry.exerciseId ? undefined : entry.exerciseId)}><Ionicons name="information-circle-outline" size={24} color={colors.moss}/></Pressable></View>
-        {howTo === entry.exerciseId && <Text style={styles.cue}>{exercise.cue}</Text>}
+        {howTo === entry.exerciseId && <View style={styles.howTo}><ExerciseAnimation mediaId={exercise.mediaId} height={200}/>
+          {!!(prescription.note || exercise.cue) && <Text style={styles.cue}>{[prescription.note, exercise.cue].filter(Boolean).join(' ')}</Text>}
+          {exercise.mediaId && <ExerciseSteps mediaId={exercise.mediaId}/>}</View>}
+        {!howTo && prescription.note && <Text numberOfLines={2} style={styles.note2}>{prescription.note}</Text>}
         {last && <Text style={styles.last}>Last time · {shortDate(last.date)}: {formatSets(last.sets, draft.unit)}</Text>}
         <View style={styles.advice}><Ionicons name={tone.icon} size={18} color={tone.color}/><Text style={styles.adviceText}>{advice.message}</Text></View>
         <View style={styles.setHeader}><Text style={[styles.setLabel, styles.setNumber]}>SET</Text>
           {exercise.load !== 'bodyweight' && <Text style={[styles.setLabel, styles.inputCell]}>{exercise.load === 'added' ? `+${draft.unit.toUpperCase()}` : draft.unit.toUpperCase()}</Text>}
-          <Text style={[styles.setLabel, styles.inputCell]}>REPS</Text><Text style={[styles.setLabel, styles.checkCell]}>DONE</Text></View>
+          <Text style={[styles.setLabel, styles.inputCell]}>REPS</Text>{draft.trackRir && <Text style={[styles.setLabel, styles.rirCell]}>RIR</Text>}
+          <Text style={[styles.setLabel, styles.checkCell]}>DONE</Text></View>
         {entry.sets.map((set, index) => <View key={index} style={[styles.setRow, set.done && styles.setRowDone]}>
           <Text style={[styles.setIndex, styles.setNumber]}>{index + 1}</Text>
           {exercise.load !== 'bodyweight' && <TextInput accessibilityLabel={`${exercise.name} set ${index + 1} weight in ${draft.unit}`} value={set.weight} keyboardType="decimal-pad" maxLength={6}
@@ -100,19 +113,30 @@ function ActiveWorkout({ draft, timeZone, onSaved }: { draft: GymDraft; timeZone
             onChangeText={value => updateSet(exerciseIndex, index, { weight: value })} style={[styles.input, styles.inputCell]}/>}
           <TextInput accessibilityLabel={`${exercise.name} set ${index + 1} reps`} value={set.reps} keyboardType="number-pad" maxLength={3} selectTextOnFocus
             onChangeText={value => updateSet(exerciseIndex, index, { reps: value })} style={[styles.input, styles.inputCell]}/>
+          {draft.trackRir && <TextInput accessibilityLabel={`${exercise.name} set ${index + 1} reps in reserve`} value={set.rir ?? ''} keyboardType="number-pad" maxLength={1}
+            placeholder="–" placeholderTextColor={colors.faint} selectTextOnFocus onChangeText={value => updateSet(exerciseIndex, index, { rir: value.replace(/[^0-5]/g, '') })}
+            style={[styles.input, styles.rirCell]}/>}
           <Pressable accessibilityRole="checkbox" accessibilityLabel={`Set ${index + 1} of ${exercise.name} done`} accessibilityState={{ checked: set.done }} hitSlop={6}
             onPress={() => toggle(exerciseIndex, index, prescription.restSeconds)} style={[styles.check, styles.checkCell, set.done && styles.checkOn]}>
             <Ionicons name="checkmark" size={22} color={set.done ? colors.onAccent : colors.faint}/></Pressable>
         </View>)}
         <View style={styles.setActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Add a set to ${exercise.name}`} disabled={entry.sets.length >= 12} onPress={() => addSet(exerciseIndex)} hitSlop={6}><Text style={styles.link}>+ Add set</Text></Pressable>
-          {entry.sets.length > 1 && <Pressable accessibilityRole="button" accessibilityLabel={`Remove the last set from ${exercise.name}`} onPress={() => removeSet(exerciseIndex)} hitSlop={6}><Text style={styles.linkMuted}>Remove set</Text></Pressable>}
+          <Pressable accessibilityRole="button" accessibilityLabel={`Add a set to ${exercise.name}`} disabled={entry.sets.length >= 20} onPress={() => addSet(exerciseIndex)} hitSlop={6}><Text style={styles.link}>+ Set</Text></Pressable>
+          {entry.sets.length > 1 && <Pressable accessibilityRole="button" accessibilityLabel={`Remove the last set from ${exercise.name}`} onPress={() => removeSet(exerciseIndex)} hitSlop={6}><Text style={styles.linkMuted}>− Set</Text></Pressable>}
+          <Pressable accessibilityRole="button" accessibilityLabel={`More options for ${exercise.name}`} onPress={() => setEditing(value => value === exerciseIndex ? undefined : exerciseIndex)} hitSlop={6}>
+            <Ionicons name="ellipsis-horizontal" size={20} color={colors.muted}/></Pressable>
         </View>
+        {editing === exerciseIndex && <View style={styles.setActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Swap ${exercise.name}`} onPress={() => { setEditing(undefined); setPicking({ replace: exerciseIndex }); }}><Text style={styles.link}>Swap exercise</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${exercise.name} from this workout`} onPress={() => { setEditing(undefined); removeExercise(exerciseIndex); }}><Text style={styles.danger}>Remove from today</Text></Pressable>
+        </View>}
       </View>;
     })}
 
+    <Pressable accessibilityRole="button" disabled={draft.exercises.length >= 30} onPress={() => setPicking({})} style={styles.addExercise}>
+      <Ionicons name="add-circle-outline" size={22} color={colors.moss}/><Text style={styles.link}>Add an exercise</Text></Pressable>
     <Text style={styles.label}>Notes (optional)</Text>
-    <TextInput accessibilityLabel="Workout notes" value={draft.note} onChangeText={setNote} multiline maxLength={500} placeholder="How did it feel? Anything to remember next time?"
+    <TextInput accessibilityLabel="Workout notes" value={draft.note} onChangeText={setNote} multiline maxLength={1000} placeholder="How did it feel? Anything to remember next time?"
       placeholderTextColor={colors.muted} style={styles.note}/>
     {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
     <Button title={action.isPending ? 'Saving…' : `Finish workout · ${progress.done} sets`} disabled={action.isPending || progress.done === 0} onPress={() => { void finish(); }}/>
@@ -124,6 +148,14 @@ function ActiveWorkout({ draft, timeZone, onSaved }: { draft: GymDraft; timeZone
       <Pressable accessibilityRole="button" accessibilityLabel="Add 30 seconds of rest" onPress={() => setRest(value => value && { ...value, until: value.until + 30_000 })} hitSlop={6}><Text style={styles.restAction}>+30s</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Skip rest" onPress={() => setRest(undefined)} hitSlop={6}><Text style={styles.restAction}>Skip</Text></Pressable>
     </View>}
+    {picking && <ExercisePicker own={all} title={picking.replace === undefined ? 'Add an exercise' : 'Swap exercise'} exclude={draft.exercises.map(item => item.exerciseId)}
+      onClose={() => setPicking(undefined)} onPick={exercise => {
+        if (!own.exercises.some(item => item.id === exercise.id)) setExtra(current => current.some(item => item.id === exercise.id) ? current : [...current, exercise]);
+        const from = picking.replace === undefined ? undefined : draft.exercises[picking.replace]?.prescription;
+        const entry = draftExercise(adHocPrescription(exercise.id, from), [...all, exercise], history, draft.unit, today, timeZone);
+        if (entry) { if (picking.replace === undefined) addExercise(entry); else replaceExercise(picking.replace, entry); }
+        setPicking(undefined);
+      }}/>}
     {confirmDiscard && <Modal visible transparent animationType="fade" onRequestClose={() => setConfirmDiscard(false)}>
       <SafeAreaView style={styles.scrim}><Card><Text style={styles.section}>Discard this workout?</Text>
         <Text style={styles.meta}>Nothing from this session will be saved.</Text>
@@ -134,6 +166,7 @@ function ActiveWorkout({ draft, timeZone, onSaved }: { draft: GymDraft; timeZone
 }
 
 function WorkoutSummary({ summary: { workout, bests, weekCount, weekTarget }, onDone }: { summary: Summary; onDone(): void }) {
+  const own = ownGym(useGym().data).exercises;
   const sets = workout.exercises.reduce((total, entry) => total + entry.sets.length, 0), volume = workoutVolume(workout.exercises);
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content}>
     <View style={styles.celebrate}><Ionicons name="trophy" size={48} color={colors.gold}/>
@@ -144,9 +177,9 @@ function WorkoutSummary({ summary: { workout, bests, weekCount, weekTarget }, on
       {volume > 0 && <Stat label="Volume" value={`${volume.toLocaleString()} ${workout.unit}`}/>}
     </View>
     {bests.length > 0 && <Card><Text style={styles.section}>New personal bests</Text>
-      {bests.map(id => <View key={id} style={styles.best}><Ionicons name="medal-outline" size={20} color={colors.gold}/><Text style={styles.exerciseName}>{findGymExercise(id)?.name ?? id}</Text></View>)}
+      {bests.map(id => <View key={id} style={styles.best}><Ionicons name="medal-outline" size={20} color={colors.gold}/><Text style={styles.exerciseName}>{exerciseName(id, own)}</Text></View>)}
       <Text style={styles.meta}>Based on your estimated one-rep max compared with every earlier saved workout.</Text></Card>}
-    <Card>{workout.exercises.map(entry => <Text key={entry.exerciseId} style={styles.meta}><Text style={styles.exerciseName}>{findGymExercise(entry.exerciseId)?.name}</Text>  {formatSets(entry.sets, workout.unit)}</Text>)}</Card>
+    <Card>{workout.exercises.map(entry => <Text key={entry.exerciseId} style={styles.meta}><Text style={styles.exerciseName}>{exerciseName(entry.exerciseId, own)}</Text>  {formatSets(entry.sets, workout.unit)}</Text>)}</Card>
     <Button title="Done" onPress={onDone}/>
   </ScrollView></Screen>;
 }
@@ -182,4 +215,14 @@ const styles = StyleSheet.create({
   stats: { flexDirection: 'row', gap: 10 }, stat: { flex: 1, alignItems: 'center', padding: 14, borderRadius: 16, backgroundColor: colors.sage, gap: 2 },
   statValue: { color: colors.ink, fontSize: 20, fontWeight: '900' }, statLabel: { color: colors.muted, fontWeight: '700', fontSize: 12 },
   best: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rirCell: { width: 52 }, howTo: { gap: 8 }, note2: { color: colors.muted, fontSize: 13, fontStyle: 'italic' }, danger: { color: colors.danger, fontWeight: '800' },
+  addExercise: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.moss, justifyContent: 'center' },
+  steps: { gap: 4 }, step: { color: colors.ink, lineHeight: 19, fontSize: 13 },
 });
+
+/** Library instructions, fetched once per exercise and cached by the API response headers. */
+function ExerciseSteps({ mediaId }: { mediaId: string }) {
+  const details = useExerciseDetails(mediaId);
+  if (!details.data?.instructions.length) return null;
+  return <View style={styles.steps}>{details.data.instructions.slice(0, 6).map((step, index) => <Text key={index} style={styles.step}>{index + 1}. {step}</Text>)}</View>;
+}

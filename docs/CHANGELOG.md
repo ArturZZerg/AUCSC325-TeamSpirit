@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Gym v2 (ADR 022): own programs with an editor (or customize any built-in
+  program), an 873-exercise public-domain library with photos and instructions,
+  swap/add exercises mid-workout, optional RIR per set, body weight entries, and
+  an idempotent openGym backup import (programs, exercises, workouts, weights).
+
 - Gym tab (ADR 020): eleven programs by level and emphasis, a workout logger
   with prefilled targets, rest timer and double-progression advice, weekly goal
   and streak, personal bests and history. New `GymEnrollment`/`Workout` tables.

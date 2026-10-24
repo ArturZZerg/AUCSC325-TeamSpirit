@@ -1,4 +1,4 @@
-import { convertWeight, estimateDayMinutes, estimateProgramMinutes, findGymExercise, findGymProgram, gymExercises, gymPrograms, gymWeek, lastPerformance, nextProgramDay,
+import { exerciseLibrary, findLibraryExercise, resolveExercise, searchExercises, convertWeight, estimateDayMinutes, estimateProgramMinutes, findGymExercise, findGymProgram, gymExercises, gymPrograms, gymWeek, lastPerformance, nextProgramDay,
   personalBests, progressionAdvice, workoutVolume, type LoggedWorkout } from '../src';
 
 const bench = findGymExercise('bench-press')!, pushUp = findGymExercise('push-up')!, dips = findGymExercise('dips')!;
@@ -97,5 +97,30 @@ describe('workout history rules', () => {
     expect(personalBests(next, history)).toEqual(['bench-press']);
     expect(personalBests({ ...next, exercises: [{ exerciseId: 'bench-press', sets: sets(60, 8) }] }, history)).toEqual([]);
     expect(workoutVolume(next.exercises)).toBe(1000);
+  });
+});
+
+describe('exercise library', () => {
+  it('links every built-in exercise to a library photo set', () => {
+    expect(exerciseLibrary.length).toBeGreaterThan(800);
+    for (const exercise of gymExercises) expect(findLibraryExercise(exercise.mediaId!)).toBeDefined();
+  });
+  it('resolves built-in, library and own exercises and searches by name prefix, muscle and equipment', () => {
+    const own = [{ id: '10000000-0000-4000-8000-000000000e01', name: 'Wrist roller', equipment: 'other' as const, load: 'external' as const, muscles: ['forearms' as const], cue: '' }];
+    expect(resolveExercise('bench-press')?.name).toBe('Barbell bench press');
+    expect(resolveExercise('Barbell_Full_Squat')?.load).toBe('external');
+    expect(resolveExercise('Pullups')?.load).toBe('added');
+    expect(resolveExercise(own[0].id, own)?.name).toBe('Wrist roller');
+    expect(searchExercises({ query: 'wrist' }, own)[0].id).toBe(own[0].id);
+    const squats = searchExercises({ query: 'squat' });
+    expect(squats.slice(0, 3).map(item => item.id)).toContain('back-squat');
+    expect(squats.filter(item => item.mediaId === 'Barbell_Full_Squat')).toHaveLength(1);
+    expect(searchExercises({ query: 'curl', muscle: 'biceps', equipment: 'dumbbell' }).every(item => item.equipment === 'dumbbell' && item.muscles.includes('biceps'))).toBe(true);
+  });
+  it('rotates only through active days of an own program', () => {
+    const program = { id: 'own', name: 'Mine', days: [
+      { id: 'a', name: 'A', focus: '', exercises: [] }, { id: 'old', name: 'Old', focus: '', exercises: [], archived: true }, { id: 'b', name: 'B', focus: '', exercises: [] }] };
+    expect(nextProgramDay(program, [workout('2026-10-22T18:00:00Z', 'a', [], 'kg', 'own')]).id).toBe('b');
+    expect(nextProgramDay(program, [workout('2026-10-22T18:00:00Z', 'old', [], 'kg', 'own')]).id).toBe('a');
   });
 });

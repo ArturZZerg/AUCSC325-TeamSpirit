@@ -1,11 +1,12 @@
 import { Temporal } from '@js-temporal/polyfill';
-import type { GymExercise, GymProgram, PrescribedExercise, ProgramDay } from './gym-catalog';
+import type { GymExercise, PrescribedExercise, ProgramDay, TrainingProgram } from './gym-catalog';
 
 export * from './gym-catalog';
+export * from './exercise-library';
 
 type DateOnly = string;
 export type WeightUnit = 'kg' | 'lb';
-export interface LoggedSet { weight: number | null; reps: number }
+export interface LoggedSet { weight: number | null; reps: number; rir?: number | null }
 export interface LoggedExercise { exerciseId: string; sets: readonly LoggedSet[] }
 /** A saved workout as the rules need it; timestamps are UTC instants. */
 export interface LoggedWorkout { programId: string; dayId: string; endedAt: string; unit: WeightUnit; exercises: readonly LoggedExercise[] }
@@ -21,7 +22,7 @@ export const convertWeight = (value: number, from: WeightUnit, to: WeightUnit): 
 /** Smallest sensible jump for each kind of equipment. */
 export const weightStep = (exercise: Pick<GymExercise, 'equipment' | 'load'>, unit: WeightUnit): number => {
   if (exercise.load === 'added') return unit === 'kg' ? 2.5 : 5;
-  const steps = { barbell: [2.5, 5], dumbbell: [2, 5], machine: [5, 10], cable: [2.5, 5], bodyweight: [2.5, 5] } as const;
+  const steps = { barbell: [2.5, 5], dumbbell: [2, 5], machine: [5, 10], cable: [2.5, 5], bodyweight: [2.5, 5], kettlebell: [4, 10], band: [1, 5], other: [2.5, 5] } as const;
   return steps[exercise.equipment][unit === 'kg' ? 0 : 1];
 };
 const formatWeight = (value: number, unit: WeightUnit) => `${Number.isInteger(value) ? value : value.toFixed(1)} ${unit}`;
@@ -77,19 +78,25 @@ export function progressionAdvice(prescription: PrescribedExercise, exercise: Gy
     : `Complete all ${count} sets at the same weight to unlock the next step.` };
 }
 
-/** The next day in the rotation after the latest workout of this program; skipped days are never lost. */
-export function nextProgramDay(program: GymProgram, workouts: readonly LoggedWorkout[]): ProgramDay {
-  const latest = [...workouts].filter(workout => workout.programId === program.id)
+/** Days that take part in the rotation; archived days only keep history readable. */
+export const activeDays = (program: TrainingProgram): readonly ProgramDay[] => {
+  const active = program.days.filter(day => !day.archived);
+  return active.length ? active : program.days;
+};
+/** The next active day after the latest workout of this program; skipped days are never lost. */
+export function nextProgramDay(program: TrainingProgram, workouts: readonly LoggedWorkout[]): ProgramDay {
+  const days = activeDays(program);
+  const latest = [...workouts].filter(workout => workout.programId === program.id && days.some(day => day.id === workout.dayId))
     .sort((a, b) => Date.parse(b.endedAt) - Date.parse(a.endedAt))[0];
-  const index = latest ? program.days.findIndex(item => item.id === latest.dayId) : -1;
-  return program.days[(index + 1) % program.days.length];
+  const index = latest ? days.findIndex(item => item.id === latest.dayId) : -1;
+  return days[(index + 1) % days.length];
 }
 
 /** Approximate session length: a short warm-up, about 40 seconds of work per set plus the prescribed rest, and a minute to set up each exercise. */
 export const estimateDayMinutes = (day: ProgramDay): number =>
   Math.max(10, Math.round((300 + day.exercises.reduce((total, item) => total + 60 + item.sets * (40 + item.restSeconds), 0)) / 60 / 5) * 5);
-export const estimateProgramMinutes = (program: GymProgram): number =>
-  Math.round(program.days.reduce((total, day) => total + estimateDayMinutes(day), 0) / program.days.length / 5) * 5;
+export const estimateProgramMinutes = (program: TrainingProgram): number =>
+  Math.round(activeDays(program).reduce((total, day) => total + estimateDayMinutes(day), 0) / activeDays(program).length / 5) * 5;
 
 export interface GymWeekDay { date: DateOnly; workouts: number }
 export interface GymWeek { from: DateOnly; days: GymWeekDay[]; count: number; target: number; streakWeeks: number }
