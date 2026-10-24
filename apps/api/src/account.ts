@@ -30,6 +30,10 @@ const accountFields = {
   userExercises: { select: { id: true, name: true, equipment: true, load: true, muscles: true, note: true, mediaId: true, createdAt: true, updatedAt: true } },
   userPrograms: { select: { id: true, name: true, days: true, createdAt: true, updatedAt: true } },
   bodyWeights: { select: { date: true, weight: true, unit: true }, orderBy: { date: 'asc' } },
+  nutritionProfile: { select: { sex: true, birthYear: true, heightCm: true, activity: true, goal: true, overrides: true, diningHall: true } },
+  userFoods: { select: { id: true, name: true, per100: true, portions: true } },
+  foodEntries: { select: { id: true, date: true, meal: true, name: true, grams: true, kcal: true, protein: true, fat: true, carbs: true, fiber: true,
+    source: true, sourceRef: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
   goals: { select: { id: true, title: true, category: true, schedule: true, timeZone: true, reminder: true,
     pausedAt: true, snoozedUntil: true, createdAt: true, updatedAt: true } },
   goalCompletions: { select: { id: true, goalId: true, occurrenceKey: true, state: true, completedAt: true, createdAt: true } },
@@ -59,13 +63,14 @@ export class AccountService {
       const [stamp] = await tx.$queryRaw<{ at: Date }[]>`SELECT transaction_timestamp() AS "at"`;
       const record = await tx.user.findUnique({ where: { id: userId }, select: accountFields });
       if (!record) throw new UnauthorizedException('Account is unavailable.');
-      const { tasks, classSchedules, notificationPreference, ...data } = record;
+      const { tasks, classSchedules, notificationPreference, foodEntries, ...data } = record;
       const privateEvents = await tx.event.findMany({ where: { sourceScope: `user:${userId}` }, select: eventFields });
       const { id, email, displayName, timeZone, createdAt, ...collections } = data;
       // Convert whitelisted Date fields; validate the complete public shape before returning it.
       return accountExportSchema.parse(JSON.parse(JSON.stringify({ format: 'campusflow-account', version: 1,
         capturedAt: stamp.at, coverage: 'server-saved', profile: { id, email, displayName, timeZone, createdAt },
-        ...collections, personalTasks: tasks, classes: classSchedules, notificationPreferences: notificationPreference, privateEvents })));
+        ...collections, personalTasks: tasks, classes: classSchedules, notificationPreferences: notificationPreference, privateEvents,
+        foodEntries: foodEntries.map(({ kcal, protein, fat, carbs, fiber, ...entry }) => ({ ...entry, nutrients: { kcal, protein, fat, carbs, fiber } })) })));
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 30000 });
   }
   async delete(userId: string, currentPassword: string, source = 'unknown') {

@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { academicItemSchema, courseSchema, dateSchema, dueSchema, eventSchema, goalCompletionSchema, goalSchema, idSchema, instantSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, savedEventSchema, taskCompletionSchema, userSchema, wellnessEntrySchema } from './index';
 import { classScheduleSchema } from './classes';
 import { focusSessionSchema } from './focus';
+import { foodEntrySchema, nutritionProfileSchema, saveUserFoodSchema } from './nutrition';
+import { idSchema as foodIdSchema } from './index';
 import { bodyWeightEntrySchema, gymEnrollmentSchema, userExerciseSchema, userProgramSchema, workoutSchema } from './gym';
 
 export const deleteAccountSchema = z.object({ currentPassword: z.string().min(1).max(128), confirmation: z.literal('DELETE') }).strict();
@@ -18,6 +20,7 @@ export const accountExportSchema = z.object({
   classes: classScheduleSchema.array(), studyPlans: exportedStudyPlanSchema.array(), focusSessions: focusSessionSchema.array(),
   gymEnrollment: gymEnrollmentSchema.nullable(), workouts: workoutSchema.array(),
   userExercises: userExerciseSchema.array(), userPrograms: userProgramSchema.array(), bodyWeights: bodyWeightEntrySchema.array(),
+  nutritionProfile: nutritionProfileSchema.nullable(), userFoods: saveUserFoodSchema.extend({ id: foodIdSchema }).strict().array(), foodEntries: foodEntrySchema.array(),
   goals: goalSchema.strict().array(), goalCompletions: goalCompletionSchema.strict().array(), wellnessEntries: wellnessEntrySchema.strict().array(),
   privateEvents: eventSchema.strict().array(), savedEvents: savedEventSchema.extend({ event: eventSchema.strict() }).strict().array(),
   reminders: reminderSchema.strict().array(), notificationPreferences: notificationPreferencesSchema.strict().nullable(),

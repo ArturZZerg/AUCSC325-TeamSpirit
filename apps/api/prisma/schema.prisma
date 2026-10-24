@@ -27,6 +27,9 @@ model User {
   userExercises UserExercise[]
   userPrograms UserProgram[]
   bodyWeights BodyWeightEntry[]
+  nutritionProfile NutritionProfile?
+  userFoods UserFood[]
+  foodEntries FoodLogEntry[]
   taskCompletions TaskCompletion[]
   courses Course[]
   classSchedules ClassSchedule[]
@@ -239,6 +242,55 @@ model BodyWeightEntry {
   updatedAt DateTime @updatedAt
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   @@id([userId, date])
+}
+model NutritionProfile {
+  userId String @id @db.Uuid
+  sex String?
+  birthYear Int
+  heightCm Float
+  activity String
+  goal String
+  overrides Json?
+  diningHall String @default("auto")
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+}
+model UserFood {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  name String
+  per100 Json
+  portions Json
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@index([userId])
+}
+model FoodLogEntry {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  date String
+  meal String
+  name String
+  grams Float
+  kcal Float
+  protein Float
+  fat Float
+  carbs Float
+  fiber Float
+  source String
+  sourceRef String?
+  requestKey String
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@unique([userId, requestKey])
+  @@index([userId, date])
+}
+model DiningMenuDay {
+  date String @id
+  published Boolean
+  meals Json
+  error String?
+  fetchedAt DateTime
 }
 model TaskCompletion {
   id String @id @default(uuid()) @db.Uuid

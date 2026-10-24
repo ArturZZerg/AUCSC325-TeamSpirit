@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Augustana Menu Control</title>
+        <link rel = "stylesheet" type = "text/css" href = "/menu/public/css/style.css" />
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pikaday/css/pikaday.css">
+    </head>
+    <body>
+        <nav class="navbar navbar-dark bg-dark">
+            <a href="#" class="navbar-brand fw-bold">AMC</a>
+        </nav>
+        <div class = "flex-grow-1">
+            
+<div x-data = "app" class = "app">
+    <div class = "date__controls">
+        <form method = "get">
+            <button class = "btn btn-secondary" type = "submit" name = "date" value = "2026-10-19">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-left"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+        </form>
+        <input type = "text" id = "date-input" class = "date__input" :value = "Day.date">
+        <form method = "get">
+            <button class = "btn btn-secondary" type = "submit" name = "date" value = "2026-10-21">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </form>
+    </div>
+    <div class = "menu">
+        <template x-for = "(meal,meal_name) in Day.meals" :key = "meal_name">
+            <div class = "meal">
+                <h1 class = "meal__label" x-text = "meal.label"></h1>
+                <template x-for = "(offering,station_name) in meal.offerings" :key = "station_name">
+                    <div class = "station" :class = "(offering.closed) ? 'station--closed' : ''">
+                        <div class = "station__label" x-text = "offering.station_label"></div>
+                        <template x-if = "offering.hasOwnProperty('items')">
+                            <div class = "station__offering">
+                                <template x-for = "(item,item_index) in offering.items" :key="item_index">
+                                    <div class = "offering__item">
+                                        <span x-text = "item.label"></span><span class = "item__calories"> (<span x-text = "item.calories"></span>cal.)</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                                            </div>
+                </template>
+            </div>
+        </template>
+    </div>
+            <a href = "/menu/station/display/feature" class = "text-center" target = "feature">
+            Featured Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+            <a href = "/menu/station/display/plantforward" class = "text-center" target = "plantforward">
+            Plant Forward Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+            <a href = "/menu/station/display/soupsandwich" class = "text-center" target = "soupsandwich">
+            Soup and Sandwich Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+            <a href = "/menu/station/display/coldwell" class = "text-center" target = "coldwell">
+            Cold Well Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+            <a href = "/menu/station/display/dessert" class = "text-center" target = "dessert">
+            Dessert Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+        </div>
+    <script>
+        // for testing
+        window.Day = {"date":"2026-10-20","meals":{"breakfast":{"label":"Breakfast","offerings":{"feature":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"feature","station_label":"Featured","closed":false,"items":[]},"plantforward":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[]},"soupsandwich":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"soupsandwich","station_label":"Soup and Sandwich","closed":false,"items":[]},"coldwell":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"coldwell","station_label":"Cold Well","closed":false,"items":[]},"dessert":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"dessert","station_label":"Dessert","closed":false,"items":[]}}},"lunch":{"label":"Lunch","offerings":{"feature":{"id":null,"date":"2026-10-20","meal":"lunch","station":"feature","station_label":"Featured","closed":false,"items":[]},"plantforward":{"id":null,"date":"2026-10-20","meal":"lunch","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[]},"soupsandwich":{"id":null,"date":"2026-10-20","meal":"lunch","station":"soupsandwich","station_label":"Soup and Sandwich","closed":false,"items":[]},"coldwell":{"id":null,"date":"2026-10-20","meal":"lunch","station":"coldwell","station_label":"Cold Well","closed":false,"items":[]},"dessert":{"id":null,"date":"2026-10-20","meal":"lunch","station":"dessert","station_label":"Dessert","closed":false,"items":[]}}},"dinner":{"label":"Dinner","offerings":{"feature":{"id":null,"date":"2026-10-20","meal":"dinner","station":"feature","station_label":"Featured","closed":false,"items":[]},"plantforward":{"id":null,"date":"2026-10-20","meal":"dinner","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[]},"soupsandwich":{"id":null,"date":"2026-10-20","meal":"dinner","station":"soupsandwich","station_label":"Soup and Sandwich","closed":false,"items":[]},"coldwell":{"id":null,"date":"2026-10-20","meal":"dinner","station":"coldwell","station_label":"Cold Well","closed":false,"items":[]},"dessert":{"id":null,"date":"2026-10-20","meal":"dinner","station":"dessert","station_label":"Dessert","closed":false,"items":[]}}}}};
+        
+        document.addEventListener('alpine:init',()=>{
+            Alpine.data('app',()=>({
+                Day            : {"date":"2026-10-20","meals":{"breakfast":{"label":"Breakfast","offerings":{"feature":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"feature","station_label":"Featured","closed":false,"items":[]},"plantforward":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[]},"soupsandwich":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"soupsandwich","station_label":"Soup and Sandwich","closed":false,"items":[]},"coldwell":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"coldwell","station_label":"Cold Well","closed":false,"items":[]},"dessert":{"id":null,"date":"2026-10-20","meal":"breakfast","station":"dessert","station_label":"Dessert","closed":false,"items":[]}}},"lunch":{"label":"Lunch","offerings":{"feature":{"id":null,"date":"2026-10-20","meal":"lunch","station":"feature","station_label":"Featured","closed":false,"items":[]},"plantforward":{"id":null,"date":"2026-10-20","meal":"lunch","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[]},"soupsandwich":{"id":null,"date":"2026-10-20","meal":"lunch","station":"soupsandwich","station_label":"Soup and Sandwich","closed":false,"items":[]},"coldwell":{"id":null,"date":"2026-10-20","meal":"lunch","station":"coldwell","station_label":"Cold Well","closed":false,"items":[]},"dessert":{"id":null,"date":"2026-10-20","meal":"lunch","station":"dessert","station_label":"Dessert","closed":false,"items":[]}}},"dinner":{"label":"Dinner","offerings":{"feature":{"id":null,"date":"2026-10-20","meal":"dinner","station":"feature","station_label":"Featured","closed":false,"items":[]},"plantforward":{"id":null,"date":"2026-10-20","meal":"dinner","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[]},"soupsandwich":{"id":null,"date":"2026-10-20","meal":"dinner","station":"soupsandwich","station_label":"Soup and Sandwich","closed":false,"items":[]},"coldwell":{"id":null,"date":"2026-10-20","meal":"dinner","station":"coldwell","station_label":"Cold Well","closed":false,"items":[]},"dessert":{"id":null,"date":"2026-10-20","meal":"dinner","station":"dessert","station_label":"Dessert","closed":false,"items":[]}}}}},
+                show_modal     : false,
+                active_offering: null,
+                active_meal    : null,
+                active_station : null,
+                new_label      : '',
+                new_calories   : '',
+                            }));
+        });
+    </script>
+
+        </div>
+        <script src="//unpkg.com/alpinejs" defer></script>
+        <script type = "module" src="/menu/public/js/script.js"></script>
+        <script>
+            window.app_url = '/menu';
+        </script>
+    </body>
+</html>

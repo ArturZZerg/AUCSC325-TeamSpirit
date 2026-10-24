@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Nutrition (ADR 023): food diary with a textured plate view of carbs, protein,
+  fiber and fat, Mifflin–St Jeor goals, USDA food search with usual foods first,
+  quick add and repeat-yesterday, and the Augustana dining-hall menu with
+  per-serving estimates, ½–3 servings and extra protein (Augustana students only,
+  switchable). New NutritionProfile, UserFood, FoodLogEntry and DiningMenuDay tables.
+
 - Gym v2 (ADR 022): own programs with an editor (or customize any built-in
   program), an 873-exercise public-domain library with photos and instructions,
   swap/add exercises mid-workout, optional RIR per set, body weight entries, and
