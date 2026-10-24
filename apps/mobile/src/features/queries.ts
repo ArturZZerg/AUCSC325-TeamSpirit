@@ -7,7 +7,7 @@ import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
 import { focusHistorySchema } from '@campusflow/contracts';
 import { campusSourcesSchema } from '@campusflow/contracts';
-import { exerciseDetailsSchema, gymOverviewSchema } from '@campusflow/contracts';
+import { diningMenuSchema, exerciseDetailsSchema, foodSearchSchema, gymOverviewSchema, nutritionDaySchema } from '@campusflow/contracts';
 import { dayBounds } from '@campusflow/domain';
 import { api, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
@@ -224,6 +224,24 @@ export function useExerciseDetails(id: string) {
   const session = useSessionStore(state => state.session);
   return useQuery({ enabled: !!session, queryKey: ['exercise-details', id], staleTime: 24 * 3600_000,
     queryFn: async ({ signal }) => exerciseDetailsSchema.parse(await api<unknown>(`/gym/exercises/${encodeURIComponent(id)}/details`, { signal })) });
+}
+/** One diary day with goals inputs and recent foods (ADR 023); cached per account like other reads. */
+export function useNutritionDay(date: string) {
+  const session = useSessionStore(state => state.session);
+  const schema = useMemo(() => nutritionDaySchema.refine(value => value.accountId === session?.user.id && value.date === date, 'Diary does not belong to this account.'), [session?.user.id, date]);
+  return cachedQuery(`nutrition:${date}`, `/nutrition/day/${date}`, schema);
+}
+export function useFoodSearch(query: string) {
+  const session = useSessionStore(state => state.session);
+  const [debounced, setDebounced] = useState(query.trim());
+  useEffect(() => { const timer = setTimeout(() => setDebounced(query.trim()), 250); return () => clearTimeout(timer); }, [query]);
+  return useQuery({ enabled: !!session && debounced.length >= 2, queryKey: ['account', session?.user.id, 'foods', debounced], staleTime: 60_000,
+    queryFn: async ({ signal }) => foodSearchSchema.parse(await api<unknown>(`/nutrition/foods?q=${encodeURIComponent(debounced)}`, { signal })) });
+}
+export function useDiningMenu(date: string, enabled: boolean) {
+  const session = useSessionStore(state => state.session);
+  return useQuery({ enabled: !!session && enabled, queryKey: ['dining', date], staleTime: 10 * 60_000,
+    queryFn: async ({ signal }) => diningMenuSchema.parse(await api<unknown>(`/nutrition/dining/${date}`, { signal })) });
 }
 export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences', notificationPreferencesSchema);
 export function useReminders() {

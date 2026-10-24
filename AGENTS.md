@@ -135,6 +135,7 @@ Primary entities include:
 * FocusSession (recorded study time; ADR 006)
 * GymEnrollment and Workout (strength training; ADR 020)
 * UserExercise, UserProgram and BodyWeightEntry (own training plans; ADR 022)
+* NutritionProfile, UserFood, FoodLogEntry and DiningMenuDay (food diary; ADR 023)
 * Goal
 * GoalCompletion
 * Event

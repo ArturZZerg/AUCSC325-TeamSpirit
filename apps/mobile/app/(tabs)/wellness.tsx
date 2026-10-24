@@ -58,6 +58,11 @@ export default function WellnessScreen() {
         </Pressable>
       </View>
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Open food diary" onPress={() => router.push('/nutrition')} style={({ pressed }) => [styles.food, pressed && styles.pressed]}>
+      <View style={styles.checkInIcon}><Ionicons name="nutrition-outline" size={26} color={colors.moss}/></View>
+      <View style={styles.checkInBody}><Text style={styles.section}>Food</Text><Text style={styles.meta}>Calories and macros on a plate, your goals, and the dining hall menu.</Text></View>
+      <Ionicons name="chevron-forward" size={20} color={colors.muted}/>
+    </Pressable>
     <View style={styles.top}><Text accessibilityRole="header" style={styles.section}>Your routines</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Add goal" accessibilityState={{ disabled }} disabled={disabled} onPress={() => setEditing(null)}
         style={({ pressed }) => [styles.add, pressed && styles.pressed, disabled && styles.dim]}><Ionicons name="add" size={22} color="#fff"/></Pressable></View>
@@ -110,6 +115,7 @@ const styles = StyleSheet.create({
   checkInIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }, checkInBody: { flex: 1, gap: 6 },
   journal: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.moss, borderRadius: 18, paddingHorizontal: 14, minHeight: 38, marginTop: 2 },
   journalText: { color: '#fff', fontWeight: '700' },
+  food: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 6 },
   add: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center' },
   links: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

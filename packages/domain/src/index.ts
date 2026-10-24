@@ -8,6 +8,7 @@ export * from './goal-streaks';
 export * from './grades';
 export * from './gym';
 export * from './gym-stats';
+export * from './nutrition';
 
 export type DateOnly = string;
 export type TimedOrDate = { kind: 'instant'; at: string } | { kind: 'date'; date: DateOnly };

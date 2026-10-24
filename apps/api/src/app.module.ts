@@ -7,6 +7,8 @@ import { ClassesController } from './classes';
 import { StudyPlansController } from './study-plans';
 import { FocusController } from './focus';
 import { GymController } from './gym';
+import { NutritionController } from './nutrition';
+import { DiningSyncService } from './integrations/dining/dining-sync.service';
 import { Module } from '@nestjs/common';
 import { AuthController, AuthService, MeController } from './auth';
 import { AcademicController, EventsController, GoalsController, PreferencesController, ReminderService, TasksController } from './data';
@@ -28,8 +30,8 @@ import { EmailVerificationController, EmailVerificationService } from './email-v
 import { AUTH_RATE_CONFIG, AuthRateService, authRateConfig } from './auth-rate';
 
 @Module({
-  controllers: [HealthController, AccountController, AuthController, RecoveryController, EmailVerificationController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController, ClassesController, StudyPlansController, FocusController, GymController, CampusSourcesController],
-  providers: [HealthService, AccountService, EventSyncService, CampusFeedsService, { provide: CAMPUS_FEEDS, useFactory: configuredCampusFeeds }, PrismaService, AuthService, ReminderService, TodayService, CanvasService,
+  controllers: [HealthController, AccountController, AuthController, RecoveryController, EmailVerificationController, MeController, TasksController, AcademicController, GoalsController, WellnessController, EventsController, PreferencesController, TodayController, CanvasController, ClassesController, StudyPlansController, FocusController, GymController, NutritionController, CampusSourcesController],
+  providers: [DiningSyncService, HealthService, AccountService, EventSyncService, CampusFeedsService, { provide: CAMPUS_FEEDS, useFactory: configuredCampusFeeds }, PrismaService, AuthService, ReminderService, TodayService, CanvasService,
     { provide: CanvasProvider, useClass: FixtureCanvasProvider }, CanvasHttpClient, CanvasSyncWorker,
     { provide: RECOVERY_CONFIG, useFactory: recoveryConfig }, RecoveryRateService, RecoveryService, RecoveryWorker,
     { provide: AUTH_RATE_CONFIG, useFactory: authRateConfig }, AuthRateService,

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Augustana Menu Control</title>
+        <link rel = "stylesheet" type = "text/css" href = "/menu/public/css/style.css" />
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pikaday/css/pikaday.css">
+    </head>
+    <body>
+        <nav class="navbar navbar-dark bg-dark">
+            <a href="#" class="navbar-brand fw-bold">AMC</a>
+        </nav>
+        <div class = "flex-grow-1">
+            
+<div x-data = "app" class = "app">
+    <div class = "date__controls">
+        <form method = "get">
+            <button class = "btn btn-secondary" type = "submit" name = "date" value = "2026-10-18">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-left"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+        </form>
+        <input type = "text" id = "date-input" class = "date__input" :value = "Day.date">
+        <form method = "get">
+            <button class = "btn btn-secondary" type = "submit" name = "date" value = "2026-10-20">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-right"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </form>
+    </div>
+    <div class = "menu">
+        <template x-for = "(meal,meal_name) in Day.meals" :key = "meal_name">
+            <div class = "meal">
+                <h1 class = "meal__label" x-text = "meal.label"></h1>
+                <template x-for = "(offering,station_name) in meal.offerings" :key = "station_name">
+                    <div class = "station" :class = "(offering.closed) ? 'station--closed' : ''">
+                        <div class = "station__label" x-text = "offering.station_label"></div>
+                        <template x-if = "offering.hasOwnProperty('items')">
+                            <div class = "station__offering">
+                                <template x-for = "(item,item_index) in offering.items" :key="item_index">
+                                    <div class = "offering__item">
+                                        <span x-text = "item.label"></span><span class = "item__calories"> (<span x-text = "item.calories"></span>cal.)</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                                            </div>
+                </template>
+            </div>
+        </template>
+    </div>
+            <a href = "/menu/station/display/feature" class = "text-center" target = "feature">
+            Featured Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+            <a href = "/menu/station/display/plantforward" class = "text-center" target = "plantforward">
+            Plant Forward Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+            <a href = "/menu/station/display/soupsandwich" class = "text-center" target = "soupsandwich">
+            Soup and Sandwich Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+            <a href = "/menu/station/display/coldwell" class = "text-center" target = "coldwell">
+            Cold Well Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+            <a href = "/menu/station/display/dessert" class = "text-center" target = "dessert">
+            Dessert Station display <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-external-link"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+        </a>
+        </div>
+    <script>
+        // for testing
+        window.Day = {"date":"2026-10-19","meals":{"breakfast":{"label":"Breakfast","offerings":{"feature":{"id":21167,"date":"2026-10-19","meal":"breakfast","station":"feature","station_label":"7:30-9:30","closed":false,"items":[{"id":75305,"offering_id":21167,"label":"Pancakes","calories":250},{"id":75306,"offering_id":21167,"label":"Poached","calories":72},{"id":75307,"offering_id":21167,"label":" Chicken Sausage","calories":108}]},"plantforward":{"id":21168,"date":"2026-10-19","meal":"breakfast","station":"plantforward","station_label":"Breakfast","closed":false,"items":[{"id":75308,"offering_id":21168,"label":"Cream of Wheat","calories":110},{"id":75309,"offering_id":21168,"label":" Soft Boiled Eggs","calories":72}]},"soupsandwich":{"id":21169,"date":"2026-10-19","meal":"breakfast","station":"soupsandwich","station_label":"Toast Station","closed":false,"items":[{"id":75310,"offering_id":21169,"label":"Bread","calories":113},{"id":75311,"offering_id":21169,"label":" Jams\/Honey","calories":60},{"id":75312,"offering_id":21169,"label":"Peanut Butter","calories":90},{"id":75313,"offering_id":21169,"label":" Nutella","calories":100}]},"coldwell":{"id":21170,"date":"2026-10-19","meal":"breakfast","station":"coldwell","station_label":"Breakfast","closed":false,"items":[{"id":75314,"offering_id":21170,"label":"Muffin","calories":160},{"id":75315,"offering_id":21170,"label":"Yogurt","calories":198},{"id":75316,"offering_id":21170,"label":"Fruit","calories":120},{"id":75317,"offering_id":21170,"label":"Cheese","calories":140}]},"dessert":{"id":21171,"date":"2026-10-19","meal":"breakfast","station":"dessert","station_label":"Fruit ","closed":false,"items":[{"id":75318,"offering_id":21171,"label":"Apple","calories":95},{"id":75319,"offering_id":21171,"label":"Orange","calories":87},{"id":75320,"offering_id":21171,"label":"Banana","calories":105}]}}},"lunch":{"label":"Lunch","offerings":{"feature":{"id":21172,"date":"2026-10-19","meal":"lunch","station":"feature","station_label":"11:30-2:15pm","closed":false,"items":[{"id":75321,"offering_id":21172,"label":"Messy Joes on Garlic Bread","calories":380},{"id":75322,"offering_id":21172,"label":"Choice of Onion Rings or Sweet Potato Fries","calories":165}]},"plantforward":{"id":21175,"date":"2026-10-19","meal":"lunch","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[{"id":75334,"offering_id":21175,"label":"Roasted Garlic & Herb Chickpeas","calories":180},{"id":75335,"offering_id":21175,"label":"Steamed Rice","calories":150}]},"soupsandwich":{"id":21163,"date":"2026-10-19","meal":"lunch","station":"soupsandwich","station_label":"Deli Station","closed":false,"items":[{"id":75336,"offering_id":21163,"label":"Grilled Turkey & Swiss","calories":385},{"id":75337,"offering_id":21163,"label":"Cream of Tomato","calories":110},{"id":75338,"offering_id":21163,"label":"Made To Order","calories":420}]},"coldwell":{"id":21165,"date":"2026-10-19","meal":"lunch","station":"coldwell","station_label":"Salad Bar","closed":false,"items":[{"id":75299,"offering_id":21165,"label":"Spinach Salad with Strawberry & Feta","calories":30},{"id":75300,"offering_id":21165,"label":"Tossed Salad","calories":76},{"id":75301,"offering_id":21165,"label":"Fresh Vegetable","calories":110}]},"dessert":{"id":21173,"date":"2026-10-19","meal":"lunch","station":"dessert","station_label":"Dessert","closed":false,"items":[{"id":75323,"offering_id":21173,"label":"Cookie","calories":99},{"id":75324,"offering_id":21173,"label":"Ice Cream","calories":160},{"id":75325,"offering_id":21173,"label":"Whole Fruit","calories":95}]}}},"dinner":{"label":"Dinner","offerings":{"feature":{"id":21176,"date":"2026-10-19","meal":"dinner","station":"feature","station_label":"Featured","closed":false,"items":[{"id":75339,"offering_id":21176,"label":"Chicken Coq Au Vin ","calories":530},{"id":75340,"offering_id":21176,"label":" Mashed Potatoes","calories":0},{"id":75341,"offering_id":21176,"label":"Warm Bun","calories":0}]},"plantforward":{"id":21177,"date":"2026-10-19","meal":"dinner","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[{"id":75342,"offering_id":21177,"label":"Chili Paneer","calories":188}]},"soupsandwich":{"id":21164,"date":"2026-10-19","meal":"dinner","station":"soupsandwich","station_label":"PIZZA","closed":false,"items":[{"id":75343,"offering_id":21164,"label":"Bacon Chicken Ranch","calories":120},{"id":75344,"offering_id":21164,"label":" Grilled Vegetables & Feta","calories":0},{"id":75345,"offering_id":21164,"label":"Cheese","calories":530}]},"coldwell":{"id":21166,"date":"2026-10-19","meal":"dinner","station":"coldwell","station_label":"Salad Bar","closed":false,"items":[{"id":75302,"offering_id":21166,"label":"Salad with Strawberry & Feta","calories":150},{"id":75303,"offering_id":21166,"label":"Tossed Salad","calories":76},{"id":75304,"offering_id":21166,"label":"Fresh Vegetables","calories":110}]},"dessert":{"id":21174,"date":"2026-10-19","meal":"dinner","station":"dessert","station_label":"Dessert","closed":false,"items":[{"id":75329,"offering_id":21174,"label":"Cookie","calories":99},{"id":75330,"offering_id":21174,"label":"Ice Cream","calories":160},{"id":75331,"offering_id":21174,"label":"Cake","calories":260}]}}}}};
+        
+        document.addEventListener('alpine:init',()=>{
+            Alpine.data('app',()=>({
+                Day            : {"date":"2026-10-19","meals":{"breakfast":{"label":"Breakfast","offerings":{"feature":{"id":21167,"date":"2026-10-19","meal":"breakfast","station":"feature","station_label":"7:30-9:30","closed":false,"items":[{"id":75305,"offering_id":21167,"label":"Pancakes","calories":250},{"id":75306,"offering_id":21167,"label":"Poached","calories":72},{"id":75307,"offering_id":21167,"label":" Chicken Sausage","calories":108}]},"plantforward":{"id":21168,"date":"2026-10-19","meal":"breakfast","station":"plantforward","station_label":"Breakfast","closed":false,"items":[{"id":75308,"offering_id":21168,"label":"Cream of Wheat","calories":110},{"id":75309,"offering_id":21168,"label":" Soft Boiled Eggs","calories":72}]},"soupsandwich":{"id":21169,"date":"2026-10-19","meal":"breakfast","station":"soupsandwich","station_label":"Toast Station","closed":false,"items":[{"id":75310,"offering_id":21169,"label":"Bread","calories":113},{"id":75311,"offering_id":21169,"label":" Jams\/Honey","calories":60},{"id":75312,"offering_id":21169,"label":"Peanut Butter","calories":90},{"id":75313,"offering_id":21169,"label":" Nutella","calories":100}]},"coldwell":{"id":21170,"date":"2026-10-19","meal":"breakfast","station":"coldwell","station_label":"Breakfast","closed":false,"items":[{"id":75314,"offering_id":21170,"label":"Muffin","calories":160},{"id":75315,"offering_id":21170,"label":"Yogurt","calories":198},{"id":75316,"offering_id":21170,"label":"Fruit","calories":120},{"id":75317,"offering_id":21170,"label":"Cheese","calories":140}]},"dessert":{"id":21171,"date":"2026-10-19","meal":"breakfast","station":"dessert","station_label":"Fruit ","closed":false,"items":[{"id":75318,"offering_id":21171,"label":"Apple","calories":95},{"id":75319,"offering_id":21171,"label":"Orange","calories":87},{"id":75320,"offering_id":21171,"label":"Banana","calories":105}]}}},"lunch":{"label":"Lunch","offerings":{"feature":{"id":21172,"date":"2026-10-19","meal":"lunch","station":"feature","station_label":"11:30-2:15pm","closed":false,"items":[{"id":75321,"offering_id":21172,"label":"Messy Joes on Garlic Bread","calories":380},{"id":75322,"offering_id":21172,"label":"Choice of Onion Rings or Sweet Potato Fries","calories":165}]},"plantforward":{"id":21175,"date":"2026-10-19","meal":"lunch","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[{"id":75334,"offering_id":21175,"label":"Roasted Garlic & Herb Chickpeas","calories":180},{"id":75335,"offering_id":21175,"label":"Steamed Rice","calories":150}]},"soupsandwich":{"id":21163,"date":"2026-10-19","meal":"lunch","station":"soupsandwich","station_label":"Deli Station","closed":false,"items":[{"id":75336,"offering_id":21163,"label":"Grilled Turkey & Swiss","calories":385},{"id":75337,"offering_id":21163,"label":"Cream of Tomato","calories":110},{"id":75338,"offering_id":21163,"label":"Made To Order","calories":420}]},"coldwell":{"id":21165,"date":"2026-10-19","meal":"lunch","station":"coldwell","station_label":"Salad Bar","closed":false,"items":[{"id":75299,"offering_id":21165,"label":"Spinach Salad with Strawberry & Feta","calories":30},{"id":75300,"offering_id":21165,"label":"Tossed Salad","calories":76},{"id":75301,"offering_id":21165,"label":"Fresh Vegetable","calories":110}]},"dessert":{"id":21173,"date":"2026-10-19","meal":"lunch","station":"dessert","station_label":"Dessert","closed":false,"items":[{"id":75323,"offering_id":21173,"label":"Cookie","calories":99},{"id":75324,"offering_id":21173,"label":"Ice Cream","calories":160},{"id":75325,"offering_id":21173,"label":"Whole Fruit","calories":95}]}}},"dinner":{"label":"Dinner","offerings":{"feature":{"id":21176,"date":"2026-10-19","meal":"dinner","station":"feature","station_label":"Featured","closed":false,"items":[{"id":75339,"offering_id":21176,"label":"Chicken Coq Au Vin ","calories":530},{"id":75340,"offering_id":21176,"label":" Mashed Potatoes","calories":0},{"id":75341,"offering_id":21176,"label":"Warm Bun","calories":0}]},"plantforward":{"id":21177,"date":"2026-10-19","meal":"dinner","station":"plantforward","station_label":"Plant Forward","closed":false,"items":[{"id":75342,"offering_id":21177,"label":"Chili Paneer","calories":188}]},"soupsandwich":{"id":21164,"date":"2026-10-19","meal":"dinner","station":"soupsandwich","station_label":"PIZZA","closed":false,"items":[{"id":75343,"offering_id":21164,"label":"Bacon Chicken Ranch","calories":120},{"id":75344,"offering_id":21164,"label":" Grilled Vegetables & Feta","calories":0},{"id":75345,"offering_id":21164,"label":"Cheese","calories":530}]},"coldwell":{"id":21166,"date":"2026-10-19","meal":"dinner","station":"coldwell","station_label":"Salad Bar","closed":false,"items":[{"id":75302,"offering_id":21166,"label":"Salad with Strawberry & Feta","calories":150},{"id":75303,"offering_id":21166,"label":"Tossed Salad","calories":76},{"id":75304,"offering_id":21166,"label":"Fresh Vegetables","calories":110}]},"dessert":{"id":21174,"date":"2026-10-19","meal":"dinner","station":"dessert","station_label":"Dessert","closed":false,"items":[{"id":75329,"offering_id":21174,"label":"Cookie","calories":99},{"id":75330,"offering_id":21174,"label":"Ice Cream","calories":160},{"id":75331,"offering_id":21174,"label":"Cake","calories":260}]}}}}},
+                show_modal     : false,
+                active_offering: null,
+                active_meal    : null,
+                active_station : null,
+                new_label      : '',
+                new_calories   : '',
+                            }));
+        });
+    </script>
+
+        </div>
+        <script src="//unpkg.com/alpinejs" defer></script>
+        <script type = "module" src="/menu/public/js/script.js"></script>
+        <script>
+            window.app_url = '/menu';
+        </script>
+    </body>
+</html>
