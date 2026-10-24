@@ -79,6 +79,7 @@ describe('Campus saved controls', () => {
   it('keeps legacy reminder details unavailable until an explicit refresh', async () => {
     jest.mocked(useEvents).mockReturnValue(eventsQuery([{ ...event, savedReminder: undefined }])); render(<Campus/>);
     expect(screen.getByText(/Reminder details unavailable/)).toBeOnTheScreen(); expect(screen.getByRole('button', { name: 'Set reminder' })).toBeDisabled();
+    fireEvent.press(screen.getByRole('button', { name: 'Calendar sources' }));
     await act(async () => { fireEvent.press(screen.getByText('Refresh events')); }); expect(refresh).toHaveBeenCalledTimes(1); expect(save).not.toHaveBeenCalled();
   });
   it('does not invent saved status or an empty result for missing cache', () => {

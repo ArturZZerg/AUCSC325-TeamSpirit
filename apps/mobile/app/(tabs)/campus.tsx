@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Temporal } from '@js-temporal/polyfill';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { localDateAt } from '@campusflow/domain';
@@ -45,7 +45,9 @@ function CampusContent({ timeZone }: { timeZone: string }) {
     catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the change. Please try again.'); }
     finally { guard.current = false; setPending(undefined); }
   };
-  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}>
+  const refresh = () => { void events.refetch(); void sources.refetch(); };
+  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}
+    refreshControl={<RefreshControl refreshing={events.isRefetching} onRefresh={refresh}/>}>
     <View style={styles.hero}><Text style={styles.eyebrow}>BEYOND THE DESK</Text><Text style={styles.title}>Campus</Text><Text style={styles.sub}>Make room for something you’ll look forward to.</Text></View>
     <View style={styles.choices}>{([['week', 'Next 7 days'], ['month', 'Next 30 days'], ['saved', 'Saved']] as const).map(([key, label]) =>
       <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: view === key }} onPress={() => setView(key)} style={[styles.choice, view === key && styles.selected]}><Text style={[styles.choiceText, view === key && styles.selectedText]}>{label}</Text></Pressable>)}</View>
@@ -54,14 +56,14 @@ function CampusContent({ timeZone }: { timeZone: string }) {
     <View style={styles.sourcePanel}>
       <Pressable accessibilityRole="button" accessibilityLabel="Calendar sources" accessibilityState={{ expanded: showSources }} onPress={() => setShowSources(value => !value)} style={styles.sourceControl}>
         <Text style={styles.sourceTitle}>Calendar sources {showSources ? '−' : '+'}</Text>
-        <Text style={styles.detail}>{sources.error ? 'Couldn’t check calendar updates.' : !sourceStatus ? 'Checking calendar updates…' : !sourceStatus.length ? 'Campus calendars are not connected yet.' : sourceStatus.every(source => source.status === 'available') ? `${sourceStatus.length} campus calendars · Updated hourly` : 'Some calendar listings may be out of date.'}</Text>
+        <Text style={styles.detail}>{sources.error ? 'Couldn’t check calendar updates.' : !sourceStatus ? 'Checking calendar updates…' : !sourceStatus.length ? 'Campus calendars are not connected yet.' : sourceStatus.every(source => source.status === 'available') ? `${sourceStatus.length} campus ${sourceStatus.length === 1 ? 'calendar' : 'calendars'} · Updated hourly` : 'Some calendar listings may be out of date.'}</Text>
       </Pressable>
       {showSources && sourceStatus?.map(source => <View key={source.source} style={styles.sourceItem}>
         <Text style={styles.event}>{source.name}</Text>
         <Text style={styles.detail}>{source.status === 'available' ? 'Up to date' : source.status === 'stale' ? 'Refresh delayed · Showing last known listings' : 'No successful refresh yet'}{source.lastSuccessfulAt ? ` · Last updated ${taskTimingLabel({ kind: 'instant', at: source.lastSuccessfulAt }, timeZone)}` : ''}</Text>
         <Button title={`Visit ${source.name}`} tone="plain" onPress={() => { void open(source.website); }}/>
       </View>)}
-      <Button title="Refresh events" tone="plain" disabled={disabled || events.isFetching || sources.isFetching} onPress={() => { void events.refetch(); void sources.refetch(); }}/>
+      {showSources && <Button title="Refresh events" tone="plain" disabled={disabled || events.isFetching || sources.isFetching} onPress={refresh}/>}
       {events.isCached && events.data && <Text style={styles.detail}>Showing events saved on this device. Connect to refresh.</Text>}
     </View>
     {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
@@ -81,7 +83,7 @@ function CampusContent({ timeZone }: { timeZone: string }) {
           {(event.category || event.saved) && <Text style={styles.eyebrow}>{[event.category, event.saved ? 'Saved' : null, event.includedInPlan ? 'In your plan' : null].filter(Boolean).join(' · ')}</Text>}
           <Text style={styles.event}>{event.title}</Text>
           <View style={styles.metaRow}><Ionicons name="time-outline" size={14} color={colors.moss}/><Text style={styles.meta}>{timing}</Text></View>
-          <View style={styles.metaRow}><Ionicons name="location-outline" size={14} color={colors.muted}/><Text style={styles.detail}>{event.location ?? 'Campus'}</Text></View>
+          {event.location && <View style={styles.metaRow}><Ionicons name="location-outline" size={14} color={colors.muted}/><Text style={styles.detail}>{event.location}</Text></View>}
           {source && <Text style={styles.small}>{source.name}</Text>}
         </View>
       </View>
@@ -113,7 +115,7 @@ const styles = StyleSheet.create({
   choiceText: { color: colors.muted, fontWeight: '700', fontSize: 13 }, selectedText: { color: colors.ink },
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 46, borderRadius: 14, paddingHorizontal: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   input: { flex: 1, minHeight: 44, color: colors.ink, fontSize: 15 },
-  sourcePanel: { borderWidth: 1, borderColor: colors.line, padding: 12, borderRadius: 16, gap: 8, backgroundColor: colors.card }, sourceControl: { minHeight: 40, gap: 4 },
+  sourcePanel: { borderWidth: 1, borderColor: colors.line, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, gap: 8, backgroundColor: colors.card }, sourceControl: { minHeight: 40, gap: 4 },
   sourceTitle: { color: colors.ink, fontWeight: '700' }, sourceItem: { gap: 8, paddingVertical: 8 },
   result: { color: colors.ink, fontWeight: '700' }, group: { gap: 10 }, day: { color: colors.ink, fontWeight: '800', fontSize: 19, marginTop: 4 },
   card: { backgroundColor: colors.card, borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: colors.line }, savedCard: { borderColor: colors.coral },

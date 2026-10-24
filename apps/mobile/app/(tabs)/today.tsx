@@ -172,7 +172,7 @@ export default function TodayScreen() {
     </> : null}
     {query.data?.campusEvents.length ? <><Section title="Campus today" count={query.data.campusEvents.length}/>
       {query.data.campusEvents.map(event => <View key={event.id} style={styles.compact}><View style={[styles.stripe, { backgroundColor: kindColors.event }]}/>
-        <View style={styles.compactBody}><Text style={styles.item}>{event.title}</Text><Text style={styles.meta}>{event.timing.kind === 'timed' ? new Date(event.timing.startsAt).toLocaleTimeString([], { timeZone: query.timeZone, hour: 'numeric', minute: '2-digit' }) : event.timing.startDate} · {event.location ?? 'Campus'}</Text></View></View>)}
+        <View style={styles.compactBody}><Text style={styles.item}>{event.title}</Text><Text style={styles.meta}>{[event.timing.kind === 'timed' ? new Date(event.timing.startsAt).toLocaleTimeString([], { timeZone: query.timeZone, hour: 'numeric', minute: '2-digit' }) : 'All day', event.location].filter(Boolean).join(' · ')}</Text></View></View>)}
     </> : null}
     <View style={styles.spacer}/>
   </ScrollView>

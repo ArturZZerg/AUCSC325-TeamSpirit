@@ -55,7 +55,7 @@ describe('campus discovery interactions', () => {
     expect(screen.queryByText(/0 events to explore/)).toBeNull(); expect(screen.queryByText(/No upcoming events/)).toBeNull();
   });
   it('updates freshness while the Campus screen stays open', () => {
-    render(<Campus/>); expect(screen.getByText('1 campus calendars · Updated hourly')).toBeOnTheScreen();
+    render(<Campus/>); expect(screen.getByText('1 campus calendar · Updated hourly')).toBeOnTheScreen();
     act(() => { jest.advanceTimersByTime(91 * 60000); });
     expect(screen.getByText('Some calendar listings may be out of date.')).toBeOnTheScreen();
   });

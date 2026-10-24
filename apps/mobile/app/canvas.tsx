@@ -8,6 +8,7 @@ import { BackLink, Button, Card, Field, Screen, State, colors } from '@/componen
 import { useAction } from '@/features/queries';
 import { api } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
+import { syncedLabel } from '@/features/synced-label';
 
 // The guide follows Canvas's own wording for creating a personal access token.
 const steps = [
@@ -23,10 +24,10 @@ const message = (error: unknown, fallback: string) => error instanceof Error && 
 export default function CanvasScreen() {
   const session = useSessionStore(state => state.session);
   // A token typed for one account never carries over to another.
-  return session ? <CanvasConnection key={session.user.id} userId={session.user.id}/> : null;
+  return session ? <CanvasConnection key={session.user.id} userId={session.user.id} timeZone={session.user.timeZone}/> : null;
 }
 
-function CanvasConnection({ userId }: { userId: string }) {
+function CanvasConnection({ userId, timeZone }: { userId: string; timeZone: string }) {
   const router = useRouter(); const action = useAction(); const busy = useRef(false);
   const status = useQuery({ queryKey: ['account', userId, 'canvas-status'], queryFn: async () => canvasConnectionStatusSchema.parse(await api('/canvas/status')) });
   const [baseUrl, setBaseUrl] = useState(''); const [token, setToken] = useState('');
@@ -65,7 +66,7 @@ function CanvasConnection({ userId }: { userId: string }) {
     {status.isLoading && <State loading/>}
     {status.error && !data && <Card><Text accessibilityRole="alert" style={styles.warning}>Couldn’t check your Canvas connection. Check that you’re online and try again.</Text>
       <Button title="Try again" tone="plain" onPress={() => { void status.refetch(); }}/></Card>}
-    {data?.connected && <Connected status={data} working={working} onSync={() => run('Syncing…', sync)} onDisconnect={disconnect}/>}
+    {data?.connected && <Connected status={data} timeZone={timeZone} working={working} onSync={() => run('Syncing…', sync)} onDisconnect={disconnect}/>}
     {data && !data.connected && data.connectMode === 'token' && <>
       <Card>
         <Text style={styles.section}>How to get your access token</Text>
@@ -92,11 +93,11 @@ function CanvasConnection({ userId }: { userId: string }) {
   </ScrollView></Screen>;
 }
 
-function Connected({ status, working, onSync, onDisconnect }: { status: CanvasConnectionStatus; working?: string; onSync(): void; onDisconnect(): void }) {
-  const when = status.lastSuccessfulSyncAt ? new Date(status.lastSuccessfulSyncAt).toLocaleString() : 'not yet';
+function Connected({ status, timeZone, working, onSync, onDisconnect }: { status: CanvasConnectionStatus; timeZone: string; working?: string; onSync(): void; onDisconnect(): void }) {
+  const when = status.lastSuccessfulSyncAt ? syncedLabel(status.lastSuccessfulSyncAt, timeZone) : 'not yet';
   return <Card>
     <View style={styles.step}><Ionicons name="checkmark-circle" size={22} color={colors.moss}/><Text style={[styles.item, styles.grow]}>Connected to {status.baseUrl?.replace(/^https:\/\//, '')}</Text></View>
-    <Text style={styles.meta}>Last successful sync: {when}. CampusFlow checks Canvas for changes about every 30 minutes; use Sync now for an immediate update.</Text>
+    <Text style={styles.meta}>Last synced {when}. CampusFlow checks Canvas for changes about every 30 minutes; use Sync now for an immediate update.</Text>
     {status.lastError && <Text accessibilityRole="alert" style={styles.warning}>{status.lastError}</Text>}
     <Button title={working === 'Syncing…' ? working : 'Sync now'} disabled={!!working} onPress={onSync}/>
     <Button title={working === 'Disconnecting…' ? working : 'Disconnect Canvas'} tone="plain" disabled={!!working} onPress={onDisconnect}/>
