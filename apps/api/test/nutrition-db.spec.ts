@@ -63,6 +63,14 @@ databaseSuite('Nutrition diary, goals and dining hall', () => {
     await client().put('/nutrition/profile').set('Authorization', token).send({ ...profile, diningHall: 'off', overrides: { kcal: 2500 } }).expect(200);
     day = await client().get('/nutrition/day/2026-10-20').set('Authorization', token).expect(200);
     expect(day.body).toMatchObject({ diningAvailable: false, profile: { overrides: { kcal: 2500 } } });
+    // Regression: changing only the goal (no custom numbers) on an existing profile must save and stay readable.
+    await client().put('/nutrition/profile').set('Authorization', token).send({ ...profile, goal: 'lose' }).expect(200);
+    await client().put('/nutrition/profile').set('Authorization', token).send({ ...profile, goal: 'gain' }).expect(200);
+    day = await client().get('/nutrition/day/2026-10-20').set('Authorization', token).expect(200);
+    expect(day.body.profile).toMatchObject({ goal: 'gain', overrides: null });
+    const userId = (await db.user.findFirstOrThrow({ where: { email: `${marker}-first@example.test` } })).id;
+    await db.nutritionProfile.update({ where: { userId }, data: { overrides: { set: null } } });
+    expect((await client().get('/nutrition/day/2026-10-20').set('Authorization', token).expect(200)).body.profile.overrides).toBeNull();
   });
   it('stores a fetched menu, keeps it when a later read fails, and serves per-serving estimates', async () => {
     const sync = app.get(DiningSyncService);
