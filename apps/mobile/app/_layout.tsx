@@ -9,6 +9,7 @@ import { SessionAccessSync } from '@/features/session-access-sync';
 import { ReminderResponseSync } from '@/features/reminder-response-sync';
 import { colorScheme, colors } from '@/components/ui';
 import { AppErrorScreen } from '@/features/app-error';
+import { registerNightlyUpdates } from '@/services/app-updates';
 function Gate() {
   const router = useRouter(), segments = useSegments();
   const { next } = useGlobalSearchParams<{ next?: string }>();
@@ -23,7 +24,10 @@ function Gate() {
   }, [ready, session, segments, router, next]);
   return <Stack screenOptions={{ headerShown: false, statusBarStyle: colorScheme === 'dark' ? 'light' : 'dark', contentStyle: { backgroundColor: colors.canvas } }}><Stack.Screen name="auth"/><Stack.Screen name="recover"/><Stack.Screen name="verify"/><Stack.Screen name="(tabs)"/></Stack>;
 }
-export default function RootLayout() { return <QueryClientProvider client={queryClient}><SessionAccessSync /><FocusRecoverySync /><DeviceReminderSync /><Gate /><ReminderResponseSync /></QueryClientProvider>; }
+export default function RootLayout() {
+  useEffect(() => { void registerNightlyUpdates().catch(() => undefined); }, []);
+  return <QueryClientProvider client={queryClient}><SessionAccessSync /><FocusRecoverySync /><DeviceReminderSync /><Gate /><ReminderResponseSync /></QueryClientProvider>;
+}
 
 /** Root render-failure recovery for every route below this layout. */
 export function ErrorBoundary({ retry }: ErrorBoundaryProps) {

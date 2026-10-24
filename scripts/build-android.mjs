@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, copyFileSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { inspectAndroidPermissions } from './android-permissions.mjs';
@@ -29,6 +30,13 @@ console.log(`Android preview API: ${endpoint.origin}${endpoint.pathname === '/' 
 console.log(`Android SDK: ${sdk}`);
 console.log(`Android preview architecture: ${target.architecture}`);
 if (process.argv.includes('--check')) process.exit(0);
+// Builds for the production API download over-the-air updates (ADR 021). Their
+// native code must match the recorded runtime, or published JavaScript could crash them.
+const { productionApiUrl } = createRequire(import.meta.url)(path.join(mobile, 'config/app-updates.cjs'));
+if (apiUrl === productionApiUrl) {
+  const { assertRuntimeCurrent } = await import('./native-runtime.mjs');
+  try { console.log(`Update runtime: ${(await assertRuntimeCurrent()).runtimeVersion}`); } catch (error) { fail(error.message); }
+}
 
 const env = {
   ...process.env, ANDROID_HOME: sdk, JAVA_HOME: java,
@@ -57,7 +65,7 @@ if (windows) {
   // Use the Windows certificate store; retain normal TLS verification.
   const trust = '-Djavax.net.ssl.trustStoreType=Windows-ROOT -Djavax.net.ssl.trustStore=NONE';
   env.GRADLE_OPTS = `${env.GRADLE_OPTS ?? ''} ${trust}`;
-  run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `gradlew.bat ${gradleArgs.join(' ')} ${trust}`], path.join(mobile, 'android'));
+  run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `.\\gradlew.bat ${gradleArgs.join(' ')} ${trust}`], path.join(mobile, 'android'));
 } else {
   run('./gradlew', gradleArgs, path.join(mobile, 'android'));
 }

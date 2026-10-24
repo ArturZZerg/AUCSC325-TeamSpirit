@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Self-hosted app updates (ADR 021): installed Android apps download new
+  JavaScript from the owner's server on launch, overnight or from Settings → App
+  updates, and are offered a new APK when native code changes. Adds
+  `expo-updates`, `expo-background-task` and `expo-task-manager`.
+
 - Gym tab (ADR 020): eleven programs by level and emphasis, a workout logger
   with prefilled targets, rest timer and double-progression advice, weekly goal
   and streak, personal bests and history. New `GymEnrollment`/`Workout` tables.
