@@ -20,11 +20,12 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.FOREGROUND_SERVICE"
       ]
     },
     "web": { "bundler": "metro", "output": "single", "favicon": "./assets/icon.png" },
-    "plugins": ["expo-router", ["expo-secure-store", { "faceIDPermission": false }], "expo-sqlite", "expo-notifications", "@react-native-community/datetimepicker"],
+    "plugins": ["expo-router", ["expo-secure-store", { "faceIDPermission": false }], "expo-sqlite", "expo-notifications", "@react-native-community/datetimepicker", "expo-background-task"],
     "experiments": { "typedRoutes": true }
   }
 }
