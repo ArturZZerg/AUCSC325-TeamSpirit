@@ -100,13 +100,28 @@ fail() { echo "Public smoke failed: $1. The new container is serving; run deploy
 curl -fsS --max-time 10 "$PUBLIC_URL/health/ready" || fail "readiness"; echo
 curl -fsS --max-time 10 "$PUBLIC_URL/auth/capability" || fail "capability"; echo
 WEB_URL=${WEB_URL:-https://workout.vakula-dev.com/campusflow/}
-headers=$(curl -fsS -D - -o /dev/null --max-time 10 "$WEB_URL") || fail "web app"
+headers=$(curl -fsS -D - -o "$web/discard" --max-time 10 "$WEB_URL") || fail "web app"
 grep -qi '^cross-origin-embedder-policy: require-corp' <<< "$headers" || fail "web isolation headers"
 page=$(curl -fsS --max-time 10 "$WEB_URL") || fail "web app body"
 entry=$(grep -o '/campusflow/_expo/static/js/web/entry-[a-f0-9]*\.js' <<< "$page" | head -1 || true)
 [ -n "$entry" ] || fail "web entry bundle"
-bundle=$(curl -fsS -D - -o /dev/null --max-time 10 "${WEB_URL%/campusflow/}$entry") || fail "entry bundle"
+bundle=$(curl -fsS -D - -o "$web/discard" --max-time 10 "${WEB_URL%/campusflow/}$entry") || fail "entry bundle"
 grep -qi '^cross-origin-embedder-policy: require-corp' <<< "$bundle" || fail "bundle isolation headers"
-code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$PUBLIC_URL/today")
+code=$(curl -s -o "$web/discard" -w '%{http_code}' --max-time 10 "$PUBLIC_URL/today")
 [ "$code" = 401 ] || fail "anonymous /today returned $code"
 echo "deployed $commit"
+
+# Over-the-air update for installed apps (ADR 021), only after the API it calls is serving.
+set +e
+node scripts/publish-update.mjs --out "$web/updates" --commit "$commit"
+published=$?
+set -e
+if [ "$published" = 3 ]; then
+  echo "Native code changed since the installed app runtime: no over-the-air update was published." >&2
+  echo "Bump the runtime, build a new APK and publish it (docs/development/app-updates.md)." >&2
+elif [ "$published" = 0 ]; then
+  SERVER="$SERVER" ops/vps/upload-update.sh "$web/updates"
+else
+  echo "Publishing the over-the-air update failed; the API and web app are deployed." >&2
+  exit 1
+fi
