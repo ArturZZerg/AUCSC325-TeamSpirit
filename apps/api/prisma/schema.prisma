@@ -22,6 +22,8 @@ model User {
   taskCreationRequests TaskCreationRequest[]
   studyPlans StudyPlan[]
   focusSessions FocusSession[]
+  gymEnrollment GymEnrollment?
+  workouts Workout[]
   taskCompletions TaskCompletion[]
   courses Course[]
   classSchedules ClassSchedule[]
@@ -166,6 +168,33 @@ model FocusSession {
   createdAt DateTime @default(now())
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   task PersonalTask? @relation(fields:[taskId], references:[id], onDelete:SetNull)
+  @@unique([userId, requestKey])
+  @@index([userId, endedAt])
+}
+model GymEnrollment {
+  userId String @id @db.Uuid
+  programId String
+  unit String
+  weeklyTarget Int
+  startedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
+}
+model Workout {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  programId String
+  dayId String
+  title String
+  startedAt DateTime
+  endedAt DateTime
+  unit String
+  exercises Json
+  note String?
+  requestKey String
+  requestHash String
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   @@unique([userId, requestKey])
   @@index([userId, endedAt])
 }

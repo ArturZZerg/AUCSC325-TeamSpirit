@@ -216,3 +216,4 @@ export * from './classes';
 export * from './focus';
 export * from './account';
 export * from './wellness-journal';
+export * from './gym';

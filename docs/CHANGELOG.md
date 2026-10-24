@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Gym tab (ADR 020): eleven programs by level and emphasis, a workout logger
+  with prefilled targets, rest timer and double-progression advice, weekly goal
+  and streak, personal bests and history. New `GymEnrollment`/`Workout` tables.
+
 - Privacy policy, terms of use and support pages at
   `/campusflow/legal/`, linked from Help and the sign-up form.
 
