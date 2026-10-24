@@ -133,6 +133,7 @@ Primary entities include:
 * PersonalTask
 * StudyPlan (coursework preparation grouping; ADR 005)
 * FocusSession (recorded study time; ADR 006)
+* GymEnrollment and Workout (strength training; ADR 020)
 * Goal
 * GoalCompletion
 * Event

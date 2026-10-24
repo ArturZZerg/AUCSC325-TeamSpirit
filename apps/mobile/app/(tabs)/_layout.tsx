@@ -9,6 +9,7 @@ const icons: Record<string, ComponentProps<typeof Ionicons>['name']> = {
   tasks: 'checkbox-outline',
   campus: 'school-outline',
   wellness: 'heart-outline',
+  gym: 'barbell-outline',
   settings: 'settings-outline',
 };
 
@@ -28,6 +29,7 @@ export default function TabsLayout() {
     <Tabs.Screen name="tasks" options={{ title: 'Tasks' }}/>
     <Tabs.Screen name="campus" options={{ title: 'Campus' }}/>
     <Tabs.Screen name="wellness" options={{ title: 'Wellness' }}/>
+    <Tabs.Screen name="gym" options={{ title: 'Gym' }}/>
     <Tabs.Screen name="settings" options={{ title: 'Settings' }}/>
   </Tabs>;
 }

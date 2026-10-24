@@ -7,6 +7,7 @@ import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
 import { focusHistorySchema } from '@campusflow/contracts';
 import { campusSourcesSchema } from '@campusflow/contracts';
+import { gymOverviewSchema } from '@campusflow/contracts';
 import { dayBounds } from '@campusflow/domain';
 import { api, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
@@ -210,6 +211,13 @@ export function useWellnessJournal(from: string, through: string) {
     && value.timeZone === session.user.timeZone && value.from === from && value.through === through,
   'Journal belongs to another account or calendar range'), [session?.user.id, session?.user.timeZone, from, through]);
   return cachedQuery(`wellnessJournal:${from}:${through}:${session?.user.timeZone}`, `/wellness/journal?from=${from}&through=${through}`, schema);
+}
+export function useGym() {
+  const session = useSessionStore(state => state.session);
+  const timeZone = session?.user.timeZone ?? 'UTC';
+  const schema = useMemo(() => gymOverviewSchema.refine(value => value.accountId === session?.user.id && value.timeZone === timeZone
+    && new Set(value.workouts.map(row => row.id)).size === value.workouts.length, 'Gym history does not belong to this account.'), [session?.user.id, timeZone]);
+  return cachedQuery(`gym:${timeZone}`, '/gym', schema);
 }
 export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences', notificationPreferencesSchema);
 export function useReminders() {
