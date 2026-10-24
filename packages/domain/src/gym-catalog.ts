@@ -4,20 +4,41 @@ export type GymLevel = 'beginner' | 'intermediate' | 'advanced';
 export type GymAudience = 'everyone' | 'women' | 'men';
 export type GymGoal = 'strength' | 'muscle' | 'toning' | 'fitness';
 export type GymSetting = 'gym' | 'dumbbells' | 'none';
-export type Muscle = 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'quads' | 'hamstrings' | 'glutes' | 'calves' | 'core';
-export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight';
+export type Muscle = 'chest' | 'back' | 'traps' | 'shoulders' | 'biceps' | 'triceps' | 'forearms' | 'quads' | 'hamstrings' | 'glutes' | 'adductors' | 'calves' | 'core';
+export const muscles: readonly Muscle[] = ['chest', 'back', 'traps', 'shoulders', 'biceps', 'triceps', 'forearms', 'quads', 'hamstrings', 'glutes', 'adductors', 'calves', 'core'];
+export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'kettlebell' | 'band' | 'other';
 /** external: the lifted weight; added: optional load on top of bodyweight; bodyweight: reps only. */
 export type LoadKind = 'external' | 'added' | 'bodyweight';
-export interface GymExercise { id: string; name: string; muscles: readonly Muscle[]; equipment: Equipment; load: LoadKind; cue: string; perSide?: boolean }
-export interface PrescribedExercise { exerciseId: string; sets: number; repMin: number; repMax: number; restSeconds: number }
-export interface ProgramDay { id: string; name: string; focus: string; exercises: readonly PrescribedExercise[] }
-export interface GymProgram {
+/** `mediaId` points into the exercise library (photos and instructions, ADR 022). */
+export interface GymExercise { id: string; name: string; muscles: readonly Muscle[]; equipment: Equipment; load: LoadKind; cue: string; perSide?: boolean; mediaId?: string }
+export interface PrescribedExercise { exerciseId: string; sets: number; repMin: number; repMax: number; restSeconds: number; note?: string | null }
+/** Archived days keep history readable but are skipped by the rotation. */
+export interface ProgramDay { id: string; name: string; focus: string; exercises: readonly PrescribedExercise[]; archived?: boolean }
+/** What the training rules need from a program: built-in or the student's own. */
+export interface TrainingProgram { id: string; name: string; days: readonly ProgramDay[] }
+export interface GymProgram extends TrainingProgram {
   id: string; name: string; tagline: string; description: string; levels: readonly GymLevel[]; audience: GymAudience;
   goal: GymGoal; setting: GymSetting; daysPerWeek: number; schedule: string; tips: readonly string[]; days: readonly ProgramDay[];
 }
 
+const media: Record<string, string> = {
+  'back-squat': 'Barbell_Full_Squat', 'goblet-squat': 'Goblet_Squat', 'bodyweight-squat': 'Bodyweight_Squat', 'leg-press': 'Leg_Press',
+  'romanian-deadlift': 'Romanian_Deadlift', 'db-romanian-deadlift': 'Stiff-Legged_Dumbbell_Deadlift', deadlift: 'Barbell_Deadlift',
+  'hip-thrust': 'Barbell_Hip_Thrust', 'glute-bridge': 'Butt_Lift_Bridge', 'single-leg-glute-bridge': 'Single_Leg_Glute_Bridge',
+  'bulgarian-split-squat': 'Split_Squat_with_Dumbbells', 'walking-lunge': 'Dumbbell_Lunges', 'reverse-lunge': 'Dumbbell_Rear_Lunge',
+  'step-up': 'Dumbbell_Step_Ups', 'leg-curl': 'Lying_Leg_Curls', 'leg-extension': 'Leg_Extensions', 'hip-abduction': 'Thigh_Abductor',
+  'cable-kickback': 'One-Legged_Cable_Kickback', 'back-extension': 'Hyperextensions_Back_Extensions', 'calf-raise': 'Standing_Calf_Raises',
+  'bench-press': 'Barbell_Bench_Press_-_Medium_Grip', 'db-bench-press': 'Dumbbell_Bench_Press', 'incline-db-press': 'Incline_Dumbbell_Press',
+  'push-up': 'Pushups', 'incline-push-up': 'Incline_Push-Up', 'overhead-press': 'Standing_Military_Press', 'db-shoulder-press': 'Dumbbell_Shoulder_Press',
+  'lateral-raise': 'Side_Lateral_Raise', 'cable-fly': 'Cable_Crossover', dips: 'Dips_-_Chest_Version', 'bench-dip': 'Bench_Dips',
+  'triceps-pushdown': 'Triceps_Pushdown', 'overhead-triceps-extension': 'Standing_Dumbbell_Triceps_Extension', 'pull-up': 'Pullups',
+  'lat-pulldown': 'Wide-Grip_Lat_Pulldown', 'seated-cable-row': 'Seated_Cable_Rows', 'barbell-row': 'Bent_Over_Barbell_Row',
+  'one-arm-db-row': 'One-Arm_Dumbbell_Row', 'chest-supported-row': 'Dumbbell_Incline_Row', 'inverted-row': 'Inverted_Row', 'face-pull': 'Face_Pull',
+  'rear-delt-fly': 'Reverse_Flyes', 'db-curl': 'Dumbbell_Bicep_Curl', 'incline-db-curl': 'Incline_Dumbbell_Curl', 'hammer-curl': 'Hammer_Curls',
+  'dead-bug': 'Dead_Bug', crunch: 'Crunches', 'hanging-knee-raise': 'Hanging_Leg_Raise', 'cable-crunch': 'Cable_Crunch',
+};
 const x = (id: string, name: string, equipment: Equipment, load: LoadKind, muscles: Muscle[], cue: string, perSide = false): GymExercise =>
-  ({ id, name, equipment, load, muscles, cue, ...(perSide ? { perSide } : {}) });
+  ({ id, name, equipment, load, muscles, cue, ...(perSide ? { perSide } : {}), ...(media[id] ? { mediaId: media[id] } : {}) });
 export const gymExercises: readonly GymExercise[] = [
   x('back-squat', 'Barbell back squat', 'barbell', 'external', ['quads', 'glutes'], 'Brace your core, sit between your hips and keep your knees tracking over your toes.'),
   x('goblet-squat', 'Goblet squat', 'dumbbell', 'external', ['quads', 'glutes'], 'Hold one dumbbell at your chest and sit straight down with a tall chest.'),

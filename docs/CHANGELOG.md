@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Gym v2 (ADR 022): own programs with an editor (or customize any built-in
+  program), an 873-exercise public-domain library with photos and instructions,
+  swap/add exercises mid-workout, optional RIR per set, body weight entries, and
+  an idempotent openGym backup import (programs, exercises, workouts, weights).
+
 - Self-hosted app updates (ADR 021): installed Android apps download new
   JavaScript from the owner's server on launch, overnight or from Settings → App
   updates, and are offered a new APK when native code changes. Adds

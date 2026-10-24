@@ -37,5 +37,10 @@ export function runtimeConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConf
     if (env.CANVAS_MODE && !['disabled', 'token'].includes(env.CANVAS_MODE)) throw new Error('CANVAS_MODE must be disabled or token in production');
     if (env.CANVAS_MODE === 'token') canvasTokenKey(env);
   }
+  if (env.EXERCISE_MEDIA_URL) {
+    let media: URL;
+    try { media = new URL(env.EXERCISE_MEDIA_URL); } catch { throw new Error('Invalid EXERCISE_MEDIA_URL'); }
+    if ((production && media.protocol !== 'https:') || media.username || media.password || media.search || media.hash) throw new Error('Invalid EXERCISE_MEDIA_URL');
+  }
   return { port, host, schema, corsOrigins: origins ?? true };
 }

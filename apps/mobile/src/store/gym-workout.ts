@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { gymDraftSchema, type DraftSet, type GymDraft } from '@/features/gym';
+import { gymDraftSchema, type DraftExercise, type DraftSet, type GymDraft } from '@/features/gym';
 import { deleteCache, readCache, writeCache } from '@/services/cache';
 import { useSessionStore } from './session';
 import type { Session } from '@/lib/types';
@@ -11,6 +11,7 @@ type State = {
   restore(owner: string): Promise<void>; start(draft: GymDraft): void; discard(): void;
   updateSet(exercise: number, set: number, change: Partial<DraftSet>): void; addSet(exercise: number): void; removeSet(exercise: number): void;
   setNote(note: string): void;
+  addExercise(entry: DraftExercise): void; replaceExercise(index: number, entry: DraftExercise): void; removeExercise(index: number): void;
 };
 const accountOf = (owner: string) => (JSON.parse(owner) as [string, string])[0];
 const current = (owner: string) => owner === gymOwner(useSessionStore.getState().session);
@@ -42,9 +43,14 @@ export const useGymWorkout = create<State>((set, get) => {
     start(draft) { if (!current(draft.owner)) return; set({ draft, restored: draft.owner }); persist(draft, draft.owner); },
     discard() { const draft = get().draft; set({ draft: null }); if (draft) persist(null, draft.owner); },
     updateSet(exercise, index, change) { edit(draft => exercises(draft, exercise, sets => sets.map((item, position) => position === index ? { ...item, ...change } : item))); },
-    addSet(exercise) { edit(draft => exercises(draft, exercise, sets => sets.length >= 12 ? sets
+    addSet(exercise) { edit(draft => exercises(draft, exercise, sets => sets.length >= 20 ? sets
       : [...sets, { ...(sets[sets.length - 1] ?? { weight: '', reps: '' }), done: false }])); },
     removeSet(exercise) { edit(draft => exercises(draft, exercise, sets => sets.length > 1 ? sets.slice(0, -1) : sets)); },
-    setNote(note) { edit(draft => ({ ...draft, note: note.slice(0, 500) })); },
+    setNote(note) { edit(draft => ({ ...draft, note: note.slice(0, 1000) })); },
+    addExercise(entry) { edit(draft => draft.exercises.length >= 30 || draft.exercises.some(item => item.exerciseId === entry.exerciseId) ? draft
+      : { ...draft, exercises: [...draft.exercises, entry] }); },
+    replaceExercise(index, entry) { edit(draft => draft.exercises.some((item, position) => position !== index && item.exerciseId === entry.exerciseId) ? draft
+      : { ...draft, exercises: draft.exercises.map((item, position) => position === index ? entry : item) }); },
+    removeExercise(index) { edit(draft => ({ ...draft, exercises: draft.exercises.filter((_, position) => position !== index) })); },
   };
 });

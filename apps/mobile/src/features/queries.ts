@@ -7,7 +7,7 @@ import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
 import { focusHistorySchema } from '@campusflow/contracts';
 import { campusSourcesSchema } from '@campusflow/contracts';
-import { gymOverviewSchema } from '@campusflow/contracts';
+import { exerciseDetailsSchema, gymOverviewSchema } from '@campusflow/contracts';
 import { dayBounds } from '@campusflow/domain';
 import { api, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
@@ -218,6 +218,12 @@ export function useGym() {
   const schema = useMemo(() => gymOverviewSchema.refine(value => value.accountId === session?.user.id && value.timeZone === timeZone
     && new Set(value.workouts.map(row => row.id)).size === value.workouts.length, 'Gym history does not belong to this account.'), [session?.user.id, timeZone]);
   return cachedQuery(`gym:${timeZone}`, '/gym', schema);
+}
+/** Library instructions and photo URLs; static content, so one read per exercise is enough. */
+export function useExerciseDetails(id: string) {
+  const session = useSessionStore(state => state.session);
+  return useQuery({ enabled: !!session, queryKey: ['exercise-details', id], staleTime: 24 * 3600_000,
+    queryFn: async ({ signal }) => exerciseDetailsSchema.parse(await api<unknown>(`/gym/exercises/${encodeURIComponent(id)}/details`, { signal })) });
 }
 export const usePreferences = () => cachedQuery<NotificationPreferences>('preferences', '/notification-preferences', notificationPreferencesSchema);
 export function useReminders() {

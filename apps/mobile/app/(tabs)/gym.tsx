@@ -4,11 +4,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import type { Workout } from '@campusflow/contracts';
-import { estimateDayMinutes, findGymExercise, findGymProgram, gymWeek, nextProgramDay, workoutVolume, type GymProgram, type ProgramDay } from '@campusflow/domain';
+import { activeDays, estimateDayMinutes, gymWeek, nextProgramDay, resolveProgram, workoutVolume, type GymExercise, type ProgramDay, type TrainingProgram } from '@campusflow/domain';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAction, useGym } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
-import { createDraft, draftProgress, formatDuration, formatSets, toLogged, weekMessage } from '@/features/gym';
+import { createDraft, draftProgress, exerciseName, formatDuration, formatSets, ownGym, toLogged, weekMessage } from '@/features/gym';
+import { importOpenGymBackup, pickOpenGymBackup } from '@/services/opengym-import';
 import { ProgramBrowser } from '@/features/gym-program-browser';
 import { gymOwner, useGymWorkout } from '@/store/gym-workout';
 import { useSessionStore } from '@/store/session';
@@ -26,13 +27,27 @@ export default function GymScreen() {
   const [pendingDay, setPendingDay] = useState<ProgramDay>(); const [expanded, setExpanded] = useState<string>(); const [message, setMessage] = useState<string>();
   useEffect(() => { if (owner) void restore(owner); }, [owner, restore]);
   const enrollment = gym.data?.enrollment, workouts = gym.data?.workouts ?? [];
-  const program = enrollment ? findGymProgram(enrollment.programId) : undefined;
-  const open = (item: GymProgram) => router.push({ pathname: '/gym-program', params: { id: item.id } });
+  const own = ownGym(gym.data);
+  const program = enrollment ? resolveProgram(enrollment.programId, own.programs) : undefined;
+  const [importing, setImporting] = useState(false); const [imported, setImported] = useState<string>();
+  const open = (item: { id: string }) => router.push({ pathname: '/gym-program', params: { id: item.id } });
   const begin = (day: ProgramDay, replace = false) => {
     if (!owner || !program || !enrollment) return;
     if (draft && !replace) { setPendingDay(day); setConfirm('replace'); return; }
-    start(createDraft(owner, program, day, enrollment.unit, workouts, today, timeZone));
+    start(createDraft(owner, program, day, enrollment.unit, workouts, today, timeZone, new Date(), own.exercises, enrollment.trackRir));
     setConfirm(undefined); setChoosing(false); router.push('/workout');
+  };
+  const importBackup = async () => {
+    setMessage(undefined); setImported(undefined);
+    try {
+      const text = await pickOpenGymBackup();
+      if (!text) return;
+      setImporting(true);
+      const result = await importOpenGymBackup(text);
+      await gym.refetch();
+      setImported(`Imported ${result.workouts} workouts, ${result.exercises} exercises and ${result.bodyWeights} body-weight entries${result.skipped ? ` (${result.skipped} cardio or empty entries skipped)` : ''}.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not import the backup.'); }
+    finally { setImporting(false); }
   };
   const remove = async (workout: Workout) => {
     setMessage(undefined);
@@ -56,9 +71,13 @@ export default function GymScreen() {
       <View style={styles.intro}><Ionicons name="barbell-outline" size={30} color={colors.moss}/>
         <View style={styles.flex}><Text style={styles.section}>Find a program that fits you</Text>
           <Text style={styles.meta}>Every program tells you exactly what to do, remembers your last weights and tells you when to go heavier.</Text></View></View>
+      <MyPrograms programs={own.programs} importing={importing} onOpen={open} onImport={() => { void importBackup(); }}/>
+      <Text accessibilityRole="header" style={styles.section}>Programs for every level</Text>
       <ProgramBrowser onOpen={open}/>
     </>}
-    {program && enrollment && <Overview program={program} enrollment={enrollment} workouts={workouts} today={today} timeZone={timeZone}
+    {imported && <View style={styles.notice}><Ionicons name="checkmark-circle" size={20} color={colors.moss}/><Text style={styles.noticeText}>{imported}</Text></View>}
+    {program && enrollment && <Overview program={program} own={own.exercises} enrollment={enrollment} workouts={workouts} today={today} timeZone={timeZone}
+      programs={own.programs} importing={importing} onImport={() => { void importBackup(); }}
       choosing={choosing} expanded={expanded} onBegin={day => begin(day)} onChoose={() => setChoosing(value => !value)} onOpen={open}
       onExpand={id => setExpanded(value => value === id ? undefined : id)} onDelete={workout => { setMessage(undefined); setConfirm(workout); }}/>}
   </ScrollView>
@@ -79,9 +98,24 @@ export default function GymScreen() {
   </Screen>;
 }
 
-function Overview({ program, enrollment, workouts, today, timeZone, choosing, expanded, onBegin, onChoose, onOpen, onExpand, onDelete }: {
-  program: GymProgram; enrollment: { weeklyTarget: number; unit: 'kg' | 'lb' }; workouts: Workout[]; today: string; timeZone: string; choosing: boolean; expanded?: string;
-  onBegin(day: ProgramDay): void; onChoose(): void; onOpen(program: GymProgram): void; onExpand(id: string): void; onDelete(workout: Workout): void;
+function MyPrograms({ programs, importing, onOpen, onImport }: { programs: readonly TrainingProgram[]; importing: boolean; onOpen(program: { id: string }): void; onImport(): void }) {
+  return <Card><Text accessibilityRole="header" style={styles.section}>My programs</Text>
+    {programs.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Open ${item.name}`} onPress={() => onOpen(item)} style={styles.myProgram}>
+      <Ionicons name="clipboard-outline" size={20} color={colors.moss}/><View style={styles.flex}><Text style={styles.item}>{item.name}</Text>
+        <Text style={styles.meta}>{activeDays(item).length} days · {activeDays(item).reduce((sum, day) => sum + day.exercises.length, 0)} exercises</Text></View>
+      <Ionicons name="chevron-forward" size={18} color={colors.muted}/></Pressable>)}
+    {!programs.length && <Text style={styles.meta}>Build your own split, or customize any program below.</Text>}
+    <View style={styles.buttons}>
+      <Button title="Create a program" tone="plain" onPress={() => router.push('/program-editor')}/>
+      <Button title={importing ? 'Importing…' : 'Import from openGym'} tone="plain" disabled={importing} onPress={onImport}/>
+    </View>
+  </Card>;
+}
+
+function Overview({ program, own, programs, enrollment, workouts, today, timeZone, choosing, expanded, importing, onImport, onBegin, onChoose, onOpen, onExpand, onDelete }: {
+  program: TrainingProgram; own: readonly GymExercise[]; programs: readonly TrainingProgram[]; enrollment: { weeklyTarget: number; unit: 'kg' | 'lb' }; workouts: Workout[];
+  today: string; timeZone: string; choosing: boolean; expanded?: string; importing: boolean; onImport(): void;
+  onBegin(day: ProgramDay): void; onChoose(): void; onOpen(program: { id: string }): void; onExpand(id: string): void; onDelete(workout: Workout): void;
 }) {
   const next = nextProgramDay(program, toLogged(workouts));
   const week = gymWeek(workouts, today, timeZone, enrollment.weeklyTarget);
@@ -91,16 +125,16 @@ function Overview({ program, enrollment, workouts, today, timeZone, choosing, ex
     <View style={styles.hero}>
       <Text style={styles.heroKicker}>{doneToday ? 'NICE WORK TODAY · NEXT UP' : 'UP NEXT'} · {program.name.toUpperCase()}</Text>
       <Text style={styles.heroTitle}>{next.name}</Text>
-      <Text style={styles.heroMeta}>{next.focus} · {next.exercises.length} exercises · ~{estimateDayMinutes(next)} min</Text>
-      <Text style={styles.heroList} numberOfLines={2}>{next.exercises.map(item => findGymExercise(item.exerciseId)?.name).join(' · ')}</Text>
+      <Text style={styles.heroMeta}>{next.focus ? `${next.focus} · ` : ''}{next.exercises.length} exercises · ~{estimateDayMinutes(next)} min</Text>
+      <Text style={styles.heroList} numberOfLines={2}>{next.exercises.map(item => exerciseName(item.exerciseId, own)).join(' · ')}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={`Start ${next.name}`} onPress={() => onBegin(next)} style={({ pressed }) => [styles.start, pressed && styles.pressed]}>
         <Ionicons name="play" size={18} color={colors.moss}/><Text style={styles.startText}>Start workout</Text>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: choosing }} onPress={onChoose} hitSlop={6}>
         <Text style={styles.other}>{choosing ? 'Hide other days' : 'Do a different day'}</Text></Pressable>
-      {choosing && program.days.filter(day => day.id !== next.id).map(day => <Pressable key={day.id} accessibilityRole="button" accessibilityLabel={`Start ${day.name}`}
+      {choosing && activeDays(program).filter(day => day.id !== next.id).map(day => <Pressable key={day.id} accessibilityRole="button" accessibilityLabel={`Start ${day.name}`}
         onPress={() => onBegin(day)} style={({ pressed }) => [styles.dayOption, pressed && styles.pressed]}>
-        <View style={styles.flex}><Text style={styles.dayName}>{day.name}</Text><Text style={styles.dayMeta}>{day.focus} · ~{estimateDayMinutes(day)} min</Text></View>
+        <View style={styles.flex}><Text style={styles.dayName}>{day.name}</Text><Text style={styles.dayMeta}>{day.focus ? `${day.focus} · ` : ''}~{estimateDayMinutes(day)} min</Text></View>
         <Ionicons name="play-circle-outline" size={24} color={colors.onAccent}/></Pressable>)}
     </View>
 
@@ -128,16 +162,17 @@ function Overview({ program, enrollment, workouts, today, timeZone, choosing, ex
             {workoutVolume(workout.exercises) > 0 ? ` · ${workoutVolume(workout.exercises).toLocaleString()} ${workout.unit}` : ''}</Text></View>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={colors.muted}/></Pressable>
         {open && <View style={styles.details}>
-          {workout.exercises.map(entry => <Text key={entry.exerciseId} style={styles.meta}><Text style={styles.detailName}>{findGymExercise(entry.exerciseId)?.name ?? entry.exerciseId}</Text>  {formatSets(entry.sets, workout.unit)}</Text>)}
+          {workout.exercises.map(entry => <Text key={entry.exerciseId} style={styles.meta}><Text style={styles.detailName}>{exerciseName(entry.exerciseId, own)}</Text>  {formatSets(entry.sets, workout.unit)}</Text>)}
           {workout.note && <Text style={styles.meta}>“{workout.note}”</Text>}
           <Pressable accessibilityRole="button" onPress={() => onDelete(workout)} hitSlop={6}><Text style={styles.delete}>Delete workout</Text></Pressable>
         </View>}
       </Card>; })}
 
     <Card><Text style={styles.kicker}>YOUR PROGRAM</Text><Text style={styles.section}>{program.name}</Text>
-      <Text style={styles.meta}>{program.daysPerWeek} days a week · goal {enrollment.weeklyTarget} · weights in {enrollment.unit}</Text>
+      <Text style={styles.meta}>{activeDays(program).length} days in rotation · goal {enrollment.weeklyTarget} a week · weights in {enrollment.unit}</Text>
       <View style={styles.actions}><Button title="View program & settings" tone="plain" onPress={() => onOpen(program)}/></View>
     </Card>
+    <MyPrograms programs={programs} importing={importing} onOpen={onOpen} onImport={onImport}/>
     <Text accessibilityRole="header" style={styles.section}>Explore other programs</Text>
     <ProgramBrowser currentId={program.id} onOpen={onOpen}/>
   </>;
@@ -172,5 +207,8 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 6, padding: 22, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   details: { gap: 6, marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.line }, detailName: { color: colors.ink, fontWeight: '700' },
   delete: { color: colors.danger, fontWeight: '700', marginTop: 4 }, actions: { marginTop: 4 },
+  myProgram: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.line },
+  buttons: { gap: 4 }, notice: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 12, borderRadius: 14, backgroundColor: colors.sage },
+  noticeText: { color: colors.ink, flex: 1, fontWeight: '600' },
   scrim: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.scrim },
 });

@@ -29,3 +29,22 @@ Evidence: `packages/domain/__tests__/gym.test.ts`,
 (idempotent concurrent saves, ownership, validation, export, erasure),
 `apps/mobile/__tests__/gym-feature.test.ts`, `gym-screen.test.tsx` and
 `workout-screen.test.tsx`; browser walk-through on Expo web at phone width.
+
+## Own programs, library and import (ADR 022)
+
+- **Own programs.** Create a program from scratch or "Customize as my own" on any
+  built-in program: name, days (reorder, archive, delete; at least one active),
+  exercises per day with sets, rep range, rest and a note. Enroll like any program.
+- **Exercise library.** 873 public-domain exercises (free-exercise-db) searchable
+  by name prefix, muscle and equipment, with photos and step-by-step
+  instructions; students can create their own exercises.
+- **Flexible workouts.** Swap or add exercises during a workout; optional RIR
+  (reps in reserve) per set when "Track effort" is on.
+- **openGym import.** Settings → Gym → Import from openGym takes an openGym
+  backup and adds the program, exercises (English names, merged copies), every
+  completed strength set, RIR and body weights. Repeating it adds nothing twice.
+
+Evidence: `packages/domain/__tests__/gym.test.ts` (library),
+`packages/contracts/__tests__/gym.test.ts`, `apps/api/test/opengym-import.spec.ts`,
+`apps/api/test/gym-db.spec.ts`, `apps/mobile/__tests__/program-editor.test.tsx`,
+`gym-feature.test.ts`; browser walk-through with a real openGym backup.
