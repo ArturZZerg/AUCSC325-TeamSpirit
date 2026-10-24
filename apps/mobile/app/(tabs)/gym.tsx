@@ -150,6 +150,12 @@ function Overview({ program, own, programs, enrollment, workouts, today, timeZon
       <View style={styles.bar}><View style={[styles.barFill, { width: `${Math.min(100, (week.count / week.target) * 100)}%` }]}/></View>
       <Text style={styles.meta}>{weekMessage(week.count, week.target, week.streakWeeks)}</Text>
     </Card>
+    <Pressable accessibilityRole="button" accessibilityLabel="Open progress: records, body weight and training calendar" onPress={() => router.push('/gym-stats')}
+      style={({ pressed }) => [styles.progress, pressed && styles.pressed]}>
+      <Ionicons name="stats-chart" size={22} color={colors.moss}/>
+      <View style={styles.flex}><Text style={styles.item}>Progress</Text><Text style={styles.meta}>Records, body weight, training calendar and muscle volume</Text></View>
+      <Ionicons name="chevron-forward" size={20} color={colors.muted}/>
+    </Pressable>
 
     <View style={styles.row}><Text accessibilityRole="header" style={styles.section}>Recent workouts</Text></View>
     {!workouts.length && <View style={styles.empty}><Ionicons name="trophy-outline" size={28} color={colors.plum}/>
@@ -208,7 +214,8 @@ const styles = StyleSheet.create({
   details: { gap: 6, marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.line }, detailName: { color: colors.ink, fontWeight: '700' },
   delete: { color: colors.danger, fontWeight: '700', marginTop: 4 }, actions: { marginTop: 4 },
   myProgram: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.line },
-  buttons: { gap: 4 }, notice: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 12, borderRadius: 14, backgroundColor: colors.sage },
+  buttons: { gap: 4 },
+  progress: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }, notice: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 12, borderRadius: 14, backgroundColor: colors.sage },
   noticeText: { color: colors.ink, flex: 1, fontWeight: '600' },
   scrim: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.scrim },
 });
