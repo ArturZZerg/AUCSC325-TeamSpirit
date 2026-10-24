@@ -23,9 +23,18 @@ export async function nativeFingerprint() {
   Object.assign(process.env, { EXPO_PUBLIC_API_URL: productionApiUrl, CAMPUSFLOW_ANDROID_PREVIEW: '1', NODE_ENV: 'production' });
   delete process.env.CAMPUSFLOW_IOS_SIMULATOR; delete process.env.CAMPUSFLOW_WEB_BASE_URL;
   const { createFingerprintAsync } = createRequire(path.join(mobile, 'package.json'))('@expo/fingerprint');
-  // android/ and ios/ are regenerated from config by prebuild and are not committed.
-  const result = await createFingerprintAsync(mobile, { platforms: ['android'], ignorePaths: ['android/**', 'ios/**', 'native-fingerprint.json'] });
+  // android/ and ios/ are regenerated from config by prebuild and are not committed;
+  // whether a build already created them must not change the hash.
+  const result = await createFingerprintAsync(mobile, { platforms: ['android'], ignorePaths: ['android', 'android/**', 'ios', 'ios/**', 'native-fingerprint.json'],
+    fileHookTransform: normalizeLineEndings });
   return result.hash;
+}
+
+/** Project text files hash the same with CRLF (Windows checkouts) or LF; installed packages are left as published. */
+export function normalizeLineEndings(source, chunk) {
+  if (source.type !== 'file' || chunk === null || /(^|[\\/])node_modules[\\/]/.test(source.filePath)
+    || !/(\.(c?js|mjs|json|ts|tsx)|\.gitignore)$/.test(source.filePath)) return chunk;
+  return Buffer.from(Buffer.from(chunk).toString('utf8').replace(/\r\n/g, '\n'));
 }
 
 /** Throws a NativeRuntimeChanged error when the recorded fingerprint does not match the current runtime. */
