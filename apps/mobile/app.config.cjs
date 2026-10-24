@@ -1,5 +1,6 @@
 const { expo } = require('./app.json');
 const { validatePublishedLinks } = require('./config/published-links.cjs');
+const { updatesConfig } = require('./config/app-updates.cjs');
 
 module.exports = () => {
   validatePublishedLinks(process.env);
@@ -10,6 +11,7 @@ module.exports = () => {
     require('node:path').join(__dirname, '../../scripts/ios-simulator.entitlements'), 'utf8')) : undefined;
   return {
     ...expo,
+    ...updatesConfig(process.env),
     ios: { ...expo.ios, ...(simulator ? { entitlements: { ...entitlements } } : {}) },
     // Hosted web is served below a path on a shared host (ADR 018); native and local builds keep the root.
     experiments: { ...expo.experiments, ...(process.env.CAMPUSFLOW_WEB_BASE_URL ? { baseUrl: process.env.CAMPUSFLOW_WEB_BASE_URL } : {}) },

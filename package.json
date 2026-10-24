@@ -22,7 +22,7 @@
     "lint": "eslint apps packages scripts && node scripts/check-boundaries.mjs && node scripts/schema-manifest.mjs --check",
     "test": "npm run build:shared && npm run test --workspaces --if-present && npm run test:android-build && npm run test:ios-preview && npm run test:release",
     "test:ios-preview": "node --test scripts/ios-preview.test.mjs scripts/ios-storage-acceptance.test.mjs scripts/ios-public-acceptance.test.mjs",
-    "test:release": "node --test scripts/release-smoke.test.mjs scripts/restore-rehearsal.test.mjs scripts/dependency-compat.test.mjs scripts/runtime-dependencies.test.mjs",
+    "test:release": "node --test scripts/publish-update.test.mjs scripts/release-smoke.test.mjs scripts/restore-rehearsal.test.mjs scripts/dependency-compat.test.mjs scripts/runtime-dependencies.test.mjs",
     "release:smoke": "node scripts/release-smoke.mjs",
     "release:restore-rehearsal": "node scripts/restore-rehearsal.mjs",
     "test:android-build": "node --test scripts/android-preview.test.mjs scripts/android-permissions.test.mjs scripts/android-preview-target.test.mjs scripts/android-screen-acceptance.test.mjs",
