@@ -197,6 +197,11 @@ Web app and signup (ADR 018):
   redeploying a commit never touches the live files. Pruning keeps the three
   newest by name and never removes the symlink's target.
 
+Over-the-air app updates (ADR 021) are static files under
+`/var/www/campusflow-updates`, published by `deploy.sh` through
+`ops/vps/upload-update.sh`; see [app updates](app-updates.md) for the nginx
+setup and native releases.
+
 `nginx-location.conf` also has exact locations for
 `/campusflow-api/classes/import-preview` (calendar files up to 1 MB) and
 `/campusflow-api/gym/import/opengym` (openGym backups up to 4 MB, ADR 022), the

@@ -8,6 +8,7 @@ import { useSessionStore } from '@/store/session';
 import { ensureNotificationPermission, overviewTime, reconcileReminders } from '@/services/reminders';
 import { QuietHoursEditor } from '@/features/quiet-hours-editor';
 import { syncedLabel } from '@/features/synced-label';
+import { AppUpdateCard } from '@/features/app-update-card';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 const categories = [
@@ -114,6 +115,8 @@ export default function SettingsScreen() {
       <Row icon="refresh-outline" tint={colors.muted} title={busy ? 'Updating…' : 'Refresh device reminders'} label="Refresh device reminders" disabled={disabled} onPress={() => { void run(refresh); }}/>
       {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
     </Group>
+
+    <AppUpdateCard/>
 
     <Pressable accessibilityRole="button" accessibilityLabel="Sign out" onPress={() => void signOut()} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
       <Ionicons name="log-out-outline" size={18} color={colors.danger}/><Text style={styles.signOutText}>Sign out</Text>
