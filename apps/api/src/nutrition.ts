@@ -1,7 +1,7 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Header, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import type { FoodLogEntry as EntryRow, NutritionProfile as ProfileRow, Prisma, UserFood as FoodRow } from '@prisma/client';
-import { copyMealSchema, dateSchema, diningMenuSchema, foodEntrySchema, foodSchema, foodSearchSchema, nutritionDaySchema, nutritionProfileSchema, saveFoodEntrySchema,
+import { Prisma, type FoodLogEntry as EntryRow, type NutritionProfile as ProfileRow, type UserFood as FoodRow } from '@prisma/client';
+import { copyMealSchema, dateSchema, nutrientsSchema, diningMenuSchema, foodEntrySchema, foodSchema, foodSearchSchema, nutritionDaySchema, nutritionProfileSchema, saveFoodEntrySchema,
   saveUserFoodSchema, updateFoodEntrySchema, type Food, type NutritionProfileDto, type SaveFoodEntry, type SaveUserFood } from '@campusflow/contracts';
 import { diningVisible, localDateAt, roundNutrients, type DiningSetting, type Nutrients } from '@campusflow/domain';
 import { z } from 'zod';
@@ -14,8 +14,10 @@ import { PrismaService } from './prisma.service';
 const nutrients = (row: Pick<EntryRow, 'kcal' | 'protein' | 'fat' | 'carbs' | 'fiber'>): Nutrients => roundNutrients({ kcal: row.kcal, protein: row.protein, fat: row.fat, carbs: row.carbs, fiber: row.fiber });
 const entryDto = (row: EntryRow) => foodEntrySchema.parse({ id: row.id, date: row.date, meal: row.meal, name: row.name, grams: row.grams, nutrients: nutrients(row),
   source: row.source, sourceRef: row.sourceRef, createdAt: row.createdAt.toISOString() });
+// Overrides that do not validate (a 2026-10-24 bug stored `{"set":null}`) read as "none" instead of breaking the diary.
+const storedOverrides = (value: Prisma.JsonValue | null) => { const parsed = nutrientsSchema.partial().strict().safeParse(value); return parsed.success && Object.keys(parsed.data).length ? parsed.data : null; };
 const profileDto = (row: ProfileRow) => nutritionProfileSchema.parse({ sex: row.sex, birthYear: row.birthYear, heightCm: row.heightCm, activity: row.activity, goal: row.goal,
-  overrides: row.overrides ?? null, diningHall: row.diningHall });
+  overrides: storedOverrides(row.overrides), diningHall: row.diningHall });
 const ownFood = (row: FoodRow): Food => foodSchema.parse({ id: `own:${row.id}`, name: row.name, source: 'own', per100: row.per100, portions: row.portions });
 const json = (value: unknown) => value as Prisma.InputJsonValue;
 
@@ -53,9 +55,9 @@ export class NutritionController {
 
   @Put('profile') @Header('Cache-Control', 'private, no-store')
   async saveProfile(@CurrentUser() user: RequestUser, @Body(new ZodPipe(nutritionProfileSchema)) body: NutritionProfileDto) {
-    const data = { ...body, overrides: body.overrides ? json(body.overrides) : undefined };
-    return profileDto(await this.prisma.nutritionProfile.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data },
-      update: { ...data, overrides: body.overrides ? json(body.overrides) : { set: null } as never } }));
+    // A database NULL clears custom targets; never write a JSON placeholder object.
+    const data = { ...body, overrides: body.overrides && Object.keys(body.overrides).length ? json(body.overrides) : Prisma.DbNull };
+    return profileDto(await this.prisma.nutritionProfile.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data }, update: data }));
   }
 
   @Get('foods') @Header('Cache-Control', 'private, no-store')
