@@ -1,6 +1,6 @@
 # Production MVP roadmap
 
-Completed feature slices 1–30 are recorded in the
+Prototype feature slices 1–30 are recorded in the
 [MVP product roadmap](development/mvp-roadmap.md). This backlog covers what
 remains between that feature set and a production MVP that a brand-new student
 can install and use. Priority is top to bottom. Blocked items link to
@@ -20,6 +20,41 @@ can install and use. Priority is top to bottom. Blocked items link to
 | 10 | Lighthouse 90+ on main web screens | M | Pending |
 | 11 | Home-screen next-class/today widget (Android) | L | Pending |
 | 12 | Full new-user production run and release report | M | Pending |
+
+## AUCSC 325 midterm prototype — October 26, 2026
+
+Status recorded October 25 from current `main` and merged evidence; this is a
+prototype checkpoint, not production or store acceptance. The
+[product roadmap](development/mvp-roadmap.md#midterm-prototype-status) separates
+implemented workflows from automated verification. Requirements remain in the
+[ToR](../ToR.docx) and linked feature specifications.
+
+- **Implemented:** the Today-centered workflow and feature slices below, hosted
+  API/web prototype, demo data, backups/restore and ICS timetable import. “Done”
+  in this backlog describes that scoped delivery, not full release readiness.
+- **Verified automatically:** merged PRs [#120](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/120)
+  and [#121](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/121) report
+  passing focused regressions and full checks on their respective source states.
+  They do not establish physical-device notification behavior or validate every
+  later commit. No application tests were rerun for this documentation checkpoint.
+- **Partial:** monitoring has probes but structured logging remains pending;
+  reminders have automated reconciliation evidence but latest-build physical
+  adverse-network delivery/cancellation acceptance remains open. Signup works
+  without mailbox proof under [ADR 018](adr/018-unverified-signup-and-hosted-web.md);
+  email verification/delivery and password recovery remain disabled.
+- **Outstanding:** hosted-API Android acceptance, Lighthouse target, Android
+  widget and full new-user release report remain pending as listed above.
+  Institutional Canvas OAuth/live acceptance, broader iOS/Android acceptance and
+  off-host backups remain release limitations. Prior native evidence is scoped
+  in the [readiness record](development/production-readiness.md).
+- **Unresolved P2 risk — malformed reminder-suppression cache:** current
+  `task-reminder-suppression.ts` parses the entire cached ledger with Zod and
+  has no malformed-entry recovery. Invalid stored data can repeatedly reject
+  loading and block reminder reads/reconciliation and suppression persistence.
+  No fix is present in the inspected implementation. Separately, a process exit
+  before suppression is durably saved can let stale cached intent recreate an
+  obsolete alarm (#120); backend course changes require a successful device
+  refresh (#121).
 
 ## 1. Hosted API on the existing server
 
@@ -77,8 +112,10 @@ the developer's PC.*
 
 ## 8. Public signup
 
-- `REGISTRATION_MODE=verified` with a real SMTP provider. Signup, verification,
-  password reset and the deliverability of each are observed in production.
+- Course prototype: explicitly enabled unverified signup under ADR 018, with
+  mail and password recovery disabled. Before a real public release, use
+  `REGISTRATION_MODE=verified` with an approved SMTP provider and observe signup,
+  verification, password reset and delivery.
 
 ## 9. ICS timetable import
 

@@ -5,6 +5,22 @@ patterns in MyStudyLife informed the choice of a weekly overview and a dedicated
 coursework workspace; CampusFlow retains its existing native components, moss/sage
 palette and Today-centered product model.
 
+## Midterm prototype status
+
+For the October 26, 2026 AUCSC 325 checkpoint (recorded October 25),
+“implemented” means a prototype workflow exists, not physical-device acceptance
+or production readiness. The numbered slices retain links to their requirements;
+this status summary does not replace those specifications.
+
+| Status | Scope and evidence |
+| --- | --- |
+| Implemented prototype | Today, personal tasks/steps/recurrence, weekly/month planning, coursework/courses/grades/exams, timetable, preparation plans, focus/history/report/recovery, routines, wellness, campus discovery, onboarding, account/privacy/help and reminder center. |
+| Verified by automated checks | Existing behavior tests cover these slices. Merged [#120](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/120) reports 18 task-reminder integration regressions and passing full checks; [#121](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/121) reports 26 PostgreSQL course-reminder regressions and passing full checks. Results apply to the tested PR source, not blanket acceptance of current main. |
+| Partial | Canvas uses normalized fixtures pending approved live OAuth; reminders require refresh/native cleanup and further physical acceptance. Account recovery/verified signup code exists, but real email delivery is disabled; the hosted course prototype uses ADR 018 unverified signup. |
+| Outstanding / limitations | See the [release backlog and unresolved P2 malformed reminder-suppression cache risk](../ROADMAP.md#aucsc-325-midterm-prototype--october-26-2026), and the scoped [readiness evidence](production-readiness.md). Offline guarantees are cached reads, not general offline writes. |
+
+## Feature slices
+
 1. **Weekly planner:** Monday–Sunday workload overview, per-day agenda, honest
    offline coverage and navigation into Today. Implemented in the planner slice.
 2. **Academic workspace:** course filters, search, deadline groups, submission
@@ -114,15 +130,16 @@ explicit production configuration, read-only release smoke and a guarded local
 snapshot/restore rehearsal. See [release operations](release-operations.md);
 CI restores its disposable test database as a required release verification step.
 
-Commercial-release gates remain: institution-approved live Canvas OAuth and
-an authorized integration test, deployed campus feeds, production hosting/TLS,
-account recovery, and iOS/Android acceptance. Feature development can continue
-against existing provider boundaries while these external gates are pending.
+Commercial-release gates include institution-approved live Canvas OAuth and
+an authorized integration test, email-backed account recovery and broader
+iOS/Android acceptance. Hosting/TLS and campus-feed deployment were recorded
+as delivered in the [release backlog](../ROADMAP.md); those prototype deliveries
+do not establish production readiness.
 
 ## Integrated review of the October MVP stack
 
-The open UI/product slices are combined in PR #100 for final acceptance against
-main. The month calendar now reads repeating completion from the existing owned
+The October UI/product slices were combined and merged in PR #100; scoped
+acceptance evidence is recorded in the [readiness record](production-readiness.md). The month calendar now reads repeating completion from the existing owned
 planning snapshot only inside its declared coverage and for the matching task
 revision. Missing, duplicate, future or foreign completion records remain
 unavailable, and failed event reads cannot imply an empty day. It remains a
