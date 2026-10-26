@@ -21,6 +21,8 @@ jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireA
 const owner = JSON.stringify([session.user.id, 'token']), program = findGymProgram('dorm-room-starter')!;
 const save = jest.fn();
 beforeEach(() => {
+  // The saved workout's end time must fall in the mocked today's week.
+  jest.useFakeTimers({ advanceTimers: true }); jest.setSystemTime(new Date('2026-10-23T18:00:00Z'));
   jest.clearAllMocks();
   useGymWorkout.setState({ draft: createDraft(owner, program, program.days[0], 'kg', [], '2026-10-23', 'America/Edmonton', new Date(Date.now() - 30 * 60_000)), restored: owner });
   jest.mocked(useGym).mockReturnValue({ data: { enrollment: { weeklyTarget: 3 }, workouts: [] } } as unknown as ReturnType<typeof useGym>);
