@@ -6,9 +6,10 @@ import { useReminderStatus } from '@/store/reminder-status';
 
 const key = 'task-reminder-suppression:v1';
 const schema = z.array(z.object({ taskId: idSchema, allowedIds: z.array(idSchema) }));
+const recoverySchema = z.object({ entries: schema, recoveryIds: z.array(idSchema).nullable() });
 type Entry = z.infer<typeof schema>[number];
 type State = { entries: Map<string, Entry>; loaded: boolean; loading?: Promise<void>; epoch: number;
-  dirty: boolean; pending: Promise<void> };
+  recoveryIds?: string[] | null; dirty: boolean; pending: Promise<void> };
 const accounts = new Map<string, State>();
 const listeners = new Set<() => void>();
 let revision = 0;
@@ -29,7 +30,16 @@ export async function loadTaskReminderSuppression(accountId: string): Promise<vo
   if (state.loaded) return;
   if (!state.loading) {
     state.loading = (async () => {
-      const stored = schema.parse(await readCache(accountId, key) ?? []);
+      const cached = await readCache(accountId, key);
+      const legacy = schema.safeParse(cached === undefined ? [] : cached);
+      const recovered = recoverySchema.safeParse(cached);
+      const stored = legacy.success ? legacy.data : recovered.success ? recovered.data.entries : [];
+      // Corruption loses suppression knowledge: fail closed until an owned,
+      // current server read supplies an allow-list. Never trust old task caches.
+      if (!legacy.success) {
+        state.recoveryIds = recovered.success ? recovered.data.recoveryIds : null;
+        if (!recovered.success) state.dirty = true;
+      }
       // A mutation may have been acknowledged while SQLite was reading.
       for (const entry of stored) if (!state.entries.has(entry.taskId)) state.entries.set(entry.taskId, entry);
       state.loaded = true; publish();
@@ -47,6 +57,8 @@ export function confirmTaskReminderSuppression(accountId: string, taskId: string
 export function filterTaskReminders(accountId: string, reminders: Reminder[]): Reminder[] {
   const state = stateFor(accountId);
   return reminders.filter(reminder => {
+    if (reminder.targetKind === 'personalTask' && state.recoveryIds !== undefined
+      && !state.recoveryIds?.includes(reminder.id)) return false;
     const entry = reminder.targetKind === 'personalTask' ? state.entries.get(reminder.targetId) : undefined;
     return !entry || entry.allowedIds.includes(reminder.id);
   });
@@ -60,7 +72,9 @@ export async function persistTaskReminderSuppression(accountId: string, isCurren
     if (!isCurrent() || accounts.get(accountId) !== state) return;
     if (state.dirty) {
       const epoch = state.epoch;
-      await writeCache(accountId, key, [...state.entries.values()], () => isCurrent() && accounts.get(accountId) === state);
+      const entries = [...state.entries.values()];
+      const stored = state.recoveryIds === undefined ? entries : { entries, recoveryIds: state.recoveryIds };
+      await writeCache(accountId, key, stored, () => isCurrent() && accounts.get(accountId) === state);
       if (isCurrent() && state.epoch === epoch) state.dirty = false;
     }
     if (isCurrent()) useReminderStatus.setState(status => ({ accountId, persistenceError: undefined, error: status.accountId === accountId ? status.error : undefined }));
@@ -79,7 +93,11 @@ export async function acceptTaskReminderRead(accountId: string, reminders: Remin
   const state = stateFor(accountId);
   await loadTaskReminderSuppression(accountId);
   if (!isCurrent() || accounts.get(accountId) !== state || state.epoch !== epoch) return false;
-  if (state.entries.size) {
+  if (state.recoveryIds !== undefined) {
+    state.recoveryIds = reminders.filter(reminder => reminder.targetKind === 'personalTask').map(reminder => reminder.id);
+    state.dirty = true;
+  }
+  if (state.entries.size || state.dirty) {
     for (const entry of state.entries.values()) entry.allowedIds = reminders
       .filter(reminder => reminder.targetKind === 'personalTask' && reminder.targetId === entry.taskId).map(reminder => reminder.id);
     // Keep the allow-list after fresh reads so older SQLite fallbacks cannot
