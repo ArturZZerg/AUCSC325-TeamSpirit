@@ -107,7 +107,7 @@ function CourseContent({ timeZone }: { timeZone: string }) {
     <View style={styles.sectionRow}><Text accessibilityRole="header" style={styles.section}>Assessments</Text>
       <View style={styles.headActions}>
         <Pressable accessibilityRole="button" accessibilityLabel="Add group" onPress={() => setEditingGroup(null)} hitSlop={8}><Text style={styles.link}>Add group</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Add assessment" onPress={() => { setNewInGroup(null); setEditing(null); }} style={[styles.add, { backgroundColor: accent }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Add assessment" onPress={() => { setNewInGroup(null); setEditing(null); }} hitSlop={3} style={[styles.add, { backgroundColor: accent }]}>
           <Ionicons name="add" size={20} color={colors.onAccent}/></Pressable></View></View>
     {!assessments.length && !groups.length && <Text style={styles.meta}>Add each graded part with its weight, such as Midterm 30% or Final 40%. Use groups for parts like Quizzes 20% that hold several assessments.</Text>}
     {assessments.filter(row => !row.groupId || !groups.some(group => group.id === row.groupId)).map(row =>
@@ -184,9 +184,9 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14 }, titleText: { flex: 1, gap: 2 },
   tile: { width: 54, height: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, tileText: { color: colors.onAccent, fontWeight: '800', letterSpacing: 0.5 },
   title: { color: colors.ink, fontSize: 24, fontWeight: '800' }, meta: { color: colors.muted, lineHeight: 20 },
-  hero: { borderRadius: 22, padding: 18, gap: 6 }, heroLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  heroValue: { color: colors.onAccent, fontSize: 44, fontWeight: '800', fontVariant: ['tabular-nums'] }, heroMeta: { color: 'rgba(255,255,255,0.85)' },
-  track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.28)', overflow: 'hidden', marginTop: 4 }, fill: { height: 8, borderRadius: 4, backgroundColor: colors.onAccent },
+  hero: { borderRadius: 22, padding: 18, gap: 6 }, heroLabel: { color: colors.onAccentMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  heroValue: { color: colors.onAccent, fontSize: 44, fontWeight: '800', fontVariant: ['tabular-nums'] }, heroMeta: { color: colors.onAccentMuted },
+  track: { height: 8, borderRadius: 4, backgroundColor: colors.onAccentTrack, overflow: 'hidden', marginTop: 4 }, fill: { height: 8, borderRadius: 4, backgroundColor: colors.onAccent },
   outlook: { color: colors.onAccent, fontWeight: '700', lineHeight: 21, marginTop: 6 },
   card: { backgroundColor: colors.card, borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: colors.line },
   section: { color: colors.ink, fontSize: 18, fontWeight: '800' }, sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },

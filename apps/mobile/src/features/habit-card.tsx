@@ -43,7 +43,7 @@ export function HabitCard({ goal, disabled, pending, expanded, onToggleExpanded,
       </Pressable>
         : <View style={[styles.check, completion?.state === 'completed' ? styles.checkDone : styles.checkIdle]}>
           <Ionicons name={completion?.state === 'completed' ? 'checkmark' : completion?.state === 'skipped' ? 'play-skip-forward' : goal.pausedAt ? 'pause' : 'moon-outline'}
-            size={completion?.state === 'completed' ? 24 : 18} color={completion?.state === 'completed' ? '#fff' : colors.muted}/></View>}
+            size={completion?.state === 'completed' ? 24 : 18} color={completion?.state === 'completed' ? colors.onAccent : colors.muted}/></View>}
       <View style={styles.body}>
         <Text style={styles.title}>{goal.title}</Text>
         <Text style={styles.meta}>{goal.pausedAt ? 'Paused · ' : ''}{scheduleLabel(goal)}</Text>
@@ -59,7 +59,7 @@ export function HabitCard({ goal, disabled, pending, expanded, onToggleExpanded,
     <State loading={history.isLoading} error={history.error}/>
     {days && <View style={styles.days}>{days.map(row => <View key={row.date} style={styles.day} accessible accessibilityLabel={`${weekdayNames[row.weekday - 1]} ${row.date}: ${statusText[row.status]}`}>
       <Text style={[styles.letter, row.status === 'open' && styles.letterToday]}>{letters[row.weekday - 1]}</Text>
-      <View style={[styles.dot, dotStyles[row.status]]}>{row.status === 'done' && <Ionicons name="checkmark" size={12} color="#fff"/>}</View>
+      <View style={[styles.dot, dotStyles[row.status]]}>{row.status === 'done' && <Ionicons name="checkmark" size={12} color={colors.onAccent}/>}</View>
     </View>)}</View>}
     {goal.schedule.kind === 'weeklyTarget' && (progress ? <View style={styles.target}>
       <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, Math.round(progress.completed / progress.target * 100))}%` }]}/></View>

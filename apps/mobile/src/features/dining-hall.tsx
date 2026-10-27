@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { DiningDish, DiningMenu, SaveFoodEntry } from '@campusflow/contracts';
 import type { Meal } from '@campusflow/domain';
 import { Button, Card, colors } from '@/components/ui';
 import { diningEntry, diningPortion, formatNumber, mealLabels, servingSteps } from './nutrition';
+import { SheetModal } from '@/components/sheet-modal';
 
 const clock = (minutes: number) => { const hour = Math.floor(minutes / 60), suffix = hour >= 12 ? 'pm' : 'am';
   return `${hour % 12 || 12}:${String(minutes % 60).padStart(2, '0')}${suffix}`; };
@@ -43,7 +44,7 @@ export function DiningHall({ menu, minutes, date, saving, onAdd }: { menu: Dinin
 function DishSheet({ dish, meal, date, saving, onAdd, onClose }: { dish: DiningDish; meal: Meal; date: string; saving: boolean; onAdd(entry: SaveFoodEntry): Promise<boolean>; onClose(): void }) {
   const [servings, setServings] = useState(1); const [extra, setExtra] = useState(false);
   const portion = diningPortion(dish, servings, extra), hasMeat = dish.meat.grams > 0;
-  return <Modal visible transparent animationType="slide" onRequestClose={onClose}><SafeAreaView style={styles.scrim}>
+  return <SheetModal visible transparent animationType="slide" onRequestClose={onClose}><SafeAreaView style={styles.scrim}>
     <View style={styles.sheet}>
       <View style={styles.head}><Text style={[styles.title, styles.flex]}>{dish.name}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} hitSlop={10}><Ionicons name="close" size={24} color={colors.ink}/></Pressable></View>
@@ -59,7 +60,7 @@ function DishSheet({ dish, meal, date, saving, onAdd, onClose }: { dish: DiningD
         <Text style={styles.previewText}>Protein {Math.round(portion.nutrients.protein)} g · Carbs {Math.round(portion.nutrients.carbs)} g · Fat {Math.round(portion.nutrients.fat)} g · Fiber {Math.round(portion.nutrients.fiber)} g</Text></View>
       <Button title={saving ? 'Adding…' : `Add to ${mealLabels[meal].toLowerCase()}`} disabled={saving} onPress={() => { void onAdd(diningEntry(dish, servings, extra, meal, date)); }}/>
     </View>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 
 const styles = StyleSheet.create({

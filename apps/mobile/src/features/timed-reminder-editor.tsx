@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field, colors } from '@/components/ui';
 import { timedReminderDefaults, timedReminderFormSchema, type ReminderTiming, type TimedReminderForm } from '@/features/timed-reminder-form';
 import { taskTimingLabel } from '@/features/task-form';
+import { SheetModal } from '@/components/sheet-modal';
 export function TimedReminderEditor({ title, subjectTitle, reminder, timeZone, zoneLabel = 'account', inactiveHint, onSave, onClose }: {
   title: string; subjectTitle: string; reminder: ReminderTiming; timeZone: string; zoneLabel?: string; inactiveHint?: string;
   onSave(values: TimedReminderForm): Promise<unknown>; onClose(): void;
@@ -25,7 +26,7 @@ export function TimedReminderEditor({ title, subjectTitle, reminder, timeZone, z
     try { await handleSubmit(save)(); } finally { saving.current = false; }
   };
   const mode = watch('mode'); const error = errors.date?.message || errors.time?.message || message;
-  return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
     <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{title}</Text><Text style={styles.label}>{subjectTitle}</Text>
@@ -45,6 +46,6 @@ export function TimedReminderEditor({ title, subjectTitle, reminder, timeZone, z
         <Button title={isSubmitting ? 'Saving…' : 'Save reminder'} disabled={isSubmitting} onPress={() => { void submit(); }}/><Button title="Cancel" tone="plain" disabled={isSubmitting} onPress={close}/>
       </ScrollView>
     </KeyboardAvoidingView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: 16, gap: 12 }, title: { fontSize: 26, fontWeight: '800', color: colors.ink }, label: { color: colors.ink, fontWeight: '700' }, meta: { color: colors.muted }, options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, choice: { padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.line }, selected: { backgroundColor: colors.sage, borderColor: colors.moss }, error: { color: colors.coral } });

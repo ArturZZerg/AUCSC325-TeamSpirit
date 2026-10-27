@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   section: { fontSize: 18, fontWeight: '800', color: colors.ink, lineHeight: 24 }, copy: { color: colors.muted, fontSize: 15, lineHeight: 22 }, meta: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   tip: { backgroundColor: colors.sage, borderRadius: 14, padding: 16, gap: 12, flexDirection: 'row', alignItems: 'center' }, tipText: { flex: 1, color: colors.ink, lineHeight: 21 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.line },
-  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, chipText: { color: colors.ink, fontWeight: '700' }, selectedText: { color: '#fff' },
+  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, chipText: { color: colors.ink, fontWeight: '700' }, selectedText: { color: colors.onAccent },
   cardHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 }, cardTitle: { flex: 1, gap: 5 }, icon: { backgroundColor: colors.sage, width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   schedule: { color: colors.moss, fontWeight: '700', fontSize: 13, lineHeight: 20 },
   choose: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 8 }, chooseText: { flex: 1, fontWeight: '700', color: colors.moss },

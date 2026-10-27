@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Accessibility: colours meet WCAG AA contrast in light and dark mode (dark mode
+  now uses dark text on accents), editors open without sliding when Reduce
+  Motion or Remove animations is on, small controls reach 44-point touch
+  targets, fixed-size number circles keep their shape at large text sizes, and a
+  Help article explains the support. Tests check contrast for every colour pair
+  and that every control has a role and a spoken name.
+
 - More Canvas imports (ADR 025): to-dos from the Canvas planner (pages,
   ungraded discussions and the student's own notes) as "Other work", course
   calendar events as private events on Campus and Today, and removal of

@@ -133,10 +133,10 @@ function Link({ label, danger, disabled, onPress }: { label: string; danger?: bo
 }
 function Stepper({ label, value, min, max, step = 1, format = String, onChange }: { label: string; value: number; min: number; max: number; step?: number; format?: (value: number) => string; onChange(value: number): void }) {
   return <View style={styles.stepper}><Text style={styles.stepLabel}>{label}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label}`} disabled={value <= min} onPress={() => onChange(Math.max(min, value - step))} style={[styles.stepButton, value <= min && styles.dim]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${label}`} disabled={value <= min} onPress={() => onChange(Math.max(min, value - step))} hitSlop={4} style={[styles.stepButton, value <= min && styles.dim]}>
       <Ionicons name="remove" size={18} color={colors.moss}/></Pressable>
     <Text accessibilityLabel={`${label} ${format(value)}`} style={styles.stepValue}>{format(value)}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label}`} disabled={value >= max} onPress={() => onChange(Math.min(max, value + step))} style={[styles.stepButton, value >= max && styles.dim]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${label}`} disabled={value >= max} onPress={() => onChange(Math.min(max, value + step))} hitSlop={4} style={[styles.stepButton, value >= max && styles.dim]}>
       <Ionicons name="add" size={18} color={colors.moss}/></Pressable>
   </View>;
 }

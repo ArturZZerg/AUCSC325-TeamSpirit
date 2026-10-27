@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, State, colors } from '@/components/ui';
 import { useAcademicReminder, useAction } from '@/features/queries';
 import type { AcademicItem } from '@/lib/types';
+import { SheetModal } from '@/components/sheet-modal';
 
 const options = [
   { value: null, label: 'No reminder' }, { value: 0, label: 'At the deadline' },
@@ -28,7 +29,7 @@ export function AcademicReminderEditor({ item, onClose }: { item: AcademicItem; 
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not save the reminder. Try again.'); }
     finally { busy.current = false; setSaving(false); }
   };
-  return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Coursework reminder</Text><Text style={styles.subject}>{item.title}</Text>
       <Text style={styles.meta}>Choose how far ahead you’d like a reminder. It follows a changed deadline after your next successful sync.</Text>
@@ -47,7 +48,7 @@ export function AcademicReminderEditor({ item, onClose }: { item: AcademicItem; 
       <Button title={disabled ? 'Saving…' : 'Save reminder'} disabled={disabled || value === undefined || !query.data} onPress={() => { void save(); }}/>
       <Button title="Cancel" tone="plain" disabled={disabled} onPress={close}/>
     </ScrollView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: 20, gap: 16, maxWidth: 760, width: '100%', alignSelf: 'center' },

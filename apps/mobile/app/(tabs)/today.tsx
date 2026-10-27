@@ -178,7 +178,7 @@ export default function TodayScreen() {
   </ScrollView>
   {!taskDraft && <Pressable testID="today-add-task" accessibilityRole="button" accessibilityLabel="Add a task to this day" accessibilityState={{ disabled: blocked }} disabled={blocked}
     onPress={() => setTaskDraft({ scheduledMode: 'date', scheduledDate: date })} style={({ pressed }) => [styles.fab, pressed && styles.pressed, blocked && styles.dim]}>
-    <Ionicons name="add" size={24} color="#fff"/><Text style={styles.fabText}>Add task</Text>
+    <Ionicons name="add" size={24} color={colors.onAccent}/><Text style={styles.fabText}>Add task</Text>
   </Pressable>}
   {taskDraft && <TaskEditor task={null} timeZone={query.timeZone} courses={courses.data} initialValues={taskDraft} onClose={() => setTaskDraft(undefined)}/>}</Screen>;
 }
@@ -197,10 +197,10 @@ const styles = StyleSheet.create({
   searchButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.sage, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   hero: { backgroundColor: colors.moss, borderRadius: 22, padding: 18, gap: 14 },
   heroRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, heroCopy: { gap: 2, flexShrink: 1 },
-  heroValue: { color: '#fff', fontSize: 30, fontWeight: '800', fontVariant: ['tabular-nums'] }, heroLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 14 },
+  heroValue: { color: colors.onAccent, fontSize: 30, fontWeight: '800', fontVariant: ['tabular-nums'] }, heroLabel: { color: colors.onAccentMuted, fontSize: 14 },
   review: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.card, borderRadius: 20, paddingHorizontal: 14, minHeight: 40 },
   reviewText: { color: colors.ink, fontWeight: '700', fontSize: 13 },
-  track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' }, fill: { height: 8, borderRadius: 4, backgroundColor: '#fff' },
+  track: { height: 8, borderRadius: 4, backgroundColor: colors.onAccentTrack, overflow: 'hidden' }, fill: { height: 8, borderRadius: 4, backgroundColor: colors.onAccent },
   shortcuts: { flexDirection: 'row', gap: 8 },
   shortcut: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6, paddingVertical: 10, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   shortcutIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.sage, alignItems: 'center', justifyContent: 'center' },
@@ -213,9 +213,9 @@ const styles = StyleSheet.create({
   compact: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   stripe: { width: 4 }, compactBody: { padding: 12, gap: 3, flex: 1 },
   item: { color: colors.ink, fontSize: 16, fontWeight: '700' }, meta: { color: colors.muted },
-  primary: { minHeight: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.moss }, primaryText: { color: '#fff', fontWeight: '700' },
+  primary: { minHeight: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.moss }, primaryText: { color: colors.onAccent, fontWeight: '700' },
   offline: { backgroundColor: colors.warnSurface, color: colors.warnText, padding: 12, borderRadius: 12 },
   fab: { position: 'absolute', right: 18, bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.moss, borderRadius: 28, paddingHorizontal: 18, minHeight: 54,
     shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
-  fabText: { color: '#fff', fontWeight: '800', fontSize: 15 }, pressed: { opacity: 0.75 }, dim: { opacity: 0.5 }, spacer: { height: 72 },
+  fabText: { color: colors.onAccent, fontWeight: '800', fontSize: 15 }, pressed: { opacity: 0.75 }, dim: { opacity: 0.5 }, spacer: { height: 72 },
 });

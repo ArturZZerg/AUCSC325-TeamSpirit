@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   search: { gap: 8, marginTop: 8 }, label: { color: colors.ink, fontWeight: '700' },
   input: { minHeight: 48, borderWidth: 1, borderColor: colors.line, borderRadius: 14, backgroundColor: colors.card, color: colors.ink, padding: 12, fontSize: 16 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 22, backgroundColor: colors.card, borderColor: colors.line, borderWidth: 1 },
-  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, chipText: { color: colors.muted, fontWeight: '600' }, selectedText: { color: '#FFFFFF' },
+  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, chipText: { color: colors.muted, fontWeight: '600' }, selectedText: { color: colors.onAccent },
   count: { color: colors.muted, fontSize: 13 }, article: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
   articleText: { flex: 1, gap: 5 }, topic: { color: colors.moss, fontWeight: '600', fontSize: 12 }, question: { color: colors.ink, fontSize: 17, lineHeight: 23, fontWeight: '700' },
   expand: { color: colors.moss, fontSize: 26 }, answer: { color: colors.ink, fontSize: 15, lineHeight: 23 }, section: { color: colors.ink, fontSize: 18, fontWeight: '800' }, error: { color: colors.danger, lineHeight: 22 },

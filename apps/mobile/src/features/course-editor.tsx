@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ZodError } from 'zod';
 import { courseColorSchema, createCourseSchema, manualCourseSource, updateCourseSchema } from '@campusflow/contracts';
@@ -8,11 +8,12 @@ import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import { newStepId } from '@/features/task-checklist';
 import type { Course } from '@/lib/types';
+import { SheetModal } from '@/components/sheet-modal';
 
 export type CourseColor = (typeof courseColorSchema.options)[number];
 export const courseColors: Record<CourseColor, string> = {
   moss: colors.moss, blue: colors.blue, plum: colors.plum, coral: colors.coral,
-  gold: '#B7792B', teal: '#3E8C7A', slate: '#5B6472', rose: '#B4566E',
+  gold: colors.courseGold, teal: colors.courseTeal, slate: colors.courseSlate, rose: colors.courseRose,
 };
 export const courseColor = (course: Pick<Course, 'color'> | undefined) => course?.color ? courseColors[course.color] : colors.muted;
 export const isManualCourse = (course: Pick<Course, 'source'>) => course.source === manualCourseSource;
@@ -39,7 +40,7 @@ export function CourseEditor({ course, onClose, onDelete }: { course: Course | n
         : error instanceof Error ? error.message : 'Could not save the course. Please try again.');
     } finally { saving.current = false; setBusy(false); }
   };
-  return <Modal visible animationType="slide" onRequestClose={() => { if (!busy) onClose(); }}>
+  return <SheetModal visible animationType="slide" onRequestClose={() => { if (!busy) onClose(); }}>
     <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={styles.title}>{course ? 'Edit course' : 'New course'}</Text>
@@ -57,7 +58,7 @@ export function CourseEditor({ course, onClose, onDelete }: { course: Course | n
         {onDelete && <Button title="Delete course" tone="danger" disabled={busy} onPress={onDelete}/>}
       </ScrollView>
     </KeyboardAvoidingView></SafeAreaView>
-  </Modal>;
+  </SheetModal>;
 }
 
 const styles = StyleSheet.create({

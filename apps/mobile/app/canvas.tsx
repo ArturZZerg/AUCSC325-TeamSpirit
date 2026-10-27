@@ -70,7 +70,7 @@ function CanvasConnection({ userId, timeZone }: { userId: string; timeZone: stri
     {data && !data.connected && data.connectMode === 'token' && <>
       <Card>
         <Text style={styles.section}>How to get your access token</Text>
-        {steps.map((step, index) => <View key={step} style={styles.step}><Text style={styles.number}>{index + 1}</Text><Text style={[styles.copy, styles.grow]}>{step}</Text></View>)}
+        {steps.map((step, index) => <View key={step} style={styles.step}><Text maxFontSizeMultiplier={1.3} style={styles.number}>{index + 1}</Text><Text style={[styles.copy, styles.grow]}>{step}</Text></View>)}
         <Text style={styles.meta}>The token gives read access to your Canvas account like your password does. CampusFlow stores it encrypted on its server, never on this phone, and you can revoke it in Canvas at any time.</Text>
         <Button title="Canvas guide: access tokens" tone="plain" onPress={() => { void Linking.openURL('https://community.canvaslms.com/t5/Canvas-Basics-Guide/How-do-I-manage-API-access-tokens-in-my-user-account/ta-p/615312'); }}/>
       </Card>

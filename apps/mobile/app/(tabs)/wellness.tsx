@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -15,6 +15,7 @@ import { Chip } from '@/features/task-row';
 import { ratingLabel } from '@/features/wellness-journal';
 import { useSessionStore } from '@/store/session';
 import type { Goal } from '@/lib/types';
+import { SheetModal } from '@/components/sheet-modal';
 
 const moodIcons = ['sad-outline', 'cloudy-outline', 'partly-sunny-outline', 'sunny-outline', 'happy-outline'] as const;
 
@@ -54,7 +55,7 @@ export default function WellnessScreen() {
         <Text style={styles.meta}>{checkIn ? `Mood: ${ratingLabel('mood', checkIn.mood)} · Energy: ${ratingLabel('energy', checkIn.energy)} · Stress: ${ratingLabel('stress', checkIn.stress)}` : entries.data ? 'A small moment to record how your day feels.' : 'Connect to review saved check-ins.'}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Open check-in journal" disabled={disabled} onPress={() => router.push('/journal')}
           style={({ pressed }) => [styles.journal, pressed && styles.pressed, disabled && styles.dim]}>
-          <Text style={styles.journalText}>{checkIn ? 'Update check-in' : 'Check in now'}</Text><Ionicons name="arrow-forward" size={16} color="#fff"/>
+          <Text style={styles.journalText}>{checkIn ? 'Update check-in' : 'Check in now'}</Text><Ionicons name="arrow-forward" size={16} color={colors.onAccent}/>
         </Pressable>
       </View>
     </View>
@@ -65,7 +66,7 @@ export default function WellnessScreen() {
     </Pressable>
     <View style={styles.top}><Text accessibilityRole="header" style={styles.section}>Your routines</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Add goal" accessibilityState={{ disabled }} disabled={disabled} onPress={() => setEditing(null)}
-        style={({ pressed }) => [styles.add, pressed && styles.pressed, disabled && styles.dim]}><Ionicons name="add" size={22} color="#fff"/></Pressable></View>
+        style={({ pressed }) => [styles.add, pressed && styles.pressed, disabled && styles.dim]}><Ionicons name="add" size={22} color={colors.onAccent}/></Pressable></View>
     <View style={styles.links}><Chip icon="bulb-outline" label="Browse routine ideas" disabled={disabled} onPress={() => router.push('/routines')}/></View>
     <State loading={goals.isLoading} error={goals.error}/>
     {goals.data?.length === 0 && <View style={styles.empty}><Ionicons name="flame-outline" size={30} color={colors.plum}/>
@@ -78,7 +79,7 @@ export default function WellnessScreen() {
     {editing !== undefined && <GoalEditor key={editing?.id ?? 'new'} goal={editing} timeZone={timeZone} onClose={() => setEditing(undefined)}/>}
     {reminding && <GoalReminderEditor key={reminding.id} goal={reminding} onClose={() => setReminding(undefined)}/>}
     {history && <GoalHistory goal={history} onClose={() => setHistory(undefined)}/>}
-    {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!disabled) setDeleting(undefined); }}>
+    {deleting && <SheetModal visible transparent animationType="fade" onRequestClose={() => { if (!disabled) setDeleting(undefined); }}>
       <SafeAreaView style={styles.confirm}><Card><Text style={styles.section}>Delete goal?</Text>
         <Text style={styles.meta}>Delete “{deleting.title}” and its completion history and reminder? Pausing keeps your history.</Text>
         {message && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
@@ -86,13 +87,13 @@ export default function WellnessScreen() {
           void run(deleting.id, () => action.mutateAsync({ path: `/goals/${deleting.id}`, method: 'DELETE' })).then(saved => { if (saved) setDeleting(undefined); });
         }}/><Button title="Keep goal" tone="plain" disabled={disabled} onPress={() => setDeleting(undefined)}/>
       </Card></SafeAreaView>
-    </Modal>}
+    </SheetModal>}
   </Screen>;
 }
 
 function GoalHistory({ goal, onClose }: { goal: Goal; onClose(): void }) {
   const query = useGoalHistory(goal.id);
-  return <Modal visible animationType="slide" onRequestClose={onClose}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={onClose}><SafeAreaView style={styles.safe}>
     <ScrollView contentContainerStyle={styles.content}><Text style={styles.section}>{goal.title} — completion history</Text>
       <Text style={styles.meta}>Occurrence dates follow {goal.timeZone}.</Text>
       <State loading={query.isLoading} error={query.error} empty={query.data?.length === 0 ? 'No completion history yet.' : undefined}/>
@@ -103,7 +104,7 @@ function GoalHistory({ goal, onClose }: { goal: Goal; onClose(): void }) {
       </View>)}
       <Button title="Refresh history" disabled={query.isFetching} onPress={() => { void query.refetch(); }}/><Button title="Close history" tone="plain" onPress={onClose}/>
     </ScrollView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 
 const styles = StyleSheet.create({
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
   checkIn: { flexDirection: 'row', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.sage },
   checkInIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }, checkInBody: { flex: 1, gap: 6 },
   journal: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.moss, borderRadius: 18, paddingHorizontal: 14, minHeight: 38, marginTop: 2 },
-  journalText: { color: '#fff', fontWeight: '700' },
+  journalText: { color: colors.onAccent, fontWeight: '700' },
   food: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 6 },
   add: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center' },

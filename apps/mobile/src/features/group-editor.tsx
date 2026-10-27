@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ZodError } from 'zod';
 import { createAssessmentGroupSchema, updateAssessmentGroupSchema } from '@campusflow/contracts';
@@ -8,6 +8,7 @@ import { useAction } from '@/features/queries';
 import { newStepId } from '@/features/task-checklist';
 import { percentInput } from '@/features/assessment-editor';
 import type { Course } from '@/lib/types';
+import { SheetModal } from '@/components/sheet-modal';
 
 type Group = NonNullable<Course['assessmentGroups']>[number];
 const describe = (weight: number | null) => weight === null ? 'by points' : `${Number.isInteger(weight) ? weight : weight.toFixed(1)}%`;
@@ -42,7 +43,7 @@ export function GroupEditor({ courseId, group, inUse, onClose }: { courseId: str
           : { path, method: 'POST', body: createAssessmentGroupSchema.parse({ id, title, weight: parsed }) });
     } catch (error) { setMessage(error instanceof ZodError ? error.issues[0].message : 'Check the group details.'); }
   };
-  return <Modal visible animationType="slide" onRequestClose={() => { if (!busy) onClose(); }}>
+  return <SheetModal visible animationType="slide" onRequestClose={() => { if (!busy) onClose(); }}>
     <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={styles.title}>{canvas ? group.title : group ? 'Edit group' : 'New group'}</Text>
@@ -60,7 +61,7 @@ export function GroupEditor({ courseId, group, inUse, onClose }: { courseId: str
           : <Button title="Delete group" tone="danger" disabled={busy} onPress={() => { void run({ path: `${path}/${group.id}`, method: 'DELETE' }); }}/>)}
       </ScrollView>
     </KeyboardAvoidingView></SafeAreaView>
-  </Modal>;
+  </SheetModal>;
 }
 
 const styles = StyleSheet.create({

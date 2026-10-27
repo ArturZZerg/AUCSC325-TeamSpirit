@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CreateStudyPlan } from '@campusflow/contracts';
 import { ZodError } from 'zod';
@@ -11,6 +11,7 @@ import { useTodayClock } from './today-clock';
 import { taskTimingLabel } from './task-form';
 import { preparationDefaults, preparationPreview, preparationRequest, preparationSaveKey, sessionsAfterDeadline, studyWeekdays,
   type PreparationConfig, type PreparationSession } from './preparation-plan';
+import { SheetModal } from '@/components/sheet-modal';
 
 export function PreparationPlanEditor({ item, timeZone, onClose, onSaved }: {
   item: AcademicItem; timeZone: string; onClose(): void; onSaved(): void;
@@ -52,7 +53,7 @@ export function PreparationPlanEditor({ item, timeZone, onClose, onSaved }: {
   const late = sessions ? sessionsAfterDeadline(item, sessions, timeZone) : 0;
   const past = sessions?.some(session => session.date < today);
   const crowded = sessions && new Set(sessions.map(session => session.date)).size < sessions.length;
-  return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
     <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.heading}><Text style={styles.kicker}>COURSEWORK PREPARATION</Text><Button title="Cancel" tone="plain" disabled={saving} onPress={close}/></View>
@@ -97,7 +98,7 @@ export function PreparationPlanEditor({ item, timeZone, onClose, onSaved }: {
         {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
       </ScrollView>
     </KeyboardAvoidingView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress(): void }) {
   return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} aria-checked={selected} onPress={onPress}
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
   section: { color: colors.ink, fontSize: 18, fontWeight: '700' }, meta: { color: colors.muted, lineHeight: 21 },
   summary: { backgroundColor: colors.sage, borderRadius: 18, padding: 16, flexDirection: 'row', gap: 12 }, stat: { flex: 1, gap: 4 }, number: { fontSize: 28, fontWeight: '800', color: colors.ink },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, choice: { minHeight: 46, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: '#fff' },
+  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: colors.onAccent },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, date: { flexGrow: 1, flexBasis: 170 }, time: { flexGrow: 1, flexBasis: 150 },
   notice: { backgroundColor: colors.sage, color: colors.ink, padding: 12, borderRadius: 12, lineHeight: 21 }, error: { color: colors.coral },
 });
