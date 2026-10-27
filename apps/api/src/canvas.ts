@@ -5,7 +5,9 @@ import { canvasConnectionStatusSchema, canvasSyncResultSchema, canvasTokenConnec
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe } from './common';
 import { ReminderService } from './data';
 import { PrismaService } from './prisma.service';
-import { AcademicSnapshot, academicSnapshotSchema, CanvasProvider } from './integrations/canvas/canvas-provider';
+import { addCalendarDays, localDateAt } from '@campusflow/domain';
+import { AcademicSnapshot, academicSnapshotSchema, CanvasProvider, plannerExternalPrefix } from './integrations/canvas/canvas-provider';
+import { canvasCalendarSource, EventSyncService } from './integrations/events/event-sync.service';
 import { CanvasFailure, CanvasHttpClient, CanvasRequestError } from './integrations/canvas/canvas-http';
 import { mergeCanvasGrades } from './integrations/canvas/canvas-grades';
 import { readGrades } from './course-grades';
@@ -16,6 +18,8 @@ export const fixtureBaseUrl = 'https://canvas.fixture.local';
 export const fixtureSource = 'canvas:fixture';
 /** Records imported with a student's own access token (ADR 019). */
 export const canvasSource = 'canvas';
+/** Planner to-dos and calendar events are read from 30 days ago to 180 days ahead (ADR 025). */
+const importDaysBack = 30, importDaysAhead = 180;
 type Tx = Prisma.TransactionClient;
 const emptyBody = z.object({}).strict().default({});
 const oauthUnavailable = () => new ServiceUnavailableException('Canvas OAuth is disabled until this deployment has an institution-approved developer key and HTTPS callback.');
@@ -37,7 +41,7 @@ const liveTimeoutMs = 25000;
 @Injectable()
 export class CanvasService {
   constructor(private readonly prisma: PrismaService, private readonly provider: CanvasProvider, private readonly reminders: ReminderService,
-    private readonly http: CanvasHttpClient) {}
+    private readonly http: CanvasHttpClient, private readonly events: EventSyncService) {}
   private assertFixtureEnabled(): void {
     if (canvasConnectMode() !== 'fixture') throw new ForbiddenException('Canvas fixtures require explicit development/test fixture mode');
   }
@@ -149,8 +153,12 @@ export class CanvasService {
     let token: string;
     try { token = openCanvasToken(key, user.id, connection.encryptedAccessToken); }
     catch { throw new ConflictException('The saved Canvas token can’t be read. Connect Canvas again.'); }
+    // Planner to-dos and course calendar events are read for a window in the student's time zone (ADR 025).
+    const owner = await this.prisma.user.findUnique({ where: { id: user.id }, select: { timeZone: true } });
+    const today = owner ? localDateAt(startedAt.toISOString(), owner.timeZone) : null;
+    const window = owner && today ? { from: addCalendarDays(today, -importDaysBack), through: addCalendarDays(today, importDaysAhead), timeZone: owner.timeZone } : undefined;
     let batch: AcademicSnapshot;
-    try { batch = academicSnapshotSchema.parse(await this.withTimeout(signal => this.http.fetchAcademicSnapshot(connection.baseUrl, token, signal))); }
+    try { batch = academicSnapshotSchema.parse(await this.withTimeout(signal => this.http.fetchAcademicSnapshot(connection.baseUrl, token, signal, window))); }
     catch (error) {
       const kind = error instanceof CanvasRequestError ? error.kind : 'invalid-response';
       await this.prisma.canvasConnection.updateMany({ where: { userId: user.id, encryptedAccessToken: connection.encryptedAccessToken },
@@ -166,14 +174,55 @@ export class CanvasService {
       return this.persist(tx, user.id, canvasSource, batch, startedAt);
     }, { timeout: 30000, maxWait: 10000, isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     if (!result) throw new ConflictException('Canvas was disconnected or reconnected during the sync. Sync again.');
-    return result;
+    return { ...result, eventsUpdated: await this.importCalendar(user.id, batch) };
+  }
+  /**
+   * Course calendar events become events private to this student. The event sync
+   * removes ones gone from a complete read unless the student saved them. Coursework
+   * is already saved, so a failure here only leaves the calendar as it was.
+   */
+  private async importCalendar(userId: string, batch: AcademicSnapshot): Promise<number> {
+    const calendar = batch.calendar;
+    if (!calendar) return 0;
+    try {
+      const outcome = await this.events.sync({ source: canvasCalendarSource, sourceScope: `user:${userId}` }, {
+        fetchEvents: async () => ({ status: calendar.complete ? 'complete' : 'incomplete', coverage: calendar.coverage, events: calendar.events,
+          issues: calendar.complete ? [] : ['incomplete-canvas-calendar'] }),
+      }, calendar.coverage);
+      return outcome.upserted;
+    } catch { return 0; }
+  }
+  /**
+   * Removes coursework deleted in Canvas (ADR 025): an assignment missing from a course
+   * whose assignments were all read, or a planner to-do missing from a complete planner
+   * read whose to-do date fell inside the window read. Reminders go with it, as when a
+   * student deletes their own coursework; study plans stay and lose the link.
+   */
+  private async removeDeleted(tx: Tx, userId: string, source: string, batch: AcademicSnapshot, courseIds: Map<string, string>) {
+    const coverage = batch.coursework!, present = new Set(batch.academicItems.map(item => item.externalId));
+    const completeCourses = new Set(coverage.completeCourses.map(id => courseIds.get(id)).filter(Boolean));
+    const synced = new Set(courseIds.values()), window = coverage.planner;
+    const stored = await tx.academicItem.findMany({ where: { userId, source }, select: { id: true, externalId: true, courseId: true, due: true }, orderBy: { id: 'asc' } });
+    for (const item of stored) {
+      if (present.has(item.externalId) || !item.courseId) continue;
+      const due = item.due as { kind?: string; at?: string } | null;
+      const removable = item.externalId.startsWith(plannerExternalPrefix)
+        ? window !== null && synced.has(item.courseId) && due?.kind === 'instant' && !!due.at && due.at >= window.from && due.at < window.to
+        : completeCourses.has(item.courseId);
+      if (!removable) continue;
+      await this.reminders.lockAcademicItem(userId, item.id, tx);
+      await tx.reminder.deleteMany({ where: { userId, targetKind: 'academicItem', targetId: item.id } });
+      await tx.academicItem.delete({ where: { id: item.id } });
+    }
   }
   /** Idempotent upserts keyed by (account, source, Canvas id). */
   private async persist(tx: Tx, userId: string, source: string, batch: AcademicSnapshot, startedAt: Date) {
     await this.reminders.lockAcademicReminders(userId, tx);
+    const courseIds = new Map<string, string>();
     for (const course of batch.courses) {
       const record = await tx.course.upsert({ where: { userId_source_externalId: { userId, source, externalId: course.externalId } },
         create: { userId, source, ...course }, update: course });
+      courseIds.set(course.externalId, record.id);
       // The upsert holds the course row lock that the assessment endpoints also take.
       const grades = batch.grades?.find(entry => entry.courseExternalId === course.externalId);
       // A grade outline that no longer parses is left alone rather than failing the whole sync.
@@ -190,11 +239,12 @@ export class CanvasService {
           create: { userId, source, ...data }, update: data });
       }
       // Reconcile persisted intent, including retained items when a course is
-      // explicitly inactivated/reactivated. Absence is never a deletion signal.
+      // explicitly inactivated/reactivated. Absence alone is never a deletion signal.
       const configured = await tx.academicItem.findMany({ where: { userId, courseId: record.id,
         reminderLeadMinutes: { not: null } }, select: { id: true }, orderBy: { id: 'asc' } });
       for (const item of configured) await this.reminders.reconcileAcademicItem(userId, item.id, tx);
     }
+    if (batch.coursework) await this.removeDeleted(tx, userId, source, batch, courseIds);
     const finishedAt = new Date();
     await tx.canvasConnection.update({ where: { userId },
       data: { lastSyncAttemptAt: startedAt, lastSuccessfulSyncAt: finishedAt, lastError: null } });

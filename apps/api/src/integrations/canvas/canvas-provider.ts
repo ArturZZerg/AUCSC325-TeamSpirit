@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { assessmentGroupLimit, dateSchema, groupedWeightMax, instantSchema } from '@campusflow/contracts';
+import { coverageSchema, importedEventSchema } from '../events/event-provider';
 
 // Provider payloads and normalized import records stay within the API.
 const externalId = z.string().min(1).max(100);
@@ -7,10 +8,20 @@ const utcInstant = instantSchema.refine(value => dateSchema.safeParse(value.slic
   .transform(value => new Date(value).toISOString());
 const normalizedCourse = z.object({ externalId, name: z.string().min(1).max(240), code: z.string().max(240).nullable(), active: z.boolean() }).strict();
 const normalizedItem = z.object({ externalId, courseExternalId: externalId, title: z.string().min(1).max(240),
-  kind: z.enum(['assignment', 'quiz', 'discussion']),
+  kind: z.enum(['assignment', 'quiz', 'discussion', 'planner']),
   due: z.object({ kind: z.literal('instant'), at: utcInstant }).strict().nullable(),
   submissionState: z.enum(['graded', 'submitted', 'missing', 'unsubmitted']),
 }).strict();
+/** Planner to-dos (ADR 025) use this prefix so they never collide with assignment ids. */
+export const plannerExternalPrefix = 'planner:';
+export const maxPlannerItems = 400;
+// What a sync read in full (ADR 025): courses whose assignments were all read,
+// and the window in which every planner to-do was read. Only these allow removal.
+const courseworkCoverage = z.object({ completeCourses: z.array(externalId).max(200),
+  planner: z.object({ from: utcInstant, to: utcInstant }).strict().nullable() }).strict();
+const calendarEvent = importedEventSchema;
+const calendarImport = z.object({ coverage: coverageSchema, complete: z.boolean(), events: z.array(calendarEvent).max(1000) }).strict();
+export type CanvasCalendarImport = z.infer<typeof calendarImport>;
 // Grade data per course (ADR 024). `complete` means every assignment and group
 // was read, so a Canvas assessment missing from it was removed in Canvas.
 const gradeGroup = z.object({ externalId, name: z.string().min(1).max(240), weight: z.number().min(0).max(100).nullable() }).strict();
@@ -20,8 +31,13 @@ const courseGrades = z.object({ courseExternalId: externalId, complete: z.boolea
   items: z.array(gradeItem).max(400) }).strict();
 export type CanvasCourseGrades = z.infer<typeof courseGrades>;
 export const academicSnapshotSchema = z.object({ status: z.literal('complete'),
-  courses: z.array(normalizedCourse).max(200), academicItems: z.array(normalizedItem).max(2000), grades: z.array(courseGrades).max(200).optional(),
+  courses: z.array(normalizedCourse).max(200), academicItems: z.array(normalizedItem).max(2000 + maxPlannerItems), grades: z.array(courseGrades).max(200).optional(),
+  coursework: courseworkCoverage.optional(), calendar: calendarImport.optional(),
 }).strict().superRefine((batch, ctx) => {
+  if (batch.coursework?.completeCourses.some(id => !batch.courses.some(course => course.externalId === id)))
+    ctx.addIssue({ code: 'custom', message: 'Coverage names an unknown Canvas course' });
+  if (batch.calendar && new Set(batch.calendar.events.map(event => event.externalId)).size !== batch.calendar.events.length)
+    ctx.addIssue({ code: 'custom', message: 'Duplicate Canvas calendar event' });
   const courses = new Set(batch.courses.map(course => course.externalId));
   if (courses.size !== batch.courses.length || new Set(batch.academicItems.map(item => item.externalId)).size !== batch.academicItems.length
     || batch.academicItems.some(item => !courses.has(item.courseExternalId)))
@@ -53,9 +69,15 @@ const assignmentSchema = z.object({ id: canvasId, name: z.string().min(1).max(24
   omit_from_final_grade: z.boolean().optional(), grading_type: z.string().max(40).optional(),
 });
 const assignmentGroupSchema = z.object({ id: canvasId, name: z.string().min(1).max(240), group_weight: z.number().finite().nullable().optional() });
+/** A planner to-do: a page or ungraded discussion with a to-do date, or the student's own Canvas note. */
+const plannerItemSchema = z.object({ id: canvasId, type: z.enum(['wiki_page', 'discussion_topic', 'planner_note']), title: z.string().min(1).max(240),
+  todo_at: sourceInstant.nullable(), marked_complete: z.boolean() }).strict();
 // `assignment_groups` present means grades were read for that course; `complete` that nothing was cut off.
+// `coursework_complete` means every assignment was read, so ones missing were removed in Canvas.
 const rawSnapshot = z.object({ courses: z.array(z.object({ course: courseSchema, assignments: z.array(assignmentSchema).max(2000),
-  assignment_groups: z.array(assignmentGroupSchema).max(100).optional(), complete: z.boolean().optional() })).max(200) }).strict();
+  assignment_groups: z.array(assignmentGroupSchema).max(100).optional(), complete: z.boolean().optional(),
+  planner_items: z.array(plannerItemSchema).max(maxPlannerItems).optional(), coursework_complete: z.boolean().optional() })).max(200),
+  planner_window: z.object({ from: sourceInstant, to: sourceInstant }).strict().nullable().optional(), calendar: calendarImport.optional() }).strict();
 type RawCourse = z.infer<typeof rawSnapshot>['courses'][number];
 /** Assignments whose group wasn't readable are pooled here by points. */
 export const otherGroupExternalId = 'other';
@@ -108,8 +130,15 @@ export function normalizeCanvasSnapshot(input: unknown): AcademicSnapshot {
           : assignment.submission_types?.includes('online_quiz') ? 'quiz' : 'assignment',
         due: assignment.due_at ? { kind: 'instant', at: assignment.due_at } : null, submissionState });
     }
+    // Marking a to-do done in Canvas's planner reads as submitted here.
+    for (const item of entry.planner_items ?? []) academicItems.push({ externalId: `${plannerExternalPrefix}${item.type}:${item.id}`, courseExternalId,
+      title: item.title, kind: 'planner', due: item.todo_at ? { kind: 'instant', at: item.todo_at } : null, submissionState: item.marked_complete ? 'submitted' : 'unsubmitted' });
   }
-  return academicSnapshotSchema.parse({ status: 'complete', courses, academicItems, ...(grades.length ? { grades } : {}) });
+  const tracked = raw.planner_window !== undefined || raw.courses.some(entry => entry.coursework_complete !== undefined);
+  const coursework = tracked ? { completeCourses: raw.courses.filter(entry => entry.coursework_complete && entry.course.workflow_state !== 'deleted').map(entry => String(entry.course.id)),
+    planner: raw.planner_window ?? null } : undefined;
+  return academicSnapshotSchema.parse({ status: 'complete', courses, academicItems, ...(grades.length ? { grades } : {}),
+    ...(coursework ? { coursework } : {}), ...(raw.calendar ? { calendar: raw.calendar } : {}) });
 }
 
 /** Default until institution-approved backend OAuth is implemented. No HTTP or tokens. */

@@ -153,6 +153,20 @@ databaseSuite('campus event ingestion and API with PostgreSQL', () => {
     const privateEvent = await db.event.findFirstOrThrow({ where: { ...source, sourceScope: `user:${otherId}` } });
     await client().put(`/events/${privateEvent.id}/saved`).set('Authorization', token).send({}).expect(404);
   });
+  it('accepts a Canvas course calendar only as a student’s private source (ADR 025)', async () => {
+    const canvas = { source: 'canvas:calendar', sourceScope: `user:${userId}` };
+    try {
+      await expect(sync.sync({ ...canvas, sourceScope: 'public' }, provider(body('Leak')), coverage)).rejects.toThrow();
+      await expect(sync.sync({ source: 'canvas:other', sourceScope: `user:${userId}` }, provider(body('Other')), coverage)).rejects.toThrow();
+      await sync.sync(canvas, provider(body('Exam review')), coverage);
+      const mine = await list('', token).expect(200), theirs = await list('', otherToken).expect(200);
+      expect(mine.body.filter((e: { source: string }) => e.source === 'canvas:calendar').map((e: { title: string }) => e.title)).toEqual(['Exam review']);
+      expect(theirs.body.some((e: { source: string }) => e.source === 'canvas:calendar')).toBe(false);
+      // A complete empty read removes it again.
+      await sync.sync(canvas, provider(calendar()), coverage);
+      expect(await db.event.count({ where: canvas })).toBe(0);
+    } finally { await db.event.deleteMany({ where: { source: 'canvas:calendar', sourceScope: { in: [`user:${userId}`, `user:${otherId}`] } } }); }
+  });
   it.each(['from=2026-02-30', 'from=2026-02-30T12%3A00%3A00Z', 'from=bad', 'from=2026-03-10&through=2026-03-08', 'from=2026-03-08&through=2026-03-08', 'from=2026-03-08&from=2026-03-09', 'unknown=true', 'category=x&category=y'])('rejects invalid query %s', async query => {
     await list(`?${query}`).expect(400);
   });

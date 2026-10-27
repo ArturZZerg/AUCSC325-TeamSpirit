@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { BlockList, isIP } from 'node:net';
 import { z } from 'zod';
-import { AcademicSnapshot, normalizeCanvasSnapshot } from './canvas-provider';
+import { dateSchema } from '@campusflow/contracts';
+import { addCalendarDays, dayBounds } from '@campusflow/domain';
+import { AcademicSnapshot, maxPlannerItems, normalizeCanvasSnapshot } from './canvas-provider';
+import { EventCoverage, ImportedEvent, importedEventSchema } from '../events/event-provider';
 
 // Live Canvas REST access with a student's personal access token (ADR 019).
 // Only this module sees Canvas JSON; it returns the normalized snapshot.
@@ -65,6 +68,46 @@ const groupSchema = z.object({ id: z.number().int().positive().safe(), name: z.s
 const maxCourses = 60, maxAssignments = 2000, maxAssignmentsPerCourse = 400, maxPages = 10, courseConcurrency = 4;
 const clip = (value: string, length: number) => value.length > length ? `${value.slice(0, length - 1)}…` : value;
 
+const plannerTypes = ['wiki_page', 'discussion_topic', 'planner_note'] as const;
+const plannerSchema = z.object({ plannable_id: z.number().int().positive().safe(), plannable_type: z.string(), course_id: z.number().int().positive().safe().nullable().optional(),
+  plannable_date: z.string().nullable().optional(),
+  plannable: z.object({ title: z.string().optional(), todo_date: z.string().nullable().optional(), assignment_id: z.number().nullable().optional() }).nullable().optional(),
+  planner_override: z.object({ marked_complete: z.boolean().nullable().optional() }).nullable().optional() });
+type PlannerRow = { id: number; type: (typeof plannerTypes)[number]; title: string; todo_at: string | null; marked_complete: boolean };
+const calendarSchema = z.object({ id: z.number().int().positive().safe(), title: z.string().nullable().optional(), start_at: z.string().nullable().optional(),
+  end_at: z.string().nullable().optional(), all_day: z.boolean().nullable().optional(), all_day_date: z.string().nullable().optional(),
+  location_name: z.string().nullable().optional(), description: z.string().nullable().optional(), html_url: z.string().nullable().optional(),
+  context_code: z.string().nullable().optional(), workflow_state: z.string().nullable().optional(), hidden: z.boolean().nullable().optional() });
+const maxCalendarEvents = 1000, calendarContextsPerRequest = 10;
+const utc = (value: string | null | undefined) => value && z.string().datetime({ offset: true }).safeParse(value).success ? new Date(value).toISOString() : null;
+
+/** Canvas descriptions are HTML; keep readable text only. */
+export function plainText(html: string | null | undefined, length: number): string | null {
+  if (!html) return null;
+  const text = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<br\s*\/?>|<\/(p|div|li|h\d)>/gi, '\n').replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, '\'').replace(/&amp;/g, '&')
+    .replace(/[ \t]+/g, ' ').replace(/ *\n[\s]*/g, '\n').trim();
+  return text ? clip(text, length) : null;
+}
+
+/** A Canvas calendar event as a private CampusFlow event; null to skip, 'invalid' when it can't be read. */
+function calendarEvent(row: z.infer<typeof calendarSchema>, origin: string, courses: Map<number, z.infer<typeof courseSchema>>): ImportedEvent | null | 'invalid' {
+  if (row.workflow_state === 'deleted' || row.hidden) return null;
+  const title = row.title?.trim();
+  if (!title) return 'invalid';
+  const course = courses.get(Number(row.context_code?.replace(/^course_/, '')));
+  let url: string | null = null;
+  // Only links back to the student's own Canvas are kept.
+  try { const parsed = row.html_url ? new URL(row.html_url, origin) : null; url = parsed?.origin === origin ? parsed.toString() : null; } catch { url = null; }
+  const base = { externalId: String(row.id), title: clip(title, 240), description: plainText(row.description, 2000),
+    category: course?.name?.trim() ? clip(course.name.trim(), 120) : null, location: row.location_name?.trim() ? clip(row.location_name.trim(), 240) : null, url };
+  const date = row.all_day && row.all_day_date && dateSchema.safeParse(row.all_day_date).success ? row.all_day_date : null;
+  const startsAt = utc(row.start_at), endsAt = utc(row.end_at);
+  const event = date ? { ...base, timing: { kind: 'allDay' as const, startDate: date, endDateExclusive: addCalendarDays(date, 1) } }
+    : startsAt ? { ...base, timing: { kind: 'timed' as const, startsAt, endsAt: endsAt && endsAt >= startsAt ? endsAt : null } } : null;
+  return event && importedEventSchema.safeParse(event).success ? event : 'invalid';
+}
+
 function nextLink(header: string | null, origin: string): string | null {
   const match = header?.split(',').map(part => part.match(/<([^>]+)>\s*;\s*rel="next"/)).find(Boolean);
   if (!match) return null;
@@ -121,8 +164,53 @@ export class CanvasHttpClient {
     return { origin, userId: String(user.data.id) };
   }
 
-  /** Active courses and their assignments with the current user's submission state, plus assignment groups for grades. */
-  async fetchAcademicSnapshot(baseUrl: string, token: string, signal: AbortSignal): Promise<AcademicSnapshot> {
+  /**
+   * The student's planner to-dos and course calendar events in `window` (ADR 025). Graded
+   * to-dos are skipped because they already arrive as assignments. Each part says whether
+   * it was read in full, which is what allows removing records missing from it.
+   */
+  private async fetchPlanAndCalendar(origin: string, token: string, signal: AbortSignal, window: EventCoverage, courses: z.infer<typeof courseSchema>[]) {
+    const from = dayBounds(window.from, window.timeZone).start, to = dayBounds(window.through, window.timeZone).start;
+    const range = `start_date=${encodeURIComponent(from)}&end_date=${encodeURIComponent(to)}`;
+    const known = new Map(courses.map(course => [course.id, course]));
+    const planner = new Map<number, PlannerRow[]>();
+    let plannerWindow: { from: string; to: string } | null = null;
+    const plan = await this.getAllPages(origin, token, `/api/v1/planner/items?${range}&per_page=100`, plannerSchema, signal, maxPlannerItems);
+    if (plan !== 'forbidden') {
+      const seen = new Set<string>();
+      for (const row of plan.rows) {
+        const type = plannerTypes.find(value => value === row.plannable_type), title = row.plannable?.title?.trim();
+        if (!type || row.plannable?.assignment_id || !title || row.course_id == null || !known.has(row.course_id) || seen.has(`${type}:${row.plannable_id}`)) continue;
+        seen.add(`${type}:${row.plannable_id}`);
+        const list = planner.get(row.course_id) ?? [];
+        list.push({ id: row.plannable_id, type, title: clip(title, 240), todo_at: utc(row.plannable?.todo_date ?? row.plannable_date),
+          marked_complete: row.planner_override?.marked_complete === true });
+        planner.set(row.course_id, list);
+      }
+      if (plan.complete) plannerWindow = { from, to };
+    }
+    const events: ImportedEvent[] = [], seen = new Set<string>();
+    let complete = true;
+    for (let start = 0; start < courses.length; start += calendarContextsPerRequest) {
+      const contexts = courses.slice(start, start + calendarContextsPerRequest).map(course => `context_codes[]=course_${course.id}`).join('&');
+      const page = await this.getAllPages(origin, token, `/api/v1/calendar_events?type=event&${range}&per_page=100&${contexts}`, calendarSchema, signal, maxCalendarEvents - events.length);
+      if (page === 'forbidden' || !page.complete) complete = false;
+      if (page === 'forbidden') continue;
+      for (const row of page.rows) {
+        const event = calendarEvent(row, origin, known);
+        if (event === 'invalid') { complete = false; continue; }
+        if (event && !seen.has(event.externalId)) { seen.add(event.externalId); events.push(event); }
+      }
+      if (events.length >= maxCalendarEvents) { complete = false; break; }
+    }
+    return { planner, plannerWindow, calendar: { coverage: window, complete, events } };
+  }
+
+  /**
+   * Active courses and their assignments with the current user's submission state, plus assignment groups for grades.
+   * With a `window`, also the student's planner to-dos and course calendar events in it (ADR 025).
+   */
+  async fetchAcademicSnapshot(baseUrl: string, token: string, signal: AbortSignal, window?: EventCoverage): Promise<AcademicSnapshot> {
     const origin = canvasOrigin(baseUrl);
     await assertPublicHost(origin, this.deps.lookup);
     const courses = await this.getPages(origin, token, '/api/v1/courses?enrollment_state=active&per_page=100', courseSchema, signal, maxCourses);
@@ -132,6 +220,8 @@ export class CanvasHttpClient {
     const groups = new Map<number, z.infer<typeof groupSchema>[]>();
     // A course counts as complete only when its assignments and groups were all read (ADR 024).
     const complete = new Set<number>();
+    // Coursework is complete when every assignment was read, so one missing was removed in Canvas (ADR 025).
+    const courseworkComplete = new Set<number>();
     for (let start = 0; start < visible.length; start += courseConcurrency) {
       await Promise.all(visible.slice(start, start + courseConcurrency).map(async course => {
         const [rows, sets] = await Promise.all([
@@ -140,6 +230,7 @@ export class CanvasHttpClient {
         ]);
         assignments.set(course.id, rows === 'forbidden' ? [] : rows.rows);
         groups.set(course.id, sets === 'forbidden' ? [] : sets.rows.filter(group => group.name?.trim()));
+        if (rows !== 'forbidden' && rows.complete && rows.rows.every(row => row.name?.trim())) courseworkComplete.add(course.id);
         if (rows !== 'forbidden' && rows.complete && sets !== 'forbidden' && sets.complete && sets.rows.every(group => group.name?.trim())
           && rows.rows.every(row => row.name?.trim())) complete.add(course.id);
       }));
@@ -154,11 +245,12 @@ export class CanvasHttpClient {
         .sort((a, b) => (b.due >= cutoff ? 1 : 0) - (a.due >= cutoff ? 1 : 0) || a.due - b.due).slice(0, maxAssignments).map(row => row.id));
       for (const [id, rows] of assignments) {
         const kept = rows.filter(row => keep.has(row.id));
-        if (kept.length < rows.length) complete.delete(id);
+        if (kept.length < rows.length) { complete.delete(id); courseworkComplete.delete(id); }
         assignments.set(id, kept);
       }
     }
     const finite = (value: number | null | undefined) => Number.isFinite(value) ? value : null;
+    const extra = window ? await this.fetchPlanAndCalendar(origin, token, signal, window, visible) : null;
     try {
       return normalizeCanvasSnapshot({ courses: visible.map(course => ({
         course: { id: course.id, name: clip(course.name!.trim(), 240), course_code: course.course_code ? clip(course.course_code, 240) : null,
@@ -173,7 +265,8 @@ export class CanvasHttpClient {
         })),
         assignment_groups: (groups.get(course.id) ?? []).map(group => ({ id: group.id, name: clip(group.name!.trim(), 240), group_weight: finite(group.group_weight) })),
         complete: complete.has(course.id),
-      })) });
+        ...(extra && { planner_items: extra.planner.get(course.id) ?? [], coursework_complete: courseworkComplete.has(course.id) }),
+      })), ...(extra && { planner_window: extra.plannerWindow, calendar: extra.calendar }) });
     } catch { throw new CanvasRequestError('invalid-response'); }
   }
 }

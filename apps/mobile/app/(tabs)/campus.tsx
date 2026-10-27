@@ -84,7 +84,7 @@ function CampusContent({ timeZone }: { timeZone: string }) {
           <Text style={styles.event}>{event.title}</Text>
           <View style={styles.metaRow}><Ionicons name="time-outline" size={14} color={colors.moss}/><Text style={styles.meta}>{timing}</Text></View>
           {event.location && <View style={styles.metaRow}><Ionicons name="location-outline" size={14} color={colors.muted}/><Text style={styles.detail}>{event.location}</Text></View>}
-          {source && <Text style={styles.small}>{source.name}</Text>}
+          {source ? <Text style={styles.small}>{source.name}</Text> : event.source === 'canvas:calendar' && <Text style={styles.small}>From your Canvas calendar</Text>}
         </View>
       </View>
       {event.description && <><Pressable accessibilityRole="button" accessibilityLabel={`Details: ${event.title}`} accessibilityState={{ expanded: details === event.id }} style={styles.detailsControl} onPress={() => setDetails(details === event.id ? undefined : event.id)}>

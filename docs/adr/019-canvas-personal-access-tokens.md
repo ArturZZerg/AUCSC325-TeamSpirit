@@ -52,6 +52,7 @@ fetch. That is acceptable for a course prototype and must be revisited before a
 public release. Institutional OAuth remains the long-term path: it replaces only
 the connect step, and the sync and mapping code stays.
 
-Planner items, calendar events and removal reconciliation are still not imported.
+Planner items, calendar events and removal reconciliation were added later by
+[ADR 025](025-canvas-planner-calendar-and-removals.md).
 Assignments are capped at 2,000 per sync (undated and recent work first) and
 courses at 60.
