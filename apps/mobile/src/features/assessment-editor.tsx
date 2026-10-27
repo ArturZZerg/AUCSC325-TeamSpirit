@@ -8,7 +8,8 @@ import { useAction } from '@/features/queries';
 import { newStepId } from '@/features/task-checklist';
 
 type Assessment = { id: string; title: string; weight: number; score: number | null };
-const number = (value: string) => value.trim() === '' ? null : Number(value.trim().replace(',', '.').replace(/%$/, ''));
+/** Reads "85", "85%" or "85,5" as a number; blank is null and anything else NaN. */
+export const percentInput = (value: string) => value.trim() === '' ? null : Number(value.trim().replace(',', '.').replace(/%$/, ''));
 
 /** Add or edit one weighted assessment. Weight and score are percentages; score may stay blank until graded. */
 export function AssessmentEditor({ courseId, assessment, onClose }: { courseId: string; assessment: Assessment | null; onClose(): void }) {
@@ -28,7 +29,7 @@ export function AssessmentEditor({ courseId, assessment, onClose }: { courseId: 
     } finally { saving.current = false; setBusy(false); }
   };
   const submit = () => {
-    const parsedWeight = number(weight), parsedScore = number(score);
+    const parsedWeight = percentInput(weight), parsedScore = percentInput(score);
     if (parsedWeight === null || Number.isNaN(parsedWeight)) { setMessage('Enter the weight as a percentage, such as 30.'); return; }
     if (parsedScore !== null && Number.isNaN(parsedScore)) { setMessage('Enter the score as a percentage, or leave it blank.'); return; }
     try {

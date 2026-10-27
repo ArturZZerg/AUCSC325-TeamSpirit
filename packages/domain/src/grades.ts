@@ -39,3 +39,31 @@ export function gradeSummary(assessments: readonly Assessment[], target: number 
   const status = needed <= 0 ? 'secured' : needed > 100 ? 'unreachable' : 'reachable';
   return { totalWeight, gradedWeight, remainingWeight, current, earned: round(earned), floor, ceiling, needed: Math.max(0, needed), status };
 }
+
+/** Hypothetical percentage scores keyed by assessment id. Never saved. */
+export type WhatIfScores = Readonly<Record<string, number>>;
+export const whatIfScoreMax = 150;
+
+export type WhatIfSummary = GradeSummary & {
+  /** Ungraded assessments given a usable hypothetical score. */
+  tried: number;
+  /** Ungraded assessments still without one. */
+  untried: number;
+};
+
+/**
+ * The grade summary as if each ungraded assessment scored its hypothetical value.
+ * Real scores always win, and out-of-range values are ignored, so a stale or
+ * mistyped entry can't change a recorded grade. When every remaining assessment
+ * is tried the status is 'final' and `floor` is the projected final grade.
+ */
+export function whatIfSummary(assessments: readonly Assessment[], scores: WhatIfScores, target: number | null = null): WhatIfSummary {
+  let tried = 0;
+  const applied = assessments.map(row => {
+    const value = scores[row.id];
+    if (row.score !== null || value === undefined || !Number.isFinite(value) || value < 0 || value > whatIfScoreMax) return row;
+    tried += 1;
+    return { ...row, score: round(value) };
+  });
+  return { ...gradeSummary(applied, target), tried, untried: applied.filter(row => row.score === null).length };
+}
