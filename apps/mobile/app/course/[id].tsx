@@ -9,6 +9,7 @@ import { useAcademic, useAction, useClasses, useCourses } from '@/features/queri
 import { ClassEditor, classDays } from '@/features/class-editor';
 import { CourseEditor, courseColor, isManualCourse } from '@/features/course-editor';
 import { AssessmentEditor } from '@/features/assessment-editor';
+import { GradeWhatIf } from '@/features/grade-what-if';
 import { planTimingLabel } from '@/features/today-plan';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
@@ -101,6 +102,7 @@ function CourseContent({ timeZone }: { timeZone: string }) {
       <Text style={[styles.score, row.score === null && styles.ungraded]}>{row.score === null ? 'Not graded' : pct(row.score)}</Text>
     </Pressable>)}
     {summary.totalWeight > 0 && summary.totalWeight < 100 && <Text style={styles.meta}>Weights total {pct(summary.totalWeight)}. Add the rest of your outline for a complete picture.</Text>}
+    <GradeWhatIf key={course.id} assessments={assessments} target={course.targetGrade ?? null}/>
 
     <Text style={styles.section}>Classes</Text>
     {meetings.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.title}, open timetable`} onPress={() => router.push('/timetable')} style={styles.coursework}>

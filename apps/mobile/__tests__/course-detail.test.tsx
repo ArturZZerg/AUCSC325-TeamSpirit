@@ -98,3 +98,9 @@ it('lists only this course’s class times and adds one already linked to it', a
   fireEvent.press(screen.getByText('Add a class time'));
   expect(screen.getByRole('radio', { name: 'PSY 223 course', checked: true })).toBeOnTheScreen();
 });
+it('offers a what-if section for ungraded work without saving anything', () => {
+  render(<CourseScreen/>);
+  fireEvent.changeText(screen.getByLabelText('What-if score for Final exam (%)'), '86');
+  expect(screen.getByText('Your final grade would be 85%. That meets your 85% target.')).toBeOnTheScreen();
+  expect(save).not.toHaveBeenCalled();
+});

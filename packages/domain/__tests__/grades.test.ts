@@ -1,4 +1,4 @@
-import { gradeSummary } from '../src';
+import { gradeSummary, whatIfSummary } from '../src';
 
 const a = (weight: number, score: number | null, id = `${weight}-${score}`) => ({ id, title: id, weight, score });
 
@@ -25,5 +25,33 @@ describe('weighted grade summary', () => {
   });
   it('treats a zero score as graded', () => {
     expect(gradeSummary([a(10, 0), a(90, null)], 50)).toMatchObject({ current: 0, gradedWeight: 10, needed: 55.6 });
+  });
+});
+
+describe('what-if grade summary', () => {
+  // Midterm 30% at 80, essays 20% at 90; quiz 10% and final 40% outstanding.
+  const outline = [a(30, 80, 'midterm'), a(20, 90, 'essays'), a(10, null, 'quiz'), a(40, null, 'final')];
+
+  it('projects the final grade once every remaining assessment has a hypothetical score', () => {
+    // 24 + 18 + 7 + 30 = 79.
+    expect(whatIfSummary(outline, { quiz: 70, final: 75 }, 80)).toMatchObject({ status: 'final', floor: 79, current: 79, tried: 2, untried: 0 });
+  });
+  it('recalculates what is needed on the rest after a partial guess', () => {
+    // Before: 42 earned, needs 76% on the remaining 50% for 80. A 100 on the quiz leaves 28 needed from the final's 40.
+    expect(whatIfSummary(outline, {}, 80)).toMatchObject({ needed: 76, remainingWeight: 50, tried: 0, untried: 2 });
+    expect(whatIfSummary(outline, { quiz: 100 }, 80)).toMatchObject({ needed: 70, remainingWeight: 40, current: 86.7, status: 'reachable', tried: 1, untried: 1 });
+    expect(whatIfSummary(outline, { quiz: 0 }, 80)).toMatchObject({ needed: 95, status: 'reachable' });
+    expect(whatIfSummary(outline, { quiz: 0 }, 90)).toMatchObject({ status: 'unreachable', ceiling: 82 });
+  });
+  it('never overrides a recorded score and ignores unknown ids', () => {
+    expect(whatIfSummary(outline, { midterm: 0, nope: 100 }, 80)).toEqual({ ...gradeSummary(outline, 80), tried: 0, untried: 2 });
+  });
+  it('ignores out-of-range and non-finite guesses but accepts bonus marks up to 150', () => {
+    expect(whatIfSummary(outline, { quiz: -1, final: Number.NaN })).toMatchObject({ tried: 0, untried: 2 });
+    expect(whatIfSummary(outline, { quiz: 151 })).toMatchObject({ tried: 0 });
+    expect(whatIfSummary(outline, { quiz: 150, final: 100 })).toMatchObject({ tried: 2, status: 'noTarget', floor: 97 });
+  });
+  it('rounds guesses to one decimal like recorded scores', () => {
+    expect(whatIfSummary([a(50, null, 'x'), a(50, 80, 'y')], { x: 66.66 })).toMatchObject({ current: 73.4, floor: 73.4 });
   });
 });

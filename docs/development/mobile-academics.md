@@ -73,6 +73,14 @@ coursework. Assessments are added and scored in `assessment-editor.tsx`; weights
 and scores accept `30`, `7,5` or `88%`. Calculation: `gradeSummary` in the domain
 package (ADR 016).
 
+**What if…** (`grade-what-if.tsx`) lists the ungraded assessments with a score
+field each. As the student types, it shows the grade so far and what is still
+needed for the target, or the projected final grade and how it compares to the
+target once every row has a score. "Fill the rest" enters the average still
+needed. Entries stay on the screen and are never sent to the API. A recorded
+score always wins over a guess, and values outside 0–150 are flagged and ignored.
+Calculation: `whatIfSummary` in the domain package.
+
 ## Exams
 
 Manual coursework can be an **Exam** (contracts `kind: 'exam'`; Canvas mapping is

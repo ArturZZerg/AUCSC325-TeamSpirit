@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Grade what-if calculator: on a course, try scores for ungraded assessments to
+  see the grade so far, what's still needed for the target, or the projected
+  final grade. Nothing is saved; `whatIfSummary` in the domain package.
+
 - Nutrition (ADR 023): food diary with a textured plate view of carbs, protein,
   fiber and fat, Mifflin–St Jeor goals, USDA food search with usual foods first,
   quick add and repeat-yesterday, and the Augustana dining-hall menu with
