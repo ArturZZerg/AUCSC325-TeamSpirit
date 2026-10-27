@@ -81,7 +81,7 @@ function TimetableImport() {
       <Text style={styles.copy}>Choose a calendar file (.ics) exported from your class schedule, Google Calendar, Outlook or Apple Calendar. CampusFlow finds your weekly classes and lets you pick which to add. Nothing is saved until you confirm.</Text></View>
     {!preview && !loading && <Card>
       <Text style={styles.section}>How to get your schedule file</Text>
-      {scheduleFileSteps.map((step, index) => <View key={step} style={styles.step}><Text style={styles.number}>{index + 1}</Text><Text style={[styles.copy, styles.grow]}>{step}</Text></View>)}
+      {scheduleFileSteps.map((step, index) => <View key={step} style={styles.step}><Text maxFontSizeMultiplier={1.3} style={styles.number}>{index + 1}</Text><Text style={[styles.copy, styles.grow]}>{step}</Text></View>)}
       <Text style={styles.meta}>Canvas doesn’t include class times, so they can’t come from your Canvas connection.</Text>
     </Card>}
     <Button title={preview ? 'Choose another file' : 'Choose a calendar file'} tone={preview ? 'plain' : 'primary'} disabled={working} onPress={() => { void choose(); }}/>

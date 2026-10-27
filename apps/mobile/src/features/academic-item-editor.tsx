@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { addCalendarDays } from '@campusflow/domain';
 import { Button, Field, colors } from '@/components/ui';
@@ -9,6 +9,7 @@ import { taskTimingLabel } from './task-form';
 import { academicFormDefaults, academicFormRequest, academicFormSchema, type AcademicFormValues } from './academic-form';
 import type { AcademicItem } from '@/lib/types';
 import { courseLabel } from '@/features/course-label';
+import { SheetModal } from '@/components/sheet-modal';
 
 export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClose, onSaved }: {
   item: AcademicItem | null; courses: { id: string; name: string; code: string | null; active: boolean }[];
@@ -49,7 +50,7 @@ export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClo
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not save your coursework. Try again.'); }
     finally { busy.current = false; setSaving(false); }
   };
-  return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe} accessibilityViewIsModal>
+  return <SheetModal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe} accessibilityViewIsModal>
     <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.heading}><Text style={styles.kicker}>MY COURSEWORK</Text><Button title="Cancel" tone="plain" disabled={saving} onPress={close}/></View>
@@ -87,7 +88,7 @@ export function AcademicItemEditor({ item: initialItem, courses, timeZone, onClo
         <Button title={saving ? 'Saving…' : item ? 'Save coursework' : 'Add coursework'} disabled={saving || request === null} onPress={() => { void save(); }}/>
       </ScrollView>
     </KeyboardAvoidingView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 function Choice({ label, selected, disabled, onPress }: { label: string; selected: boolean; disabled: boolean; onPress(): void }) {
   return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected, disabled }} aria-checked={selected} aria-disabled={disabled} disabled={disabled} onPress={onPress}
@@ -97,12 +98,12 @@ const styles = StyleSheet.create({
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   box: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   boxOn: { backgroundColor: colors.moss, borderColor: colors.moss },
-  tick: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  tick: { color: colors.onAccent, fontWeight: '800', fontSize: 14 },
   toggleText: { color: colors.ink, fontSize: 15, fontWeight: '600' },
   safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: 20, paddingBottom: 40, gap: 16, maxWidth: 680, width: '100%', alignSelf: 'center' },
   heading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   kicker: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: .5 }, title: { color: colors.ink, fontSize: 28, lineHeight: 34, fontWeight: '800' },
   section: { color: colors.ink, fontSize: 18, fontWeight: '700' }, meta: { color: colors.muted, lineHeight: 21 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, choice: { minHeight: 46, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: '#fff' }, disabled: { opacity: .5 }, error: { color: colors.coral },
+  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: colors.onAccent }, disabled: { opacity: .5 }, error: { color: colors.coral },
 });

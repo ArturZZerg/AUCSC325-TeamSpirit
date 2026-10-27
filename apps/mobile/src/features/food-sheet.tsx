@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Food, SaveFoodEntry } from '@campusflow/contracts';
@@ -7,6 +7,7 @@ import { portionNutrients, type Meal } from '@campusflow/domain';
 import { Button, colors } from '@/components/ui';
 import { useFoodSearch } from './queries';
 import { foodEntry, formatNumber, mealLabels, meals, quickEntry } from './nutrition';
+import { SheetModal } from '@/components/sheet-modal';
 
 function MealChips({ value, onChange }: { value: Meal; onChange(meal: Meal): void }) {
   return <View accessibilityRole="radiogroup" accessibilityLabel="Meal" style={styles.row}>{meals.map(meal => <Pressable key={meal} accessibilityRole="radio"
@@ -24,7 +25,7 @@ export function FoodSheet({ date, meal: initialMeal, recent, saving, onAdd, onCl
   const [food, setFood] = useState<Food>(); const [quick, setQuick] = useState(false);
   const search = useFoodSearch(query);
   const list = query.trim().length >= 2 ? search.data?.foods ?? [] : recent;
-  return <Modal visible animationType="slide" onRequestClose={onClose}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={onClose}><SafeAreaView style={styles.safe}>
     <View style={styles.header}>
       {(food || quick) && <Pressable accessibilityRole="button" accessibilityLabel="Back to search" onPress={() => { setFood(undefined); setQuick(false); }} hitSlop={10}>
         <Ionicons name="chevron-back" size={26} color={colors.ink}/></Pressable>}
@@ -47,7 +48,7 @@ export function FoodSheet({ date, meal: initialMeal, recent, saving, onAdd, onCl
             <Text style={styles.meta}>{formatNumber(item.per100.kcal)} kcal · P {Math.round(item.per100.protein)} g per 100 g{item.source === 'own' ? ' · yours' : ''}</Text></View>
           <Ionicons name="add-circle" size={26} color={colors.moss}/></Pressable>}/>
     </>}
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 
 function Portion({ food, meal, date, saving, onMeal, onAdd }: { food: Food; meal: Meal; date: string; saving: boolean; onMeal(meal: Meal): void; onAdd(entry: SaveFoodEntry): Promise<boolean> }) {

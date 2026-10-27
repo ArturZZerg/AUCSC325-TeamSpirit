@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   metrics: { flexDirection: 'row', gap: 8 }, metric: { flex: 1, padding: 12, backgroundColor: colors.sage, borderRadius: 16, gap: 6 },
   metricValue: { fontSize: 28, color: colors.ink, fontWeight: '800' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, choice: { minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, borderRadius: 12 },
-  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: '#fff' },
+  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: colors.onAccent },
   section: { color: colors.ink, fontSize: 19, fontWeight: '800' }, group: { gap: 12 },
   item: { color: colors.ink, fontSize: 17, fontWeight: '700' }, finished: { color: colors.muted, textDecorationLine: 'line-through' }, attention: { color: colors.coral },
   confirm: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: colors.scrim },

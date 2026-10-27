@@ -35,7 +35,7 @@ export function TaskRow({ task, today, timeZone, expanded, disabled, pending, is
         : <Pressable accessibilityRole="button" accessibilityLabel={pending === 'toggle' ? 'Saving…' : done ? 'Undo completion' : 'Complete'} accessibilityHint={task.title}
           accessibilityState={{ disabled, checked: done }} disabled={disabled} hitSlop={8} onPress={() => onAction('toggle')}
           style={[styles.check, { borderColor: accent }, done && { backgroundColor: accent }, disabled && pending !== 'toggle' && styles.dim]}>
-          {pending === 'toggle' ? <ActivityIndicator size="small" color={done ? '#fff' : accent}/> : done ? <Ionicons name="checkmark" size={18} color="#fff"/> : null}
+          {pending === 'toggle' ? <ActivityIndicator size="small" color={done ? colors.onAccent : accent}/> : done ? <Ionicons name="checkmark" size={18} color={colors.onAccent}/> : null}
         </Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? 'Hide' : 'Show'} details for ${task.title}`} accessibilityState={{ expanded }}
         onPress={onToggleExpanded} style={styles.body}>

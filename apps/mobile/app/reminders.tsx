@@ -119,5 +119,5 @@ const styles = StyleSheet.create({
   open: { minHeight: 48, gap: 7, justifyContent: 'center' }, item: { color: colors.ink, fontSize: 18, lineHeight: 24, fontWeight: '700' },
   section: { color: colors.ink, fontSize: 18, fontWeight: '800' }, meta: { color: colors.muted, fontSize: 14, lineHeight: 21 }, notice: { color: colors.blue, lineHeight: 21 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 22, backgroundColor: colors.card, borderColor: colors.line, borderWidth: 1 },
-  chosen: { backgroundColor: colors.moss, borderColor: colors.moss }, chipText: { color: colors.muted, fontWeight: '600' }, chosenText: { color: '#FFFFFF' },
+  chosen: { backgroundColor: colors.moss, borderColor: colors.moss }, chipText: { color: colors.muted, fontWeight: '600' }, chosenText: { color: colors.onAccent },
 });

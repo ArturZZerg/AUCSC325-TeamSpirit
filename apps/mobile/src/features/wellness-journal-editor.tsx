@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { saveWellnessJournalSchema, wellnessJournalEntrySchema, wellnessJournalSchema } from '@campusflow/contracts';
 import { ZodError } from 'zod';
@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
 import type { useWellnessJournalAction } from '@/features/queries';
 import { journalFields, matchesJournalDraft, ratingLabels, ratingLabel, type JournalEntry, type Rating } from './wellness-journal';
+import { SheetModal } from '@/components/sheet-modal';
 
 export function WellnessJournalEditor({ date, entry, action, onClose, onSaved }: {
   date: string; entry: JournalEntry | null; action: ReturnType<typeof useWellnessJournalAction>;
@@ -72,7 +73,7 @@ export function WellnessJournalEditor({ date, entry, action, onClose, onSaved }:
     } catch { if (current()) setError('Saved entry is unavailable. Your draft and reviewed version are kept. Try checking again when connected.'); }
     finally { clearTimeout(deadline); guard.current = false; if (current()) setBusy(false); }
   };
-  return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
     <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{base ? 'Edit check-in' : 'New check-in'}</Text><Text style={styles.meta}>{date} · One entry for this day</Text>
@@ -110,7 +111,7 @@ export function WellnessJournalEditor({ date, entry, action, onClose, onSaved }:
           : <Button title="Cancel check-in" tone="plain" disabled={disabled} onPress={close}/>}
       </ScrollView>
     </KeyboardAvoidingView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: 20, gap: 16, width: '100%', maxWidth: 680, alignSelf: 'center', paddingBottom: 40 },
   title: { fontSize: 27, fontWeight: '800', color: colors.ink }, label: { fontWeight: '700', color: colors.ink }, meta: { color: colors.muted, lineHeight: 21 },

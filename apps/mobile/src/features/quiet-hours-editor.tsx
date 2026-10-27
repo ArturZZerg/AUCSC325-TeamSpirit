@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import { quietHoursFormSchema, quietHoursRequest, type QuietHoursForm } from '@/features/quiet-hours-form';
 import type { NotificationPreferences } from '@/lib/types';
+import { SheetModal } from '@/components/sheet-modal';
 
 export function QuietHoursEditor({ preferences, timeZone, onClose }: { preferences: NotificationPreferences; timeZone: string; onClose(): void }) {
   const action = useAction(); const saving = useRef(false); const [message, setMessage] = useState<string>();
@@ -25,7 +26,7 @@ export function QuietHoursEditor({ preferences, timeZone, onClose }: { preferenc
     try { await handleSubmit(save)(); } finally { saving.current = false; }
   };
   const error = errors.start?.message || errors.end?.message || message;
-  return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
     <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Quiet hours</Text><Text style={styles.meta}>Times follow your account time zone: {timeZone}.</Text>
@@ -40,6 +41,6 @@ export function QuietHoursEditor({ preferences, timeZone, onClose }: { preferenc
         <Button title="Cancel" tone="plain" disabled={isSubmitting} onPress={close}/>
       </ScrollView>
     </KeyboardAvoidingView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: 16, gap: 12 }, title: { color: colors.ink, fontSize: 26, fontWeight: '800' }, meta: { color: colors.muted }, error: { color: colors.coral } });

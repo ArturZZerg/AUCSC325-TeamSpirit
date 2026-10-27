@@ -73,9 +73,9 @@ function CalendarContent({ timeZone, accountId }: { timeZone: string; accountId:
           accessibilityLabel={`${calendarLabel(cell.date, { weekday: 'long', month: 'long', day: 'numeric' })}${cell.isToday ? ', today' : ''}: ${loading || missing ? 'Items not fully loaded' : count}`}
           onPress={() => select(cell.date)} style={[styles.cell, isSelected && styles.cellSelected]}>
           <View style={[styles.number, cell.isToday && !isSelected && styles.numberToday]}>
-            <Text style={[styles.numberText, !cell.inMonth && styles.outside, isSelected && styles.selectedText, cell.isToday && !isSelected && styles.todayNumber]}>{Number(cell.date.slice(8))}</Text>
+            <Text maxFontSizeMultiplier={1.3} style={[styles.numberText, !cell.inMonth && styles.outside, isSelected && styles.selectedText, cell.isToday && !isSelected && styles.todayNumber]}>{Number(cell.date.slice(8))}</Text>
           </View>
-          <View style={styles.dots}>{kinds.map(kind => <View key={kind} style={[styles.dot, { backgroundColor: isSelected ? '#fff' : kindColors[kind] }]}/>)}</View>
+          <View style={styles.dots}>{kinds.map(kind => <View key={kind} style={[styles.dot, { backgroundColor: isSelected ? colors.onAccent : kindColors[kind] }]}/>)}</View>
         </Pressable>;
       })}</View>)}
     </View>
@@ -96,7 +96,7 @@ function CalendarContent({ timeZone, accountId }: { timeZone: string; accountId:
       <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/today', params: { date: selected } })} style={[styles.action, styles.actionPlain]}>
         <Ionicons name="today-outline" size={17} color={colors.moss}/><Text style={styles.actionPlainText}>Open day plan</Text></Pressable>
       {selected >= today && <Pressable accessibilityRole="button" onPress={() => setDraft({ scheduledMode: 'date', scheduledDate: selected })} style={styles.action}>
-        <Ionicons name="add" size={18} color="#fff"/><Text style={styles.actionText}>Add task on this day</Text></Pressable>}
+        <Ionicons name="add" size={18} color={colors.onAccent}/><Text style={styles.actionText}>Add task on this day</Text></Pressable>}
     </View>
   </ScrollView>{draft && <TaskEditor task={null} timeZone={timeZone} courses={courses.data} initialValues={draft} onClose={() => setDraft(undefined)}/>}</Screen>;
 }
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   week: { flexDirection: 'row' }, weekday: { flex: 1, textAlign: 'center', color: colors.muted, fontSize: 12, fontWeight: '800', paddingVertical: 6 },
   cell: { flex: 1, minHeight: 52, alignItems: 'center', paddingTop: 4, gap: 3, borderRadius: 14 }, cellSelected: { backgroundColor: colors.moss },
   number: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, numberToday: { borderWidth: 2, borderColor: colors.moss },
-  numberText: { color: colors.ink, fontWeight: '700', fontVariant: ['tabular-nums'] }, outside: { color: colors.faint }, selectedText: { color: '#fff' }, todayNumber: { color: colors.moss },
+  numberText: { color: colors.ink, fontWeight: '700', fontVariant: ['tabular-nums'] }, outside: { color: colors.faint }, selectedText: { color: colors.onAccent }, todayNumber: { color: colors.moss },
   dots: { flexDirection: 'row', gap: 3, minHeight: 6 }, dot: { width: 6, height: 6, borderRadius: 3 },
   dayHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }, section: { color: colors.ink, fontSize: 18, fontWeight: '800', flexShrink: 1 },
   count: { color: colors.muted, fontWeight: '700', backgroundColor: colors.sage, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 1, overflow: 'hidden', fontSize: 12 },
@@ -139,6 +139,6 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 4, padding: 18, borderRadius: 16, backgroundColor: colors.sage },
   notice: { backgroundColor: colors.warnSurface, color: colors.warnText, padding: 12, borderRadius: 12 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 46, paddingHorizontal: 16, borderRadius: 23, backgroundColor: colors.moss }, actionText: { color: '#fff', fontWeight: '700' },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 46, paddingHorizontal: 16, borderRadius: 23, backgroundColor: colors.moss }, actionText: { color: colors.onAccent, fontWeight: '700' },
   actionPlain: { backgroundColor: colors.sage }, actionPlainText: { color: colors.ink, fontWeight: '700' },
 });

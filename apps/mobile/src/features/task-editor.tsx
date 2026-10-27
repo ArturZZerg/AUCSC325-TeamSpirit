@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { categorySchema, dateSchema, personalTaskSchema, prioritySchema } from '@campusflow/contracts';
 import { Button, Field, colors } from '@/components/ui';
@@ -12,6 +12,7 @@ import { api, ApiError } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
 import { taskCredentialsGeneration, taskOwnershipGeneration, taskOwnerCurrent, taskEditBaseline, taskEditBaselineCurrent, useTaskEditRevision, type TaskEditBaseline } from './task-edit-freshness';
 import { courseLabel } from '@/features/course-label';
+import { SheetModal } from '@/components/sheet-modal';
 
 type EditorProps = {
   task: PersonalTask | null; onClose: () => void; timeZone?: string; initialValues?: Partial<TaskFormValues>;
@@ -66,11 +67,11 @@ function ExistingTaskEditor({ task, onClose, initialScheduledDate, onSaved, cour
   }, [task.id]);
   const sameCredentials = loaded && loaded.task.id === task.id && owner?.user.id === loaded.baseline.owner.user.id
     && owner.accessToken === loaded.baseline.owner.accessToken && loaded.baseline.credentialsGeneration === taskCredentialsGeneration();
-  if (!loaded || !sameCredentials) return <Modal visible onRequestClose={onClose}><SafeAreaView style={styles.content}>
+  if (!loaded || !sameCredentials) return <SheetModal visible onRequestClose={onClose}><SafeAreaView style={styles.content}>
     <Text style={{ color: colors.ink }}>{loading ? 'Loading task for editing…' : message ?? 'Reload the task before editing.'}</Text>
     <Button title="Reload task" onPress={() => { void reload(); }} disabled={loading || !owner}/>
     <Button title="Cancel" onPress={onClose}/>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
   return <TaskEditorForm task={loaded.task} onClose={onClose} timeZone={owner?.user.timeZone ?? 'UTC'} courses={courses}
     initialScheduledDate={initialScheduledDate} onSaved={onSaved} baseline={loaded.baseline} stale={!fresh || loading} freshnessMessage={message} reload={() => { void reload(); }} loading={loading}/>;
 }
@@ -140,7 +141,7 @@ export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initi
   const error = errors.title?.message || errors.description?.message || errors.estimatedMinutes?.message || errors.dueDate?.message || errors.dueTime?.message
     || errors.scheduledDate?.message || errors.scheduledTime?.message || errors.recurrenceMode?.message || errors.interval?.message || errors.weekdays?.message || message;
 
-  return <Modal visible animationType="slide" onRequestClose={close}>
+  return <SheetModal visible animationType="slide" onRequestClose={close}>
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -193,7 +194,7 @@ export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initi
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  </Modal>;
+  </SheetModal>;
 }
 
 function Choices({ label, value, options, onChange, disabled }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void; disabled: boolean }) {

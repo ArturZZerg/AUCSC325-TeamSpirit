@@ -23,6 +23,8 @@ export const helpArticles: readonly HelpArticle[] = [
     action: { label: 'Open Focus', path: '/focus' } },
   { id: 'offline', topic: 'Using CampusFlow', question: 'What can I do without a connection?', keywords: 'offline wifi network cache internet sync failed save',
     answer: 'Previously saved information can be read from this device’s cache. Saved or stale notices show when fresh information is unavailable. Changes need a connection to CampusFlow; they are not queued for later. If a save fails, keep the editor open and retry when connected.' },
+  { id: 'accessibility', topic: 'Using CampusFlow', question: 'Does CampusFlow work with VoiceOver, TalkBack and larger text?', keywords: 'accessibility screen reader voiceover talkback text size font contrast reduce motion animations',
+    answer: 'Yes. Buttons, switches and fields have spoken names for VoiceOver and TalkBack. Text follows your device’s text size setting. Colours meet WCAG AA contrast in light and dark mode. If you turn on Reduce Motion (iOS) or Remove animations (Android), editors open without sliding in.' },
   { id: 'reminders', topic: 'Using CampusFlow', question: 'Why didn’t a reminder arrive?', keywords: 'notifications permission quiet hours edit delete device refresh',
     answer: 'Allow notifications on this device, check the reminder category and quiet hours in Settings, then refresh device reminders. My reminders shows saved times and opens the matching task, coursework, routine or saved event. It is not a delivery history. Reminders are scheduled on each device. Server changes cannot update another offline device’s existing schedule until it refreshes.',
     action: { label: 'Open my reminders', path: '/reminders' } },

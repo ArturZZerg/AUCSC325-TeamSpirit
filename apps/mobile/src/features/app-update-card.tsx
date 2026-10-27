@@ -26,7 +26,7 @@ function UpdateControls() {
   };
   const busy = checking || status.busy;
   return <View style={styles.card}>
-    <View style={styles.row}><View style={styles.icon}><Ionicons name="cloud-download-outline" size={17} color="#fff"/></View>
+    <View style={styles.row}><View style={styles.icon}><Ionicons name="cloud-download-outline" size={17} color={colors.onAccent}/></View>
       <View style={styles.text}><Text style={styles.title}>App updates</Text>
         <Text style={styles.muted}>{installedLabel(status.runtimeVersion, status.createdAt, status.embedded)}</Text>
         <Text style={styles.muted}>Updates download on launch and overnight, and apply the next time the app starts.</Text></View></View>

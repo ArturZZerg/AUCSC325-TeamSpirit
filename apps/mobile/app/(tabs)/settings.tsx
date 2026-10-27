@@ -86,7 +86,7 @@ export default function SettingsScreen() {
         return <Pressable key={category.key} accessibilityRole="switch" accessibilityLabel={`${category.label} reminders`} accessibilityState={{ checked: on, disabled }}
           disabled={disabled} onPress={() => { void run(async () => { await action.mutateAsync({ path: '/notification-preferences', method: 'PATCH', body: { [category.key]: !on } }); }); }}
           style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-          <View style={[styles.icon, { backgroundColor: category.tint }]}><Ionicons name={category.icon} size={17} color="#fff"/></View>
+          <View style={[styles.icon, { backgroundColor: category.tint }]}><Ionicons name={category.icon} size={17} color={colors.onAccent}/></View>
           <Text style={styles.rowTitle}>{category.label} reminders</Text>
           <View style={[styles.track, on && styles.trackOn, disabled && styles.dim]}><View style={[styles.knob, on && styles.knobOn]}/></View>
         </Pressable>; })}
@@ -136,7 +136,7 @@ function Row({ icon, tint, title, label, detail, action, disabled, onPress }: {
 }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={action ?? label ?? title} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}
     style={({ pressed }) => [styles.row, pressed && styles.pressed, disabled && styles.dim]}>
-    <View style={[styles.icon, { backgroundColor: tint }]}><Ionicons name={icon} size={17} color="#fff"/></View>
+    <View style={[styles.icon, { backgroundColor: tint }]}><Ionicons name={icon} size={17} color={colors.onAccent}/></View>
     <View style={styles.rowText}><Text style={styles.rowTitle}>{title}</Text>{detail && <Text style={styles.muted}>{detail}</Text>}</View>
     {action ? <Text style={styles.action}>{action}</Text> : <Ionicons name="chevron-forward" size={18} color={colors.muted}/>}
   </Pressable>;
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, fontWeight: '800', color: colors.ink },
   profile: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   avatar: { width: 58, height: 58, borderRadius: 29, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center' },
-  initials: { color: '#fff', fontSize: 22, fontWeight: '800' }, profileText: { flex: 1, gap: 2 },
+  initials: { color: colors.onAccent, fontSize: 22, fontWeight: '800' }, profileText: { flex: 1, gap: 2 },
   name: { color: colors.ink, fontSize: 19, fontWeight: '800' },
   zone: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: colors.sage },
   zoneText: { color: colors.moss, fontSize: 12, fontWeight: '700' },

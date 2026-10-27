@@ -44,6 +44,6 @@ const styles = StyleSheet.create({
   segmentText: { color: colors.muted, fontWeight: '700' }, segmentTextSelected: { color: colors.ink },
   chips: { gap: 8 },
   chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, justifyContent: 'center' },
-  chipSelected: { backgroundColor: colors.moss, borderColor: colors.moss }, chipText: { color: colors.ink, fontWeight: '700', fontSize: 13 }, chipTextSelected: { color: '#fff' },
+  chipSelected: { backgroundColor: colors.moss, borderColor: colors.moss }, chipText: { color: colors.ink, fontWeight: '700', fontSize: 13 }, chipTextSelected: { color: colors.onAccent },
   clear: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }, clearText: { color: colors.moss, fontWeight: '700' },
 });

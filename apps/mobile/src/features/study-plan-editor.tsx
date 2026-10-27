@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { addCalendarDays } from '@campusflow/domain';
 import { Button, Card, Field, colors } from '@/components/ui';
@@ -11,6 +11,7 @@ import { studyAfterDeadline, studyPlanRequest, studyPlanSchema, studySteps, stud
 import { ApiError } from '@/lib/api';
 import { ZodError } from 'zod';
 import type { AcademicItem } from '@/lib/types';
+import { SheetModal } from '@/components/sheet-modal';
 
 export function StudyPlanEditor({ item, course, timeZone, onClose, onSaved }: {
   item: AcademicItem; course?: string; timeZone: string; onClose(): void; onSaved(): void;
@@ -45,7 +46,7 @@ export function StudyPlanEditor({ item, course, timeZone, onClose, onSaved }: {
     }
     finally { busy.current = false; setSaving(false); }
   };
-  return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
     <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.heading}><Text style={styles.kicker}>MAKE ROOM TO STUDY</Text><Button title="Cancel" tone="plain" disabled={saving} onPress={close}/></View>
@@ -81,7 +82,7 @@ export function StudyPlanEditor({ item, course, timeZone, onClose, onSaved }: {
         <Button title={saving ? 'Saving…' : 'Add to my plan'} disabled={saving} onPress={() => { void save(); }}/>
       </ScrollView>
     </KeyboardAvoidingView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 function Choice({ label, selected, disabled, onPress }: { label: string; selected: boolean; disabled: boolean; onPress(): void }) {
   return <Pressable accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected, disabled }} aria-checked={selected} aria-disabled={disabled} disabled={disabled} onPress={onPress}
@@ -93,6 +94,6 @@ const styles = StyleSheet.create({
   kicker: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: .5 }, title: { color: colors.ink, fontSize: 28, lineHeight: 34, fontWeight: '800' },
   item: { color: colors.ink, fontSize: 17, fontWeight: '700' }, section: { color: colors.ink, fontSize: 18, fontWeight: '700' }, meta: { color: colors.muted, lineHeight: 21 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, choice: { minHeight: 46, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: '#fff' }, disabled: { opacity: .5 },
+  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: colors.onAccent }, disabled: { opacity: .5 },
   notice: { backgroundColor: colors.sage, color: colors.ink, padding: 12, borderRadius: 12, lineHeight: 21 }, error: { color: colors.coral },
 });

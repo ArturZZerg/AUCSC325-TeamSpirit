@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ZodError } from 'zod';
 import { createAssessmentSchema, updateAssessmentSchema } from '@campusflow/contracts';
@@ -7,6 +7,7 @@ import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import { newStepId } from '@/features/task-checklist';
 import type { Course } from '@/lib/types';
+import { SheetModal } from '@/components/sheet-modal';
 
 type Assessment = NonNullable<Course['assessments']>[number];
 type Group = NonNullable<Course['assessmentGroups']>[number];
@@ -51,7 +52,7 @@ export function AssessmentEditor({ courseId, assessment, groups = [], initialGro
     } catch (error) { setMessage(error instanceof ZodError ? error.issues[0].message : 'Check the assessment details.'); }
   };
   const weightLabel = groupId ? 'Share of group' : 'Weight (%)';
-  return <Modal visible animationType="slide" onRequestClose={() => { if (!busy) onClose(); }}>
+  return <SheetModal visible animationType="slide" onRequestClose={() => { if (!busy) onClose(); }}>
     <SafeAreaView style={styles.safe}><KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text accessibilityRole="header" style={styles.title}>{canvas ? assessment.title : assessment ? 'Edit assessment' : 'New assessment'}</Text>
@@ -80,7 +81,7 @@ export function AssessmentEditor({ courseId, assessment, groups = [], initialGro
           onPress={() => { void run({ path: `${path}/${assessment.id}`, method: 'DELETE' }); }}/>}
       </ScrollView>
     </KeyboardAvoidingView></SafeAreaView>
-  </Modal>;
+  </SheetModal>;
 }
 
 const styles = StyleSheet.create({

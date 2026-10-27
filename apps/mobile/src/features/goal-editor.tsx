@@ -2,12 +2,13 @@ import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { categorySchema } from '@campusflow/contracts';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import { goalFormDefaults, goalFormRequest, goalFormSchema, type GoalFormValues } from '@/features/goal-form';
 import type { Goal } from '@/lib/types';
+import { SheetModal } from '@/components/sheet-modal';
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 export function GoalEditor({ goal, timeZone, onClose, initialValues, onSaved }: {
@@ -34,7 +35,7 @@ export function GoalEditor({ goal, timeZone, onClose, initialValues, onSaved }: 
   };
   const error = errors.title?.message || errors.weekdays?.message || errors.target?.message || errors.timeZone?.message || message;
   const frequency = watch('frequency');
-  return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
     <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{goal ? 'Edit goal' : 'New goal'}</Text>
@@ -65,6 +66,6 @@ export function GoalEditor({ goal, timeZone, onClose, initialValues, onSaved }: 
         <Button title="Cancel" tone="plain" disabled={isSubmitting} onPress={close}/>
       </ScrollView>
     </KeyboardAvoidingView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: 16, gap: 12 }, title: { fontSize: 26, fontWeight: '800', color: colors.ink }, label: { color: colors.ink, fontWeight: '700' }, meta: { color: colors.muted }, options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, choice: { padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.line }, selected: { backgroundColor: colors.sage, borderColor: colors.moss }, error: { color: colors.coral } });

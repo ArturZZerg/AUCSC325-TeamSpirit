@@ -3,15 +3,21 @@ import type { TextInputProps } from 'react-native';
 import { ActivityIndicator, Appearance, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-const light = { ink: '#20302A', muted: '#63746C', canvas: '#F6F8F4', card: '#FFFFFF', moss: '#42745A', sage: '#DDECE2', coral: '#C76750', danger: '#A64B36', line: '#DCE4DD', blue: '#3C6488', plum: '#765580',
-  onAccent: '#FFFFFF', faint: '#AAB6AF', gold: '#8A6A00', goldLine: '#E3C46A', goldSurface: '#FFFBEF', warnText: '#725700', warnSurface: '#FFF3D4',
-  dangerSurface: '#F8E6E1', dangerLine: '#E9B8AA', streak: '#D9772B', streakText: '#A4521A', streakSurface: '#FCEBD9', blueSurface: '#E3EBF2', scrim: 'rgba(0,0,0,0.35)' };
-const dark: typeof light = { ink: '#E4ECE7', muted: '#9DAEA5', canvas: '#111714', card: '#1A231F', moss: '#4C8866', sage: '#22352B', coral: '#E39079', danger: '#E07C64', line: '#2B3832', blue: '#86AED6', plum: '#B898C4',
-  onAccent: '#FFFFFF', faint: '#56645D', gold: '#E3C46A', goldLine: '#7A6524', goldSurface: '#2A2615', warnText: '#F1D58A', warnSurface: '#3A3112',
-  dangerSurface: '#3B2420', dangerLine: '#6E3A2F', streak: '#F09A52', streakText: '#F6B57D', streakSurface: '#3A2716', blueSurface: '#1F2C3A', scrim: 'rgba(0,0,0,0.6)' };
+// Text colours meet WCAG AA (4.5:1) on canvas, card and sage, and onAccent on every accent;
+// accessibility-contrast.test.ts checks each pair.
+const light = { ink: '#20302A', muted: '#5B6B64', canvas: '#F6F8F4', card: '#FFFFFF', moss: '#3F6F56', sage: '#DDECE2', coral: '#A95844', danger: '#A64B36', line: '#DCE4DD', blue: '#3C6488', plum: '#765580',
+  onAccent: '#FFFFFF', onAccentMuted: 'rgba(255,255,255,0.88)', onAccentTrack: 'rgba(255,255,255,0.28)', faint: '#AAB6AF', gold: '#8A6A00', goldLine: '#E3C46A', goldSurface: '#FFFBEF', warnText: '#725700', warnSurface: '#FFF3D4',
+  dangerSurface: '#F8E6E1', dangerLine: '#E9B8AA', streak: '#D9772B', streakText: '#A4521A', streakSurface: '#FCEBD9', blueSurface: '#E3EBF2', scrim: 'rgba(0,0,0,0.35)',
+  courseGold: '#9F6925', courseTeal: '#398171', courseSlate: '#5B6472', courseRose: '#B4566E' };
+const dark: typeof light = { ink: '#E4ECE7', muted: '#9DAEA5', canvas: '#111714', card: '#1A231F', moss: '#77A58B', sage: '#22352B', coral: '#E39079', danger: '#E07C64', line: '#2B3832', blue: '#86AED6', plum: '#B898C4',
+  onAccent: '#0F1712', onAccentMuted: 'rgba(15,23,18,0.82)', onAccentTrack: 'rgba(15,23,18,0.22)', faint: '#56645D', gold: '#E3C46A', goldLine: '#7A6524', goldSurface: '#2A2615', warnText: '#F1D58A', warnSurface: '#3A3112',
+  dangerSurface: '#3B2420', dangerLine: '#6E3A2F', streak: '#F09A52', streakText: '#F6B57D', streakSurface: '#3A2716', blueSurface: '#1F2C3A', scrim: 'rgba(0,0,0,0.6)',
+  courseGold: '#B97D31', courseTeal: '#4F9686', courseSlate: '#868D97', courseRose: '#C17286' };
 /** Follows the system appearance at launch: every StyleSheet reads these values once, at module load. */
 export const colorScheme = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
 export const colors = colorScheme === 'dark' ? dark : light;
+/** Both palettes, for the contrast checks. */
+export const palettes = { light, dark };
 export function Screen({ children, safeArea = false, edges }: PropsWithChildren<{ safeArea?: boolean; edges?: ('top' | 'bottom' | 'left' | 'right')[] }>) {
   return safeArea ? <SafeAreaView edges={edges} style={styles.screen}>{children}</SafeAreaView> : <View style={styles.screen}>{children}</View>;
 }

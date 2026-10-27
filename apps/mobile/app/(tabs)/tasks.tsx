@@ -79,7 +79,7 @@ export default function Tasks() {
         <View style={styles.heading}><Text accessibilityRole="header" style={styles.title}>Tasks</Text>
           {summary && <Text style={styles.summary}>{tasksSummaryLabel(summary, university?.open)}</Text>}</View>
         <Pressable accessibilityRole="button" accessibilityLabel="Add task" accessibilityState={{ disabled }} disabled={disabled} onPress={() => setEditing(null)}
-          style={({ pressed }) => [styles.add, pressed && styles.pressed, disabled && styles.dim]}><Ionicons name="add" size={26} color="#fff"/></Pressable>
+          style={({ pressed }) => [styles.add, pressed && styles.pressed, disabled && styles.dim]}><Ionicons name="add" size={26} color={colors.onAccent}/></Pressable>
       </View>
       <View style={styles.links}>
         <Chip icon="school-outline" label="Coursework" onPress={() => router.push('/academics')}/>

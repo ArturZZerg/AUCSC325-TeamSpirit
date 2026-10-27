@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { saveUserExerciseSchema, userExerciseSchema, type UserExercise } from '@campusflow/contracts';
@@ -7,6 +7,7 @@ import { muscles, searchExercises, type Equipment, type GymExercise, type LoadKi
 import { Button, Field, colors } from '@/components/ui';
 import { useAction } from './queries';
 import { ExerciseThumb } from './exercise-media';
+import { SheetModal } from '@/components/sheet-modal';
 
 export const muscleLabels: Record<Muscle, string> = { chest: 'Chest', back: 'Back', traps: 'Traps', shoulders: 'Shoulders', biceps: 'Biceps', triceps: 'Triceps',
   forearms: 'Forearms', quads: 'Quads', hamstrings: 'Hamstrings', glutes: 'Glutes', adductors: 'Inner thighs', calves: 'Calves', core: 'Core' };
@@ -31,7 +32,7 @@ export function ExercisePicker({ own, exclude = [], title = 'Add exercise', onPi
   const [creating, setCreating] = useState(false);
   const results = useMemo(() => searchExercises({ query, muscle, equipment }, own, 60).filter(item => !exclude.includes(item.id)), [query, muscle, equipment, own, exclude]);
   const ownIds = new Set(own.map(item => item.id));
-  return <Modal visible animationType="slide" onRequestClose={onClose}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={onClose}><SafeAreaView style={styles.safe}>
     <View style={styles.header}><Text accessibilityRole="header" style={styles.title}>{creating ? 'New exercise' : title}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={creating ? () => setCreating(false) : onClose} hitSlop={10}><Ionicons name="close" size={26} color={colors.ink}/></Pressable></View>
     {creating ? <CreateExercise initialName={query} onCreated={exercise => { setCreating(false); onPick(exercise); }}/> : <>
@@ -51,7 +52,7 @@ export function ExercisePicker({ own, exclude = [], title = 'Add exercise', onPi
           {ownIds.has(item.id) && <View style={styles.badge}><Text style={styles.badgeText}>Yours</Text></View>}
         </Pressable>}/>
     </>}
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 
 function CreateExercise({ initialName, onCreated }: { initialName: string; onCreated(exercise: GymExercise): void }) {

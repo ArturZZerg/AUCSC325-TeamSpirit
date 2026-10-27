@@ -189,6 +189,6 @@ const styles = StyleSheet.create({
   clock: { color: colors.ink, fontSize: 56, fontWeight: '800', textAlign: 'center', fontVariant: ['tabular-nums'] }, status: { color: colors.moss, textAlign: 'center', fontWeight: '600' },
 
   choices: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' }, choice: { minHeight: 46, borderRadius: 12, backgroundColor: colors.card, padding: 14, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
-  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: '#fff' }, disabled: { opacity: .5 }, error: { color: colors.coral },
+  selected: { backgroundColor: colors.moss, borderColor: colors.moss }, choiceText: { color: colors.ink, fontWeight: '600' }, selectedText: { color: colors.onAccent }, disabled: { opacity: .5 }, error: { color: colors.coral },
   confirm: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: colors.scrim },
 });

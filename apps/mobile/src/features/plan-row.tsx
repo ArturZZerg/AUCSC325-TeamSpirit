@@ -35,10 +35,10 @@ export function PlanRow({ item, timeZone, date, isCurrentDay, disabled, pendingA
           accessibilityHint={item.title} accessibilityState={{ disabled, checked: done }} disabled={disabled} hitSlop={8}
           onPress={() => onAction(canUndo ? 'uncomplete' : 'complete')}
           style={[styles.check, { borderColor: accent }, done && { backgroundColor: accent }, disabled && !checkPending && styles.dim]}>
-          {checkPending ? <ActivityIndicator size="small" color={done ? '#fff' : accent}/> : done ? <Ionicons name="checkmark" size={18} color="#fff"/> : null}
+          {checkPending ? <ActivityIndicator size="small" color={done ? colors.onAccent : accent}/> : done ? <Ionicons name="checkmark" size={18} color={colors.onAccent}/> : null}
         </Pressable>
         : <View style={[styles.check, styles.badge, { backgroundColor: done ? accent : `${accent}1A`, borderColor: 'transparent' }]}>
-          <Ionicons name={done ? 'checkmark' : kindIcons[item.kind]} size={16} color={done ? '#fff' : accent}/></View>}
+          <Ionicons name={done ? 'checkmark' : kindIcons[item.kind]} size={16} color={done ? colors.onAccent : accent}/></View>}
       <View style={styles.body}>
         <View style={styles.labels}>
           {item.isMainGoal && <Text style={styles.star}>★ MAIN GOAL</Text>}
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   dot: { width: 7, height: 7, borderRadius: 4 }, kind: { fontSize: 11, fontWeight: '800', letterSpacing: .6 },
   star: { color: colors.gold, fontSize: 11, fontWeight: '800', letterSpacing: .6 },
   chip: { fontSize: 11, fontWeight: '700', color: colors.muted, backgroundColor: colors.canvas, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden' },
-  overdue: { color: '#fff', backgroundColor: colors.coral }, high: { color: colors.danger, backgroundColor: colors.dangerSurface },
+  overdue: { color: colors.onAccent, backgroundColor: colors.coral }, high: { color: colors.danger, backgroundColor: colors.dangerSurface },
   title: { color: colors.ink, fontSize: 16, lineHeight: 22, fontWeight: '700' }, done: { color: colors.muted, textDecorationLine: 'line-through' },
   meta: { color: colors.muted, fontSize: 13 }, overdueText: { color: colors.coral, fontWeight: '600' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 42 },

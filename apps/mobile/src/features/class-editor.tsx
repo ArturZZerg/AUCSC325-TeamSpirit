@@ -4,12 +4,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { classScheduleFieldsSchema, validateClassPattern, type ClassSchedule } from '@campusflow/contracts';
 import { addCalendarDays } from '@campusflow/domain';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import type { Course } from '@/lib/types';
 import { courseLabel } from '@/features/course-label';
+import { SheetModal } from '@/components/sheet-modal';
 
 export const classFormSchema = classScheduleFieldsSchema.extend({
   location: z.string().trim().max(240), instructor: z.string().trim().max(240), notes: z.string().trim().max(2000),
@@ -55,7 +56,7 @@ export function ClassEditor({ item, date, timeZone, onClose, courses, initialCou
     <Controller key={name} name={name} control={control} render={({ field }) =>
       <Field label={label} value={field.value} onChangeText={field.onChange} placeholder={placeholder}
         editable={!isSubmitting} autoCapitalize={name === 'timeZone' ? 'none' : undefined} autoCorrect={false} multiline={name === 'notes'}/>}/>;
-  return <Modal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
+  return <SheetModal visible animationType="slide" onRequestClose={close}><SafeAreaView style={styles.safe}>
     <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{item ? 'Edit class' : 'Add a class'}</Text>
@@ -100,7 +101,7 @@ export function ClassEditor({ item, date, timeZone, onClose, courses, initialCou
         <Button title="Cancel" tone="plain" disabled={isSubmitting} onPress={close}/>
       </ScrollView>
     </KeyboardAvoidingView>
-  </SafeAreaView></Modal>;
+  </SafeAreaView></SheetModal>;
 }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: 20, gap: 14, maxWidth: 680, width: '100%', alignSelf: 'center' },
