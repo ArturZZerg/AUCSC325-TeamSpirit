@@ -7,6 +7,7 @@ import { CanvasHttpClient } from '../src/integrations/canvas/canvas-http';
 import { CanvasProvider, FixtureCanvasProvider } from '../src/integrations/canvas/canvas-provider';
 import { ReminderService } from '../src/data';
 import { PrismaService } from '../src/prisma.service';
+import { EventSyncService } from '../src/integrations/events/event-sync.service';
 
 describe('Canvas HTTP connection and sync boundaries', () => {
   let app: INestApplication;
@@ -18,10 +19,12 @@ describe('Canvas HTTP connection and sync boundaries', () => {
     course: { upsert: jest.fn(), update: jest.fn() }, academicItem: { upsert: jest.fn(), findMany: jest.fn() },
   };
   const provider = { fetchAcademicSnapshot: jest.fn() };
+  // Fixture syncs never import calendars (ADR 025); this stays unused.
+  const events = { sync: jest.fn() };
   const post = (path: string) => request(app.getHttpServer()).post(path).set('Authorization', 'Bearer campusflow-session');
   beforeAll(async () => {
     const module = await Test.createTestingModule({ controllers: [CanvasController], providers: [AuthGuard, CanvasService, ReminderService, CanvasHttpClient,
-      { provide: PrismaService, useValue: prisma }, { provide: CanvasProvider, useValue: provider }] }).compile();
+      { provide: PrismaService, useValue: prisma }, { provide: EventSyncService, useValue: events }, { provide: CanvasProvider, useValue: provider }] }).compile();
     app = module.createNestApplication(); app.useLogger(false); await app.init();
   });
   beforeEach(() => {

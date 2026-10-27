@@ -9,6 +9,7 @@ import { CanvasProvider } from '../src/integrations/canvas/canvas-provider';
 import { canvasTokenKey, openCanvasToken, sealCanvasToken } from '../src/integrations/canvas/canvas-token';
 import { ReminderService } from '../src/data';
 import { PrismaService } from '../src/prisma.service';
+import { EventSyncService } from '../src/integrations/events/event-sync.service';
 import { runtimeConfig } from '../src/runtime-config';
 
 const token = 'canvas-personal-token-0123456789abcdef';
@@ -18,7 +19,8 @@ function fakeFetch(routes: Record<string, Route>) {
   return jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${token}`);
-    const route = routes[url];
+    // A key ending in * matches any URL it starts, for dated query strings.
+    const route = routes[url] ?? Object.entries(routes).find(([key]) => key.endsWith('*') && url.startsWith(key.slice(0, -1)))?.[1];
     if (!route) return new Response('[]', { status: 404 });
     return new Response(JSON.stringify(route.body), { status: route.status ?? 200, headers: route.link ? { Link: route.link } : {} });
   }) as unknown as typeof fetch;
@@ -111,15 +113,17 @@ describe('Canvas token connection over HTTP', () => {
   const prisma = {
     $transaction: jest.fn(), $queryRaw: jest.fn(), session: { findUnique: jest.fn() },
     canvasConnection: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), deleteMany: jest.fn() },
-    course: { upsert: jest.fn() }, academicItem: { upsert: jest.fn(), findMany: jest.fn() },
+    course: { upsert: jest.fn() }, academicItem: { upsert: jest.fn(), findMany: jest.fn(), delete: jest.fn() },
+    user: { findUnique: jest.fn() }, reminder: { deleteMany: jest.fn() },
   };
-  const reminders = { lockAcademicReminders: jest.fn(), reconcileAcademicItem: jest.fn() };
+  const reminders = { lockAcademicReminders: jest.fn(), reconcileAcademicItem: jest.fn(), lockAcademicItem: jest.fn() };
+  const events = { sync: jest.fn() };
   const http = new CanvasHttpClient();
   const auth = (req: request.Test) => req.set('Authorization', 'Bearer campusflow-session');
   beforeAll(async () => {
     const module = await Test.createTestingModule({ controllers: [CanvasController], providers: [AuthGuard, CanvasService,
       { provide: ReminderService, useValue: reminders }, { provide: CanvasHttpClient, useValue: http },
-      { provide: PrismaService, useValue: prisma }, { provide: CanvasProvider, useValue: { fetchAcademicSnapshot: jest.fn() } }] }).compile();
+      { provide: PrismaService, useValue: prisma }, { provide: EventSyncService, useValue: events }, { provide: CanvasProvider, useValue: { fetchAcademicSnapshot: jest.fn() } }] }).compile();
     app = module.createNestApplication(); app.useLogger(false); await app.init();
   });
   beforeEach(() => {
@@ -133,6 +137,8 @@ describe('Canvas token connection over HTTP', () => {
     prisma.canvasConnection.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => { stored = { ...create }; return stored; });
     prisma.canvasConnection.deleteMany.mockImplementation(async () => { stored = null; return { count: 1 }; });
     prisma.course.upsert.mockResolvedValue({ id: 'course-id' }); prisma.academicItem.findMany.mockResolvedValue([]);
+    prisma.user.findUnique.mockResolvedValue({ timeZone: 'America/Edmonton' });
+    events.sync.mockResolvedValue({ status: 'complete', upserted: 0, removed: 0, retainedSaved: 0, issues: [] });
     http.deps = { fetch: fakeFetch({
       [`${origin}/api/v1/users/self`]: { body: { id: 77 } },
       [coursesUrl]: { body: [{ id: 1, name: 'AUCSC 325' }] },
@@ -160,6 +166,67 @@ describe('Canvas token connection over HTTP', () => {
     expect(prisma.course.upsert).toHaveBeenCalledTimes(2);
     for (const [call] of prisma.academicItem.upsert.mock.calls)
       expect(call.where).toEqual({ userId_source_externalId: { userId: id, source: canvasSource, externalId: '11' } });
+  });
+  it('imports planner to-dos and calendar events and removes coursework deleted in Canvas (ADR 025)', async () => {
+    await auth(request(app.getHttpServer()).post('/canvas/connect')).send({ baseUrl: origin, accessToken: token }).expect(201);
+    const soon = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    http.deps = { fetch: fakeFetch({
+      [coursesUrl]: { body: [{ id: 1, name: 'AUCSC 325' }] },
+      [assignmentsUrl(1)]: { body: [{ id: 11, name: 'Essay', due_at: '2026-10-24T05:59:00Z' }] },
+      [`${origin}/api/v1/planner/items?*`]: { body: [
+        { plannable_id: 5, plannable_type: 'wiki_page', course_id: 1, plannable: { title: 'Read chapter 4', todo_date: soon } },
+        { plannable_id: 6, plannable_type: 'planner_note', course_id: 1, plannable: { title: 'Ask about lab' }, plannable_date: soon, planner_override: { marked_complete: true } },
+        { plannable_id: 7, plannable_type: 'discussion_topic', course_id: 1, plannable: { title: 'Graded talk', assignment_id: 12 } },
+        { plannable_id: 8, plannable_type: 'planner_note', course_id: null, plannable: { title: 'No course' } },
+        { plannable_id: 11, plannable_type: 'assignment', course_id: 1, plannable: { title: 'Essay' } },
+      ] },
+      [`${origin}/api/v1/calendar_events?type=event&*`]: { body: [
+        { id: 40, title: 'Exam review', start_at: soon, end_at: soon, location_name: 'Room 1', context_code: 'course_1',
+          description: '<p>Bring <b>notes</b> &amp; questions</p>', html_url: `${origin}/calendar?event_id=40` },
+        { id: 41, title: 'Reading week', all_day: true, all_day_date: '2026-11-09', context_code: 'course_1', html_url: 'https://elsewhere.example/x' },
+        { id: 42, title: 'Cancelled', start_at: soon, workflow_state: 'deleted' },
+      ] },
+    }), lookup: publicDns };
+    // Stored: a live assignment, one deleted in Canvas, and a planner to-do outside the window read.
+    prisma.academicItem.findMany.mockImplementation(async ({ where }: { where: { source?: string } }) => where.source ? [
+      { id: 'live', externalId: '11', courseId: 'course-id', due: null },
+      { id: 'gone', externalId: '13', courseId: 'course-id', due: null },
+      { id: 'old-todo', externalId: 'planner:wiki_page:3', courseId: 'course-id', due: { kind: 'instant', at: '2020-01-01T00:00:00.000Z' } },
+    ] : []);
+    events.sync.mockResolvedValue({ status: 'complete', upserted: 2, removed: 0, retainedSaved: 0, issues: [] });
+    const response = await auth(request(app.getHttpServer()).post('/canvas/sync')).expect(201);
+    expect(response.body).toMatchObject({ academicItemsUpdated: 3, eventsUpdated: 2, status: 'succeeded' });
+    const upserted = prisma.academicItem.upsert.mock.calls.map(([call]) => call.create);
+    expect(upserted).toEqual(expect.arrayContaining([
+      expect.objectContaining({ externalId: 'planner:wiki_page:5', kind: 'planner', title: 'Read chapter 4', submissionState: 'unsubmitted', due: { kind: 'instant', at: soon } }),
+      expect.objectContaining({ externalId: 'planner:planner_note:6', kind: 'planner', submissionState: 'submitted' })]));
+    expect(upserted).toHaveLength(3);
+    expect(prisma.academicItem.delete.mock.calls).toEqual([[{ where: { id: 'gone' } }]]);
+    expect(prisma.reminder.deleteMany).toHaveBeenCalledWith({ where: { userId: id, targetKind: 'academicItem', targetId: 'gone' } });
+    const [source, , coverage] = events.sync.mock.calls[0];
+    expect(source).toEqual({ source: 'canvas:calendar', sourceScope: `user:${id}` });
+    expect(coverage).toMatchObject({ timeZone: 'America/Edmonton' });
+    const batch = await events.sync.mock.calls[0][1].fetchEvents(coverage);
+    expect(batch).toMatchObject({ status: 'complete', events: [
+      { externalId: '40', title: 'Exam review', description: 'Bring notes & questions', category: 'AUCSC 325', location: 'Room 1',
+        url: `${origin}/calendar?event_id=40`, timing: { kind: 'timed', startsAt: soon, endsAt: soon } },
+      { externalId: '41', url: null, timing: { kind: 'allDay', startDate: '2026-11-09', endDateExclusive: '2026-11-10' } }] });
+    expect(batch.events).toHaveLength(2);
+  });
+  it('keeps coursework when a course could not be read in full, and survives a calendar failure', async () => {
+    await auth(request(app.getHttpServer()).post('/canvas/connect')).send({ baseUrl: origin, accessToken: token }).expect(201);
+    http.deps = { fetch: fakeFetch({
+      [coursesUrl]: { body: [{ id: 1, name: 'AUCSC 325' }] },
+      [assignmentsUrl(1)]: { body: [{ id: 11, name: 'Essay' }, { id: 'unreadable' }] },
+    }), lookup: publicDns };
+    prisma.academicItem.findMany.mockImplementation(async ({ where }: { where: { source?: string } }) => where.source ? [{ id: 'gone', externalId: '13', courseId: 'course-id', due: null }] : []);
+    events.sync.mockRejectedValue(new Error('event store down'));
+    const response = await auth(request(app.getHttpServer()).post('/canvas/sync')).expect(201);
+    expect(response.body).toMatchObject({ status: 'succeeded', eventsUpdated: 0 });
+    expect(prisma.academicItem.delete).not.toHaveBeenCalled();
+    // The calendar endpoint 404s here, so the calendar read is incomplete and nothing is removed from it.
+    const batch = await events.sync.mock.calls[0][1].fetchEvents(events.sync.mock.calls[0][2]);
+    expect(batch.status).toBe('incomplete');
   });
   it('rejects a bad token with a readable message and without ending the CampusFlow session', async () => {
     http.deps = { fetch: fakeFetch({ [`${origin}/api/v1/users/self`]: { status: 401, body: {} } }), lookup: publicDns };

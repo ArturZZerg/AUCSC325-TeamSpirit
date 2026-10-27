@@ -4,10 +4,15 @@ import { z } from 'zod';
 import { PrismaService } from '../../prisma.service';
 import { coverageSchema, EventCoverage, EventProvider, importedEventSchema, inCoverage } from './event-provider';
 
-const sourceSchema = z.object({ source: z.string().regex(/^campus:[a-zA-Z0-9._-]{1,100}$/),
-  sourceScope: z.union([z.literal('public'), z.string().refine(value => value.startsWith('user:') && z.string().uuid().safeParse(value.slice(5)).success)]) }).strict();
+const userScope = z.string().refine(value => value.startsWith('user:') && z.string().uuid().safeParse(value.slice(5)).success);
+/** Canvas course calendars are imported as events private to the student who connected Canvas (ADR 025). */
+export const canvasCalendarSource = 'canvas:calendar';
+const sourceSchema = z.union([
+  z.object({ source: z.string().regex(/^campus:[a-zA-Z0-9._-]{1,100}$/), sourceScope: z.union([z.literal('public'), userScope]) }).strict(),
+  z.object({ source: z.literal(canvasCalendarSource), sourceScope: userScope }).strict(),
+]);
 export type CampusSource = z.infer<typeof sourceSchema>;
-/** Internal entry point only. A source key identifies one authoritative feed, never Canvas. */
+/** Internal entry point only. A source key identifies one authoritative feed; Canvas only for a student's private calendar. */
 @Injectable()
 export class EventSyncService {
   constructor(private readonly prisma: PrismaService) {}

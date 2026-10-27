@@ -69,3 +69,17 @@ describe('Campus session boundaries (ToR 11, 19)', () => {
     expect(screen.getByLabelText('Filter events')).toHaveDisplayValue('');
   });
 });
+
+describe('Canvas calendar events on Campus (ADR 025)', () => {
+  it('labels events from the student’s Canvas calendar', () => {
+    jest.mocked(useEvents).mockReturnValue({ data: [{ ...eventFixture(), source: 'canvas:calendar', title: 'Exam review', category: 'AUCSC 325' }],
+      isLoading: false, refetch: jest.fn() } as unknown as ReturnType<typeof useEvents>);
+    render(<Campus/>);
+    expect(screen.getByText('Exam review')).toBeOnTheScreen();
+    expect(screen.getByText('From your Canvas calendar')).toBeOnTheScreen();
+  });
+  it('does not label campus feed events as Canvas', () => {
+    render(<Campus/>);
+    expect(screen.queryByText('From your Canvas calendar')).toBeNull();
+  });
+});

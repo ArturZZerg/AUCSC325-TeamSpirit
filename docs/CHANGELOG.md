@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- More Canvas imports (ADR 025): to-dos from the Canvas planner (pages,
+  ungraded discussions and the student's own notes) as "Other work", course
+  calendar events as private events on Campus and Today, and removal of
+  assignments and to-dos deleted in Canvas, with their reminders, once a course
+  or the planner was read in full.
+
 - Canvas grades and assessment groups (ADR 024): Canvas sync imports assignment
   groups, points and scores into each course's grade outline. Students can
   group their own assessments ("Quizzes 20%" or by points), change any weight,

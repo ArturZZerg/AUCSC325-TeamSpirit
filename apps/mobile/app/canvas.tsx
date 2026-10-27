@@ -62,7 +62,7 @@ function CanvasConnection({ userId, timeZone }: { userId: string; timeZone: stri
     <View style={styles.heading}><BackLink to="Settings" disabled={!!working} onPress={() => router.back()}/><Text style={styles.kicker}>CANVAS</Text></View>
     <View style={styles.hero}><Ionicons name="school-outline" size={28} color={colors.blue}/>
       <Text style={styles.title}>Bring in your Canvas coursework.</Text>
-      <Text style={styles.copy}>CampusFlow imports your active courses and assignments with their due dates and submission status. Nothing is posted to Canvas.</Text></View>
+      <Text style={styles.copy}>CampusFlow imports your active courses, assignments with their due dates, submission status and scores, to-do items from your Canvas planner, and course calendar events. Nothing is posted to Canvas.</Text></View>
     {status.isLoading && <State loading/>}
     {status.error && !data && <Card><Text accessibilityRole="alert" style={styles.warning}>Couldn’t check your Canvas connection. Check that you’re online and try again.</Text>
       <Button title="Try again" tone="plain" onPress={() => { void status.refetch(); }}/></Card>}
