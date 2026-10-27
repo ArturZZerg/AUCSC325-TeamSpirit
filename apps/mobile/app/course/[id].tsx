@@ -3,13 +3,14 @@ import { useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { gradeSummary } from '@campusflow/domain';
+import { courseWeights, gradeSummary } from '@campusflow/domain';
 import { BackLink, Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAcademic, useAction, useClasses, useCourses } from '@/features/queries';
 import { ClassEditor, classDays } from '@/features/class-editor';
 import { CourseEditor, courseColor, isManualCourse } from '@/features/course-editor';
 import { AssessmentEditor } from '@/features/assessment-editor';
 import { GradeWhatIf } from '@/features/grade-what-if';
+import { GroupEditor } from '@/features/group-editor';
 import { planTimingLabel } from '@/features/today-plan';
 import { useTodayClock } from '@/features/today-clock';
 import { useSessionStore } from '@/store/session';
@@ -17,6 +18,13 @@ import type { Course } from '@/lib/types';
 import { courseLabel } from '@/features/course-label';
 
 type Assessment = NonNullable<Course['assessments']>[number];
+type Group = NonNullable<Course['assessmentGroups']>[number];
+const amount = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1);
+/** Average over a group's graded work, by share; null before anything counts. */
+function groupAverage(rows: readonly Assessment[]) {
+  const graded = rows.filter(row => row.score !== null && row.weight > 0), share = graded.reduce((sum, row) => sum + row.weight, 0);
+  return share > 0 ? Math.round(graded.reduce((sum, row) => sum + row.weight * (row.score as number), 0) / share * 10) / 10 : null;
+}
 const pct = (value: number | null) => value === null ? '—' : `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
 
 export default function CourseScreen() {
@@ -30,7 +38,11 @@ function CourseContent({ timeZone }: { timeZone: string }) {
   const { date: today } = useTodayClock(timeZone);
   const course = courses.data?.find(row => row.id === id);
   const assessments = useMemo(() => course?.assessments ?? [], [course?.assessments]);
-  const summary = useMemo(() => gradeSummary(assessments, course?.targetGrade ?? null), [assessments, course?.targetGrade]);
+  const groups = useMemo(() => course?.assessmentGroups ?? [], [course?.assessmentGroups]);
+  const summary = useMemo(() => gradeSummary(assessments, course?.targetGrade ?? null, groups), [assessments, course?.targetGrade, groups]);
+  // Each assessment's share of the whole course, after group weights are applied.
+  const shares = useMemo(() => new Map(courseWeights(assessments, groups).map(row => [row.id, row.weight])), [assessments, groups]);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(), [newInGroup, setNewInGroup] = useState<string | null>(null);
   const [editing, setEditing] = useState<Assessment | null>(), [editingCourse, setEditingCourse] = useState(false), [deleting, setDeleting] = useState(false);
   const [target, setTarget] = useState<string>(), guard = useRef(false), [busy, setBusy] = useState(false), [message, setMessage] = useState<string>();
   const coursework = academic.data?.filter(item => item.courseId === id) ?? [];
@@ -93,16 +105,30 @@ function CourseContent({ timeZone }: { timeZone: string }) {
     </View>
 
     <View style={styles.sectionRow}><Text accessibilityRole="header" style={styles.section}>Assessments</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Add assessment" onPress={() => setEditing(null)} style={[styles.add, { backgroundColor: accent }]}>
-        <Ionicons name="add" size={20} color={colors.onAccent}/></Pressable></View>
-    {!assessments.length && <Text style={styles.meta}>Add each graded part with its weight, such as Midterm 30% or Final 40%.</Text>}
-    {assessments.map(row => <Pressable key={row.id} accessibilityRole="button" accessibilityLabel={`Edit ${row.title}`} onPress={() => setEditing(row)}
-      style={({ pressed }) => [styles.assessment, pressed && styles.pressed]}>
-      <View style={styles.assessmentBody}><Text style={styles.item}>{row.title}</Text><Text style={styles.meta}>Weight {pct(row.weight)}</Text></View>
-      <Text style={[styles.score, row.score === null && styles.ungraded]}>{row.score === null ? 'Not graded' : pct(row.score)}</Text>
-    </Pressable>)}
+      <View style={styles.headActions}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Add group" onPress={() => setEditingGroup(null)} hitSlop={8}><Text style={styles.link}>Add group</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Add assessment" onPress={() => { setNewInGroup(null); setEditing(null); }} style={[styles.add, { backgroundColor: accent }]}>
+          <Ionicons name="add" size={20} color={colors.onAccent}/></Pressable></View></View>
+    {!assessments.length && !groups.length && <Text style={styles.meta}>Add each graded part with its weight, such as Midterm 30% or Final 40%. Use groups for parts like Quizzes 20% that hold several assessments.</Text>}
+    {assessments.filter(row => !row.groupId || !groups.some(group => group.id === row.groupId)).map(row =>
+      <AssessmentRow key={row.id} row={row} share={shares.get(row.id) ?? row.weight} grouped={false} onPress={() => setEditing(row)}/>)}
+    {groups.map(group => {
+      const rows = assessments.filter(row => row.groupId === group.id), average = groupAverage(rows);
+      return <View key={group.id} style={styles.group}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Edit group ${group.title}`} onPress={() => setEditingGroup(group)} style={styles.groupHead}>
+          <View style={styles.assessmentBody}><Text accessibilityRole="header" style={styles.item}>{group.title}</Text>
+            <Text style={styles.meta}>{[group.weight === null ? 'Graded by points' : `${pct(group.weight)} of course`, group.canvas ? 'From Canvas' : null,
+              average === null ? null : `Average ${pct(average)}`].filter(Boolean).join(' · ')}</Text></View>
+          <Text style={styles.link}>Edit</Text>
+        </Pressable>
+        {rows.map(row => <AssessmentRow key={row.id} row={row} share={shares.get(row.id) ?? 0} grouped onPress={() => setEditing(row)}/>)}
+        {!rows.length && <Text style={styles.meta}>No assessments in this group yet.</Text>}
+        {!group.canvas && <Pressable accessibilityRole="button" accessibilityLabel={`Add assessment to ${group.title}`} hitSlop={6}
+          onPress={() => { setNewInGroup(group.id); setEditing(null); }}><Text style={styles.link}>Add to {group.title}</Text></Pressable>}
+      </View>;
+    })}
     {summary.totalWeight > 0 && summary.totalWeight < 100 && <Text style={styles.meta}>Weights total {pct(summary.totalWeight)}. Add the rest of your outline for a complete picture.</Text>}
-    <GradeWhatIf key={course.id} assessments={assessments} target={course.targetGrade ?? null}/>
+    <GradeWhatIf key={course.id} assessments={assessments} groups={groups} target={course.targetGrade ?? null}/>
 
     <Text style={styles.section}>Classes</Text>
     {meetings.map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.title}, open timetable`} onPress={() => router.push('/timetable')} style={styles.coursework}>
@@ -121,7 +147,10 @@ function CourseContent({ timeZone }: { timeZone: string }) {
     <Text style={styles.meta}>Grades here are your own notes for planning; your institution’s records are authoritative.</Text>
   </ScrollView>
     {addingClass && <ClassEditor item={null} date={today} timeZone={timeZone} courses={courses.data} initialCourseId={course.id} onClose={() => setAddingClass(false)}/>}
-    {editing !== undefined && <AssessmentEditor key={editing?.id ?? 'new'} courseId={course.id} assessment={editing} onClose={() => setEditing(undefined)}/>}
+    {editing !== undefined && <AssessmentEditor key={editing?.id ?? 'new'} courseId={course.id} assessment={editing} groups={groups} initialGroupId={newInGroup}
+      onClose={() => { setEditing(undefined); setNewInGroup(null); }}/>}
+    {editingGroup !== undefined && <GroupEditor key={editingGroup?.id ?? 'new-group'} courseId={course.id} group={editingGroup}
+      inUse={!!editingGroup && assessments.some(row => row.groupId === editingGroup.id)} onClose={() => setEditingGroup(undefined)}/>}
     {editingCourse && !deleting && <CourseEditor course={course} onClose={() => setEditingCourse(false)} onDelete={isManualCourse(course) ? () => setDeleting(true) : undefined}/>}
     {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!busy) setDeleting(false); }}>
       <SafeAreaView style={styles.confirm}><Card><Text style={styles.section}>Delete {course.name}?</Text>
@@ -134,7 +163,22 @@ function CourseContent({ timeZone }: { timeZone: string }) {
   </Screen>;
 }
 
+/** One assessment: grouped rows show their share (or Canvas points) and what that is worth in the course. */
+function AssessmentRow({ row, share, grouped, onPress }: { row: Assessment; share: number; grouped: boolean; onPress(): void }) {
+  const weight = !grouped ? `Weight ${pct(row.weight)}`
+    : row.canvas ? (row.canvas.weightEdited ? `Your weight ${amount(row.weight)} (Canvas ${amount(row.canvas.pointsPossible)} pts)` : `${amount(row.weight)} pts`)
+      : `Share ${amount(row.weight)}`;
+  const detail = grouped ? `${weight} · ${share > 0 ? `${pct(Math.round(share * 10) / 10)} of course` : 'Not counted'}` : weight;
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${row.title}`} onPress={onPress} style={({ pressed }) => [styles.assessment, pressed && styles.pressed]}>
+    <View style={styles.assessmentBody}><Text style={styles.item}>{row.title}</Text><Text style={styles.meta}>{detail}</Text></View>
+    <Text style={[styles.score, row.score === null && styles.ungraded]}>{row.score === null ? 'Not graded' : pct(row.score)}</Text>
+  </Pressable>;
+}
+
 const styles = StyleSheet.create({
+  headActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  group: { gap: 8, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.canvas },
+  groupHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
   content: { padding: 16, gap: 12, paddingBottom: 40, width: '100%', maxWidth: 760, alignSelf: 'center' },
   heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, link: { color: colors.moss, fontWeight: '800', fontSize: 15 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14 }, titleText: { flex: 1, gap: 2 },

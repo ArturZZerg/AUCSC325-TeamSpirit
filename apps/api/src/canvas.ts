@@ -7,6 +7,8 @@ import { ReminderService } from './data';
 import { PrismaService } from './prisma.service';
 import { AcademicSnapshot, academicSnapshotSchema, CanvasProvider } from './integrations/canvas/canvas-provider';
 import { CanvasFailure, CanvasHttpClient, CanvasRequestError } from './integrations/canvas/canvas-http';
+import { mergeCanvasGrades } from './integrations/canvas/canvas-grades';
+import { readGrades } from './course-grades';
 import { canvasTokenKey, isSealedCanvasToken, openCanvasToken, sealCanvasToken } from './integrations/canvas/canvas-token';
 
 export const fixtureBaseUrl = 'https://canvas.fixture.local';
@@ -172,6 +174,15 @@ export class CanvasService {
     for (const course of batch.courses) {
       const record = await tx.course.upsert({ where: { userId_source_externalId: { userId, source, externalId: course.externalId } },
         create: { userId, source, ...course }, update: course });
+      // The upsert holds the course row lock that the assessment endpoints also take.
+      const grades = batch.grades?.find(entry => entry.courseExternalId === course.externalId);
+      // A grade outline that no longer parses is left alone rather than failing the whole sync.
+      const current = grades ? (() => { try { return readGrades(record); } catch { return null; } })() : null;
+      if (grades && current) {
+        const merged = mergeCanvasGrades(current, grades);
+        if (merged !== current) await tx.course.update({ where: { id: record.id },
+          data: { assessments: merged.assessments as Prisma.InputJsonValue, assessmentGroups: merged.groups as Prisma.InputJsonValue } });
+      }
       for (const item of batch.academicItems.filter(item => item.courseExternalId === course.externalId)) {
         const { courseExternalId: _courseExternalId, ...fields } = item;
         const data = { ...fields, courseId: record.id, due: item.due ?? Prisma.JsonNull };

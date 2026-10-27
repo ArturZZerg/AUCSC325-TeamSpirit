@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Canvas grades and assessment groups (ADR 024): Canvas sync imports assignment
+  groups, points and scores into each course's grade outline. Students can
+  group their own assessments ("Quizzes 20%" or by points), change any weight,
+  including Canvas ones, and reset Canvas weights. The current grade matches
+  Canvas's group-by-group calculation. New `Course.assessmentGroups` column.
+
 - Grade what-if calculator: on a course, try scores for ungraded assessments to
   see the grade so far, what's still needed for the target, or the projected
   final grade. Nothing is saved; `whatIfSummary` in the domain package.

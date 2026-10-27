@@ -15,7 +15,7 @@ describe('Canvas HTTP connection and sync boundaries', () => {
   const prisma = {
     $transaction: jest.fn(), $queryRaw: jest.fn(), session: { findUnique: jest.fn() },
     canvasConnection: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), deleteMany: jest.fn() },
-    course: { upsert: jest.fn() }, academicItem: { upsert: jest.fn(), findMany: jest.fn() },
+    course: { upsert: jest.fn(), update: jest.fn() }, academicItem: { upsert: jest.fn(), findMany: jest.fn() },
   };
   const provider = { fetchAcademicSnapshot: jest.fn() };
   const post = (path: string) => request(app.getHttpServer()).post(path).set('Authorization', 'Bearer campusflow-session');
@@ -66,6 +66,11 @@ describe('Canvas HTTP connection and sync boundaries', () => {
     await post('/canvas/dev/connect').expect(201);
     const response = await post('/canvas/sync').expect(201);
     expect(response.body).toMatchObject({ coursesUpdated: 2, academicItemsUpdated: 3, status: 'succeeded' });
+    // Only the fixture course with assignment groups gets Canvas grades (ADR 024).
+    expect(prisma.course.update).toHaveBeenCalledTimes(1);
+    expect(prisma.course.update.mock.calls[0][0].data.assessmentGroups).toMatchObject([{ title: 'Assignments', weight: 60 }, { title: 'Project', weight: 40 }]);
+    expect(prisma.course.update.mock.calls[0][0].data.assessments).toMatchObject([{ title: 'Architecture decision record', weight: 20, score: null },
+      { title: 'Canvas integration demo', weight: 30, score: null }]);
     await post('/canvas/sync').send({ userId: 'other-user' }).expect(400);
   });
   it('reports a missing connection without creating data', async () => {

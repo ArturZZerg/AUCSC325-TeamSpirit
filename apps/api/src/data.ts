@@ -1,6 +1,6 @@
 import { eventRange, selectEvents } from './integrations/events/event-query';
 import { createHash, randomUUID } from 'node:crypto';
-import { assessmentLimit, assessmentSchema, createAssessmentSchema, updateAssessmentSchema, createCourseSchema, createManualAcademicItemSchema, manualCourseLimit, manualCourseSource, updateCourseSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
+import { assessmentGroupLimit, assessmentLimit, courseAssessmentMax, createAssessmentGroupSchema, createAssessmentSchema, updateAssessmentGroupSchema, updateAssessmentSchema, createCourseSchema, createManualAcademicItemSchema, manualCourseLimit, manualCourseSource, updateCourseSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
 import { campusEventSchema } from '@campusflow/contracts';
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { checklistItemSchema, checklistLimit, createChecklistItemSchema, createPersonalTaskRequestSchema, updateChecklistItemSchema } from '@campusflow/contracts';
@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { configureAcademicReminderSchema, academicReminderConfigurationSchema, dueSchema, eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, lockAccountRecords, parseUuid, toIso } from './common';
 import { PrismaService } from './prisma.service';
+import { AssessmentRow, checkGrades, Grades, GroupRow, readGrades, withGroup } from './course-grades';
 import { academicReminderFireAt, goalOccursOn, reminderAfterSnooze, taskOccursOn } from '@campusflow/domain';
 
 const asJson = (value: unknown): Prisma.InputJsonValue => value as Prisma.InputJsonValue;
@@ -373,41 +374,97 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
      return courseSchema.parse(updated);
    }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
  }
- // Assessments are read-modified-written under the account lock (as course edits are).
+ // Assessments and groups are read-modified-written under the account lock (as course edits are).
+ // Canvas sync owns the title, score and group of imported rows (ADR 024); students may change their weight.
  @Post('courses/:id/assessments') async addAssessment(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
    @Body(new ZodPipe(createAssessmentSchema)) b: z.infer<typeof createAssessmentSchema>) {
-   return this.changeAssessments(u.id, id, rows => {
-     const existing = rows.find(row => row.id === b.id);
+   return this.changeGrades(u.id, id, grades => {
+     const rows = grades.assessments, existing = rows.find(row => row.id === b.id);
      if (existing) {
-       if (existing.title !== b.title || existing.weight !== b.weight) throw new ConflictException('This assessment ID belongs to a different assessment.');
-       return rows;
+       if (existing.title !== b.title || existing.weight !== b.weight || (existing.groupId ?? null) !== (b.groupId ?? null)) throw new ConflictException('This assessment ID belongs to a different assessment.');
+       return grades;
      }
-     if (rows.length >= assessmentLimit) throw new BadRequestException(`A course can have up to ${assessmentLimit} assessments.`);
-     return [...rows, { id: b.id, title: b.title, weight: b.weight, score: b.score ?? null }];
+     if (rows.filter(row => !row.canvas).length >= assessmentLimit) throw new BadRequestException(`A course can have up to ${assessmentLimit} assessments.`);
+     if (rows.length >= courseAssessmentMax) throw new BadRequestException(`A course can have up to ${courseAssessmentMax} assessments, including Canvas.`);
+     return { ...grades, assessments: [...rows, withGroup<AssessmentRow>({ id: b.id, title: b.title, weight: b.weight, score: b.score ?? null }, b.groupId)] };
    });
  }
  @Patch('courses/:id/assessments/:assessmentId') async updateAssessment(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
    @Param('assessmentId', new ZodPipe(parseUuid)) assessmentId: string, @Body(new ZodPipe(updateAssessmentSchema)) b: z.infer<typeof updateAssessmentSchema>) {
-   return this.changeAssessments(u.id, id, rows => {
-     if (!rows.some(row => row.id === assessmentId)) throw new NotFoundException('Assessment not found');
-     return rows.map(row => row.id === assessmentId ? { ...row, ...Object.fromEntries(Object.entries(b).filter(([, value]) => value !== undefined)) } : row);
+   return this.changeGrades(u.id, id, grades => {
+     const row = grades.assessments.find(item => item.id === assessmentId);
+     if (!row) throw new NotFoundException('Assessment not found');
+     let next: AssessmentRow;
+     if (row.canvas) {
+       if (b.title !== undefined || b.score !== undefined || b.groupId !== undefined) throw new BadRequestException('This assessment follows Canvas. You can change its weight.');
+       next = b.resetWeight ? { ...row, weight: row.canvas.pointsPossible, canvas: { ...row.canvas, weightEdited: false } }
+         : b.weight !== undefined ? { ...row, weight: b.weight, canvas: { ...row.canvas, weightEdited: true } } : row;
+     } else {
+       if (b.resetWeight) throw new BadRequestException('Only Canvas assessments have a Canvas weight to reset.');
+       next = withGroup({ ...row, ...(b.title !== undefined && { title: b.title }), ...(b.weight !== undefined && { weight: b.weight }),
+         ...(b.score !== undefined && { score: b.score }) }, b.groupId);
+     }
+     return { ...grades, assessments: grades.assessments.map(item => item.id === assessmentId ? next : item) };
    });
  }
  @Delete('courses/:id/assessments/:assessmentId') async deleteAssessment(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
    @Param('assessmentId', new ZodPipe(parseUuid)) assessmentId: string) {
    // Deleting an already-removed assessment returns the current course.
-   return this.changeAssessments(u.id, id, rows => rows.filter(row => row.id !== assessmentId));
+   return this.changeGrades(u.id, id, grades => {
+     const row = grades.assessments.find(item => item.id === assessmentId);
+     if (!row) return grades;
+     if (row.canvas) throw new BadRequestException('Canvas assessments follow Canvas. Set the weight to 0 to leave one out of your grade.');
+     return { ...grades, assessments: grades.assessments.filter(item => item.id !== assessmentId) };
+   });
  }
- private changeAssessments(userId: string, id: string, change: (rows: z.infer<typeof assessmentSchema>[]) => z.infer<typeof assessmentSchema>[]) {
+ @Post('courses/:id/assessment-groups') async addGroup(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
+   @Body(new ZodPipe(createAssessmentGroupSchema)) b: z.infer<typeof createAssessmentGroupSchema>) {
+   return this.changeGrades(u.id, id, grades => {
+     const existing = grades.groups.find(group => group.id === b.id);
+     if (existing) {
+       if (existing.title !== b.title || existing.weight !== b.weight) throw new ConflictException('This group ID belongs to a different group.');
+       return grades;
+     }
+     if (grades.groups.length >= assessmentGroupLimit) throw new BadRequestException(`A course can have up to ${assessmentGroupLimit} assessment groups.`);
+     return { ...grades, groups: [...grades.groups, { id: b.id, title: b.title, weight: b.weight }] };
+   });
+ }
+ @Patch('courses/:id/assessment-groups/:groupId') async updateGroup(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
+   @Param('groupId', new ZodPipe(parseUuid)) groupId: string, @Body(new ZodPipe(updateAssessmentGroupSchema)) b: z.infer<typeof updateAssessmentGroupSchema>) {
+   return this.changeGrades(u.id, id, grades => {
+     const group = grades.groups.find(item => item.id === groupId);
+     if (!group) throw new NotFoundException('Assessment group not found');
+     let next: GroupRow;
+     if (group.canvas) {
+       if (b.title !== undefined) throw new BadRequestException('This group follows Canvas. You can change its weight.');
+       next = b.resetWeight ? { ...group, weight: group.canvas.weight, canvas: { ...group.canvas, weightEdited: false } }
+         : b.weight !== undefined ? { ...group, weight: b.weight, canvas: { ...group.canvas, weightEdited: true } } : group;
+     } else {
+       if (b.resetWeight) throw new BadRequestException('Only Canvas groups have a Canvas weight to reset.');
+       next = { ...group, ...(b.title !== undefined && { title: b.title }), ...(b.weight !== undefined && { weight: b.weight }) };
+     }
+     return { ...grades, groups: grades.groups.map(item => item.id === groupId ? next : item) };
+   });
+ }
+ @Delete('courses/:id/assessment-groups/:groupId') async deleteGroup(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
+   @Param('groupId', new ZodPipe(parseUuid)) groupId: string) {
+   return this.changeGrades(u.id, id, grades => {
+     const group = grades.groups.find(item => item.id === groupId);
+     if (!group) return grades;
+     if (group.canvas) throw new BadRequestException('Canvas groups follow Canvas.');
+     if (grades.assessments.some(row => row.groupId === groupId)) throw new ConflictException('Move or delete this group’s assessments first.');
+     return { ...grades, groups: grades.groups.filter(item => item.id !== groupId) };
+   });
+ }
+ private changeGrades(userId: string, id: string, change: (grades: Grades) => Grades) {
    return this.prisma.$transaction(async tx => {
      await lockCourse(tx, userId, id);
      const course = await tx.course.findFirst({ where: { id, userId } });
      if (!course) throw new NotFoundException('Course not found');
-     const rows = z.array(assessmentSchema).parse(course.assessments ?? []), next = change(rows);
-     if (next === rows) return courseSchema.parse(course);
-     const total = next.reduce((sum, row) => sum + row.weight, 0);
-     if (total > 100.0001) throw new BadRequestException(`Assessment weights would total ${Math.round(total * 10) / 10}%. Keep the total at or below 100%.`);
-     return courseSchema.parse(await tx.course.update({ where: { id }, data: { assessments: asJson(next) } }));
+     const grades = readGrades(course), next = change(grades);
+     if (next === grades) return courseSchema.parse(course);
+     checkGrades(next, grades);
+     return courseSchema.parse(await tx.course.update({ where: { id }, data: { assessments: asJson(next.assessments), assessmentGroups: asJson(next.groups) } }));
    });
  }
  @Delete('courses/:id') async deleteCourse(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {

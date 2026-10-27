@@ -67,6 +67,27 @@ describe('Canvas HTTP client', () => {
       { externalId: '13', courseExternalId: '1', title: 'Bad date', kind: 'assignment', due: null, submissionState: 'unsubmitted' },
     ]);
   });
+  it('reads assignment groups and points for grades, and knows when a course was read in full', async () => {
+    const groupsUrl = (id: number) => `${origin}/api/v1/courses/${id}/assignment_groups?per_page=100`;
+    const snapshot = await client({
+      [coursesUrl]: { body: [{ id: 1, name: 'Weighted', apply_assignment_group_weights: true }, { id: 2, name: 'Points' }, { id: 3, name: 'Long' }] },
+      [assignmentsUrl(1)]: { body: [{ id: 11, name: 'Essay', points_possible: 20, assignment_group_id: 5, submission: { workflow_state: 'graded', score: 15 } }] },
+      [groupsUrl(1)]: { body: [{ id: 5, name: 'Writing', group_weight: 60 }, { id: 6, name: 'Exams', group_weight: 40 }] },
+      [assignmentsUrl(2)]: { body: [{ id: 21, name: 'Lab', points_possible: 10, assignment_group_id: 7, submission: { score: 9, excused: null } }] },
+      [groupsUrl(2)]: { body: [{ id: 7, name: 'Labs', group_weight: 0 }] },
+      // A row that can't be read leaves the course incomplete, so nothing is removed from it.
+      [assignmentsUrl(3)]: { body: [{ id: 31, name: 'Quiz', points_possible: 5, assignment_group_id: 8 }, { id: 'not-a-number' }] },
+      [groupsUrl(3)]: { body: [{ id: 8, name: 'Quizzes', group_weight: 100 }] },
+    }).fetchAcademicSnapshot(origin, token, signal);
+    expect(snapshot.grades).toEqual([
+      { courseExternalId: '1', complete: true, groups: [{ externalId: '5', name: 'Writing', weight: 60 }, { externalId: '6', name: 'Exams', weight: 40 }],
+        items: [{ externalId: '11', title: 'Essay', groupExternalId: '5', pointsPossible: 20, score: 75 }] },
+      { courseExternalId: '2', complete: true, groups: [{ externalId: '7', name: 'Labs', weight: null }],
+        items: [{ externalId: '21', title: 'Lab', groupExternalId: '7', pointsPossible: 10, score: 90 }] },
+      { courseExternalId: '3', complete: false, groups: [{ externalId: '8', name: 'Quizzes', weight: null }],
+        items: [{ externalId: '31', title: 'Quiz', groupExternalId: '8', pointsPossible: 5, score: null }] },
+    ]);
+  });
   it('ignores pagination links to another host', async () => {
     const snapshot = await client({ [coursesUrl]: { body: [{ id: 1, name: 'One' }], link: '<https://attacker.example/api/v1/courses?page=2>; rel="next"' } })
       .fetchAcademicSnapshot(origin, token, signal);

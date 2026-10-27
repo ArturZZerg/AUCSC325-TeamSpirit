@@ -81,6 +81,13 @@ needed. Entries stay on the screen and are never sent to the API. A recorded
 score always wins over a guess, and values outside 0–150 are flagged and ignored.
 Calculation: `whatIfSummary` in the domain package.
 
+**Groups and Canvas grades** (ADR 024). A course can have assessment groups, such
+as "Quizzes 20%", or groups graded by points. Each group shows its weight,
+whether it came from Canvas and its average, and each assessment shows its share
+of the group and of the course. `group-editor.tsx` adds and edits groups.
+Canvas assessments and groups follow Canvas except for their weight, which the
+student can change (0 leaves an assessment out) and reset to the Canvas value.
+
 ## Exams
 
 Manual coursework can be an **Exam** (contracts `kind: 'exam'`; Canvas mapping is

@@ -71,19 +71,53 @@ export const courseColorSchema = z.enum(['moss', 'blue', 'plum', 'coral', 'gold'
 export const manualCourseSource = 'manual' as const;
 export const manualCourseLimit = 40;
 const percent = (max: number) => z.number().finite().min(0).max(max).transform(value => Math.round(value * 10) / 10);
-/** A weighted part of a course grade (percent weight, percent score; null until graded). */
-export const assessmentSchema = z.object({ id: idSchema, title: z.string().trim().min(1).max(120), weight: z.number().positive().max(100), score: z.number().min(0).max(150).nullable() }).strict();
+/** Largest share an assessment can have inside a group (Canvas uses points possible). */
+export const groupedWeightMax = 10000;
+/** Set by Canvas sync (ADR 024). The sync owns title, score and group; the student may override the weight. */
+const canvasAssessmentLinkSchema = z.object({ externalId: z.string().min(1).max(100), pointsPossible: z.number().positive().max(groupedWeightMax), weightEdited: z.boolean() }).strict();
+/** `weight` is Canvas's own group weight (null when the course grades by points), kept so an edit can be reset. */
+const canvasGroupLinkSchema = z.object({ externalId: z.string().min(1).max(100), weight: z.number().min(0).max(100).nullable(), weightEdited: z.boolean() }).strict();
+/**
+ * A weighted part of a course grade; score is a percent, null until graded.
+ * Ungrouped, weight is a percent of the course. In a group, weight is the
+ * assessment's share of that group, and 0 leaves it out of the grade.
+ */
+export const assessmentSchema = z.object({ id: idSchema, title: z.string().trim().min(1).max(240), weight: z.number().min(0).max(groupedWeightMax), score: z.number().min(0).max(150).nullable(),
+  groupId: idSchema.nullable().optional(), canvas: canvasAssessmentLinkSchema.optional() }).strict();
+/** A set of assessments sharing one course weight. A null weight shares whatever the explicit weights leave, by assessment weight (points). */
+export const assessmentGroupSchema = z.object({ id: idSchema, title: z.string().trim().min(1).max(240), weight: z.number().min(0).max(100).nullable(),
+  canvas: canvasGroupLinkSchema.optional() }).strict();
+/** Assessments a student can add by hand; Canvas sync may add more up to courseAssessmentMax. */
 export const assessmentLimit = 30;
+export const courseAssessmentMax = 430;
+export const assessmentGroupLimit = 40;
 const assessmentTitle = z.string().trim().min(1, 'Enter an assessment name.').max(120, 'Keep the name within 120 characters.');
-const assessmentWeight = percent(100).refine(value => value > 0, 'Enter a weight above 0%.');
+const assessmentWeight = percent(groupedWeightMax);
 const assessmentScore = percent(150).nullable();
-export const createAssessmentSchema = z.object({ id: idSchema, title: assessmentTitle, weight: assessmentWeight, score: assessmentScore.optional() }).strict();
-export const updateAssessmentSchema = z.object({ title: assessmentTitle.optional(), weight: assessmentWeight.optional(), score: assessmentScore.optional() }).strict()
-  .refine(value => Object.values(value).some(field => field !== undefined), 'Provide an assessment change.');
+/** Ungrouped weights are percents of the course: above 0 and at most 100. */
+const ungroupedWeight = (value: { weight?: number; groupId?: string | null }, ctx: z.RefinementCtx) => {
+  if (value.weight === undefined || value.groupId) return;
+  if (value.weight <= 0) ctx.addIssue({ code: 'custom', path: ['weight'], message: 'Enter a weight above 0%.' });
+  else if (value.weight > 100) ctx.addIssue({ code: 'custom', path: ['weight'], message: 'Enter a weight of 100% or less.' });
+};
+export const createAssessmentSchema = z.object({ id: idSchema, title: assessmentTitle, weight: assessmentWeight, score: assessmentScore.optional(),
+  groupId: idSchema.nullable().optional() }).strict().superRefine(ungroupedWeight);
+/** `resetWeight` returns a Canvas assessment to the weight Canvas gives it. */
+export const updateAssessmentSchema = z.object({ title: assessmentTitle.optional(), weight: assessmentWeight.optional(), score: assessmentScore.optional(),
+  groupId: idSchema.nullable().optional(), resetWeight: z.literal(true).optional() }).strict()
+  .refine(value => Object.values(value).some(field => field !== undefined), 'Provide an assessment change.')
+  .refine(value => !(value.resetWeight && value.weight !== undefined), 'Either set a weight or reset it, not both.');
+const groupTitle = z.string().trim().min(1, 'Enter a group name.').max(120, 'Keep the name within 120 characters.');
+const groupWeight = percent(100).nullable();
+export const createAssessmentGroupSchema = z.object({ id: idSchema, title: groupTitle, weight: groupWeight }).strict();
+export const updateAssessmentGroupSchema = z.object({ title: groupTitle.optional(), weight: groupWeight.optional(), resetWeight: z.literal(true).optional() }).strict()
+  .refine(value => Object.values(value).some(field => field !== undefined), 'Provide a group change.')
+  .refine(value => !(value.resetWeight && value.weight !== undefined), 'Either set a weight or reset it, not both.');
 // source/color are optional so caches written before manual courses still parse.
 export const courseSchema = z.object({ id: idSchema, externalId: z.string().min(1), name: z.string().min(1), code: z.string().nullable(), active: z.boolean(),
   source: z.string().min(1).optional(), color: courseColorSchema.nullable().optional(),
-  assessments: z.array(assessmentSchema).max(assessmentLimit).optional(), targetGrade: z.number().int().min(0).max(100).nullable().optional() });
+  assessments: z.array(assessmentSchema).max(courseAssessmentMax).optional(), assessmentGroups: z.array(assessmentGroupSchema).max(assessmentGroupLimit).optional(),
+  targetGrade: z.number().int().min(0).max(100).nullable().optional() });
 const courseName = z.string().trim().min(1, 'Enter a course name.').max(120, 'Keep the name within 120 characters.');
 const courseCode = z.string().trim().max(20, 'Keep the code within 20 characters.').transform(value => value || null).nullable();
 /** Student-created course. The client supplies the ID so a retried create is recognised. */
