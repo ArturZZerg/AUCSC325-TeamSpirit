@@ -5,7 +5,7 @@ import { copyMealSchema, dateSchema, nutrientsSchema, diningMenuSchema, foodEntr
   saveUserFoodSchema, updateFoodEntrySchema, type Food, type NutritionProfileDto, type SaveFoodEntry, type SaveUserFood } from '@campusflow/contracts';
 import { diningVisible, localDateAt, roundNutrients, type DiningSetting, type Nutrients } from '@campusflow/domain';
 import { z } from 'zod';
-import { AuthGuard, CurrentUser, RequestUser, ZodPipe, lockAccountRecords, parseUuid } from './common';
+import { AuthGuard, CurrentUser, RequestUser, ZodPipe, parseUuid } from './common';
 import { searchUsda } from './integrations/food/usda-foods';
 import { dishKey, dishName, estimateDish } from './integrations/dining/dining-dishes';
 import type { ParsedMeal } from './integrations/dining/wagner';
@@ -83,7 +83,8 @@ export class NutritionController {
     const { requestKey, nutrients: values, ...fields } = body;
     this.notFuture(user, body.date);
     return this.prisma.$transaction(async tx => {
-      await lockAccountRecords(tx, user.id);
+      // A key-share lock lets concurrent retries both miss and insert; serialize them as focus and gym saves do.
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user.id}::uuid FOR UPDATE`;
       const existing = await tx.foodLogEntry.findUnique({ where: { userId_requestKey: { userId: user.id, requestKey } } });
       if (existing) {
         if (existing.name !== body.name || existing.grams !== body.grams || existing.date !== body.date) throw new ConflictException('This save key belongs to another food.');
