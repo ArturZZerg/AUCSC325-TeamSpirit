@@ -2,7 +2,8 @@
 
 A summary of what exists today, written as the starting point for production
 work. The detailed evidence lives in the linked records; this page does not
-replace them.
+replace them. Updated 2026-10-27 for Canvas token sync (ADR 019), Canvas grades
+and imports (ADR 024, ADR 025) and accessibility.
 
 ## What the app does
 
@@ -17,7 +18,7 @@ Implemented, with automated behaviour tests (see [MVP roadmap](development/mvp-r
 | --- | --- |
 | Today | Derived `GET /today` plan, progress card, quick capture, next-class status, study windows, exams countdown, day-end review |
 | Tasks | One-time and repeating tasks, steps (ADR 014), course links, grouped buckets, search |
-| Academics | Student-created courses (ADR 015), manual coursework and exams (ADR 003), grade tracking (ADR 016), preparation plans (ADR 005) |
+| Academics | Student-created courses (ADR 015), manual coursework and exams (ADR 003), grade tracking with groups, what-if and Canvas scores (ADR 016, ADR 024), preparation plans (ADR 005) |
 | Schedule | Class timetable with terms/rooms/instructors (ADR 004), weekly planner, month calendar |
 | Focus | Task-linked timer, saved history (ADR 006), recovery after termination (ADR 007), weekly study report |
 | Routines | Goals with cadence, routine library, streaks and weekly targets |
@@ -58,7 +59,9 @@ auth token and quota tables).
   store build points at it yet.
 - **No mail provider, by decision (ADR 018).** Signup is open without email
   verification, and password reset by email is unavailable.
-- **Canvas** works with fixtures only; institutional OAuth is unapproved.
+- **Canvas** syncs with each student's own personal access token (ADR 019):
+  courses, assignments, scores and groups, planner to-dos and course calendar
+  events (ADR 024, ADR 025). Institutional OAuth is still unapproved.
 - **iOS cold start** has a recorded 20-second watchdog failure in one native run.
 - No owner-approved privacy policy, terms or support URL, and no demo account.
 - No store signing or distribution channel; Android uses sideloaded preview APKs.

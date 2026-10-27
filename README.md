@@ -10,7 +10,17 @@ tasks, deadlines and routines. Type a task in plain language — `Essay due fri 
 estimate. Tasks are grouped by when they are due, routines track streaks with a
 seven-day strip, the month calendar shows every dated task, deadline and saved
 campus event, and an optional morning overview opens Today. The app follows the
-system light or dark appearance.
+system light or dark appearance, meets WCAG AA colour contrast in both, works
+with VoiceOver and TalkBack, follows the device text size, and opens editors
+without sliding when Reduce Motion is on
+([mobile accessibility](docs/development/mobile-accessibility.md)).
+
+Each course tracks its grade: weighted assessments, optional groups such as
+"Quizzes 20%" or groups graded by points, a target and the average needed on the
+rest. **What if…** tries scores for ungraded work without saving them. With
+Canvas connected, scores and assignment groups import automatically, and any
+weight can be changed or reset to the Canvas value
+([ADR 024](docs/adr/024-canvas-grades-and-assessment-groups.md)).
 
 From Today, open Coursework to add your own academic deadlines or review imported
 work. Plan study time turns a deadline into a manageable preparation task with a
@@ -120,7 +130,7 @@ strings are validated with the Zod schemas from `packages/contracts`.
 | Accounts | `/auth/*` (register, login, logout, verification, recovery), `/me` (profile, export, delete) |
 | Today | `GET /today`, `GET /snapshot` — built on every request, never stored |
 | Personal tasks | `/tasks` — CRUD, complete, snooze, main goal, checklist steps |
-| Coursework | `/courses`, `/courses/:id/assessments`, `/academic-items` (+ reminders) |
+| Coursework | `/courses`, `/courses/:id/assessments`, `/courses/:id/assessment-groups`, `/academic-items` (+ reminders) |
 | Canvas | `/canvas/*` — connect a token, status, sync, disconnect |
 | Classes | `/classes` — weekly timetable, ICS calendar import preview |
 | Study | `/study-plans`, `/focus-sessions` |
@@ -158,7 +168,7 @@ A failed or partial fetch keeps the last good data.
 
 | Source | Adapter | Brings in | How often |
 | --- | --- | --- | --- |
-| Canvas LMS | [`integrations/canvas`](apps/api/src/integrations/canvas) | Courses, assignments, quizzes, deadlines, submission status | On demand, plus a background sync every 30 min when stale. Uses the student's own personal access token, sealed on the server ([ADR 019](docs/adr/019-canvas-personal-access-tokens.md)). Fixture data in development |
+| Canvas LMS | [`integrations/canvas`](apps/api/src/integrations/canvas) | Courses, assignments, quizzes, deadlines, submission status, scores and assignment groups (ADR 024), planner to-dos and course calendar events as private events (ADR 025); removes work deleted in Canvas after a full read | On demand, plus a background sync every 30 min when stale. Uses the student's own personal access token, sealed on the server ([ADR 019](docs/adr/019-canvas-personal-access-tokens.md)). Fixture data in development |
 | Augustana public Google Calendars (ICS) | [`integrations/events`](apps/api/src/integrations/events) | Campus Rec and student-life events | Hourly; every 15 min after a failure ([ADR 008](docs/adr/008-public-campus-calendar-refresh.md)) |
 | Augustana dining hall (Wagner) menu | [`integrations/dining`](apps/api/src/integrations/dining) | Breakfast, lunch and dinner dishes with calories | Today every 2 h, the next 4 days twice a day ([ADR 023](docs/adr/023-nutrition-and-dining-hall.md)) |
 | USDA FoodData Central | [`integrations/food`](apps/api/src/integrations/food) | Food search with nutrients per 100 g | Bundled file in `apps/api/data`, searched in memory |

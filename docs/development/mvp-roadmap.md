@@ -16,7 +16,7 @@ this status summary does not replace those specifications.
 | --- | --- |
 | Implemented prototype | Today, personal tasks/steps/recurrence, weekly/month planning, coursework/courses/grades/exams, timetable, preparation plans, focus/history/report/recovery, routines, wellness, campus discovery, onboarding, account/privacy/help and reminder center. |
 | Verified by automated checks | Existing behavior tests cover these slices. Merged [#120](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/120) reports 18 task-reminder integration regressions and passing full checks; [#121](https://github.com/ArturZZerg/AUCSC325-TeamSpirit/pull/121) reports 26 PostgreSQL course-reminder regressions and passing full checks. Results apply to the tested PR source, not blanket acceptance of current main. |
-| Partial | Canvas uses normalized fixtures pending approved live OAuth; reminders require refresh/native cleanup and further physical acceptance. Account recovery/verified signup code exists, but real email delivery is disabled; the hosted course prototype uses ADR 018 unverified signup. |
+| Partial | Canvas syncs with each student's personal access token (ADR 019, 024, 025) and fixtures in development; institutional OAuth is still pending approval; reminders require refresh/native cleanup and further physical acceptance. Account recovery/verified signup code exists, but real email delivery is disabled; the hosted course prototype uses ADR 018 unverified signup. |
 | Outstanding / limitations | See the [release backlog and unresolved P2 malformed reminder-suppression cache risk](../ROADMAP.md#aucsc-325-midterm-prototype--october-26-2026), and the scoped [readiness evidence](production-readiness.md). Offline guarantees are cached reads, not general offline writes. |
 
 ## Feature slices
@@ -119,6 +119,14 @@ this status summary does not replace those specifications.
     with courses and Today labels coursework by course.
 30. **Exams:** an exam coursework kind, exam revision defaults and an Exams ahead
     countdown on Today.
+31. **Grade what-if:** hypothetical scores for ungraded assessments, projected
+    against the target and never saved (`whatIfSummary`).
+32. **Canvas grades and groups (ADR 024):** assessment groups, Canvas scores and
+    groups imported by sync, and weights the student can change and reset.
+33. **More Canvas imports (ADR 025):** planner to-dos, private course calendar
+    events, and removal of work deleted in Canvas after a full read.
+34. **Accessibility:** WCAG AA contrast in both themes, reduce-motion sheets,
+    44-point touch targets, and source and contrast audits in the test suite.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native

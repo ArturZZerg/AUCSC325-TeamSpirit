@@ -29,7 +29,8 @@ CampusFlow brings a student's day into one place.
 - **Tasks that fit real work.** Group tasks by when they're due, break them into
   steps, set reminders and pick one Main Goal for the day.
 - **Courses and grades.** Add your courses with colours, record weighted
-  assessments and see what you need on the rest of the term to reach your target.
+  assessments or groups like "Quizzes 20%", and see what you need on the rest of
+  the term to reach your target. Try "what if" scores before an exam.
 - **Exams and coursework.** Track assignments, quizzes and exams, and plan revision
   sessions that end the day before an exam.
 - **A month and a week ahead.** A calendar coloured by course and a weekly planner
@@ -41,9 +42,13 @@ CampusFlow brings a student's day into one place.
 - **Campus life.** Browse and save events from supported campus calendars.
 - **Works offline for reading.** Your last saved plan stays available without a
   connection. Dark mode follows your phone.
+- **Accessible.** Works with VoiceOver and TalkBack, follows your text size,
+  meets WCAG AA contrast and respects Reduce Motion.
 
-Canvas connection is not available until the university approves it; until then
-you can add your own courses and coursework.
+Connect Canvas with your own access token to bring in courses, assignments,
+scores, planner to-dos and course calendar events. CampusFlow is a student
+project, not endorsed by Instructure or your school; read the in-app notice
+before connecting. Without Canvas you can add your own courses and coursework.
 
 ## Keywords (≤100 characters)
 
