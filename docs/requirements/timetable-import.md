@@ -45,7 +45,9 @@ real University of Alberta account through the API's own Canvas client found no
 calendar events (`type=event`) for the user or any of its three courses, only
 assignment due dates. Class times live in the university's own tools (Bear
 Tracks, My Schedule Builder), so the import stays file-based and Canvas is not
-extended. The import screen lists the steps to get an `.ics` file (university
+extended for class times. Canvas course calendar events (review sessions, exam
+times) are imported as private events ([ADR 025](../adr/025-canvas-planner-calendar-and-removals.md)),
+but they are not weekly class meetings and don't feed the timetable. The import screen lists the steps to get an `.ics` file (university
 export, or a Google Calendar export as a fallback) and offers manual entry.
 Entry points: an empty timetable leads with **Import my class schedule**, the
 Today class card offers it while no classes are saved, Settings → School links

@@ -52,7 +52,10 @@ configured, and the Hetzner Helsinki location. Needed from you:
 
 When Canvas personal-token sync (PR #127) is enabled, the privacy policy must
 first say that an encrypted Canvas access token and synced course data are
-stored.
+stored. Drafted 2026-10-27 (effective date 27 October 2026): the policy now
+covers the Canvas token, what is imported (courses, assignments, scores,
+planner to-dos and course calendar events), disconnecting and backups. It still
+needs the same approval as the rest of the policy.
 
 ### Original question
 

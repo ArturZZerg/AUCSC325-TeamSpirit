@@ -89,7 +89,7 @@ IDs are internal identifiers; provider IDs are opaque strings retained separatel
 | Entity | Responsibility and relationships |
 | --- | --- |
 | `User` | CampusFlow identity and preferred IANA timezone; owns private data. Canvas identity is optional. |
-| `Course` | A user's imported course projection, scoped to their Canvas connection. Course membership sharing is unnecessary for the MVP. |
+| `Course` | A user's course, imported from Canvas or created by the student ([ADR 015](../adr/015-student-created-courses.md)). Holds the grade outline: weighted assessments, assessment groups and a target ([ADR 016](../adr/016-course-grade-tracking.md), [ADR 024](../adr/024-canvas-grades-and-assessment-groups.md)). Course membership sharing is unnecessary for the MVP. |
 | `ClassSchedule` | A student's weekly class meeting pattern with term bounds, local times, timezone and room; separate from imported Courses and completable tasks. See [ADR 004](../adr/004-class-timetable.md). |
 | `AcademicItem` | Imported or student-owned assignment, quiz, discussion, or planner work; belongs to a user, optionally a Course. Holds deadline and source-dependent completion/submission state, as defined in [ADR 003](../adr/003-manual-coursework.md). |
 | `PersonalTask` | User-owned task with title, notes, optional schedule/deadline, priority/category, and completion state. No Course is required. Recurrence belongs to this feature when implemented. |
@@ -169,14 +169,17 @@ records; they never write repositories or schedule notifications.
 
 | Port | Input | Output and ownership |
 | --- | --- | --- |
-| `CanvasProvider.fetchAcademicSnapshot` | Authorized connection context and bounded synchronization window | Normalized Course and AcademicItem records, external keys, and explicit coverage/completeness metadata. Includes usable submission state. |
+| `CanvasProvider.fetchAcademicSnapshot` | Authorized connection context and bounded synchronization window | Normalized Course and AcademicItem records (assignments and planner to-dos), per-course grade data, course calendar events, external keys, and explicit coverage/completeness metadata. Includes usable submission state and scores. |
 | `EventProvider.fetchEvents` | Source context, visibility/owner scope, and time window | Normalized Event occurrences, external keys, and coverage/completeness metadata. |
 
-Use `CanvasAdapter` to implement the academic port. `CanvasEventProvider` and
-`IcsEventProvider` implement the event port. They may share API-internal Canvas
-transport/authentication helpers. Canvas calendar entries representing an
-assignment map to the same AcademicItem identity; standalone calendar events
-map to Event. This prevents a deadline appearing twice through different APIs.
+`CanvasHttpClient` (token mode) and `FixtureCanvasProvider` implement the
+academic port; `IcsEventProvider` implements the event port. Canvas course
+calendar events are read in the same token-mode fetch, so they share its
+authentication and window, then reach `EventSyncService` through an in-memory
+`EventProvider` as private events (`canvas:calendar`, user scope; [ADR
+025](../adr/025-canvas-planner-calendar-and-removals.md)). Only events of type
+`event` are read: assignments arrive once, as AcademicItems, so a deadline never
+appears twice through different APIs.
 The Campus screen consumes the same Event DTO regardless of provider.
 
 External identity is scoped, never just `externalId`: use user/connection or

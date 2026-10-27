@@ -10,25 +10,33 @@ an unofficial student project, the token carries the student's full Canvas
 permissions though CampusFlow only reads, school policies may restrict token
 use, and imported dates must be checked in Canvas. Connect stays disabled until
 the student ticks the acknowledgement (`canvas-screen.test.tsx`).
-`POST /canvas/connect` verifies the token with Canvas and
-stores it sealed; `POST /canvas/sync` imports active courses and assignments;
-`DELETE /canvas/connection` forgets the token. Sync also imports assignment
-groups, points possible and scores into the course grade outline, keeping any
-weight the student changed ([ADR 024](../adr/024-canvas-grades-and-assessment-groups.md)).
-For 30 days back to 180 days ahead it imports Canvas planner to-dos as "Other
-work" and course calendar events as events private to the student
-(`canvas:calendar`), and removes coursework deleted in Canvas once a course was
-read in full ([ADR 025](../adr/025-canvas-planner-calendar-and-removals.md)). `CanvasSyncWorker` re-syncs each
-connection about every 30 minutes (6 hours after a failure), so new assignments
-appear without a manual sync. See
+`POST /canvas/connect` verifies the token with Canvas and stores it sealed;
+`DELETE /canvas/connection` forgets the token. `POST /canvas/sync` imports:
+
+- active courses and their assignments, with due dates and the student's
+  submission status (ADR 019);
+- assignment groups, points possible and scores into each course's grade
+  outline, keeping any weight the student changed
+  ([ADR 024](../adr/024-canvas-grades-and-assessment-groups.md));
+- for 30 days back to 180 days ahead, Canvas planner to-dos as "Other work" and
+  course calendar events as events private to the student (`canvas:calendar`)
+  ([ADR 025](../adr/025-canvas-planner-calendar-and-removals.md)).
+
+Coursework deleted in Canvas is removed, with its reminders, once its course (or
+the planner) was read in full; a partial read never deletes anything (ADR 025).
+`CanvasSyncWorker` re-syncs each connection about every 30 minutes (6 hours
+after a failure), so new assignments appear without a manual sync. See
 [ADR 019](../adr/019-canvas-personal-access-tokens.md) for the safeguards.
 `canvas-token.spec.ts` covers address validation, sealing, pagination, mapping,
-rejected tokens and the HTTP flow. A real student account (3 courses, about 65
-assignments) syncs in production. That account has no Canvas calendar events, so
-class times are imported from a calendar file instead; see
-[timetable import](../requirements/timetable-import.md).
+rejected tokens and the HTTP flow, including grades, planner, calendar and
+removals; `canvas-grades.spec.ts` covers the grade merge. A real student account
+(3 courses, about 65 assignments) syncs in production. That account has no
+Canvas calendar events, so class times are imported from a calendar file
+instead; see [timetable import](../requirements/timetable-import.md).
 
-The rest of this page describes fixture mode, which is unchanged.
+The rest of this page describes fixture mode. It now also imports assignment
+groups and points (without scores) for the first demo course; it never imports
+planner to-dos or calendar events, and never removes coursework.
 
 # Canvas fixture synchronization
 
@@ -78,7 +86,8 @@ Provider failure commits only generic failure/attempt metadata, preserving cache
 entities and the last success. Database errors roll back all writes, including
 freshness. Raw provider errors or tokens are never stored in public status.
 An empty complete import succeeds; absence alone does not delete cached records.
-Removal/archive reconciliation needs an explicit source coverage design.
+Fixture batches carry no coverage, so fixture mode never removes coursework.
+Token mode removes deleted work only inside the coverage that ADR 025 defines.
 
 Today and snapshot retain the existing consistent persisted read model, account
 coverage and private-event visibility. Neither invokes Canvas.

@@ -22,7 +22,7 @@ const steps = [
 // Shown before any token is entered; connecting requires acknowledging it.
 const disclaimer = [
   'CampusFlow is a student course project. It isn’t made, endorsed or reviewed by Instructure (the company behind Canvas) or by your school.',
-  'A personal access token can do anything you can do in Canvas, including making changes. CampusFlow only uses it to read your courses and assignments and never changes anything in Canvas.',
+  'A personal access token can do anything you can do in Canvas, including making changes. CampusFlow only uses it to read your courses, coursework, grades, planner and course calendars, and never changes anything in Canvas.',
   'Your school’s Canvas or IT policies may limit using access tokens with other apps. Check them before you connect. You’re responsible for following them.',
   'The token is stored encrypted on the CampusFlow server, never on this phone. To end access, disconnect here and delete the token in Canvas. An expiry date limits the risk if the token is ever exposed.',
   'Imported deadlines can be late, incomplete or wrong. Always check important dates in Canvas.',
