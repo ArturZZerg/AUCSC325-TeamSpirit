@@ -25,6 +25,11 @@
   see the grade so far, what's still needed for the target, or the projected
   final grade. Nothing is saved; `whatIfSummary` in the domain package.
 
+- Canvas tokens: a "Before you connect" disclaimer with a required
+  acknowledgement on Settings → Canvas, and a privacy policy update (effective
+  27 October 2026) covering what a Canvas connection stores and imports, how the
+  token is protected, and how disconnecting and backups treat it.
+
 - Nutrition (ADR 023): food diary with a textured plate view of carbs, protein,
   fiber and fat, Mifflin–St Jeor goals, USDA food search with usual foods first,
   quick add and repeat-yesterday, and the Augustana dining-hall menu with

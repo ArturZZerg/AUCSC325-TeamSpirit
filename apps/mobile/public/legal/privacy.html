@@ -11,7 +11,7 @@
 <main>
 <p class="kicker">CampusFlow</p>
 <h1>Privacy policy</h1>
-<p class="meta">Effective 20 October 2026</p>
+<p class="meta">Effective 27 October 2026</p>
 
 <p>CampusFlow is a student-built planner made as a university course project and run by the AUCSC 325 TeamSpirit project team (“we”). It is not an official app of any university and is not endorsed by one. This page explains what the app stores, why, and what you can do about it.</p>
 
@@ -20,6 +20,7 @@
 <li><strong>Your account:</strong> email address, display name, time zone and a scrypt hash of your password. Your password itself is never stored. Email addresses are not verified.</li>
 <li><strong>What you save in the app:</strong> tasks and their steps, courses, assessments and grades, classes, coursework and exams, study plans, focus sessions, routines and their check-ins, saved campus events, reminders and notification preferences.</li>
 <li><strong>Optional wellness check-ins:</strong> mood, energy and stress ratings and notes, only if you choose to save them.</li>
+<li><strong>Canvas connection (optional):</strong> if you connect Canvas, we store your Canvas address, your Canvas user ID number, the personal access token you paste and when CampusFlow last synced. The token is encrypted on our server (AES-256-GCM), with the key kept separately from the database. It is never stored on your phone, never shown again in the app, and never written to logs or included in your data download. From Canvas we import your active courses and their assignments, with due dates and whether you have submitted them. Nothing is sent to or changed in Canvas.</li>
 <li><strong>Calendar files you import:</strong> sent to our server, read once to suggest classes, and then discarded. Only the classes you choose to add are saved.</li>
 <li><strong>Security records:</strong> session tokens are stored only as one-way hashes, and session records stay until you delete your account. To slow abuse, sign-in, sign-up, password-confirmation and calendar-import attempts are counted against hashes of your email address, your IP address or your account. These counters expire within an hour.</li>
 </ul>
@@ -31,12 +32,14 @@
 <h2>Where it lives</h2>
 <p>Your data is stored in a PostgreSQL database on a server rented from Hetzner in Helsinki, Finland, and is sent only over HTTPS. Your phone or browser also keeps a copy of your own data so the app opens quickly and works offline. Signing out or deleting your account clears it. In a web browser, the copy is also cleared the next time CampusFlow opens without you signed in, but on shared computers always sign out before you leave.</p>
 <p>Campus events come from public university calendars that the server downloads. Nothing about you is sent to those calendars.</p>
+<p>If you connect Canvas, our server uses your token to read from the Canvas address you entered, about every 30 minutes and whenever you select Sync now. The token is sent only to that address. Your Canvas account is run by your school or by Instructure, under their own privacy policies.</p>
 
 <h2>How long we keep it</h2>
 <ul>
 <li>Your data stays until you delete it or delete your account.</li>
 <li>Deleting your account removes your data from the live database immediately.</li>
-<li>Daily database backups are deleted after about 15 days, so deleted data leaves the backups within roughly two weeks.</li>
+<li>Disconnecting Canvas deletes your token and connection details from the live database immediately. Coursework already imported stays until you delete it or your account.</li>
+<li>Daily database backups are deleted after about 15 days, so deleted data leaves the backups within roughly two weeks. That includes an encrypted Canvas token, which is why we suggest also deleting the token in Canvas when you disconnect.</li>
 <li>The app's API requests are not access-logged. The web server's access log records IP address, time, browser type and the pages loaded (never what you save) and is kept for about 14 days. Server error logs may record an IP address when a request fails.</li>
 <li>A demo account (<code>demo@example.com</code>) is shared and reset every night. Don't save anything personal in it.</li>
 </ul>
@@ -46,6 +49,7 @@
 <li><strong>See and download your data:</strong> Settings → Account &amp; privacy → Prepare my copy.</li>
 <li><strong>Correct it:</strong> edit anything you saved directly in the app.</li>
 <li><strong>Delete it:</strong> Settings → Account &amp; privacy → Review account deletion. This is permanent.</li>
+<li><strong>Canvas:</strong> Settings → Canvas → Disconnect Canvas removes your token from CampusFlow. To make sure the token can never be used again, also delete it in Canvas under Account → Settings → Approved Integrations. Giving it an expiry date when you create it limits how long it works.</li>
 <li><strong>Notifications:</strong> reminders are scheduled on your device. You can turn them off in Settings or in your device settings.</li>
 </ul>
 <p><strong>Can't sign in?</strong> There is no email reset, and support happens only in public GitHub issues, so we have no private way to confirm that a locked-out account is yours. That means we can't delete it on request. Keep your password somewhere safe, and delete your account in the app while you can still sign in. For anything else, see <a href="support.html">Support</a>.</p>

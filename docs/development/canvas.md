@@ -5,7 +5,12 @@
 With `CANVAS_MODE=token` and `CANVAS_TOKEN_KEY` set, students open Settings →
 Canvas in the app, follow the in-app guide to create a token (Canvas → Account →
 Settings → Approved Integrations → + New Access Token), and paste their Canvas
-address and token. `POST /canvas/connect` verifies the token with Canvas and
+address and token. Before connecting, the screen shows a disclaimer: CampusFlow is
+an unofficial student project, the token carries the student's full Canvas
+permissions though CampusFlow only reads, school policies may restrict token
+use, and imported dates must be checked in Canvas. Connect stays disabled until
+the student ticks the acknowledgement (`canvas-screen.test.tsx`).
+`POST /canvas/connect` verifies the token with Canvas and
 stores it sealed; `POST /canvas/sync` imports active courses and assignments;
 `DELETE /canvas/connection` forgets the token. Sync also imports assignment
 groups, points possible and scores into the course grade outline, keeping any
