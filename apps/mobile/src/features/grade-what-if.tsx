@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { whatIfScoreMax, whatIfSummary, type Assessment, type WhatIfSummary } from '@campusflow/domain';
+import { courseWeights, whatIfScoreMax, whatIfSummary, type Assessment, type AssessmentGroup, type WhatIfSummary } from '@campusflow/domain';
 import { colors } from '@/components/ui';
 import { percentInput } from '@/features/assessment-editor';
 
@@ -29,11 +29,12 @@ export function whatIfOutcome(summary: WhatIfSummary, target: number | null): st
  * Try hypothetical scores on ungraded assessments. Nothing here is saved: the
  * entries live only on this screen and recorded scores are never changed.
  */
-export function GradeWhatIf({ assessments, target }: { assessments: readonly Assessment[]; target: number | null }) {
+export function GradeWhatIf({ assessments, groups = [], target }: { assessments: readonly Assessment[]; groups?: readonly AssessmentGroup[]; target: number | null }) {
   const [entries, setEntries] = useState<Record<string, string>>({});
   const open = useMemo(() => assessments.filter(row => row.score === null), [assessments]);
   const scores = useMemo(() => Object.fromEntries(open.flatMap(row => { const value = usable(entries[row.id]); return value === null ? [] : [[row.id, value]]; })), [open, entries]);
-  const summary = useMemo(() => whatIfSummary(assessments, scores, target), [assessments, scores, target]);
+  const summary = useMemo(() => whatIfSummary(assessments, scores, target, groups), [assessments, scores, target, groups]);
+  const shares = useMemo(() => new Map(courseWeights(assessments, groups).map(row => [row.id, row.weight])), [assessments, groups]);
   if (!open.length) return null;
   const blanks = open.filter(row => usable(entries[row.id]) === null);
   // Filling every untried row with the average still needed lands on the target.
@@ -44,7 +45,7 @@ export function GradeWhatIf({ assessments, target }: { assessments: readonly Ass
     {open.map(row => {
       const text = entries[row.id] ?? '', invalid = !!text.trim() && usable(text) === null;
       return <View key={row.id} style={styles.row}>
-        <View style={styles.body}><Text style={styles.item}>{row.title}</Text><Text style={styles.meta}>Weight {pct(row.weight)}</Text>
+        <View style={styles.body}><Text style={styles.item}>{row.title}</Text><Text style={styles.meta}>Weight {pct(Math.round((shares.get(row.id) ?? row.weight) * 10) / 10)}</Text>
           {invalid && <Text style={styles.error}>Enter 0 to {whatIfScoreMax}.</Text>}</View>
         <TextInput accessibilityLabel={`What-if score for ${row.title} (%)`} accessibilityHint="Not saved" value={text} placeholder="—" placeholderTextColor={colors.muted}
           onChangeText={value => setEntries(current => ({ ...current, [row.id]: value }))} keyboardType="decimal-pad" maxLength={6}

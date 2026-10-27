@@ -334,6 +334,7 @@ model Course {
   active Boolean @default(true)
   color String?
   assessments Json @default("[]")
+  assessmentGroups Json @default("[]")
   targetGrade Int?
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   academicItems AcademicItem[]

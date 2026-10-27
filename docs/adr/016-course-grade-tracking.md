@@ -1,6 +1,7 @@
 # ADR 016 — Course grade tracking
 
-Status: Accepted.
+Status: Accepted. Amended by [ADR 024](024-canvas-grades-and-assessment-groups.md)
+(assessment groups and Canvas grade import).
 
 Date: 2026-10-15
 

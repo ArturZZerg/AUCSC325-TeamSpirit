@@ -7,7 +7,9 @@ Canvas in the app, follow the in-app guide to create a token (Canvas → Account
 Settings → Approved Integrations → + New Access Token), and paste their Canvas
 address and token. `POST /canvas/connect` verifies the token with Canvas and
 stores it sealed; `POST /canvas/sync` imports active courses and assignments;
-`DELETE /canvas/connection` forgets the token. `CanvasSyncWorker` re-syncs each
+`DELETE /canvas/connection` forgets the token. Sync also imports assignment
+groups, points possible and scores into the course grade outline, keeping any
+weight the student changed ([ADR 024](../adr/024-canvas-grades-and-assessment-groups.md)). `CanvasSyncWorker` re-syncs each
 connection about every 30 minutes (6 hours after a failure), so new assignments
 appear without a manual sync. See
 [ADR 019](../adr/019-canvas-personal-access-tokens.md) for the safeguards.

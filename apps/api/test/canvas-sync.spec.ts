@@ -113,4 +113,28 @@ databaseSuite('Canvas complete-batch synchronization with PostgreSQL (ToR 9/10/1
     await client().get('/snapshot?date=2026-10-10').set('Authorization', token).expect(200);
     expect(provider.fetchAcademicSnapshot).not.toHaveBeenCalled();
   });
+  it('imports Canvas grades once, keeps a weight the student edited and lets it be reset (ADR 024)', async () => {
+    await sync.sync(user); await sync.sync(user);
+    const course = await db.course.findFirstOrThrow({ where: { userId: user.id, source: fixtureSource, externalId: '91001' } });
+    const groups = course.assessmentGroups as { id: string; title: string; weight: number | null }[];
+    const rows = course.assessments as { id: string; title: string; weight: number; canvas?: { weightEdited: boolean } }[];
+    expect(groups.map(group => [group.title, group.weight])).toEqual([['Assignments', 60], ['Project', 40]]);
+    expect(rows.map(row => [row.title, row.weight])).toEqual([['Architecture decision record', 20], ['Canvas integration demo', 30]]);
+    const essay = rows[0];
+    await client().patch(`/courses/${course.id}/assessments/${essay.id}`).set('Authorization', token).send({ title: 'Mine' }).expect(400);
+    await client().delete(`/courses/${course.id}/assessments/${essay.id}`).set('Authorization', token).expect(400);
+    await client().patch(`/courses/${course.id}/assessment-groups/${groups[0].id}`).set('Authorization', token).send({ title: 'Mine' }).expect(400);
+    const edited = await client().patch(`/courses/${course.id}/assessments/${essay.id}`).set('Authorization', token).send({ weight: 0 }).expect(200);
+    expect(edited.body.assessments[0]).toMatchObject({ weight: 0, canvas: { weightEdited: true } });
+    await client().patch(`/courses/${course.id}/assessment-groups/${groups[1].id}`).set('Authorization', token).send({ weight: 25 }).expect(200);
+    await sync.sync(user);
+    const kept = await client().get('/courses').set('Authorization', token).expect(200);
+    const after = kept.body.find((row: { id: string }) => row.id === course.id);
+    expect(after.assessments.map((row: { id: string; weight: number }) => [row.id, row.weight])).toEqual([[essay.id, 0], [rows[1].id, 30]]);
+    expect(after.assessmentGroups.map((group: { weight: number }) => group.weight)).toEqual([60, 25]);
+    const reset = await client().patch(`/courses/${course.id}/assessments/${essay.id}`).set('Authorization', token).send({ resetWeight: true }).expect(200);
+    expect(reset.body.assessments[0]).toMatchObject({ weight: 20, canvas: { weightEdited: false } });
+    const groupReset = await client().patch(`/courses/${course.id}/assessment-groups/${groups[1].id}`).set('Authorization', token).send({ resetWeight: true }).expect(200);
+    expect(groupReset.body.assessmentGroups[1]).toMatchObject({ weight: 40, canvas: { weightEdited: false } });
+  });
 });

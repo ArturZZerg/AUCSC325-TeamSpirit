@@ -52,12 +52,15 @@ async function assertPublicHost(origin: string, lookup: Lookup) {
 
 const userSchema = z.object({ id: z.number().int().positive().safe(), name: z.string().optional() });
 const courseSchema = z.object({ id: z.number().int().positive().safe(), name: z.string().optional(), course_code: z.string().nullable().optional(),
-  workflow_state: z.string().optional(), access_restricted_by_date: z.boolean().optional() });
+  workflow_state: z.string().optional(), access_restricted_by_date: z.boolean().optional(), apply_assignment_group_weights: z.boolean().nullable().optional() });
 const submissionStates = ['unsubmitted', 'submitted', 'pending_review', 'graded'] as const;
 const assignmentSchema = z.object({ id: z.number().int().positive().safe(), name: z.string().optional(), due_at: z.string().nullable().optional(),
   submission_types: z.array(z.string()).optional(),
   submission: z.object({ submitted_at: z.string().nullable().optional(), workflow_state: z.string().optional(),
-    score: z.number().nullable().optional(), missing: z.boolean().optional() }).nullable().optional() });
+    score: z.number().nullable().optional(), missing: z.boolean().optional(), excused: z.boolean().nullable().optional() }).nullable().optional(),
+  points_possible: z.number().nullable().optional(), assignment_group_id: z.number().int().positive().safe().nullable().optional(),
+  omit_from_final_grade: z.boolean().nullable().optional(), grading_type: z.string().optional() });
+const groupSchema = z.object({ id: z.number().int().positive().safe(), name: z.string().optional(), group_weight: z.number().nullable().optional() });
 
 const maxCourses = 60, maxAssignments = 2000, maxAssignmentsPerCourse = 400, maxPages = 10, courseConcurrency = 4;
 const clip = (value: string, length: number) => value.length > length ? `${value.slice(0, length - 1)}…` : value;
@@ -75,7 +78,14 @@ export class CanvasHttpClient {
   deps: CanvasHttpDeps = defaultDeps;
 
   private async getPages<T>(origin: string, token: string, path: string, schema: z.ZodType<T>, signal: AbortSignal, limit: number): Promise<T[] | 'forbidden'> {
+    const pages = await this.getAllPages(origin, token, path, schema, signal, limit);
+    return pages === 'forbidden' ? pages : pages.rows;
+  }
+
+  /** Like getPages, also saying whether the listing was read to its end without being cut off. */
+  private async getAllPages<T>(origin: string, token: string, path: string, schema: z.ZodType<T>, signal: AbortSignal, limit: number): Promise<{ rows: T[]; complete: boolean } | 'forbidden'> {
     const results: T[] = [];
+    let skipped = false;
     let url: string | null = `${origin}${path}`;
     for (let page = 0; url && page < maxPages && results.length < limit; page += 1) {
       let response: Response;
@@ -89,10 +99,11 @@ export class CanvasHttpClient {
       const body: unknown = await response.json().catch(() => { throw new CanvasRequestError('invalid-response'); });
       const parsed = z.array(z.unknown()).safeParse(body);
       if (!parsed.success) throw new CanvasRequestError('invalid-response');
-      for (const entry of parsed.data) { const item = schema.safeParse(entry); if (item.success) results.push(item.data); }
+      for (const entry of parsed.data) { const item = schema.safeParse(entry); if (item.success) results.push(item.data); else skipped = true; }
       url = nextLink(response.headers.get('link'), origin);
     }
-    return results.slice(0, limit);
+    // A skipped row or a remaining page could hide a record that still exists in Canvas.
+    return { rows: results.slice(0, limit), complete: url === null && !skipped && results.length <= limit };
   }
 
   /** Confirms the token belongs to a Canvas user on this origin and returns that user's id. */
@@ -110,7 +121,7 @@ export class CanvasHttpClient {
     return { origin, userId: String(user.data.id) };
   }
 
-  /** Active courses and their assignments with the current user's submission state. */
+  /** Active courses and their assignments with the current user's submission state, plus assignment groups for grades. */
   async fetchAcademicSnapshot(baseUrl: string, token: string, signal: AbortSignal): Promise<AcademicSnapshot> {
     const origin = canvasOrigin(baseUrl);
     await assertPublicHost(origin, this.deps.lookup);
@@ -118,11 +129,19 @@ export class CanvasHttpClient {
     if (courses === 'forbidden') throw new CanvasRequestError('unauthorized');
     const visible = courses.filter(course => course.name?.trim() && !course.access_restricted_by_date && course.workflow_state !== 'deleted');
     const assignments = new Map<number, z.infer<typeof assignmentSchema>[]>();
+    const groups = new Map<number, z.infer<typeof groupSchema>[]>();
+    // A course counts as complete only when its assignments and groups were all read (ADR 024).
+    const complete = new Set<number>();
     for (let start = 0; start < visible.length; start += courseConcurrency) {
       await Promise.all(visible.slice(start, start + courseConcurrency).map(async course => {
-        const rows = await this.getPages(origin, token, `/api/v1/courses/${course.id}/assignments?include[]=submission&per_page=100&order_by=due_at`,
-          assignmentSchema, signal, maxAssignmentsPerCourse);
-        assignments.set(course.id, rows === 'forbidden' ? [] : rows);
+        const [rows, sets] = await Promise.all([
+          this.getAllPages(origin, token, `/api/v1/courses/${course.id}/assignments?include[]=submission&per_page=100&order_by=due_at`, assignmentSchema, signal, maxAssignmentsPerCourse),
+          this.getAllPages(origin, token, `/api/v1/courses/${course.id}/assignment_groups?per_page=100`, groupSchema, signal, 100),
+        ]);
+        assignments.set(course.id, rows === 'forbidden' ? [] : rows.rows);
+        groups.set(course.id, sets === 'forbidden' ? [] : sets.rows.filter(group => group.name?.trim()));
+        if (rows !== 'forbidden' && rows.complete && sets !== 'forbidden' && sets.complete && sets.rows.every(group => group.name?.trim())
+          && rows.rows.every(row => row.name?.trim())) complete.add(course.id);
       }));
     }
     const instant = (value: string | null | undefined) => value && z.string().datetime({ offset: true }).safeParse(value).success ? value : null;
@@ -133,18 +152,27 @@ export class CanvasHttpClient {
       const cutoff = Date.now() - 120 * 86_400_000;
       const keep = new Set(all.map(row => ({ id: row.id, due: instant(row.due_at) ? Date.parse(row.due_at!) : Infinity }))
         .sort((a, b) => (b.due >= cutoff ? 1 : 0) - (a.due >= cutoff ? 1 : 0) || a.due - b.due).slice(0, maxAssignments).map(row => row.id));
-      for (const [id, rows] of assignments) assignments.set(id, rows.filter(row => keep.has(row.id)));
+      for (const [id, rows] of assignments) {
+        const kept = rows.filter(row => keep.has(row.id));
+        if (kept.length < rows.length) complete.delete(id);
+        assignments.set(id, kept);
+      }
     }
+    const finite = (value: number | null | undefined) => Number.isFinite(value) ? value : null;
     try {
       return normalizeCanvasSnapshot({ courses: visible.map(course => ({
         course: { id: course.id, name: clip(course.name!.trim(), 240), course_code: course.course_code ? clip(course.course_code, 240) : null,
-          workflow_state: course.workflow_state === 'completed' ? 'completed' : 'available' },
+          workflow_state: course.workflow_state === 'completed' ? 'completed' : 'available', apply_assignment_group_weights: course.apply_assignment_group_weights === true },
         assignments: (assignments.get(course.id) ?? []).filter(row => row.name?.trim()).map(row => ({
           id: row.id, name: clip(row.name!.trim(), 240), due_at: instant(row.due_at), submission_types: row.submission_types?.slice(0, 30),
           submission: row.submission ? { submitted_at: instant(row.submission.submitted_at),
             workflow_state: submissionStates.find(state => state === row.submission?.workflow_state),
-            score: Number.isFinite(row.submission.score) ? row.submission.score : null, missing: row.submission.missing } : null,
+            score: finite(row.submission.score), missing: row.submission.missing, excused: row.submission.excused === true } : null,
+          points_possible: finite(row.points_possible), assignment_group_id: row.assignment_group_id ?? null,
+          omit_from_final_grade: row.omit_from_final_grade === true, grading_type: row.grading_type?.slice(0, 40),
         })),
+        assignment_groups: (groups.get(course.id) ?? []).map(group => ({ id: group.id, name: clip(group.name!.trim(), 240), group_weight: finite(group.group_weight) })),
+        complete: complete.has(course.id),
       })) });
     } catch { throw new CanvasRequestError('invalid-response'); }
   }

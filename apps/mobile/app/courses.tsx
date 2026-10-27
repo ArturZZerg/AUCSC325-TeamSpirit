@@ -31,7 +31,7 @@ function CoursesContent() {
   const disabled = !!pending || action.isPending;
   const open = (course: Course) => academic.data?.filter(item => item.courseId === course.id && item.submissionState !== 'submitted' && item.submissionState !== 'graded').length;
   const active = courses.data?.filter(course => course.active) ?? [], archived = courses.data?.filter(course => !course.active) ?? [];
-  const graded = active.map(course => gradeSummary(course.assessments ?? []).current).filter((value): value is number => value !== null);
+  const graded = active.map(course => gradeSummary(course.assessments ?? [], null, course.assessmentGroups ?? []).current).filter((value): value is number => value !== null);
   const row = (course: Course) => <View key={course.id} style={styles.course}><Pressable accessibilityRole="button" accessibilityLabel={`Open ${course.name}`} disabled={disabled}
     onPress={() => router.push({ pathname: '/course/[id]', params: { id: course.id } })} style={({ pressed }) => [styles.courseMain, pressed && styles.pressed]}>
     <View style={[styles.swatch, { backgroundColor: courseColor(course) }]}><Text style={styles.swatchText}>{courseLabel(course).slice(0, 3).toUpperCase()}</Text></View>
@@ -39,7 +39,7 @@ function CoursesContent() {
       <Text style={styles.name}>{course.name}</Text>
       <Text style={styles.meta}>{[course.code, isManualCourse(course) ? 'Your course' : 'Imported from Canvas',
         open(course) === undefined ? null : `${open(course)} open ${open(course) === 1 ? 'item' : 'items'}`].filter(Boolean).join(' · ')}</Text>
-      {gradeSummary(course.assessments ?? []).current !== null && <Text style={styles.grade}>Current grade {gradeSummary(course.assessments ?? []).current}%</Text>}
+      {gradeSummary(course.assessments ?? [], null, course.assessmentGroups ?? []).current !== null && <Text style={styles.grade}>Current grade {gradeSummary(course.assessments ?? [], null, course.assessmentGroups ?? []).current}%</Text>}
     </View>
     <Ionicons name="chevron-forward" size={18} color={colors.muted}/></Pressable>
     {isManualCourse(course) && <Pressable accessibilityRole="button" accessibilityLabel={course.active ? `Archive ${course.name}` : `Restore ${course.name}`} disabled={disabled} hitSlop={8}

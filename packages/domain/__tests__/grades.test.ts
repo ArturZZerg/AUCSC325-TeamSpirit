@@ -1,4 +1,4 @@
-import { gradeSummary, whatIfSummary } from '../src';
+import { courseWeights, gradeSummary, whatIfSummary } from '../src';
 
 const a = (weight: number, score: number | null, id = `${weight}-${score}`) => ({ id, title: id, weight, score });
 
@@ -53,5 +53,58 @@ describe('what-if grade summary', () => {
   });
   it('rounds guesses to one decimal like recorded scores', () => {
     expect(whatIfSummary([a(50, null, 'x'), a(50, 80, 'y')], { x: 66.66 })).toMatchObject({ current: 73.4, floor: 73.4 });
+  });
+});
+
+describe('assessment groups', () => {
+  const g = (id: string, weight: number | null) => ({ id, title: id, weight });
+  const in_ = (group: string, weight: number, score: number | null, id: string) => ({ id, title: id, weight, score, groupId: group });
+  // Weighted like a Canvas course with group weights: assignments 40%, quizzes 20%, exams 40%.
+  const weighted = [g('assignments', 40), g('quizzes', 20), g('exams', 40)];
+  const work = [in_('assignments', 10, 90, 'a1'), in_('assignments', 10, null, 'a2'), in_('quizzes', 5, 80, 'q1'), in_('quizzes', 5, 100, 'q2'),
+    in_('exams', 100, 70, 'midterm'), in_('exams', 100, null, 'final')];
+
+  it('splits each group weight by share', () => {
+    expect(courseWeights(work, weighted).map(row => row.weight)).toEqual([20, 20, 10, 10, 20, 20]);
+  });
+  it('reports the current grade group by group, like Canvas, and the rest against course weights', () => {
+    // Groups average 90, 90 and 70: (40×90 + 20×90 + 40×70) / 100 = 82, not the 83.3 a flat average of graded weight gives.
+    expect(gradeSummary(work, 80, weighted)).toMatchObject({ totalWeight: 100, gradedWeight: 60, remainingWeight: 40, current: 82, earned: 50,
+      floor: 50, ceiling: 90, needed: 75, status: 'reachable' });
+  });
+  it('leaves groups without grades out of the current grade', () => {
+    expect(gradeSummary([in_('assignments', 10, 90, 'a1'), in_('exams', 100, null, 'final')], null, weighted)).toMatchObject({ current: 90, totalWeight: 80 });
+  });
+  it('treats points-based groups as one pool sharing the course, like an unweighted Canvas course', () => {
+    const points = [g('labs', null), g('exam', null)];
+    const rows = [in_('labs', 20, 90, 'l1'), in_('labs', 20, null, 'l2'), in_('exam', 60, 50, 'e')];
+    expect(courseWeights(rows, points).map(row => row.weight)).toEqual([20, 20, 60]);
+    expect(gradeSummary(rows, null, points)).toMatchObject({ current: 60, floor: 48, ceiling: 68, totalWeight: 100 });
+  });
+  it('gives points-based groups what ungrouped and weighted parts leave', () => {
+    // Participation 20% by hand, the rest from an unweighted Canvas group.
+    const rows = [a(20, 100, 'participation'), in_('canvas', 50, 80, 'x'), in_('canvas', 50, null, 'y')];
+    expect(courseWeights(rows, [g('canvas', null)]).map(row => row.weight)).toEqual([20, 40, 40]);
+    expect(gradeSummary(rows, null, [g('canvas', null)])).toMatchObject({ current: 84, floor: 52, ceiling: 92 });
+  });
+  it('ignores zero weights and empty groups, and counts unknown groups as ungrouped', () => {
+    const rows = [in_('assignments', 0, 0, 'practice'), in_('assignments', 10, 80, 'a1'), a(10, 50, 'orphan')];
+    const withOrphan = [...rows.slice(0, 2), { ...rows[2], groupId: 'gone' }];
+    // Quizzes and exams are empty, so they claim nothing; the orphan counts as an ungrouped 10%.
+    expect(courseWeights(withOrphan, weighted).map(row => row.weight)).toEqual([0, 40, 10]);
+    expect(gradeSummary(withOrphan, null, weighted)).toMatchObject({ totalWeight: 50, current: 74 });
+    expect(gradeSummary([in_('quizzes', 5, 90, 'q')], null, [g('quizzes', 0)])).toMatchObject({ totalWeight: 0, current: null, status: 'noTarget' });
+  });
+  it('reports fractional shares to one decimal so a full outline reads as 100%', () => {
+    const thirds = [in_('exams', 1, 70, 'x'), in_('exams', 1, null, 'y'), in_('exams', 1, null, 'z')];
+    expect(gradeSummary(thirds, 70, [g('exams', 100)])).toMatchObject({ totalWeight: 100, gradedWeight: 33.3, remainingWeight: 66.7, needed: 70, current: 70 });
+  });
+  it('projects what-if scores through groups', () => {
+    // Assignments 95, quizzes 90, exams 80: (3800 + 1800 + 3200) / 100.
+    expect(whatIfSummary(work, { a2: 100, final: 90 }, 85, weighted)).toMatchObject({ status: 'final', floor: 88, current: 88, tried: 2, untried: 0 });
+  });
+  it('keeps ungrouped courses exactly as before', () => {
+    const plain = [a(30, 80), a(20, 90), a(50, null)];
+    expect(gradeSummary(plain, 85, [g('unused', 50)])).toEqual(gradeSummary(plain, 85));
   });
 });

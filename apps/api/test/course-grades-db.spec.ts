@@ -73,4 +73,32 @@ databaseSuite('course assessments and target grades', () => {
     await client().delete(`/courses/${id}/assessments/${item}`).set('Authorization', otherToken).expect(404);
     await client().patch(`/courses/${id}`).set('Authorization', otherToken).send({ targetGrade: 10 }).expect(404);
   });
+  it('groups assessments, weights groups toward 100% and protects groups in use', async () => {
+    const id = await course(), quizzes = randomUUID(), labs = randomUUID(), quiz = randomUUID(), exam = randomUUID();
+    const group = (body: Record<string, unknown>) => client().post(`/courses/${id}/assessment-groups`).set('Authorization', token).send(body);
+    await group({ id: quizzes, title: 'Quizzes', weight: 30 }).expect(201);
+    await group({ id: quizzes, title: 'Quizzes', weight: 30 }).expect(201);
+    await group({ id: quizzes, title: 'Tests', weight: 30 }).expect(409);
+    await group({ id: labs, title: 'Labs', weight: null }).expect(201);
+    // Inside a group the weight is a share, so points above 100 are fine.
+    await add(id, { id: quiz, title: 'Quiz 1', weight: 250, score: 80, groupId: quizzes }).expect(201);
+    await add(id, { id: randomUUID(), title: 'Lost', weight: 5, groupId: randomUUID() }).expect(400);
+    await add(id, { id: randomUUID(), title: 'Too big', weight: 250 }).expect(400);
+    await add(id, { id: exam, title: 'Final', weight: 70 }).expect(201);
+    expect((await add(id, { id: randomUUID(), title: 'Over', weight: 1 }).expect(400)).body.message).toMatch(/total 101%/);
+    await client().patch(`/courses/${id}/assessment-groups/${quizzes}`).set('Authorization', token).send({ weight: 31 }).expect(400);
+    await client().patch(`/courses/${id}/assessment-groups/${quizzes}`).set('Authorization', token).send({ resetWeight: true }).expect(400);
+    // Moving a 250-point quiz out of its group would make it 250% of the course.
+    await client().patch(`/courses/${id}/assessments/${quiz}`).set('Authorization', token).send({ groupId: null }).expect(400);
+    const moved = await client().patch(`/courses/${id}/assessments/${quiz}`).set('Authorization', token).send({ groupId: labs }).expect(200);
+    expect(moved.body.assessments[0]).toEqual({ id: quiz, title: 'Quiz 1', weight: 250, score: 80, groupId: labs });
+    await client().delete(`/courses/${id}/assessment-groups/${labs}`).set('Authorization', token).expect(409);
+    await client().delete(`/courses/${id}/assessment-groups/${quizzes}`).set('Authorization', token).expect(200);
+    await client().delete(`/courses/${id}/assessment-groups/${quizzes}`).set('Authorization', token).expect(200);
+    const renamed = await client().patch(`/courses/${id}/assessment-groups/${labs}`).set('Authorization', token).send({ title: 'Lab work', weight: 30 }).expect(200);
+    expect(renamed.body.assessmentGroups).toEqual([{ id: labs, title: 'Lab work', weight: 30 }]);
+    await client().patch(`/courses/${id}/assessment-groups/${labs}`).set('Authorization', otherToken).send({ weight: 10 }).expect(404);
+    const exported = await client().get('/me/export').set('Authorization', token).expect(200);
+    expect(exported.body.courses.find((row: { id: string }) => row.id === id)).toMatchObject({ assessmentGroups: [{ id: labs, title: 'Lab work' }] });
+  });
 });
