@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -19,6 +19,14 @@ const steps = [
   'Select Generate Token and copy the token. Canvas shows it only once.',
   'Paste your Canvas address and the token below, then select Connect.',
 ];
+// Shown before any token is entered; connecting requires acknowledging it.
+const disclaimer = [
+  'CampusFlow is a student course project. It isn’t made, endorsed or reviewed by Instructure (the company behind Canvas) or by your school.',
+  'A personal access token can do anything you can do in Canvas, including making changes. CampusFlow only uses it to read your courses and assignments and never changes anything in Canvas.',
+  'Your school’s Canvas or IT policies may limit using access tokens with other apps. Check them before you connect. You’re responsible for following them.',
+  'The token is stored encrypted on the CampusFlow server, never on this phone. To end access, disconnect here and delete the token in Canvas. An expiry date limits the risk if the token is ever exposed.',
+  'Imported deadlines can be late, incomplete or wrong. Always check important dates in Canvas.',
+];
 const message = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback;
 
 export default function CanvasScreen() {
@@ -30,7 +38,7 @@ export default function CanvasScreen() {
 function CanvasConnection({ userId, timeZone }: { userId: string; timeZone: string }) {
   const router = useRouter(); const action = useAction(); const busy = useRef(false);
   const status = useQuery({ queryKey: ['account', userId, 'canvas-status'], queryFn: async () => canvasConnectionStatusSchema.parse(await api('/canvas/status')) });
-  const [baseUrl, setBaseUrl] = useState(''); const [token, setToken] = useState('');
+  const [baseUrl, setBaseUrl] = useState(''); const [token, setToken] = useState(''); const [accepted, setAccepted] = useState(false);
   const [working, setWorking] = useState<string>(); const [notice, setNotice] = useState<string>(); const [failure, setFailure] = useState<string>();
 
   const run = async (label: string, operation: () => Promise<string>) => {
@@ -71,13 +79,21 @@ function CanvasConnection({ userId, timeZone }: { userId: string; timeZone: stri
       <Card>
         <Text style={styles.section}>How to get your access token</Text>
         {steps.map((step, index) => <View key={step} style={styles.step}><Text style={styles.number}>{index + 1}</Text><Text style={[styles.copy, styles.grow]}>{step}</Text></View>)}
-        <Text style={styles.meta}>The token gives read access to your Canvas account like your password does. CampusFlow stores it encrypted on its server, never on this phone, and you can revoke it in Canvas at any time.</Text>
         <Button title="Canvas guide: access tokens" tone="plain" onPress={() => { void Linking.openURL('https://community.canvaslms.com/t5/Canvas-Basics-Guide/How-do-I-manage-API-access-tokens-in-my-user-account/ta-p/615312'); }}/>
+      </Card>
+      <Card>
+        <View style={styles.step}><Ionicons name="alert-circle-outline" size={22} color={colors.coral}/><Text style={[styles.section, styles.grow]}>Before you connect</Text></View>
+        {disclaimer.map(point => <View key={point} style={styles.step}><Text style={styles.copy}>•</Text><Text style={[styles.copy, styles.grow]}>{point}</Text></View>)}
+        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: accepted, disabled: !!working }} aria-checked={accepted}
+          disabled={!!working} onPress={() => setAccepted(value => !value)} style={styles.step}>
+          <Ionicons name={accepted ? 'checkbox' : 'square-outline'} size={22} color={accepted ? colors.moss : colors.muted}/>
+          <Text style={[styles.item, styles.grow]}>I’ve read this and want to connect my Canvas account.</Text>
+        </Pressable>
       </Card>
       <Card>
         <Field label="Canvas address" value={baseUrl} onChangeText={setBaseUrl} placeholder="school.instructure.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" editable={!working}/>
         <Field label="Access token" value={token} onChangeText={setToken} placeholder="Paste the token from Canvas" autoCapitalize="none" autoCorrect={false} secureTextEntry editable={!working}/>
-        <Button title={working ?? 'Connect Canvas'} disabled={!!working || !baseUrl.trim() || !token.trim()} onPress={() => { void connect(); }}/>
+        <Button title={working ?? 'Connect Canvas'} disabled={!!working || !accepted || !baseUrl.trim() || !token.trim()} onPress={() => { void connect(); }}/>
       </Card>
     </>}
     {data && !data.connected && data.connectMode === 'fixture' && <Card><Text style={styles.copy}>This development server uses demo Canvas data.</Text>

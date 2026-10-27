@@ -31,6 +31,7 @@ it('shows the token guide and connects, then runs the first sync', async () => {
   expect(screen.getByText(/New Access Token/)).toBeOnTheScreen();
   fireEvent.changeText(screen.getByLabelText('Canvas address'), 'school.instructure.com');
   fireEvent.changeText(screen.getByLabelText('Access token'), token);
+  fireEvent.press(screen.getByRole('checkbox', { name: /I’ve read this/ }));
   fireEvent.press(screen.getByText('Connect Canvas'));
   expect(await screen.findByText('Connected. Synced 3 courses and 1 assignment.')).toBeOnTheScreen();
   expect(save.mock.calls.map(([request]) => request.path)).toEqual(['/canvas/connect', '/canvas/sync']);
@@ -43,9 +44,38 @@ it('shows a rejected token message without syncing', async () => {
   view();
   fireEvent.changeText(await screen.findByLabelText('Canvas address'), 'school.instructure.com');
   fireEvent.changeText(screen.getByLabelText('Access token'), token);
+  fireEvent.press(screen.getByRole('checkbox', { name: /I’ve read this/ }));
   fireEvent.press(screen.getByText('Connect Canvas'));
   expect(await screen.findByText(/didn’t accept this access token/)).toBeOnTheScreen();
   expect(save).toHaveBeenCalledTimes(1);
+});
+
+it('shows the disclaimer and blocks connecting until the student acknowledges it', async () => {
+  jest.mocked(api).mockResolvedValue(status());
+  view();
+  expect(await screen.findByText('Before you connect')).toBeOnTheScreen();
+  expect(screen.getByText(/isn’t made, endorsed or reviewed by Instructure/)).toBeOnTheScreen();
+  expect(screen.getByText(/can do anything you can do in Canvas/)).toBeOnTheScreen();
+  expect(screen.getByText(/policies may limit using access tokens/)).toBeOnTheScreen();
+  fireEvent.changeText(screen.getByLabelText('Canvas address'), 'school.instructure.com');
+  fireEvent.changeText(screen.getByLabelText('Access token'), token);
+  const acknowledge = screen.getByRole('checkbox', { name: /I’ve read this/ });
+  expect(acknowledge).not.toBeChecked();
+  expect(screen.getByRole('button', { name: 'Connect Canvas' })).toBeDisabled();
+  fireEvent.press(screen.getByText('Connect Canvas'));
+  expect(save).not.toHaveBeenCalled();
+  fireEvent.press(acknowledge);
+  expect(acknowledge).toBeChecked();
+  expect(screen.getByRole('button', { name: 'Connect Canvas' })).toBeEnabled();
+  fireEvent.press(acknowledge);
+  expect(screen.getByRole('button', { name: 'Connect Canvas' })).toBeDisabled();
+});
+
+it('does not show the disclaimer once Canvas is connected', async () => {
+  jest.mocked(api).mockResolvedValue(status({ connected: true, baseUrl: 'https://school.instructure.com' }));
+  view();
+  expect(await screen.findByText('Connected to school.instructure.com')).toBeOnTheScreen();
+  expect(screen.queryByText('Before you connect')).toBeNull();
 });
 
 it('offers sync and disconnect for a connected account and shows the last error', async () => {
