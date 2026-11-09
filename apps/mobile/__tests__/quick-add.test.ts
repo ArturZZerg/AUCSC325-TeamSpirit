@@ -54,6 +54,53 @@ describe('quick add parsing', () => {
     expect(parseQuickAdd('Lunch 12am', today).values).toMatchObject({ scheduledTime: '00:00' });
   });
 
+  describe('repeat phrases (#150)', () => {
+    it('makes weekly tasks on chosen weekdays, starting on the next of those days', () => {
+      const parsed = parseQuickAdd('Gym every mon wed 7am #gym', '2026-10-15');
+      expect(parsed.title).toBe('Gym');
+      expect(parsed.values).toMatchObject({ recurrenceMode: 'weekly', interval: '1', weekdays: [1, 3], category: 'fitness',
+        scheduledMode: 'instant', scheduledDate: '2026-10-19', scheduledTime: '07:00' });
+      expect(parsed.details).toContain('Repeats Mon, Wed');
+      expect(parseQuickAdd('Gym every mon wed 7am', today).values.scheduledDate).toBe(today);
+      expect(parseQuickAdd('Clean room every sat', today).values).toMatchObject({ recurrenceMode: 'weekly', weekdays: [6], scheduledDate: '2026-10-17' });
+      expect(parseQuickAdd('Call home every monday and thursday', today).values).toMatchObject({ weekdays: [1, 4], scheduledDate: '2026-10-15' });
+    });
+
+    it('makes daily tasks starting on the planned day', () => {
+      expect(parseQuickAdd('Take vitamins daily', today)).toMatchObject({ title: 'Take vitamins', details: ['Repeats daily'],
+        values: { recurrenceMode: 'daily', interval: '1', weekdays: [], scheduledMode: 'date', scheduledDate: today } });
+      expect(parseQuickAdd('Stretch every day', today).values).toMatchObject({ recurrenceMode: 'daily', interval: '1' });
+      expect(parseQuickAdd('Water plants every 2 days', today)).toMatchObject({ title: 'Water plants', details: ['Repeats every 2 days'], values: { recurrenceMode: 'daily', interval: '2' } });
+    });
+
+    it('reads week intervals, workweeks and plain weekly', () => {
+      expect(parseQuickAdd('Laundry every 2 weeks sat', today)).toMatchObject({ title: 'Laundry',
+        values: { recurrenceMode: 'weekly', interval: '2', weekdays: [6], scheduledDate: '2026-10-17' } });
+      expect(parseQuickAdd('Laundry every 2 weeks sat', today).details).toContain('Repeats every 2 weeks on Sat');
+      expect(parseQuickAdd('Rent every other week fri', today).values).toMatchObject({ interval: '2', weekdays: [5], scheduledDate: '2026-10-16' });
+      expect(parseQuickAdd('Standup every weekday 9am', today)).toMatchObject({ title: 'Standup',
+        values: { recurrenceMode: 'weekly', interval: '1', weekdays: [1, 2, 3, 4, 5], scheduledDate: today, scheduledTime: '09:00' } });
+      expect(parseQuickAdd('Standup every weekday 9am', today).details).toContain('Repeats weekdays');
+      expect(parseQuickAdd('Review notes weekly', today).values).toMatchObject({ recurrenceMode: 'weekly', interval: '1', weekdays: [3], scheduledDate: today });
+      expect(parseQuickAdd('Review notes weekly fri', today).values).toMatchObject({ weekdays: [5], scheduledDate: '2026-10-16' });
+    });
+
+    it('keeps out-of-range intervals in the title and leaves other text alone', () => {
+      expect(parseQuickAdd('Task every 400 days', today)).toMatchObject({ title: 'Task every 400 days', details: [] });
+      expect(parseQuickAdd('Task every 400 days', today).values.recurrenceMode).toBeUndefined();
+      expect(parseQuickAdd('Task every 60 weeks', today).title).toBe('Task every 60 weeks');
+      expect(parseQuickAdd('Task every 0 days', today).title).toBe('Task every 0 days');
+      expect(parseQuickAdd('Buy groceries', today).values.recurrenceMode).toBeUndefined();
+    });
+
+    it('builds a valid recurring create request', () => {
+      expect(request('Gym every mon wed 7am #gym')).toMatchObject({ title: 'Gym', recurrence: { frequency: 'weekly', interval: 1, weekdays: [1, 3] },
+        scheduled: { kind: 'instant', at: '2026-10-14T13:00:00Z' } });
+      expect(request('Take vitamins daily')).toMatchObject({ recurrence: { frequency: 'daily', interval: 1 }, scheduled: { kind: 'date', date: today } });
+      expect(request('Pay rent every 4 weeks due fri')).toMatchObject({ recurrence: { frequency: 'weekly', interval: 4, weekdays: [5] }, due: { kind: 'date', date: '2026-10-16' } });
+    });
+  });
+
   it('leaves unknown tags, impossible times and long estimates in the title', () => {
     expect(parseQuickAdd('Post #random', today).title).toBe('Post #random');
     expect(parseQuickAdd('Meet 25:00', today).title).toBe('Meet 25:00');
