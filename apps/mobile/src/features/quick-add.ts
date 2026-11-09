@@ -33,8 +33,9 @@ function take(text: string, pattern: string): { rest: string; groups: string[] }
 }
 
 function parseTime(text: string) {
-  const noon = take(text, '(?:at\\s+)?(noon|midnight)');
-  if (noon) return { rest: noon.rest, time: noon.groups[0].toLowerCase() === 'noon' ? '12:00' : '00:00' };
+  const noon = take(text, '(?:at\\s+)?(noon|midnight)'); // "Due fri midnight" means the end of Friday, so midnight is the 
+  // day's last minute, not 00:00
+  if (noon) return { rest: noon.rest, time: noon.groups[0].toLowerCase() === 'noon' ? '12:00' : '23:59' };
   const meridiem = take(text, '(?:at\\s+)?(\\d{1,2})(?::(\\d{2}))?\\s?(am|pm)');
   if (meridiem) {
     const [hours, minutes = '00', half] = meridiem.groups, hour = Number(hours), minute = Number(minutes || '0');

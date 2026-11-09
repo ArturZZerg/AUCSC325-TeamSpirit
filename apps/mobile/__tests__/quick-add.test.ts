@@ -37,6 +37,16 @@ describe('quick add parsing', () => {
     expect(parseQuickAdd('Submit lab by 11:59pm', today).values).toMatchObject({ dueMode: 'instant', dueDate: today, dueTime: '23:59' });
   });
 
+  it('treats midnight as the end of the named day, not its start (#152)', () => {
+    const parsed = parseQuickAdd('Essay due fri midnight', today);
+    expect(parsed.title).toBe('Essay');
+    expect(parsed.values).toMatchObject({ dueMode: 'instant', dueDate: '2026-10-16', dueTime: '23:59' });
+    expect(parseQuickAdd('Essay due midnight', today).values).toMatchObject({ dueMode: 'instant', dueDate: today, dueTime: '23:59' });
+    expect(parseQuickAdd('Party sat midnight', today).values).toMatchObject({ scheduledMode: 'instant', scheduledDate: '2026-10-17', scheduledTime: '23:59' });
+    expect(parseQuickAdd('Lunch noon', today).values).toMatchObject({ scheduledTime: '12:00' });
+    expect(request('Essay due fri midnight')).toMatchObject({ due: { kind: 'instant', at: '2026-10-17T05:59:00Z' } });
+  });
+
   it('parses month-day dates, rolling past dates into next year and rejecting impossible days', () => {
     expect(parseQuickAdd('Midterm Oct 20', today).values).toMatchObject({ scheduledDate: '2026-10-20' });
     expect(parseQuickAdd('Midterm 20th october', today).values).toMatchObject({ scheduledDate: '2026-10-20' });
