@@ -22,6 +22,8 @@ const categoryAliases: Record<string, PersonalTask['category']> = {
 };
 const priorities: Record<string, PersonalTask['priority']> = { '!high': 'high', '!h': 'high', '!!!': 'high', '!1': 'high', '!medium': 'medium', '!m': 'medium', '!!': 'medium', '!2': 'medium', '!low': 'low', '!l': 'low', '!3': 'low' };
 
+const fullWeekday = /^(?:mon|tues|wednes|thurs|fri|satur|sun)day$/i;
+const timeNext = /^\s+(?:at\s+)?(?:\d{1,2}(?::\d{2})?\s?(?:am|pm)|\d{1,2}:\d{2}|noon|midnight)(?=\s|$)/i;
 const pad = (value: number) => String(value).padStart(2, '0');
 const weekdayOf = (date: string) => new Date(`${date}T12:00:00Z`).getUTCDay() || 7;
 
@@ -30,6 +32,22 @@ function take(text: string, pattern: string): { rest: string; groups: string[] }
   const match = new RegExp(`(^|\\s)${pattern}(?=\\s|$)`, 'i').exec(text);
   if (!match) return undefined;
   return { rest: `${text.slice(0, match.index)} ${text.slice(match.index + match[0].length)}`, groups: match.slice(2).map(value => value ?? '') };
+}
+
+/**
+ * A weekday word is only a date when it reads like one: a full name ("friday"), or a short
+ * form ("fri") after on/next/due/by/before, at the end of the text or right before a time.
+ * All-caps short forms ("SAT") are always words. So "Study for SAT" and "Buy sun screen" stay plain text.
+ */
+function takeWeekday(text: string): { rest: string; groups: string[] } | undefined {
+  const pattern = new RegExp(`(^|\\s)(on\\s+)?(next\\s+)?${weekdayPattern}(?=\\s|$)`, 'gi');
+  for (let match = pattern.exec(text); match; match = pattern.exec(text)) {
+    const [whole, , on, next, word] = match, after = text.slice(match.index + whole.length);
+    const fullName = fullWeekday.test(word), caps = !fullName && word === word.toUpperCase();
+    const cued = !!on || !!next || /(^|\s)(due|by|before)$/i.test(text.slice(0, match.index).trimEnd());
+    if (!caps && (fullName || cued || !after.trim() || timeNext.test(after))) return { rest: `${text.slice(0, match.index)} ${after}`, groups: [next ?? '', word] };
+  }
+  return undefined;
 }
 
 function parseTime(text: string) {
@@ -59,7 +77,7 @@ function parseDate(text: string, today: string) {
     const amount = Number(relative.groups[0]) * (relative.groups[1].toLowerCase().startsWith('week') ? 7 : 1);
     if (amount <= 365) return { rest: relative.rest, date: addCalendarDays(today, amount) };
   }
-  const weekday = take(text, `(?:on\\s+)?(next\\s+)?${weekdayPattern}`);
+  const weekday = takeWeekday(text);
   if (weekday) {
     const target = weekdays.findIndex(name => name.startsWith(weekday.groups[1].toLowerCase().slice(0, 3))) + 1;
     const current = weekdayOf(today);
