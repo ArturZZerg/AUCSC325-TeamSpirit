@@ -324,6 +324,11 @@ API liveness/readiness, production startup requirements, the read-only
 [release operations](docs/development/release-operations.md). CI restores its
 isolated test database and verifies records/relationships and dependency readiness.
 
+While GitHub Actions cannot run on this repository, a maintainer runs the same
+`ci.yml` steps in Docker with `scripts/ci-local.sh <pr-number>`. It tests the
+PR's merge ref in `node:22` and posts the `local-verify` status that branch
+protection on `main` requires.
+
 ## Project layout
 
 | Directory | Responsibility |
