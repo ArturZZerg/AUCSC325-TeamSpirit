@@ -149,8 +149,17 @@ export const composeToday = (input: TodayInput): TodayPlan => {
     if (task.recurrence) {
       // Each occurrence has its own identity and deadline. Never carry the template's
       // old deadline onto an off-schedule date or use series-level completedAt.
+      const occurrenceDates = new Set<DateOnly>();
+      const anchor = taskAnchorDate(task, input.timeZone);
+      const dueDate = task.due?.kind === 'instant' ? localDateAt(task.due.at, input.timeZone) : task.due?.date;
+      const deadlineOffset = anchor && dueDate ? plainDate(anchor).until(plainDate(dueDate), { largestUnit: 'days' }).days : 0;
       for (let offset = 0; offset <= 7; offset++) {
-        const occurrenceDate = addCalendarDays(input.date, offset);
+        const date = addCalendarDays(input.date, offset);
+        occurrenceDates.add(date);
+        // Also check the occurrence due on this day, scheduled deadlineOffset days earlier.
+        if (deadlineOffset) occurrenceDates.add(addCalendarDays(date, -deadlineOffset));
+      }
+      for (const occurrenceDate of occurrenceDates) {
         if (!taskOccursOn(task, occurrenceDate, input.timeZone)) continue;
         const timing = taskOccurrenceTiming(task, occurrenceDate, input.timeZone);
         const completed = task.completedOccurrenceKeys?.includes(occurrenceDate) ?? false;
@@ -161,7 +170,7 @@ export const composeToday = (input: TodayInput): TodayPlan => {
             now: input.now, date: input.date, timeZone: input.timeZone }),
           isMainGoal: task.mainGoalDate === occurrenceDate && occurrenceDate === input.date, priority: task.priority,
         };
-        add(item, offset === 0);
+        add(item, occurrenceDate === input.date || inDay(timing.due, input.date, input.timeZone));
       }
       continue;
     }
