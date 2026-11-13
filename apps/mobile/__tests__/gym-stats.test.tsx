@@ -35,3 +35,31 @@ it('logs today\'s body weight in the program unit and validates the value', asyn
   await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Save' })); });
   expect(save).toHaveBeenCalledWith({ path: '/gym/body-weight/2026-10-23', method: 'PUT', body: { weight: 78.6, unit: 'kg' } });
 });
+
+// Regression: persisted weigh-ins retain their original unit when the program's
+// display unit changes. The input placeholder must convert just like Latest.
+// Expected values follow the existing nearest-half-unit conversion convention.
+it.each([
+  { savedUnit: 'kg', savedWeight: 70, displayUnit: 'lb', expected: '154.5' },
+  { savedUnit: 'lb', savedWeight: 154, displayUnit: 'kg', expected: '70' },
+] as const)('converts today\'s saved $savedUnit weight when the display changes to $displayUnit',
+    ({ savedUnit, savedWeight, displayUnit, expected }) => {
+      const bodyWeights = [{ date: '2026-10-23', weight: savedWeight, unit: savedUnit }];
+      const data = { enrollment: { programId: 'upper-lower', unit: savedUnit, weeklyTarget: 2, trackRir: false },
+        exercises: [], programs: [], workouts: [], bodyWeights };
+      jest.mocked(useGym).mockReturnValue({ isLoading: false, data } as unknown as ReturnType<typeof useGym>);
+      const { rerender } = render(<GymStats/>);
+      expect(screen.getByLabelText(`Today's weight in ${savedUnit}`)).toHaveProp('placeholder', String(savedWeight));
+
+      // Simulate the refreshed enrollment after changing units in program settings.
+      // Saved weight data must keep its original value and unit.
+      jest.mocked(useGym).mockReturnValue({ isLoading: false,
+        data: { ...data, enrollment: { ...data.enrollment, unit: displayUnit } },
+      } as unknown as ReturnType<typeof useGym>);
+      rerender(<GymStats/>);
+
+      expect(screen.getByText(`Latest ${expected} ${displayUnit}`)).toBeOnTheScreen();
+      expect(screen.getByLabelText(`Today's weight in ${displayUnit}`)).toHaveProp('placeholder', expected);
+      expect(save).not.toHaveBeenCalled();
+    });
+
