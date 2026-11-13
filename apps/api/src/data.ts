@@ -1,4 +1,4 @@
-import { eventRange, selectEvents } from './integrations/events/event-query';
+import { eventRange, selectEvents, withoutRepeatedListings } from './integrations/events/event-query';
 import { createHash, randomUUID } from 'node:crypto';
 import { assessmentGroupLimit, assessmentLimit, courseAssessmentMax, createAssessmentGroupSchema, createAssessmentSchema, updateAssessmentGroupSchema, updateAssessmentSchema, createCourseSchema, createManualAcademicItemSchema, manualCourseLimit, manualCourseSource, updateCourseSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
 import { campusEventSchema } from '@campusflow/contracts';
@@ -576,7 +576,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
      OR: [{ sourceScope: 'public' }, { sourceScope: `user:${u.id}` }],
      ...(query.category ? { category: query.category } : {}),
    }, include: { savedBy: { where: { userId: u.id } } } });
-   return selectEvents(rows.map(r => campusEventSchema.parse({ ...eventDto(r), saved: r.savedBy.length > 0, includedInPlan: r.savedBy[0]?.includedInPlan ?? false, savedReminder: r.savedBy[0]?.reminder ?? null })), range, u.timeZone);
+   return selectEvents(withoutRepeatedListings(rows.map(r => campusEventSchema.parse({ ...eventDto(r), saved: r.savedBy.length > 0, includedInPlan: r.savedBy[0]?.includedInPlan ?? false, savedReminder: r.savedBy[0]?.reminder ?? null }))), range, u.timeZone);
  }
  @Put(':id/saved') async save(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(saveEventSchema)) b: z.infer<typeof saveEventSchema>) {
    return this.prisma.$transaction(async tx => {

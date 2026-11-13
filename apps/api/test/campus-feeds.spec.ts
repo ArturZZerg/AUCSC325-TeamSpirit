@@ -4,8 +4,9 @@ import { Prisma } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma.service';
-import { CAMPUS_FEEDS, configuredCampusFeeds } from '../src/integrations/events/campus-feeds';
+import { CAMPUS_FEEDS, campusWideSource, configuredCampusFeeds } from '../src/integrations/events/campus-feeds';
 import { CampusFeedsService } from '../src/integrations/events/campus-feeds.service';
+import { withoutRepeatedListings } from '../src/integrations/events/event-query';
 import { EventSyncService } from '../src/integrations/events/event-sync.service';
 import { IcsEventProvider } from '../src/integrations/events/ics-event-provider';
 import { calendar, vevent } from './fixtures/campus-calendar';
@@ -14,7 +15,32 @@ describe('reviewed campus source configuration', () => {
   it('disables network by default and rejects unknown modes and user URLs', () => {
     expect(configuredCampusFeeds('disabled')).toEqual([]);
     expect(() => configuredCampusFeeds('https://example.org/feed')).toThrow();
-    expect(configuredCampusFeeds('augustana').map(feed => feed.source)).toEqual(['campus:augustana-recreation', 'campus:augustana-breakout']);
+    expect(configuredCampusFeeds('augustana').map(feed => feed.source)).toEqual(['campus:augustana-recreation', 'campus:augustana-breakout', 'campus:augustana-careers', campusWideSource]);
+  });
+  it('gives every reviewed source a campus-local schedule and a public website', () => {
+    for (const feed of configuredCampusFeeds('augustana')) {
+      expect(feed.timeZone).toBe('America/Edmonton');
+      expect(new URL(feed.website).protocol).toBe('https:');
+    }
+  });
+});
+describe('listings repeated on the campus-wide calendar', () => {
+  const listing = (id: string, source: string, overrides = {}) => ({ id, source, saved: false, externalId: id, title: 'Rapid Resume Reviews', description: null, category: null, location: null, url: null,
+    timing: { kind: 'timed' as const, startsAt: '2026-11-04T16:45:00Z', endsAt: null }, ...overrides });
+  const ids = (...events: ReturnType<typeof listing>[]) => withoutRepeatedListings(events).map(event => event.id);
+  it('keeps the specific source and hides the campus-wide copy, ignoring case and spacing', () => {
+    expect(ids(listing('wide', campusWideSource, { title: ' rapid resume reviews ' }), listing('careers', 'campus:augustana-careers'))).toEqual(['careers']);
+  });
+  it('matches all-day listings by date', () => {
+    const allDay = { timing: { kind: 'allDay' as const, startDate: '2026-11-11', endDateExclusive: '2026-11-12' } };
+    expect(ids(listing('wide', campusWideSource, allDay), listing('rec', 'campus:augustana-recreation', allDay))).toEqual(['rec']);
+  });
+  it('keeps campus-wide listings at another time or under another title', () => {
+    expect(ids(listing('wide', campusWideSource, { timing: { kind: 'timed', startsAt: '2026-11-18T16:45:00Z', endsAt: null } }), listing('careers', 'campus:augustana-careers'))).toEqual(['wide', 'careers']);
+    expect(ids(listing('wide', campusWideSource, { title: 'Crafternoon' }), listing('careers', 'campus:augustana-careers'))).toEqual(['wide', 'careers']);
+  });
+  it('never hides a copy the student saved', () => {
+    expect(ids(listing('wide', campusWideSource, { saved: true }), listing('careers', 'campus:augustana-careers'))).toEqual(['wide', 'careers']);
   });
 });
 const databaseSuite = process.env.DATABASE_URL ? describe : describe.skip;

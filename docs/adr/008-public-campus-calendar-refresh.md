@@ -1,6 +1,6 @@
 # ADR 008 — Reviewed public campus calendars
 
-Status: Accepted
+Status: Accepted; extended by [ADR 026](026-campus-wide-event-feeds.md)
 
 Date: 2026-10-10
 
