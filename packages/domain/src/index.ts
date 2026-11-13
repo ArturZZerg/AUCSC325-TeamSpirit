@@ -34,7 +34,7 @@ export const dayBounds = (date: DateOnly, timeZone: string): { start: string; en
 export const localDateAt = (instant: string, timeZone: string): DateOnly => Temporal.Instant.from(instant).toZonedDateTimeISO(timeZone).toPlainDate().toString();
 /** Explicit wall-clock input must identify one instant; reject DST gaps and overlaps. */
 export const instantAtLocalTime = (date: DateOnly, time: string, timeZone: string): string =>
-    Temporal.PlainDateTime.from(`${date}T${time}`).toZonedDateTime(timeZone, { disambiguation: 'reject' }).toInstant().toString();
+  Temporal.PlainDateTime.from(`${date}T${time}`).toZonedDateTime(timeZone, { disambiguation: 'reject' }).toInstant().toString();
 export const localClockAt = (instant: string, timeZone: string): { date: DateOnly; time: string } => {
   const local = Temporal.Instant.from(instant).toZonedDateTimeISO(timeZone);
   return { date: local.toPlainDate().toString(), time: local.toPlainTime().toString({ smallestUnit: 'minute' }) };
@@ -58,7 +58,7 @@ export const taskAnchorDate = (task: Pick<PersonalTask, 'scheduled' | 'due'>, ti
   return anchor?.kind === 'instant' ? localDateAt(anchor.at, timeZone) : anchor?.date;
 };
 export const taskOccursOn = (task: Pick<PersonalTask, 'recurrence' | 'scheduled' | 'due'>, date: DateOnly, timeZone: string): boolean =>
-    occursOn(task.recurrence, taskAnchorDate(task, timeZone), date);
+  occursOn(task.recurrence, taskAnchorDate(task, timeZone), date);
 export const addCalendarDays = (date: DateOnly, days: number): DateOnly => plainDate(date).add({ days }).toString();
 /** Shift the template's local wall times, preserving deadline offsets and DST semantics. */
 export const taskOccurrenceTiming = (task: PersonalTask, date: DateOnly, timeZone: string): Pick<PersonalTask, 'scheduled' | 'due'> => {
@@ -66,14 +66,14 @@ export const taskOccurrenceTiming = (task: PersonalTask, date: DateOnly, timeZon
   if (!task.recurrence || !anchor) return { scheduled: task.scheduled, due: task.due };
   const days = plainDate(anchor).until(plainDate(date), { largestUnit: 'days' }).days;
   const shift = (value: TimedOrDate | undefined): TimedOrDate | undefined => !value ? undefined : value.kind === 'date'
-      ? { kind: 'date', date: addCalendarDays(value.date, days) }
-      : { kind: 'instant', at: Temporal.Instant.from(value.at).toZonedDateTimeISO(timeZone).add({ days }).toInstant().toString() };
+    ? { kind: 'date', date: addCalendarDays(value.date, days) }
+    : { kind: 'instant', at: Temporal.Instant.from(value.at).toZonedDateTimeISO(timeZone).add({ days }).toInstant().toString() };
   return { scheduled: shift(task.scheduled), due: shift(task.due) };
 };
 /** Current account day follows the goal's current local date; non-current
  * account-day views retain their existing account-midnight projection. */
 export const goalOccurrenceDate = (goalTimeZone: string, date: DateOnly, accountTimeZone: string, now: string): DateOnly =>
-    localDateAt(date === localDateAt(now, accountTimeZone) ? now : zonedStart(date, accountTimeZone).toInstant().toString(), goalTimeZone);
+  localDateAt(date === localDateAt(now, accountTimeZone) ? now : zonedStart(date, accountTimeZone).toInstant().toString(), goalTimeZone);
 export const goalOccursOn = (goal: Goal, date: DateOnly): boolean => goal.schedule.kind === 'daily' ? true : goal.schedule.kind === 'weekly' ? goal.schedule.weekdays.includes(plainDate(date).dayOfWeek) : false;
 /** Monday–Sunday progress through the supplied date in the goal's own timezone.
  * Count completed occurrence dates once; skips and future dates do not count.
@@ -82,7 +82,7 @@ export const weeklyGoalProgress = (goal: Pick<Goal, 'id' | 'schedule'>, history:
   if (goal.schedule.kind !== 'weeklyTarget') return undefined;
   const day = plainDate(date); const start = day.subtract({ days: day.dayOfWeek - 1 });
   const completedDates = new Set(history.filter(row => row.goalId === goal.id && row.state === 'completed'
-      && compareDate(row.occurrenceKey, start.toString()) >= 0 && compareDate(row.occurrenceKey, date) <= 0).map(row => row.occurrenceKey));
+    && compareDate(row.occurrenceKey, start.toString()) >= 0 && compareDate(row.occurrenceKey, date) <= 0).map(row => row.occurrenceKey));
   const completed = completedDates.size; const target = goal.schedule.target;
   return { weekStart: start.toString(), endExclusive: start.add({ days: 7 }).toString(), completed, target, reached: completed >= target };
 };
@@ -108,7 +108,7 @@ export const reminderFireAt = (target: TimedOrDate, leadMinutes: number, timeZon
 };
 /** Explicit configuration stays unchanged; snooze is a lower bound for delivery. */
 export const reminderAfterSnooze = (fireAt: string, snoozedUntil?: string | null): string => !snoozedUntil
-|| Temporal.Instant.compare(Temporal.Instant.from(snoozedUntil), Temporal.Instant.from(fireAt)) <= 0 ? fireAt : snoozedUntil;
+  || Temporal.Instant.compare(Temporal.Instant.from(snoozedUntil), Temporal.Instant.from(fireAt)) <= 0 ? fireAt : snoozedUntil;
 /** Delay delivery to the end of account-local quiet hours; source intent is unchanged.
  * The interval includes its start and excludes its end. Equal/missing bounds disable it.
  * Temporal's compatible disambiguation shifts a nonexistent DST end time forward.
@@ -127,7 +127,7 @@ export const reminderAfterQuietHours = (fireAt: string, timeZone: string, start:
   // In the repeated fall-back hour, the first end may precede the fire instant.
   // Pick the later end in that case so delaying never moves delivery backwards.
   return (Temporal.Instant.compare(earliest, Temporal.Instant.from(fireAt)) < 0
-      ? endLocal.toZonedDateTime(timeZone, { disambiguation: 'later' }).toInstant() : earliest).toString();
+    ? endLocal.toZonedDateTime(timeZone, { disambiguation: 'later' }).toInstant() : earliest).toString();
 };
 export const allDayEventOverlapsDay = (startDate: DateOnly, endDateExclusive: DateOnly, date: DateOnly): boolean => compareDate(startDate, date) <= 0 && compareDate(date, endDateExclusive) < 0;
 const inDay = (value: TimedOrDate | undefined, date: DateOnly, zone: string) => value ? value.kind === 'date' ? value.date === date : localDateAt(value.at, zone) === date : false;
@@ -156,8 +156,7 @@ export const composeToday = (input: TodayInput): TodayPlan => {
       for (let offset = 0; offset <= 7; offset++) {
         const date = addCalendarDays(input.date, offset);
         occurrenceDates.add(date);
-        // A prior scheduled occurrence can still have a deadline in this window.
-        // Invert the template's calendar offset instead of scanning its history.
+        // Also check the occurrence due on this day, scheduled deadlineOffset days earlier.
         if (deadlineOffset) occurrenceDates.add(addCalendarDays(date, -deadlineOffset));
       }
       for (const occurrenceDate of occurrenceDates) {
@@ -208,21 +207,21 @@ export const composeToday = (input: TodayInput): TodayPlan => {
 
 /** Actual timing in a half-open instant range; all-day dates use the reader's zone. */
 export const eventStartInstant = (timing: EventTiming, timeZone: string): string => timing.kind === 'timed'
-    ? timing.startsAt : dayBounds(timing.startDate, timeZone).start;
+  ? timing.startsAt : dayBounds(timing.startDate, timeZone).start;
 export const eventOverlapsRange = (timing: EventTiming, from: string | undefined, through: string | undefined, timeZone: string): boolean => {
   const start = eventStartInstant(timing, timeZone);
   const end = timing.kind === 'timed' ? timing.endsAt ?? start : dayBounds(timing.endDateExclusive, timeZone).start;
   const point = Temporal.Instant.compare(start, end) === 0;
   return (!through || Temporal.Instant.compare(start, through) < 0)
-      && (!from || Temporal.Instant.compare(point ? start : end, from) >= (point ? 0 : 1));
+    && (!from || Temporal.Instant.compare(point ? start : end, from) >= (point ? 0 : 1));
 };
 
 /** Academic date-only deadlines have no chosen delivery time. Retain intent upstream.
  * Lead minutes are elapsed time, not wall-clock days (including across DST). */
 export const academicReminderFireAt = (due: TimedOrDate | null | undefined, leadMinutes: number | null,
-                                       submissionState: string | null | undefined, active = true): string | null => {
+  submissionState: string | null | undefined, active = true): string | null => {
   if (leadMinutes === null || !active || due?.kind !== 'instant'
-      || submissionState === 'submitted' || submissionState === 'graded') return null;
+    || submissionState === 'submitted' || submissionState === 'graded') return null;
   const fireAt = Temporal.Instant.from(due.at).subtract({ minutes: leadMinutes }).toString();
   // Extreme lead times can precede year 0000. Such elapsed delivery cannot be
   // represented by the four-digit-year wire format and must not poison reads.
