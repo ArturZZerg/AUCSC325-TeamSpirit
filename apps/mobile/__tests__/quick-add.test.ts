@@ -28,6 +28,15 @@ describe('quick add parsing', () => {
     expect(parseQuickAdd('Review next friday', '2026-12-31').values.scheduledDate).toBe('2027-01-08');
   });
 
+  it('only reads a weekday as a date when it is used like one (#151)', () => {
+    expect(parseQuickAdd('Study for SAT', today, '2026-10-16')).toMatchObject({ title: 'Study for SAT', details: [], values: { scheduledDate: '2026-10-16' } });
+    expect(parseQuickAdd('Buy sun screen', today, '2026-10-16')).toMatchObject({ title: 'Buy sun screen', details: [], values: { scheduledDate: '2026-10-16' } });
+    expect(parseQuickAdd('Call mom on sun', today)).toMatchObject({ title: 'Call mom', values: { scheduledDate: '2026-10-18' } });
+    expect(parseQuickAdd('Brunch sat 11am with Sam', today)).toMatchObject({ title: 'Brunch with Sam', values: { scheduledDate: '2026-10-17', scheduledTime: '11:00' } });
+    expect(parseQuickAdd('Meet Saturday at the library', today).values).toMatchObject({ scheduledDate: '2026-10-17' });
+    expect(parseQuickAdd('Essay due fri 5pm', today).values).toMatchObject({ dueDate: '2026-10-16', dueTime: '17:00' });
+  });
+
   it('marks deadlines with due/by and combines date and time', () => {
     const parsed = parseQuickAdd('Essay draft due fri 5pm', today);
     expect(parsed.title).toBe('Essay draft');
@@ -35,6 +44,16 @@ describe('quick add parsing', () => {
     expect(parsed.values.scheduledMode).toBeUndefined();
     expect(parsed.details).toEqual([expect.stringMatching(/^Due Fri, Oct 16 · 5:00\sPM$/)]);
     expect(parseQuickAdd('Submit lab by 11:59pm', today).values).toMatchObject({ dueMode: 'instant', dueDate: today, dueTime: '23:59' });
+  });
+
+  it('treats midnight as the end of the named day, not its start (#152)', () => {
+    const parsed = parseQuickAdd('Essay due fri midnight', today);
+    expect(parsed.title).toBe('Essay');
+    expect(parsed.values).toMatchObject({ dueMode: 'instant', dueDate: '2026-10-16', dueTime: '23:59' });
+    expect(parseQuickAdd('Essay due midnight', today).values).toMatchObject({ dueMode: 'instant', dueDate: today, dueTime: '23:59' });
+    expect(parseQuickAdd('Party sat midnight', today).values).toMatchObject({ scheduledMode: 'instant', scheduledDate: '2026-10-17', scheduledTime: '23:59' });
+    expect(parseQuickAdd('Lunch noon', today).values).toMatchObject({ scheduledTime: '12:00' });
+    expect(request('Essay due fri midnight')).toMatchObject({ due: { kind: 'instant', at: '2026-10-17T05:59:00Z' } });
   });
 
   it('parses month-day dates, rolling past dates into next year and rejecting impossible days', () => {
