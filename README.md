@@ -7,7 +7,8 @@ Android, NestJS for the API, and PostgreSQL through Prisma.
 Today opens with your progress for the day, one-tap shortcuts and a checklist of
 tasks, deadlines and routines. Type a task in plain language — `Essay due fri 5pm
 #uni !high 45m` — and quick add fills in the deadline, category, priority and
-estimate. Tasks are grouped by when they are due, routines track streaks with a
+estimate; `daily`, `every mon wed` or `every 2 weeks sat` makes it repeat.
+Tasks are grouped by when they are due, routines track streaks with a
 seven-day strip, the month calendar shows every dated task, deadline and saved
 campus event, and an optional morning overview opens Today. The app follows the
 system light or dark appearance, meets WCAG AA colour contrast in both, works
