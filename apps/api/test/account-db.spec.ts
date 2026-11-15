@@ -40,6 +40,7 @@ databaseSuite('Account export and erasure with disposable PostgreSQL accounts', 
     const plan = await db.studyPlan.create({ data: { userId, academicItemId: academic.id, title: 'Essay preparation', requestKey: randomUUID(), requestHash: 'hidden-plan-hash' } });
     const task = await db.personalTask.create({ data: { userId, studyPlanId: plan.id, studyPlanOrder: 0, title: 'Private notes' } });
     await db.taskCompletion.create({ data: { userId, taskId: task.id, occurrenceKey: '2025-03-09' } });
+    await db.taskTemplate.create({ data: { userId, title: 'Prepare for lab', description: 'Private template', estimatedMinutes: 45, checklist: ['Read the manual', 'Pack goggles'] } });
     await db.classSchedule.create({ data: { userId, title: 'Psychology seminar', weekdays: [1], termStart: '2025-01-01', termEnd: '2025-04-30', startTime: '09:00', endTime: '10:00', timeZone: 'America/Edmonton' } });
     await db.focusSession.create({ data: { userId, taskId: task.id, title: 'Read', startedAt: new Date('2025-03-09T08:00:00Z'),
       endedAt: new Date('2025-03-09T08:25:00Z'), plannedMinutes: 25, focusedSeconds: 1500, outcome: 'completed', requestKey: randomUUID(), requestHash: 'hidden-focus-hash' } });
@@ -62,7 +63,8 @@ databaseSuite('Account export and erasure with disposable PostgreSQL accounts', 
     expect(response.headers['cache-control']).toBe('private, no-store');
     const data = accountExportSchema.parse(response.body);
     expect(data.profile).toMatchObject({ id: user.user.id, email: user.user.email });
-    for (const key of ['personalTasks', 'taskCompletions', 'courses', 'academicItems', 'classes', 'studyPlans', 'focusSessions', 'goals', 'goalCompletions', 'wellnessEntries', 'privateEvents', 'reminders'] as const) expect(data[key]).toHaveLength(1);
+    for (const key of ['personalTasks', 'taskCompletions', 'taskTemplates', 'courses', 'academicItems', 'classes', 'studyPlans', 'focusSessions', 'goals', 'goalCompletions', 'wellnessEntries', 'privateEvents', 'reminders'] as const) expect(data[key]).toHaveLength(1);
+    expect(data.taskTemplates[0]).toMatchObject({ title: 'Prepare for lab', description: 'Private template', estimatedMinutes: 45, checklist: ['Read the manual', 'Pack goggles'] });
     expect(data.savedEvents).toHaveLength(2); expect(data.notificationPreferences?.personalEnabled).toBe(true);
     expect(data.canvasConnection?.baseUrl).toBe('https://canvas.example.test');
     expect(data.privateEvents[0].id).not.toBe(publicEvent.id);
@@ -71,7 +73,7 @@ databaseSuite('Account export and erasure with disposable PostgreSQL accounts', 
   });
   it('exports an empty account without pretending it has device drafts', async () => {
     const user = await register(); const data = await account.export(user.user.id);
-    expect(data).toMatchObject({ coverage: 'server-saved', personalTasks: [], privateEvents: [], canvasConnection: null });
+    expect(data).toMatchObject({ coverage: 'server-saved', personalTasks: [], taskTemplates: [], privateEvents: [], canvasConnection: null });
     expect(JSON.stringify(data)).not.toContain('focusDraft');
   });
   it('withholds recovery material from export and erases linked and unbound recovery records for only the deleted owner', async () => {
@@ -125,7 +127,7 @@ databaseSuite('Account export and erasure with disposable PostgreSQL accounts', 
     const result = await remove(user).expect(200); expect(result.body).toEqual({ deleted: true });
     expect(result.headers['cache-control']).toBe('private, no-store');
     expect(await db.user.findUnique({ where: { id: user.user.id } })).toBeNull();
-    for (const model of [db.session, db.personalTask, db.studyPlan, db.focusSession, db.taskCompletion, db.course, db.classSchedule, db.academicItem, db.goal, db.goalCompletion, db.savedEvent, db.wellnessEntry, db.reminder, db.notificationPreference, db.canvasConnection]) {
+    for (const model of [db.session, db.personalTask, db.taskTemplate, db.studyPlan, db.focusSession, db.taskCompletion, db.course, db.classSchedule, db.academicItem, db.goal, db.goalCompletion, db.savedEvent, db.wellnessEntry, db.reminder, db.notificationPreference, db.canvasConnection]) {
       const count = await (model.count as unknown as (args: { where: { userId: string } }) => Promise<number>)({ where: { userId: user.user.id } }); expect(count).toBe(0);
     }
     expect(await db.event.count({ where: { sourceScope: `user:${user.user.id}` } })).toBe(0);

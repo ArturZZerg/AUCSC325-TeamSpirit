@@ -30,3 +30,6 @@ Editing reuses the template form. Deletion requires confirmation and removes
 only the owned template. Duplication opens a copied template draft named
 "Copy of ..." for review and uses the existing POST route, without an
 additional endpoint. Its default title stays within the shared title limit.
+
+Account export (`GET /me/export`) includes the user's templates, and account
+erasure removes them through the cascade on `User`.
