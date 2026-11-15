@@ -105,19 +105,35 @@ const weekdayNumbers = (list: string) => [...new Set((list.match(new RegExp(week
   .map(word => weekdays.findIndex(name => name.startsWith(word.toLowerCase().slice(0, 3))) + 1))].sort((a, b) => a - b);
 
 /**
+ * "daily", "weekly" and "weekdays" on their own are also ordinary title words ("Weekly report",
+ * "Read daily news"), so they only count after some title text, at the end of the text, right
+ * before a time, or (for "weekly") with a weekday list after it. "every ..." phrases always count.
+ */
+function takeRepeatWord(text: string, pattern: string): { rest: string; groups: string[] } | undefined {
+  const found = new RegExp(`(^|\\s)${pattern}(?=\\s|$)`, 'gi');
+  for (let match = found.exec(text); match; match = found.exec(text)) {
+    const before = text.slice(0, match.index), after = text.slice(match.index + match[0].length), listed = !!match[2];
+    if (before.trim() && (listed || !after.trim() || timeNext.test(after))) return { rest: `${before} ${after}`, groups: match.slice(2).map(value => value ?? '') };
+  }
+  return undefined;
+}
+
+/**
  * Repeat phrases: "daily", "every 2 days", "weekly", "every other week", "every 2 weeks sat",
  * "every mon wed" and "every weekday". Intervals follow the task form (1–365 days, 1–52 weeks);
  * anything outside them stays in the title. An empty weekday list means "the start day's weekday".
  */
 function parseRecurrence(text: string): { rest: string; repeat: Repeat } | undefined {
-  const workweek = take(text, '(?:every\\s+weekdays?|weekdays)');
+  const workweek = take(text, 'every\\s+weekdays?') ?? takeRepeatWord(text, 'weekdays');
   if (workweek) return { rest: workweek.rest, repeat: { mode: 'weekly', interval: 1, weekdays: [1, 2, 3, 4, 5] } };
-  const daily = take(text, '(?:daily|every\\s+day|every\\s+(\\d{1,3})\\s+days?)');
+  const daily = take(text, 'every\\s+(?:day|(\\d{1,3})\\s+days?)') ?? takeRepeatWord(text, 'daily');
   if (daily) {
     const interval = Number(daily.groups[0] || 1);
     return interval >= 1 && interval <= 365 ? { rest: daily.rest, repeat: { mode: 'daily', interval, weekdays: [] } } : undefined;
   }
-  const weekly = take(text, `(?:weekly|every\\s+(?:(other|\\d{1,2})\\s+)?weeks?)(?:\\s+(?:on\\s+)?${weekdayList})?`);
+  const bareWeekly = takeRepeatWord(text, `weekly(?:\\s+(?:on\\s+)?${weekdayList})?`);
+  const weekly = take(text, `every\\s+(?:(other|\\d{1,2})\\s+)?weeks?(?:\\s+(?:on\\s+)?${weekdayList})?`)
+    ?? (bareWeekly && { rest: bareWeekly.rest, groups: ['', ...bareWeekly.groups] });
   if (weekly) {
     const interval = weekly.groups[0].toLowerCase() === 'other' ? 2 : Number(weekly.groups[0] || 1);
     return interval >= 1 && interval <= 52 ? { rest: weekly.rest, repeat: { mode: 'weekly', interval, weekdays: weekdayNumbers(weekly.groups[1]) } } : undefined;

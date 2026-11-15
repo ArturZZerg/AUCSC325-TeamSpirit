@@ -112,6 +112,19 @@ describe('quick add parsing', () => {
       expect(parseQuickAdd('Buy groceries', today).values.recurrenceMode).toBeUndefined();
     });
 
+    it('only reads bare daily, weekly and weekdays as repeats at the end, before a time or before weekdays', () => {
+      for (const [input, title] of [['Weekly report due fri', 'Weekly report'], ['Read daily news', 'Read daily news'],
+        ['Daily standup notes', 'Daily standup notes'], ['Plan weekdays schedule', 'Plan weekdays schedule']]) {
+        const parsed = parseQuickAdd(input, today);
+        expect(parsed.title).toBe(title);
+        expect(parsed.values.recurrenceMode).toBeUndefined();
+      }
+      expect(parseQuickAdd('Gym daily 7am', today)).toMatchObject({ title: 'Gym', values: { recurrenceMode: 'daily', scheduledTime: '07:00' } });
+      expect(parseQuickAdd('Standup weekdays at 9am', today)).toMatchObject({ title: 'Standup', values: { weekdays: [1, 2, 3, 4, 5], scheduledTime: '09:00' } });
+      expect(parseQuickAdd('Review notes weekly fri', today)).toMatchObject({ title: 'Review notes', values: { recurrenceMode: 'weekly', weekdays: [5] } });
+      expect(parseQuickAdd('Daily standup notes every weekday', today)).toMatchObject({ title: 'Daily standup notes', values: { weekdays: [1, 2, 3, 4, 5] } });
+    });
+
     it('builds a valid recurring create request', () => {
       expect(request('Gym every mon wed 7am #gym')).toMatchObject({ title: 'Gym', recurrence: { frequency: 'weekly', interval: 1, weekdays: [1, 3] },
         scheduled: { kind: 'instant', at: '2026-10-14T13:00:00Z' } });
