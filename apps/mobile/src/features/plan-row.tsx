@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '@/components/ui';
 import type { PlanItem } from '@/lib/types';
@@ -15,9 +15,9 @@ const kindIcons: Record<PlanItem['kind'], IconName> = { academic: 'school-outlin
 /** Optional context joined from cached lists; absent data simply hides the extra detail. */
 export type PlanRowContext = { course?: { label: string; color: string }; steps?: { done: number; total: number } };
 
-export function PlanRow({ item, timeZone, date, isCurrentDay, disabled, pendingAction, error, onAction, context }: {
+export function PlanRow({ item, timeZone, date, isCurrentDay, disabled, pendingAction, error, onAction, context, children }: {
   item: PlanItem; timeZone: string; date: string; isCurrentDay: boolean; disabled: boolean;
-  pendingAction?: PlanAction; error?: string; onAction: (action: PlanAction) => void; context?: PlanRowContext;
+  pendingAction?: PlanAction; error?: string; onAction: (action: PlanAction) => void; context?: PlanRowContext; children?: ReactNode;
 }) {
   const work = item.kind === 'personalTask' || item.kind === 'goal';
   const canComplete = work && item.allowedActions.includes('complete');
@@ -52,6 +52,7 @@ export function PlanRow({ item, timeZone, date, isCurrentDay, disabled, pendingA
         {!!context?.steps?.total && <Text style={styles.meta} accessibilityLabel={`${context.steps.done} of ${context.steps.total} steps done`}>{context.steps.done}/{context.steps.total} steps</Text>}
       </View>
     </View>
+    {children}
     {(canFocus || canSkip || canSnooze) && <View style={styles.actions}>
       {canFocus && <Chip icon="timer-outline" label="Focus on this" disabled={disabled} onPress={() => onAction('focus')}/>}
       {canSkip && <Chip icon="play-skip-forward-outline" label={pendingAction === 'skip' ? 'Saving…' : 'Skip today'} disabled={disabled} onPress={() => onAction('skip')}/>}

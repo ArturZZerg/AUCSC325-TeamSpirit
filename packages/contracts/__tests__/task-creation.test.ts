@@ -12,3 +12,11 @@ describe('Optional PersonalTask creation identity', () => {
     expect(updatePersonalTaskSchema.safeParse({ title: 'Changed', requestKey: 'task-request-12345' }).success).toBe(false);
   });
 });
+
+it('accepts initial checklist steps while keeping them out of task PATCH', () => {
+  const step = { id: '10000000-0000-4000-8000-000000000001', title: 'Read notes' };
+  expect(createPersonalTaskRequestSchema.parse({ title: 'Lab', checklist: [step] }).checklist).toEqual([step]);
+  expect(createPersonalTaskRequestSchema.safeParse({ title: 'Lab', checklist: [{ ...step, title: '' }] }).success).toBe(false);
+  expect(createPersonalTaskRequestSchema.safeParse({ title: 'Lab', checklist: Array(31).fill(step) }).success).toBe(false);
+  expect(updatePersonalTaskSchema.safeParse({ checklist: [step] }).success).toBe(false);
+});

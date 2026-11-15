@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { academicItemSchema, academicReminderConfigurationSchema, campusEventSchema, canvasConnectionStatusSchema, completePersonalTaskSchema, courseSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
+import { taskTemplateSchema } from '@campusflow/contracts';
 import { goalOccurrenceDate } from '@campusflow/domain';
 import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
@@ -23,6 +24,7 @@ import { acceptTaskReminderRead, filterTaskReminders, loadTaskReminderSuppressio
 import { suppressConfirmedTaskReminders } from '@/services/reminders';
 
 const schemas = {
+  taskTemplates: taskTemplateSchema.array(),
   courses: courseSchema.array(),
   classes: classScheduleSchema.array(),
   tasks: personalTaskSchema.array(), academic: academicItemSchema.array(), goals: goalSchema.array(),
@@ -133,6 +135,7 @@ export function useToday(selectedDate?: string) {
   return { ...query, data, refetch, isRefetching: query.isRefetching || snapshot.isRefetching,
     isLoading: query.isLoading && data === undefined, date, timeZone };
 }
+export const useTaskTemplates = () => cachedQuery('taskTemplates', '/task-templates', schemas.taskTemplates);
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
 export function useFocusHistory(from: string, through: string) {
   const session = useSessionStore(state => state.session);

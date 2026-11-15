@@ -1,9 +1,10 @@
+import { ZodError } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { categorySchema, dateSchema, personalTaskSchema, prioritySchema } from '@campusflow/contracts';
+import { categorySchema, checklistLimit, createChecklistItemSchema, createPersonalTaskRequestSchema, dateSchema, personalTaskSchema, prioritySchema } from '@campusflow/contracts';
 import { Button, Field, colors } from '@/components/ui';
 import { useAction } from '@/features/queries';
 import { taskFormDefaults, taskFormRequest, taskFormSchema, taskTimingLabel, type TaskFormValues } from '@/features/task-form';
@@ -12,6 +13,7 @@ import { api, ApiError } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
 import { taskCredentialsGeneration, taskOwnershipGeneration, taskOwnerCurrent, taskEditBaseline, taskEditBaselineCurrent, useTaskEditRevision, type TaskEditBaseline } from './task-edit-freshness';
 import { courseLabel } from '@/features/course-label';
+import { newStepId } from '@/features/task-checklist';
 import { SheetModal } from '@/components/sheet-modal';
 
 type EditorProps = {
@@ -19,6 +21,7 @@ type EditorProps = {
   /** When supplied, the editor offers a course picker; otherwise the saved course is kept unchanged. */
   courses?: readonly Course[];
   initialScheduledDate?: string;
+  initialChecklist?: readonly string[];
   onSaved?: () => void;
 };
 export function TaskEditor(props: EditorProps) {
@@ -78,12 +81,14 @@ function ExistingTaskEditor({ task, onClose, initialScheduledDate, onSaved, cour
 
 // The form is separate so field validation tests can isolate it from the online
 // gate. Production existing-task entry points always use TaskEditor above.
-export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initialValues, initialScheduledDate, baseline, stale = false, freshnessMessage, reload, loading, courses }: EditorProps & {
+export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initialValues, initialChecklist, initialScheduledDate, baseline, stale = false, freshnessMessage, reload, loading, courses }: EditorProps & {
   baseline?: TaskEditBaseline; stale?: boolean; freshnessMessage?: string; reload?: () => void; loading?: boolean;
 }) {
   const action = useAction();
   const saving = useRef(false);
   const [message, setMessage] = useState<string>();
+  const [checklist, setChecklist] = useState(() => (initialChecklist ?? []).map(title => ({ id: newStepId(), title })));
+  const [creationKey] = useState(newStepId);
   const { control, handleSubmit, watch, reset, getValues, setValue, formState: { errors, isSubmitting, dirtyFields } } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema(task, timeZone)),
     defaultValues: { ...taskFormDefaults(task, timeZone), ...(!task ? initialValues : undefined) },
@@ -124,12 +129,18 @@ export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initi
     const confirmationOwnership = taskOwnershipGeneration(), confirmationCredentials = taskCredentialsGeneration();
     try {
       if (baseline && !taskEditBaselineCurrent(baseline)) throw new Error('Reload the task before saving.');
-      await action.mutateAsync({ ...taskFormRequest(values, task, timeZone), ...(baseline ? { taskEditBaseline: baseline } : {}) });
+      const request = taskFormRequest(values, task, timeZone);
+      if (!task && initialChecklist !== undefined) {
+        if (values.recurrenceMode !== 'none' && checklist.length) throw new Error('Repeating tasks can’t have steps. Add steps to a one-time task.');
+        const steps = createChecklistItemSchema.array().max(checklistLimit).parse(checklist);
+        request.body = createPersonalTaskRequestSchema.parse({ ...request.body, checklist: steps, requestKey: creationKey });
+      }
+      await action.mutateAsync({ ...request, ...(baseline ? { taskEditBaseline: baseline } : {}) });
       if (confirmationOwner && taskOwnerCurrent(confirmationOwner) && taskOwnershipGeneration() === confirmationOwnership
         && taskCredentialsGeneration() === confirmationCredentials) onSaved?.();
       onClose();
     }
-    catch (error) { setMessage(error instanceof TypeError ? 'Couldn’t confirm the save. Check your connection and saved tasks before retrying.'
+    catch (error) { setMessage(error instanceof ZodError ? error.issues[0].message : error instanceof TypeError ? 'Couldn’t confirm the save. Check your connection and saved tasks before retrying.'
       : error instanceof Error ? error.message : 'Could not save the task. Please try again.'); }
   };
   const submit = async () => {
@@ -156,6 +167,17 @@ export function TaskEditorForm({ task, onClose, onSaved, timeZone = 'UTC', initi
           <Controller name="title" control={control} render={({ field }) => <Field testID="task-title" label="Title" value={field.value} onChangeText={field.onChange} editable={!blocked}/>}/>
           <Controller name="description" control={control} render={({ field }) => <Field label="Description" value={field.value} onChangeText={field.onChange} editable={!blocked} multiline/>}/>
           <Controller name="estimatedMinutes" control={control} render={({ field }) => <Field label="Estimated minutes (optional)" value={field.value} onChangeText={field.onChange} keyboardType="number-pad" placeholder="e.g. 30" editable={!blocked}/>}/>
+          {!task && initialChecklist !== undefined && <View style={styles.group}>
+            <Text style={styles.label}>Checklist</Text>
+            {checklist.map((step, index) => <View key={step.id} style={styles.group}>
+              <Field label={'Checklist step ' + (index + 1)} value={step.title} editable={!blocked}
+                onChangeText={title => setChecklist(steps => steps.map(item => item.id === step.id ? { ...item, title } : item))}/>
+              <Button title={'Remove step ' + (index + 1)} tone="plain" disabled={blocked}
+                onPress={() => setChecklist(steps => steps.filter(item => item.id !== step.id))}/>
+            </View>)}
+            <Button title="Add step" tone="plain" disabled={blocked || checklist.length >= checklistLimit}
+              onPress={() => setChecklist(steps => [...steps, { id: newStepId(), title: '' }])}/>
+          </View>}
           <Text style={styles.meta}>Use 1–1440 whole minutes. Leave blank to remove the estimate.</Text>
           <Controller name="dueMode" control={control} render={({ field }) => <Choices label="Deadline" value={field.value} onChange={field.onChange} disabled={blocked}
             options={[{ value: 'none', label: 'No deadline' }, { value: 'date', label: 'Date only' }, { value: 'instant', label: 'Timed deadline' }, ...(task?.due?.kind === 'instant' ? [{ value: 'existing', label: 'Keep timed deadline' }] : [])]}/>}/>
