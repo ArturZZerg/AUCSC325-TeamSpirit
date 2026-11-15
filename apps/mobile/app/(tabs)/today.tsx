@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Card, Screen, State, colors } from '@/components/ui';
 import { useAcademic, useAction, useCourses, useTasks, useToday } from '@/features/queries';
 import { courseColor } from '@/features/course-editor';
-import { checklistProgress } from '@/features/task-checklist';
+import { TaskChecklist, checklistProgress } from '@/features/task-checklist';
 import { ExamCountdown } from '@/features/exam-countdown';
 import { upcomingExams } from '@/features/exams';
 import { upNext } from '@/features/up-next';
@@ -99,9 +99,16 @@ export default function TodayScreen() {
   const nextDue = next ? `${next.title}${nextTiming ? ` · ${nextTiming.replace(/^Due /, '')}` : ''}` : undefined;
   const setupDone = (academic.data?.some(entry => !(entry.source ?? '').includes('fixture')) ?? false) || (tasks.data?.length ?? 0) > 0;
   const blocked = !!pending || action.isPending;
-  const row = (item: PlanItem) => <PlanRow key={item.key} item={item} timeZone={query.timeZone} date={date} isCurrentDay={isCurrentDay}
+  const row = (item: PlanItem) => {
+    const task = item.kind === 'personalTask' ? tasks.data?.find(task => task.id === item.entityId) : undefined;
+    return <PlanRow key={item.key} item={item} timeZone={query.timeZone} date={date} isCurrentDay={isCurrentDay}
     disabled={blocked} pendingAction={pending?.key === item.key ? pending.action : undefined}
-    error={failure?.key === item.key ? failure.message : undefined} onAction={selected => { void run(item, selected); }} context={contextFor(item)}/>;
+    error={failure?.key === item.key ? failure.message : undefined} onAction={selected => { void run(item, selected); }} context={contextFor(item)}>
+      {task && !task.recurrence && !task.completedAt && item.occurrenceKey === null
+        && item.allowedActions.includes('complete') && !!task.checklist?.length
+        && <View style={styles.checklist}><TaskChecklist task={task} disabled={blocked}/></View>}
+    </PlanRow>;
+  };
 
   return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}
     aria-hidden={!!taskDraft} accessibilityElementsHidden={!!taskDraft} importantForAccessibility={taskDraft ? 'no-hide-descendants' : 'auto'}
@@ -188,6 +195,7 @@ function Section({ title, count }: { title: string; count: number }) {
 }
 
 const styles = StyleSheet.create({
+  checklist: { paddingLeft: 42 },
   content: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
   heading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }, headingCopy: { flex: 1, gap: 2 },
   kicker: { color: colors.muted, fontWeight: '700', fontSize: 13, letterSpacing: .3 },
