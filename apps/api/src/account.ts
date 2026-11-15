@@ -16,6 +16,8 @@ const accountFields = {
     scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, completedAt: true, snoozedUntil: true,
     mainGoalDate: true, checklist: true, courseId: true, createdAt: true, updatedAt: true } },
   taskCompletions: { select: { taskId: true, occurrenceKey: true, completedAt: true } },
+  taskTemplates: { select: { id: true, title: true, description: true, estimatedMinutes: true, checklist: true, createdAt: true, updatedAt: true },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
   courses: { select: { id: true, externalId: true, source: true, name: true, code: true, active: true, color: true, assessments: true, assessmentGroups: true, targetGrade: true } },
   academicItems: { select: { id: true, courseId: true, title: true, kind: true, due: true, submissionState: true,
     source: true, externalId: true, mainGoalDate: true, updatedAt: true, reminderLeadMinutes: true } },

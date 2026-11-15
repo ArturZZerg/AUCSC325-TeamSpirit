@@ -1,11 +1,11 @@
 import { accountDeletedSchema, accountExportSchema, deleteAccountSchema } from '../src/index';
 const profile = { id: '10000000-0000-4000-8000-000000000001', email: 'student@example.test', displayName: 'Student', timeZone: 'America/Edmonton', createdAt: '2025-03-09T08:00:00Z' };
 const copy = { format: 'campusflow-account', version: 1, capturedAt: profile.createdAt, coverage: 'server-saved', profile,
-  personalTasks: [], taskCompletions: [], courses: [], academicItems: [], classes: [], studyPlans: [], focusSessions: [], gymEnrollment: null, workouts: [], userExercises: [], userPrograms: [], bodyWeights: [], nutritionProfile: null, userFoods: [], foodEntries: [], goals: [],
+  personalTasks: [], taskCompletions: [], taskTemplates: [], courses: [], academicItems: [], classes: [], studyPlans: [], focusSessions: [], gymEnrollment: null, workouts: [], userExercises: [], userPrograms: [], bodyWeights: [], nutritionProfile: null, userFoods: [], foodEntries: [], goals: [],
   goalCompletions: [], wellnessEntries: [], privateEvents: [], savedEvents: [], reminders: [], notificationPreferences: null, canvasConnection: null };
 it('accepts a complete versioned empty export and rejects unsupported or partial copies', () => {
   expect(accountExportSchema.parse(copy)).toEqual(copy);
-  for (const change of [{ version: 2 }, { coverage: 'all-devices' }, { personalTasks: undefined }, { capturedAt: 'yesterday' }]) expect(accountExportSchema.safeParse({ ...copy, ...change }).success).toBe(false);
+  for (const change of [{ version: 2 }, { coverage: 'all-devices' }, { personalTasks: undefined }, { taskTemplates: undefined }, { capturedAt: 'yesterday' }]) expect(accountExportSchema.safeParse({ ...copy, ...change }).success).toBe(false);
 });
 it('rejects internal fields in the export boundary', () => {
   for (const change of [{ sessions: [] }, { profile: { ...profile, passwordHash: 'secret' } },
