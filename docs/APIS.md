@@ -1,18 +1,24 @@
 # Data sources
 
-Each source was checked before features were built on it. All test requests
-below were made from the production server (95.217.239.38) on 2026-10-18.
+Each source was checked before features were built on it. Test requests were
+made from the production server (95.217.239.38) on 2026-10-18, except the Career
+Services and Campus Events calendars, checked from a development machine on
+2026-11-02.
 
 | Source | Endpoint | Auth | Result | Used for |
 | --- | --- | --- | --- | --- |
 | Augustana Recreation calendar | `https://calendar.google.com/calendar/ical/c_0051f706…4c0b%40group.calendar.google.com/public/basic.ics` | None (public Google Calendar) | 200 `text/calendar`, 5.4 KB, 12 VEVENTs | Campus events |
 | Augustana Thursday Night Breakout | `https://calendar.google.com/calendar/ical/c_e0e496be…f220%40group.calendar.google.com/public/basic.ics` | None | 200 `text/calendar`, 6.1 KB, 7 VEVENTs | Campus events |
+| Augustana Career Services | `https://calendar.google.com/calendar/ical/c_bc6eea78…09f2%40group.calendar.google.com/public/basic.ics` | None | 200 `text/calendar`, 278 KB, 209 VEVENTs | Campus events |
+| Augustana Campus Events (feeds MyUAlberta) | `https://calendar.google.com/calendar/ical/ualberta.ca_00bl3a1v…4g%40group.calendar.google.com/public/basic.ics` | None | 200 `text/calendar`, 3.8 MB, 5,893 VEVENTs, about 9 s | Campus events |
 | Canvas LMS | Institution Canvas REST/OAuth | OAuth developer key | Not available: institutional approval unverified | Fixtures only; production disabled |
 | Open-Meteo (Camrose) | `https://api.open-meteo.com/v1/forecast?latitude=53.01&longitude=-112.82&current=temperature_2m` | None (free, non-commercial, CC BY 4.0) | 200 | Not used; candidate only |
 
 Full calendar IDs live in `apps/api/src/integrations/events/campus-feeds.ts`.
-They were found linked from the public
-[Campus Rec programming page](https://www.ualberta.ca/en/augustana/student-life/campus-recreation/campus-rec-programming.html).
+The recreation calendars were found linked from the public
+[Campus Rec programming page](https://www.ualberta.ca/en/augustana/student-life/campus-recreation/campus-rec-programming.html);
+Career Services populates uab.ca/augcs. Limits for these larger feeds are in
+[ADR 026](adr/026-campus-wide-event-feeds.md).
 
 ## Rules and risks
 

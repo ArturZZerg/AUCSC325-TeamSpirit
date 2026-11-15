@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- More campus events (ADR 026): the Augustana Campus Events calendar (the one
+  behind MyUAlberta) and Career Services now appear on Campus. Monthly and yearly
+  events are supported for these feeds. A listing that Campus Events repeats from
+  a more specific calendar shows once.
+
 - Accessibility: colours meet WCAG AA contrast in light and dark mode (dark mode
   now uses dark text on accents), editors open without sliding when Reduce
   Motion or Remove animations is on, small controls reach 44-point touch

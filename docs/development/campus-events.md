@@ -1,6 +1,7 @@
 # Campus event ingestion (Task 2)
 
-LIVE CAMPUS EVENT SOURCE: verified public Augustana recreation exports, 2026-10-10.
+LIVE CAMPUS EVENT SOURCE: verified public Augustana recreation exports, 2026-10-10;
+Career Services and Campus Events exports, 2026-11-02.
 Production activation requires the CampusFeedState migration and explicit
 configuration described below. Event UUIDs, the unique
 `(source, sourceScope, externalId)` key and SavedEvent remain unchanged.
@@ -54,7 +55,12 @@ not alter identity. A publisher that changes the recurrence identity itself
 without RECURRENCE-ID is describing a different recurrence set; inferred matching
 by title/location is intentionally avoided.
 
-Unsupported forms (including MONTHLY/YEARLY rules, subdaily frequencies,
+Reviewed campus feeds also support MONTHLY (numbered BYDAY such as 4TU or -1FR,
+or the start's day of the month) and YEARLY (the start's date) through the
+`calendarRules` option; see [ADR 026](../adr/026-campus-wide-event-feeds.md).
+Without that option these rules are unsupported.
+
+Unsupported forms (including other MONTHLY/YEARLY rules, subdaily frequencies,
 BYSETPOS, DURATION, EXRULE, RANGE=THISANDFUTURE, detached exceptions without a
 master, conflicting duplicate masters) yield an incomplete batch, never a
 best-guess schedule. Duplicate source versions are not arbitrarily selected by
@@ -64,6 +70,11 @@ Limits: 1 MiB decoded payload, 2,000 VEVENTs/output records, 20,000 total recurr
 day steps, component depth 4, coverage at most 366 days. Hitting a bound invalidates
 the whole batch. An ancient unbounded series may exceed the step budget and require
 a provider enhancement before that feed is usable. Default load timeout is 5s.
+
+The reviewed catalog in `campus-feeds.ts` raises these for its larger exports: 8 MiB,
+10,000 VEVENTs and a 20s timeout. It also sets `pastDays: 30`, which ignores series
+that ended more than 30 days before coverage and starts series without COUNT just
+before coverage. Entries in the remaining window stay all-or-nothing.
 HTTPS transport refuses redirects, credentials in URLs, noncalendar MIME,
 unsuccessful statuses, overlarge declared or streamed bodies and invalid UTF-8.
 Only operator-approved public HTTPS sources should be configured; it is not a
@@ -130,7 +141,10 @@ readable with reminder editing unavailable until refresh.
 
 [ADR 008](../adr/008-public-campus-calendar-refresh.md) enables two public calendars
 linked by the [university recreation programming page](https://www.ualberta.ca/en/augustana/student-life/campus-recreation/campus-rec-programming.html).
-Exports and complete normalized batches were verified on 2026-10-10. The fixed
+Exports and complete normalized batches were verified on 2026-10-10.
+[ADR 026](../adr/026-campus-wide-event-feeds.md) adds Career Services and Campus
+Events, verified on 2026-11-02. `GET /events` hides an unsaved Campus Events listing
+when another source has the same title and start. The fixed
 catalog is in `campus-feeds.ts`; clients cannot submit URLs. Apply migration
 `20261011000000_campus_feed_state`, then set `CAMPUS_CALENDARS=augustana` and restart
 the API. Leave `disabled` when this campus source is not appropriate.
