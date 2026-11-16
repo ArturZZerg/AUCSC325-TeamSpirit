@@ -83,4 +83,14 @@ databaseSuite('Nutrition diary, goals and dining hall', () => {
     expect(dish).toMatchObject({ siteKcal: 55, kind: 'meat', serving: { nutrients: { kcal: 55 } } });
     expect((await client().get('/nutrition/dining/2026-10-20').set('Authorization', token).expect(200)).body).toMatchObject({ published: false, meals: [] });
   });
+  it('rolls the Monday–Sunday week up for the signed-in account only', async () => {
+    const plate = { kcal: 700, protein: 7, fat: 0, carbs: 0, fiber: 0 };
+    await client().post('/nutrition/entries').set('Authorization', token).send(entry({ date: '2026-11-03', meal: 'breakfast', nutrients: plate })).expect(201);
+    await client().post('/nutrition/entries').set('Authorization', token).send(entry({ date: '2026-11-04', meal: 'lunch', nutrients: plate })).expect(201);
+    const week = await client().get('/nutrition/week/2026-11-05').set('Authorization', token).expect(200);
+    expect(week.body).toMatchObject({ start: '2026-11-02', through: '2026-11-08', totals: { kcal: 1400 }, average: { kcal: 200 } });
+    expect(week.body.days).toHaveLength(7);
+    expect(week.body.days.filter((day: { entries: number }) => day.entries > 0)).toHaveLength(2);
+    expect((await client().get('/nutrition/week/2026-11-05').set('Authorization', otherToken).expect(200)).body.totals.kcal).toBe(0);
+  });
 });

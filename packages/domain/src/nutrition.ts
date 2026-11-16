@@ -1,3 +1,5 @@
+import { Temporal } from '@js-temporal/polyfill';
+
 /** Nutrition rules (ADR 023). Pure: no food table, no I/O. */
 export interface Nutrients { kcal: number; protein: number; fat: number; carbs: number; fiber: number }
 export type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -47,3 +49,32 @@ export const diningVisible = (setting: DiningSetting, courseCodes: readonly (str
 
 /** The meal a log time most likely belongs to, in account-local minutes since midnight. */
 export const mealAt = (minutes: number): Meal => minutes < 10 * 60 + 30 ? 'breakfast' : minutes < 15 * 60 ? 'lunch' : minutes < 21 * 60 ? 'dinner' : 'snack';
+
+export interface NutritionWeekDay { date: string; nutrients: Nutrients; entries: number }
+export interface NutritionWeek { start: string; through: string; days: NutritionWeekDay[]; totals: Nutrients; average: Nutrients }
+
+/** Monday and Sunday of the calendar week that contains `date`. Weeks are date-only. */
+export const weekBounds = (date: string): { start: string; through: string } => {
+  const day = Temporal.PlainDate.from(date);
+  const start = day.subtract({ days: day.dayOfWeek - 1 });
+  return { start: start.toString(), through: start.add({ days: 6 }).toString() };
+};
+/** Monday of the calendar week that contains `date`. */
+export const weekStartMonday = (date: string): string => weekBounds(date).start;
+
+/**
+ * Seven-day intake for the Monday–Sunday week containing `anyDate`.
+ * Empty days count as zero, so `average` is the week's food spread across the week
+ * and can be compared with a daily goal. Entries outside the week are ignored.
+ */
+export function nutritionWeek(entries: readonly { date: string; nutrients: Nutrients }[], anyDate: string): NutritionWeek {
+  const bounds = weekBounds(anyDate);
+  const start = Temporal.PlainDate.from(bounds.start);
+  const days = Array.from({ length: 7 }, (_, offset) => {
+    const date = start.add({ days: offset }).toString();
+    const rows = entries.filter(entry => entry.date === date);
+    return { date, nutrients: sumNutrients(rows.map(row => row.nutrients)), entries: rows.length };
+  });
+  const totals = sumNutrients(days.map(day => day.nutrients));
+  return { start: bounds.start, through: bounds.through, days, totals, average: roundNutrients(scaleNutrients(totals, 1 / 7)) };
+}
