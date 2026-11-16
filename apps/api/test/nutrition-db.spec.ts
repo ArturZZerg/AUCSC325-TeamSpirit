@@ -83,4 +83,17 @@ databaseSuite('Nutrition diary, goals and dining hall', () => {
     expect(dish).toMatchObject({ siteKcal: 55, kind: 'meat', serving: { nutrients: { kcal: 55 } } });
     expect((await client().get('/nutrition/dining/2026-10-20').set('Authorization', token).expect(200)).body).toMatchObject({ published: false, meals: [] });
   });
+  it('refuses a meal copy that would hide the diary behind the 300-food limit', async () => {
+    const userId = (await db.user.findFirstOrThrow({ where: { email: `${marker}-first@example.test` } })).id;
+    await db.foodLogEntry.createMany({ data: Array.from({ length: 299 }, (_, index) => ({
+      userId, date: '2026-11-11', meal: 'snack', name: `Snack ${index}`, grams: 1, kcal: 1, protein: 0, fat: 0, carbs: 0, fiber: 0,
+      source: 'quick', requestKey: `cap-${marker}-${index}`,
+    })) });
+    await client().post('/nutrition/entries').set('Authorization', token).send(entry({ date: '2026-11-10', meal: 'breakfast', name: 'Eggs' })).expect(201);
+    await client().post('/nutrition/entries').set('Authorization', token).send(entry({ date: '2026-11-10', meal: 'breakfast', name: 'Toast', sourceRef: 'usda:toast' })).expect(201);
+    const refused = await client().post('/nutrition/entries/copy').set('Authorization', token)
+      .send({ fromDate: '2026-11-10', fromMeal: 'breakfast', toDate: '2026-11-11', toMeal: 'breakfast' }).expect(400);
+    expect(refused.body.message).toMatch(/300/);
+    expect((await client().get('/nutrition/day/2026-11-11').set('Authorization', token).expect(200)).body.entries).toHaveLength(299);
+  });
 });
