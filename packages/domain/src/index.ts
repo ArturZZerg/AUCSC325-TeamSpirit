@@ -45,12 +45,23 @@ export const overlapsDay = (startAt: string, endAt: string | undefined, date: Da
   return Temporal.Instant.compare(start, Temporal.Instant.from(bounds.end)) < 0 && Temporal.Instant.compare(end, Temporal.Instant.from(bounds.start)) > 0;
 };
 const compareDate = (a: DateOnly, b: DateOnly) => Temporal.PlainDate.compare(plainDate(a), plainDate(b));
+const mondayOf = (date: Temporal.PlainDate) => date.subtract({ days: date.dayOfWeek - 1 });
+/**
+ * Weekly intervals count Monday-based calendar weeks from the week of the first
+ * selected weekday on or after the anchor. "Every 2 weeks on Monday and Friday"
+ * therefore keeps both days in the same week, even when the anchor falls between them.
+ * A single weekday still starts on the next matching day, then repeats every N weeks.
+ */
 const occursOn = (recurrence: Recurrence | undefined, anchor: DateOnly | undefined, date: DateOnly): boolean => {
   if (!recurrence) return anchor === date;
   if (!anchor || compareDate(date, anchor) < 0) return false;
   if (recurrence.frequency === 'daily') return plainDate(anchor).until(plainDate(date), { largestUnit: 'days' }).days % (recurrence.interval ?? 1) === 0;
-  const days = plainDate(anchor).until(plainDate(date), { largestUnit: 'days' }).days;
-  return recurrence.weekdays.includes(plainDate(date).dayOfWeek) && Math.floor(days / 7) % (recurrence.interval ?? 1) === 0;
+  if (!recurrence.weekdays.length || !recurrence.weekdays.includes(plainDate(date).dayOfWeek)) return false;
+  let origin = plainDate(anchor);
+  for (let step = 0; step < 7 && !recurrence.weekdays.includes(origin.dayOfWeek); step++) origin = origin.add({ days: 1 });
+  if (!recurrence.weekdays.includes(origin.dayOfWeek)) return false;
+  const weeks = mondayOf(origin).until(mondayOf(plainDate(date)), { largestUnit: 'days' }).days / 7;
+  return weeks % (recurrence.interval ?? 1) === 0;
 };
 /** Recurring task dates use the account timezone; scheduled takes precedence as the anchor. */
 export const taskAnchorDate = (task: Pick<PersonalTask, 'scheduled' | 'due'>, timeZone: string): DateOnly | undefined => {
