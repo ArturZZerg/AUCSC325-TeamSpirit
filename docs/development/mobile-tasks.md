@@ -16,9 +16,12 @@ An empty description and the No deadline choice send explicit nulls when editing
 Existing timed deadlines and schedules are preserved exactly unless the user
 chooses to replace or remove them. The editor supports separate date-only or
 timed deadlines and schedules, plus daily and selected-weekday recurrence with
-contract-bounded repeat intervals. Scheduled dates anchor recurrence before
-deadlines; recurring tasks cannot lose their only anchor. Removing recurrence
-allows both date fields to be cleared explicitly.
+contract-bounded repeat intervals. A weekly interval counts Monday-based calendar
+weeks from the first selected weekday on or after the anchor. An existing task
+whose start date sits between its weekdays can move to different dates, and a
+completion on a date that is no longer an occurrence stops showing. Scheduled
+dates anchor recurrence before deadlines; recurring tasks cannot lose their only
+anchor. Removing recurrence allows both date fields to be cleared explicitly.
 
 New timed values use shared domain conversion from the account timezone to UTC.
 Date-only values remain calendar dates. Explicit input rejects missing or repeated
