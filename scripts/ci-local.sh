@@ -1,26 +1,30 @@
 #!/usr/bin/env bash
-# Run the steps of .github/workflows/ci.yml in Linux containers on a maintainer's
-# machine and report the result to GitHub as the `local-verify` commit status.
+# The CampusFlow CI pipeline (ADR 028). Runs every check in Linux containers and
+# reports the result to GitHub as the `local-verify` commit status, which branch
+# protection on main requires.
 #
-# Why: GitHub Actions cannot start jobs on this repository while the owner's
-# account is billing-locked (that also blocks self-hosted runners), so the hosted
-# `verify` job never runs. Branch protection on main requires `local-verify`
-# instead. Keep the steps below in step with ci.yml when that workflow changes.
+# The server runs it automatically through ops/ci/server-ci.sh; a maintainer can
+# run the same pipeline by hand on any machine with Docker. GitHub Actions is not
+# used: the owner's account is billing-locked, which also blocks self-hosted runners.
 #
 # Usage:  scripts/ci-local.sh <pr-number>      # tests GitHub's merge ref for the PR
 #         scripts/ci-local.sh --ref <git-ref>  # tests any ref, e.g. origin/main
 # Add --no-status to run without posting a status.
-# Needs: bash (Git Bash on Windows is fine), git, gh signed in with repo access,
-# and Docker. Node is not needed on the host: everything runs in node:22.
+# Needs: bash (Git Bash on Windows is fine), git, gh signed in with repo access
+# (or GH_TOKEN), and Docker. Node is not needed on the host: everything runs in node:22.
+# Optional: CI_RUNNER names the machine in the status text; CI_NODE_LIMITS adds
+# docker run flags (e.g. "--cpus 1.5 --memory 2g") to the test container.
 set -euo pipefail
 
 REPO="${CI_LOCAL_REPO:-ArturZZerg/AUCSC325-TeamSpirit}"
 CONTEXT="local-verify"
-NODE_IMAGE="node:22-bookworm"   # ci.yml: ubuntu-latest + setup-node 22
-PG_IMAGE="postgres:17-alpine"   # ci.yml service image
+RUNNER="${CI_RUNNER:-locally}"
+read -r -a NODE_LIMITS <<<"${CI_NODE_LIMITS:-}"
+NODE_IMAGE="node:22-bookworm"
+PG_IMAGE="postgres:17-alpine"
 PG_NAME="campusflow-ci-pg"
 API_NAME="campusflow-ci-api"
-PG_PORT=55435                   # ci.yml port; the restore rehearsal refuses 5432
+PG_PORT=55435                   # the restore rehearsal refuses 5432
 API_PORT=8780
 # Git Bash on Windows rewrites /paths in arguments; docker must get them unchanged.
 docker() { MSYS_NO_PATHCONV=1 command docker "$@"; }
@@ -58,20 +62,20 @@ step="setup"
 finish() {
   code=$?
   cleanup
-  if [ "$code" = 0 ]; then status success "All ci.yml steps passed locally in $NODE_IMAGE"; echo "PASS $sha (log: $log)"
+  if [ "$code" = 0 ]; then status success "All CI steps passed ($RUNNER, $NODE_IMAGE)"; echo "PASS $sha (log: $log)"
   else status failure "Failed at: $step"; echo "FAIL at '$step' ($sha). Log: $log" >&2; fi
 }
 trap finish EXIT
 run() { step="$1"; shift; echo "==> $step"; "$@" >>"$log" 2>&1 || { tail -80 "$log" >&2; return 1; }; }
 
-status pending "Running ci.yml steps locally"
+status pending "Running CI steps ($RUNNER)"
 echo "Testing $ref (status on $sha), log: $log"
 git -C "$root" archive --format=tar -o "$src" "$ref"
 src_native="$(cygpath -w "$src" 2>/dev/null || echo "$src")"
 
 cleanup
-# ci.yml runs everything on one host with Postgres on 127.0.0.1:55435. Here the node and API
-# containers join the Postgres container's network namespace to get the same loopback.
+# Postgres listens on 127.0.0.1:55435 inside its container. The node and API
+# containers join its network namespace to share that loopback without publishing a port.
 run "start postgres" docker run -d --name "$PG_NAME" \
   -e POSTGRES_USER=campusflow -e POSTGRES_PASSWORD=campusflow_ci -e POSTGRES_DB=campusflow_test "$PG_IMAGE" -p "$PG_PORT"
 for _ in $(seq 1 30); do docker exec "$PG_NAME" pg_isready -p "$PG_PORT" -U campusflow -d campusflow_test >/dev/null 2>&1 && break; sleep 2; done
@@ -95,13 +99,13 @@ mark "release:restore-rehearsal"
 REHEARSAL_DATABASE_URL="$DATABASE_URL" PG_BIN=/usr/lib/postgresql/17/bin npm run release:restore-rehearsal
 '
 step="node steps"; echo "==> node steps in $NODE_IMAGE (npm ci, db, check, build:web, restore rehearsal)"
-if ! docker run --rm --network "container:$PG_NAME" -e CI=true -e "DATABASE_URL=$DATABASE_URL" \
+if ! docker run --rm "${NODE_LIMITS[@]}" --network "container:$PG_NAME" -e CI=true -e "DATABASE_URL=$DATABASE_URL" \
      --mount "type=bind,source=$src_native,target=/source.tar,readonly" "$NODE_IMAGE" bash -c "$node_steps" >>"$log" 2>&1; then
   step="$(grep -o '^==> .*' "$log" | tail -1 | cut -c5-)"
   tail -80 "$log" >&2; exit 1
 fi
 
-# "Build and check isolated production API container" from ci.yml.
+# Build the production API image and check it starts isolated and read-only.
 run "build API container" docker build -f ops/vps/Dockerfile --target runtime -t campusflow-api:ci - <"$src"
 check="$tmp/runtime-dependencies.mjs"
 git -C "$root" show "$ref:scripts/runtime-dependencies.mjs" >"$check"
@@ -109,8 +113,8 @@ run "runtime dependency check" docker run --rm --network none --read-only --cap-
   --security-opt no-new-privileges:true --entrypoint node \
   --mount "type=bind,source=$(cygpath -w "$check" 2>/dev/null || echo "$check"),target=/check.mjs,readonly" campusflow-api:ci /check.mjs
 AUTH_RATE_KEY="$(head -c 32 /dev/urandom | base64)"
-# ci.yml uses host networking with HOST=127.0.0.1. Sharing the Postgres container's network
-# namespace gives the same loopback, so the probes below run inside it (curl in ci.yml).
+# The API listens on HOST=127.0.0.1 inside the shared namespace, so the probes
+# below run inside it.
 run "start API container" docker run -d --name "$API_NAME" --network "container:$PG_NAME" --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,size=64m --cap-drop ALL --security-opt no-new-privileges:true \
   --memory 768m --pids-limit 128 --env "DATABASE_URL=$DATABASE_URL" --env "AUTH_RATE_KEY=$AUTH_RATE_KEY" \

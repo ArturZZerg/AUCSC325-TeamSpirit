@@ -41,8 +41,8 @@ in this phase. Mobile accesses data through NestJS, including when PostgreSQL
 is hosted by Supabase. Supabase client-side database access and Supabase Auth
 are not implied by the database hosting choice.
 
-Use Jest, React Native Testing Library, Supertest, Maestro, and GitHub Actions
-for testing and CI. The initial workspace and CI configuration are implemented;
+Use Jest, React Native Testing Library, Supertest and Maestro for testing. CI runs
+on the owner's server (ADR 028). The initial workspace and CI configuration are implemented;
 add or adjust tool versions only when a concrete compatibility need arises.
 
 ## Boundaries and dependency direction
