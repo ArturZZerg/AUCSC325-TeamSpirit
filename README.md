@@ -325,10 +325,21 @@ API liveness/readiness, production startup requirements, the read-only
 [release operations](docs/development/release-operations.md). CI restores its
 isolated test database and verifies records/relationships and dependency readiness.
 
-While GitHub Actions cannot run on this repository, a maintainer runs the same
-`ci.yml` steps in Docker with `scripts/ci-local.sh <pr-number>`. It tests the
-PR's merge ref in `node:22` and posts the `local-verify` status that branch
-protection on `main` requires.
+CI runs on the project server, not GitHub Actions ([ADR 028](docs/adr/028-server-hosted-ci.md)).
+Every two minutes the server tests the head of `main` and open PRs with
+`scripts/ci-local.sh`, which checks the PR's merge ref in `node:22`, and posts
+the `local-verify` status that branch protection on `main` requires. PRs from
+collaborators run automatically. PRs from forks run once a maintainer adds the
+`ci:run` label; add it again after each new push. A failed run comments the end
+of its log on the PR. To reproduce a run on your machine (Docker needed):
+
+```sh
+scripts/ci-local.sh <pr-number> --no-status
+```
+
+Maintainers install or update the server runner with
+`SERVER=root@<host> ops/ci/install.sh` from a clean `main`, and deploy a green
+`main` with `ssh root@<host> /opt/campusflow-ci/server-deploy.sh`.
 
 ## Project layout
 

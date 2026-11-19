@@ -89,7 +89,7 @@ Use the established stack unless an architectural decision explicitly changes it
 ## Infrastructure
 
 * GitHub
-* GitHub Actions
+* Server-hosted CI (`scripts/ci-local.sh`, ADR 028)
 * monorepo
 
 ---

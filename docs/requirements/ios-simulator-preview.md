@@ -9,7 +9,7 @@ retain Xcode's local ad-hoc signature and declare an app-private Keychain namesp
 only for the explicit simulator build. The gate inspects the compiled simulated
 entitlement section in every executable architecture. A disposable API/database flow checks authenticated
 storage; it never treats simulator signing as Apple device/store signing.
-It uses the existing GitHub Actions infrastructure, XCTest input for public
+It was a GitHub Actions macOS job; since ADR 028 it runs by hand on a Mac. It uses XCTest input for public
 navigation and ordinary private sign-in, then Maestro for owned task/storage flows; it does not
 deploy CampusFlow to the owner's server. The [input comparison](ios-input-comparison.md)
 records the observed failure and actual unchanged-app evidence for this choice.
