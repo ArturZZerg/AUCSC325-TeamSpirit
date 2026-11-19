@@ -56,7 +56,9 @@ simulator acceptance is run by hand on a Mac before a native release.
 ## Consequences
 
 * Merges no longer depend on GitHub billing or on one maintainer's PC.
-* A full run takes longer than on GitHub-hosted runners, and PRs wait in a
+* A full run takes about 25 minutes, longer than on GitHub-hosted runners, and
+  the capped CPU needs a 30 s Jest per-test limit on the server
+  (`JEST_TEST_TIMEOUT`; 5 s elsewhere). PRs wait in a
   queue of one.
 * CI and production share a host. The caps and the disk guard limit the impact,
   but a heavy run can still slow the live API.

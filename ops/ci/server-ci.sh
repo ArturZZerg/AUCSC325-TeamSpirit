@@ -25,6 +25,8 @@ MIN_FREE_KB=$((4 * 1024 * 1024))   # leave production at least 4 GB of disk
 export CI_RUNNER="server"
 # Production and other sites share this host: cap the test container.
 export CI_NODE_LIMITS="${CI_NODE_LIMITS:---cpus 1.5 --memory 2g --memory-swap 2g --pids-limit 4096}"
+# The capped CPU makes a few heavy UI tests exceed Jest's 5 s default; allow 30 s here.
+export JEST_TEST_TIMEOUT="${JEST_TEST_TIMEOUT:-30000}"
 
 log() { echo "$(date -u +%FT%TZ) $*"; }
 

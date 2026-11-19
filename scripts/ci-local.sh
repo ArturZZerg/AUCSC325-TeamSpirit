@@ -13,7 +13,8 @@
 # Needs: bash (Git Bash on Windows is fine), git, gh signed in with repo access
 # (or GH_TOKEN), and Docker. Node is not needed on the host: everything runs in node:22.
 # Optional: CI_RUNNER names the machine in the status text; CI_NODE_LIMITS adds
-# docker run flags (e.g. "--cpus 1.5 --memory 2g") to the test container.
+# docker run flags (e.g. "--cpus 1.5 --memory 2g") to the test container;
+# JEST_TEST_TIMEOUT (ms) is passed to it for slow hosts.
 set -euo pipefail
 
 REPO="${CI_LOCAL_REPO:-ArturZZerg/AUCSC325-TeamSpirit}"
@@ -99,7 +100,7 @@ mark "release:restore-rehearsal"
 REHEARSAL_DATABASE_URL="$DATABASE_URL" PG_BIN=/usr/lib/postgresql/17/bin npm run release:restore-rehearsal
 '
 step="node steps"; echo "==> node steps in $NODE_IMAGE (npm ci, db, check, build:web, restore rehearsal)"
-if ! docker run --rm "${NODE_LIMITS[@]}" --network "container:$PG_NAME" -e CI=true -e "DATABASE_URL=$DATABASE_URL" \
+if ! docker run --rm "${NODE_LIMITS[@]}" --network "container:$PG_NAME" -e CI=true -e "JEST_TEST_TIMEOUT=${JEST_TEST_TIMEOUT:-}" -e "DATABASE_URL=$DATABASE_URL" \
      --mount "type=bind,source=$src_native,target=/source.tar,readonly" "$NODE_IMAGE" bash -c "$node_steps" >>"$log" 2>&1; then
   step="$(grep -o '^==> .*' "$log" | tail -1 | cut -c5-)"
   tail -80 "$log" >&2; exit 1
