@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import type { FoodEntry, SaveFoodEntry } from '@campusflow/contracts';
 import { addCalendarDays, localClockAt, type Meal } from '@campusflow/domain';
 import { BackLink, Button, Card, Screen, State, colors } from '@/components/ui';
-import { useAction, useDiningMenu, useNutritionDay } from '@/features/queries';
+import { useAction, useDiningMenu, useNutritionDay, useNutritionWeek } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
 import { dayGoals, dayTotals, formatNumber, mealEntries, mealLabels, meals, rescaleEntry } from '@/features/nutrition';
 import { PlateChart } from '@/features/plate-chart';
@@ -24,6 +24,7 @@ export default function NutritionScreen() {
   const { date: today } = useTodayClock(timeZone);
   const [date, setDate] = useState(today);
   const day = useNutritionDay(date), yesterday = useNutritionDay(addCalendarDays(date, -1));
+  const week = useNutritionWeek(date);
   const dining = useDiningMenu(date, !!day.data?.diningAvailable);
   const nowMinutes = (() => { const [hour, minute] = localClockAt(new Date().toISOString(), timeZone).time.split(':').map(Number); return hour * 60 + minute; })();
   const [adding, setAdding] = useState<Meal>(); const [editing, setEditing] = useState<FoodEntry>(); const [message, setMessage] = useState<string>();
@@ -56,6 +57,10 @@ export default function NutritionScreen() {
         {!day.data?.profile && <Button title="Set my goals" onPress={() => router.push('/nutrition-goals')}/>}</View>}
       {goals && <Pressable accessibilityRole="button" onPress={() => router.push('/nutrition-goals')} hitSlop={6}><Text style={styles.link}>Goals & settings</Text></Pressable>}
     </Card>
+    {week.data && <Card>
+      <Text style={styles.section}>This week</Text>
+      <Text style={styles.meta}>{formatNumber(week.data.totals.kcal)} kcal · {formatNumber(week.data.average.kcal)} a day{goals ? ` · goal ${formatNumber(goals.kcal)}` : ''}</Text>
+    </Card>}
 
     {meals.map(meal => { const items = mealEntries(entries, meal), subtotal = dayTotals(items), previous = mealEntries(yesterday.data?.entries ?? [], meal);
       return <Card key={meal}>

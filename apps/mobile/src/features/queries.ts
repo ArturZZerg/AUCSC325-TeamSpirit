@@ -8,7 +8,7 @@ import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
 import { focusHistorySchema } from '@campusflow/contracts';
 import { campusSourcesSchema } from '@campusflow/contracts';
-import { diningMenuSchema, exerciseDetailsSchema, foodSearchSchema, gymOverviewSchema, nutritionDaySchema } from '@campusflow/contracts';
+import { diningMenuSchema, exerciseDetailsSchema, foodSearchSchema, gymOverviewSchema, nutritionDaySchema, nutritionWeekSchema } from '@campusflow/contracts';
 import { dayBounds } from '@campusflow/domain';
 import { api, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
@@ -233,6 +233,13 @@ export function useNutritionDay(date: string) {
   const session = useSessionStore(state => state.session);
   const schema = useMemo(() => nutritionDaySchema.refine(value => value.accountId === session?.user.id && value.date === date, 'Diary does not belong to this account.'), [session?.user.id, date]);
   return cachedQuery(`nutrition:${date}`, `/nutrition/day/${date}`, schema);
+}
+/** Monday–Sunday intake for the week containing `date`. Derived on the server; cached like the diary day. */
+export function useNutritionWeek(date: string) {
+  const session = useSessionStore(state => state.session);
+  const schema = useMemo(() => nutritionWeekSchema.refine(value => value.accountId === session?.user.id && value.start <= date && value.through >= date,
+    'Week does not belong to this account.'), [session?.user.id, date]);
+  return cachedQuery(`nutrition-week:${date}`, `/nutrition/week/${date}`, schema);
 }
 export function useFoodSearch(query: string) {
   const session = useSessionStore(state => state.session);

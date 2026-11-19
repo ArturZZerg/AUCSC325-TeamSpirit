@@ -1,4 +1,4 @@
-import { diningVisible, goalProgress, isAugustanaCourse, mealAt, nutritionGoals, portionNutrients, sumNutrients } from '../src';
+import { diningVisible, goalProgress, isAugustanaCourse, mealAt, nutritionGoals, nutritionWeek, portionNutrients, sumNutrients } from '../src';
 
 const profile = { sex: 'male' as const, birthYear: 2004, heightCm: 180, activity: 'moderate' as const, goal: 'maintain' as const, overrides: null };
 describe('nutrition goals', () => {
@@ -29,6 +29,25 @@ describe('dining hall visibility', () => {
     expect(diningVisible('auto', ['CMPUT 174'])).toBe(false);
     expect(diningVisible('on', [])).toBe(true);
     expect(diningVisible('off', ['AUCSC 325'])).toBe(false);
+  });
+  it('averages a Monday–Sunday week and counts empty days as zero', () => {
+    // 23 October 2026 is a Friday. The week is Monday 19 through Sunday 25.
+    const food = { kcal: 700, protein: 7, fat: 0, carbs: 0, fiber: 0 };
+    const week = nutritionWeek([
+      { date: '2026-10-18', nutrients: food },
+      { date: '2026-10-19', nutrients: food },
+      { date: '2026-10-25', nutrients: food },
+      { date: '2026-10-26', nutrients: food },
+    ], '2026-10-23');
+    expect(week.start).toBe('2026-10-19');
+    expect(week.through).toBe('2026-10-25');
+    expect(week.days.map(day => day.entries)).toEqual([1, 0, 0, 0, 0, 0, 1]);
+    expect(week.totals.kcal).toBe(1400);
+    expect(week.average.kcal).toBe(200);
+    // A date in the next week does not pull the previous Sunday in.
+    expect(nutritionWeek([{ date: '2026-10-25', nutrients: food }], '2026-10-26').totals.kcal).toBe(0);
+    // New Year 2026 is a Thursday; that week starts Monday 29 December 2025.
+    expect(nutritionWeek([], '2026-01-01')).toMatchObject({ start: '2025-12-29', through: '2026-01-04', average: { kcal: 0 } });
   });
   it('guesses the meal from the time of day', () => {
     expect([8 * 60, 12 * 60, 18 * 60, 22 * 60].map(mealAt)).toEqual(['breakfast', 'lunch', 'dinner', 'snack']);
