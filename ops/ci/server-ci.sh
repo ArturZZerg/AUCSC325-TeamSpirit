@@ -8,8 +8,14 @@
 #   3. open PRs from anyone else only while a maintainer has added the `ci:run`
 #      label. The label is removed after the run, so every new push needs a new
 #      approval: outside code never runs on this shared server unreviewed.
-# A commit that already has a `local-verify` status is skipped. A pending status
+# A commit that already has a `local-verify` status is skipped, unless its PR has
+# the `ci:run` label: the label asks for a (re-)run of any PR. A pending status
 # older than STALE_MINUTES (crashed run) is tested again.
+#
+# PRs are tested as GitHub's merge commit (refs/pull/N/merge). GitHub rebuilds it
+# lazily after main moves, so a PR is tested only once that commit has the current
+# main and the PR head as parents; until then the runner asks GitHub to rebuild it
+# and tries again on a later start.
 #
 # The pipeline itself comes from INSTALL_DIR, installed from main by
 # ops/ci/install.sh, never from the PR being tested.
@@ -58,7 +64,7 @@ post_status() { # sha state description
   gh api -X POST "repos/$REPO/statuses/$1" -f state="$2" -f context=local-verify -f description="${3:0:140}" >/dev/null
 }
 
-target="" kind="" pr="" fork_label=0
+target="" kind="" pr="" labelled_run=0
 main_sha="$(git -C "$repo_dir" rev-parse origin/main)"
 if [ "$(status_of "$main_sha")" = missing ]; then
   target="$main_sha" kind="main"
@@ -68,9 +74,23 @@ else
     trusted=0
     case "$association" in OWNER|MEMBER|COLLABORATOR) trusted=1 ;; esac
     [ "$trusted" = 1 ] || [ "$labelled" = true ] || continue
-    [ "$(status_of "$sha")" = missing ] || continue
-    target="$sha" kind="pr" pr="$number"
-    [ "$trusted" = 1 ] || fork_label=1
+    [ "$labelled" = true ] || [ "$(status_of "$sha")" = missing ] || continue
+    merge_ref="refs/ci-local/$number/merge"
+    if git -C "$repo_dir" fetch -q origin "+refs/pull/$number/merge:$merge_ref" 2>/dev/null; then
+      parents="$(git -C "$repo_dir" rev-list --parents -n 1 "$merge_ref" | cut -d' ' -f2-)"
+      if [ "$parents" != "$main_sha $sha" ]; then
+        gh api "repos/$REPO/pulls/$number" --jq .mergeable >/dev/null 2>&1 || true   # asks GitHub to rebuild it
+        log "#$number merge ref is not built on main $main_sha and head $sha yet; retrying later"
+        continue
+      fi
+      kind="pr"
+    else
+      # No merge ref: either GitHub is still computing it, or the PR conflicts with main.
+      [ "$(gh api "repos/$REPO/pulls/$number" --jq '.mergeable // "unknown"' 2>/dev/null)" = false ] || { log "#$number merge ref not ready; retrying later"; continue; }
+      kind="conflict"
+    fi
+    target="$sha" pr="$number"
+    [ "$labelled" = true ] && labelled_run=1
     break
   done < <(gh api "repos/$REPO/pulls?state=open&sort=updated&direction=asc&per_page=100" --jq \
     ".[] | select(.draft | not) | [.number, .head.sha, .author_association, (any(.labels[]; .name == \"$LABEL\"))] | @tsv")
@@ -85,15 +105,14 @@ log "testing $kind ${pr:+#$pr }$target in $run_dir"
 code=0
 if [ "$kind" = main ]; then
   (cd "$repo_dir" && nice -n 10 "$INSTALL_DIR/ci-local.sh" --ref origin/main) >"$run_dir/runner.log" 2>&1 || code=$?
-elif ! git -C "$repo_dir" fetch -q origin "+refs/pull/$pr/merge:refs/ci-local/$pr/merge" 2>/dev/null; then
-  # No merge ref: GitHub could not merge the PR into main.
+elif [ "$kind" = conflict ]; then
   post_status "$target" failure "Cannot test: the PR does not merge cleanly into main. Rebase or merge main."
   code=1
 else
   (cd "$repo_dir" && nice -n 10 "$INSTALL_DIR/ci-local.sh" "$pr") >"$run_dir/runner.log" 2>&1 || code=$?
 fi
 
-if [ "$fork_label" = 1 ]; then
+if [ "$labelled_run" = 1 ]; then
   gh api -X DELETE "repos/$REPO/issues/$pr/labels/$(printf %s "$LABEL" | jq -sRr @uri)" >/dev/null 2>&1 || true
 fi
 

@@ -330,8 +330,8 @@ Every two minutes the server tests the head of `main` and open PRs with
 `scripts/ci-local.sh`, which checks the PR's merge ref in `node:22`, and posts
 the `local-verify` status that branch protection on `main` requires. PRs from
 collaborators run automatically. PRs from forks run once a maintainer adds the
-`ci:run` label; add it again after each new push. A failed run comments the end
-of its log on the PR. To reproduce a run on your machine (Docker needed):
+`ci:run` label; add it again after each new push. The label also re-runs CI for
+any PR that already has a result. A failed run comments the end of its log on the PR. To reproduce a run on your machine (Docker needed):
 
 ```sh
 scripts/ci-local.sh <pr-number> --no-status
