@@ -130,7 +130,7 @@ strings are validated with the Zod schemas from `packages/contracts`.
 | --- | --- |
 | Accounts | `/auth/*` (register, login, logout, verification, recovery), `/me` (profile, export, delete) |
 | Today | `GET /today`, `GET /snapshot` — built on every request, never stored |
-| Personal tasks | `/tasks` — CRUD, complete, snooze, main goal, checklist steps |
+| Personal tasks | `/tasks` — CRUD, complete, snooze, main goal, checklist steps; `/task-templates` — saved task templates |
 | Coursework | `/courses`, `/courses/:id/assessments`, `/courses/:id/assessment-groups`, `/academic-items` (+ reminders) |
 | Canvas | `/canvas/*` — connect a token, status, sync, disconnect |
 | Classes | `/classes` — weekly timetable, ICS calendar import preview |
