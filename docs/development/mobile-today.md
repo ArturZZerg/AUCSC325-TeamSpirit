@@ -135,6 +135,16 @@ task. `src/features/quick-add.ts` recognises: today/tonight/tomorrow, weekdays
 (rolling past dates to next year, rejecting impossible days), times (5pm, 7:30am,
 17:00, noon, midnight), `due`/`by`/`before` for a deadline (otherwise a planned
 day), `!high`/`!low`, `#tag` categories with aliases and estimates (45m, 1.5h).
+Midnight means the end of the named day (23:59). A short weekday word ("sat",
+"sun") is a date only after on/next/due/by/before, at the end of the text or
+right before a time; full names always are, and all-caps forms ("SAT") never are.
+
+Repeat phrases are read first: `daily`, `every N days`, `weekly`,
+`every other week`, `every N weeks sat`, `every mon wed` and `every weekday`,
+within the task form's limits (1–365 days, 1–52 weeks). Bare `daily`, `weekly`
+and `weekdays` count only after some title text and at the end or before a
+time, so "Weekly report" stays a title. A weekday repeat without a date starts
+on the next matching day; a weekly repeat without weekdays uses the start day's.
 Unrecognised text stays in the title. Without a date the task is planned for the
 displayed day. Recognised details preview as chips before saving. Saving reuses
 the editor's `taskFormRequest`, so title rules, account-zone conversion and

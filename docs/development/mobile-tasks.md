@@ -173,6 +173,45 @@ type a step and press Return to add one. Collapsed rows show `done/total`. Each
 change is its own request (see ADR 014); a failed add keeps its text and step ID
 so retrying cannot create a duplicate. Repeating tasks have no steps.
 
+Today shows the same checklist under an open one-time task's row
+(`app/(tabs)/today.tsx`, `today-checklist.test.tsx`); recurring occurrences
+and completed tasks show none.
+
+## Task templates
+
+Templates (ADR 027) are account-owned starting points for tasks: a title,
+optional description and estimate, and up to 30 ordered step titles. They use
+the task schemas' limits and never appear on Today.
+
+Tasks has **Add template** and **View templates**
+(`src/features/task-template-editor.tsx`, `src/features/task-template-list.tsx`).
+The list reads `GET /task-templates` through the account-scoped query cache;
+when a refresh fails it keeps showing cached templates with a Retry button.
+Each template offers:
+
+- **Use**: opens the normal task editor prefilled with the template's values and
+  steps for review. Saving sends the steps with `POST /tasks`, which creates the
+  task and its incomplete steps in one transaction under the usual request key,
+  so an unchanged retry cannot duplicate it. The task keeps no template link.
+  Steps on a repeating task, or duplicate step IDs, are rejected before
+  anything is created.
+- **Edit**: `PATCH /task-templates/:id` with the template form.
+- **Duplicate**: opens a draft named "Copy of …" (trimmed to the title limit)
+  and saves it with `POST /task-templates`; there is no copy endpoint.
+- **Delete**: asks for confirmation, then `DELETE /task-templates/:id`. Tasks
+  already created from the template are unchanged.
+
+Another account's template returns 404. `GET /me/export` includes templates and
+account deletion removes them through the cascade on `User`.
+
+| Behavior | Tests |
+| --- | --- |
+| Template and create-with-steps schema limits | `packages/contracts/__tests__/task-templates.test.ts`, `task-creation.test.ts` |
+| Routes, validation and ownership | `apps/api/test/task-templates.spec.ts`, `task-templates-db.spec.ts` |
+| Using a template, atomic steps and retry safety | `apps/api/test/task-template-use.spec.ts` |
+| Editor, list, use, duplicate, delete and cached/failed refresh states | `apps/mobile/__tests__/task-template-editor.test.tsx`, `task-template-list.test.tsx` |
+| Export includes templates | `apps/api/test/account-db.spec.ts` |
+
 ## Task courses
 
 A personal task may belong to one of the student's own courses
