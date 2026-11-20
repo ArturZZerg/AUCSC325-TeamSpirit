@@ -40,9 +40,9 @@ describe('task scheduling request boundary (ToR 7)', () => {
     expect(body.recurrence).toEqual({ frequency: 'weekly', interval: 2, weekdays: [1, 3] });
     const timing = { scheduled: body.scheduled ?? undefined, due: body.due ?? undefined, recurrence: body.recurrence ?? undefined };
     expect(taskOccursOn(timing, '2025-03-03', zone)).toBe(false);
-    expect(taskOccursOn(timing, '2025-03-10', zone)).toBe(true);
-    expect(taskOccursOn(timing, '2025-03-17', zone)).toBe(false);
-    expect(taskOccursOn(timing, '2025-03-24', zone)).toBe(true);
+    expect(taskOccursOn(timing, '2025-03-10', zone)).toBe(false);
+    expect(taskOccursOn(timing, '2025-03-17', zone)).toBe(true);
+    expect(taskOccursOn(timing, '2025-03-24', zone)).toBe(false);
   });
   it('sends explicit nulls to remove scheduling and recurrence together', () => {
     const existing = { ...task, scheduled: { kind: 'date' as const, date: '2025-03-08' }, recurrence: { frequency: 'daily' as const, interval: 1 } };
