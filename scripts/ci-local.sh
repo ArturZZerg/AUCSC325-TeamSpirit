@@ -7,7 +7,7 @@
 # run the same pipeline by hand on any machine with Docker. GitHub Actions is not
 # used: the owner's account is billing-locked, which also blocks self-hosted runners.
 #
-# Usage:  scripts/ci-local.sh <pr-number>      # tests GitHub's merge ref for the PR
+# Usage:  scripts/ci-local.sh <pr-number>      # tests the PR merged into the current main
 #         scripts/ci-local.sh --ref <git-ref>  # tests any ref, e.g. origin/main
 # Add --no-status to run without posting a status.
 # Needs: bash (Git Bash on Windows is fine), git, gh signed in with repo access
@@ -41,10 +41,23 @@ done
 [ -n "$pr$ref" ] || { echo "usage: $0 <pr-number> | --ref <git-ref> [--no-status]" >&2; exit 2; }
 
 root="$(git rev-parse --show-toplevel)"
+status() { # state description
+  [ "$post" = 1 ] || return 0
+  gh api -X POST "repos/$REPO/statuses/$sha" -f state="$1" -f context="$CONTEXT" -f description="${2:0:140}" >/dev/null
+}
 if [ -n "$pr" ]; then
-  git -C "$root" fetch -q origin "+refs/pull/$pr/merge:refs/ci-local/$pr/merge"
+  # Test the PR merged into the current main. The merge is built here, not taken from
+  # GitHub's refs/pull/N/merge: GitHub rebuilds that lazily and can leave it on an old main.
+  git -C "$root" fetch -q origin "+refs/heads/main:refs/ci-local/main" "+refs/pull/$pr/head:refs/ci-local/$pr/head"
+  sha="$(git -C "$root" rev-parse "refs/ci-local/$pr/head")"
+  if ! tree="$(git -C "$root" merge-tree --write-tree refs/ci-local/main "$sha" 2>/dev/null | head -1)" || [ -z "$tree" ]; then
+    status failure "Cannot test: the PR does not merge cleanly into main. Rebase or merge main."
+    echo "FAIL at 'merge into main' ($sha): conflicts with main" >&2; exit 1
+  fi
+  merge="$(GIT_AUTHOR_NAME=campusflow-ci GIT_AUTHOR_EMAIL=ci@campusflow.invalid GIT_COMMITTER_NAME=campusflow-ci \
+    GIT_COMMITTER_EMAIL=ci@campusflow.invalid git -C "$root" commit-tree "$tree" -p refs/ci-local/main -p "$sha" -m "CI merge of #$pr into main")"
+  git -C "$root" update-ref "refs/ci-local/$pr/merge" "$merge"
   ref="refs/ci-local/$pr/merge"
-  sha="$(gh pr view "$pr" -R "$REPO" --json headRefOid --jq .headRefOid)"
 else
   sha="$(git -C "$root" rev-parse "$ref")"
 fi
@@ -52,10 +65,6 @@ fi
 tmp="$(mktemp -d)"
 log="$tmp/ci.log"
 src="$tmp/source.tar"
-status() { # state description
-  [ "$post" = 1 ] || return 0
-  gh api -X POST "repos/$REPO/statuses/$sha" -f state="$1" -f context="$CONTEXT" -f description="${2:0:140}" >/dev/null
-}
 cleanup() {
   docker rm -f "$API_NAME" "$PG_NAME" >/dev/null 2>&1 || true
 }
