@@ -28,7 +28,7 @@ beforeEach(() => {
   jest.mocked(useFoodSearch).mockReturnValue({ data: undefined, isFetching: false } as unknown as ReturnType<typeof useFoodSearch>);
   const zeros = { kcal: 0, protein: 0, fat: 0, carbs: 0, fiber: 0 };
   jest.mocked(useNutritionWeek).mockReturnValue({ data: { accountId: '10000000-0000-4000-8000-000000000001', timeZone: 'America/Edmonton',
-    start: '2026-10-19', through: '2026-10-25', totals: entry.nutrients, average: { kcal: 27, protein: 0.9, fat: 0.5, carbs: 4.7, fiber: 0.7 },
+    start: '2026-10-19', through: '2026-10-25', totals: entry.nutrients, average: { kcal: 38, protein: 1.3, fat: 0.7, carbs: 6.6, fiber: 1 }, averageDays: 5,
     days: Array.from({ length: 7 }, (_, index) => ({ date: `2026-10-${19 + index}`, entries: index === 4 ? 1 : 0, nutrients: index === 4 ? entry.nutrients : zeros })) } } as unknown as ReturnType<typeof useNutritionWeek>);
   jest.mocked(useDiningMenu).mockReturnValue({ data: { date: '2026-10-23', published: true, fetchedAt: '2026-10-23T12:00:00.000Z', error: null,
     meals: [{ meal: 'lunch', label: 'Lunch', start: 690, end: 855, stations: [{ label: 'Featured', dishes: [dish] }] }] } } as unknown as ReturnType<typeof useDiningMenu>);
@@ -51,7 +51,7 @@ it('shows the day on a plate with goals, meals and the dining hall', () => {
   expect(screen.getByText('Today')).toBeOnTheScreen();
   expect(screen.getByText('of 2,820 kcal')).toBeOnTheScreen();
   expect(screen.getByText('This week')).toBeOnTheScreen();
-  expect(screen.getByText('190 kcal · 27 a day · goal 2,820')).toBeOnTheScreen();
+  expect(screen.getByText('190 kcal · 38 a day over 5 days so far · goal 2,820')).toBeOnTheScreen();
   expect(screen.getByText('2,630 left')).toBeOnTheScreen();
   expect(screen.getByText('Oats')).toBeOnTheScreen();
   expect(screen.getByText('Dining hall')).toBeOnTheScreen();

@@ -130,7 +130,7 @@ export class NutritionController {
   async week(@CurrentUser() user: RequestUser, @Param('date', new ZodPipe(dateSchema)) date: string) {
     const { start, through } = weekBounds(date);
     const rows = await this.prisma.foodLogEntry.findMany({ where: { userId: user.id, date: { gte: start, lte: through } }, select: { date: true, kcal: true, protein: true, fat: true, carbs: true, fiber: true } });
-    const summary = nutritionWeek(rows.map(row => ({ date: row.date, nutrients: nutrients(row) })), date);
+    const summary = nutritionWeek(rows.map(row => ({ date: row.date, nutrients: nutrients(row) })), date, localDateAt(new Date().toISOString(), user.timeZone));
     return nutritionWeekSchema.parse({ accountId: user.id, timeZone: user.timeZone, ...summary });
   }
 

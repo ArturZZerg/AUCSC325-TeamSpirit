@@ -38,16 +38,27 @@ describe('dining hall visibility', () => {
       { date: '2026-10-19', nutrients: food },
       { date: '2026-10-25', nutrients: food },
       { date: '2026-10-26', nutrients: food },
-    ], '2026-10-23');
+    ], '2026-10-23', '2026-11-02');
     expect(week.start).toBe('2026-10-19');
     expect(week.through).toBe('2026-10-25');
     expect(week.days.map(day => day.entries)).toEqual([1, 0, 0, 0, 0, 0, 1]);
     expect(week.totals.kcal).toBe(1400);
     expect(week.average.kcal).toBe(200);
+    expect(week.averageDays).toBe(7);
     // A date in the next week does not pull the previous Sunday in.
-    expect(nutritionWeek([{ date: '2026-10-25', nutrients: food }], '2026-10-26').totals.kcal).toBe(0);
+    expect(nutritionWeek([{ date: '2026-10-25', nutrients: food }], '2026-10-26', '2026-11-02').totals.kcal).toBe(0);
     // New Year 2026 is a Thursday; that week starts Monday 29 December 2025.
-    expect(nutritionWeek([], '2026-01-01')).toMatchObject({ start: '2025-12-29', through: '2026-01-04', average: { kcal: 0 } });
+    expect(nutritionWeek([], '2026-01-01', '2026-01-10')).toMatchObject({ start: '2025-12-29', through: '2026-01-04', average: { kcal: 0 } });
+  });
+  it('averages a week in progress over the days so far, and a future week over none', () => {
+    const food = { kcal: 700, protein: 7, fat: 0, carbs: 0, fiber: 0 };
+    const entries = [{ date: '2026-10-19', nutrients: food }, { date: '2026-10-20', nutrients: food }];
+    // Wednesday 21 October: three days so far, not seven.
+    expect(nutritionWeek(entries, '2026-10-21', '2026-10-21')).toMatchObject({ averageDays: 3, totals: { kcal: 1400 }, average: { kcal: 467 } });
+    // Monday: one day so far. Sunday: the whole week.
+    expect(nutritionWeek(entries, '2026-10-19', '2026-10-19')).toMatchObject({ averageDays: 1, average: { kcal: 1400 } });
+    expect(nutritionWeek(entries, '2026-10-25', '2026-10-25')).toMatchObject({ averageDays: 7, average: { kcal: 200 } });
+    expect(nutritionWeek([], '2026-10-26', '2026-10-21')).toMatchObject({ averageDays: 0, average: { kcal: 0 } });
   });
   it('guesses the meal from the time of day', () => {
     expect([8 * 60, 12 * 60, 18 * 60, 22 * 60].map(mealAt)).toEqual(['breakfast', 'lunch', 'dinner', 'snack']);

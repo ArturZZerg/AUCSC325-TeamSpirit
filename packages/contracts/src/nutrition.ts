@@ -39,7 +39,8 @@ const weekNutrientsSchema = z.object({
 export const nutritionWeekSchema = z.object({
   accountId: idSchema, timeZone: timeZoneSchema, start: dateSchema, through: dateSchema,
   days: z.object({ date: dateSchema, entries: z.number().int().min(0).max(300), nutrients: weekNutrientsSchema }).strict().array().length(7),
-  totals: weekNutrientsSchema, average: weekNutrientsSchema,
+  /** Days of the week up to and including today that `average` is spread over (7 for a past week). */
+  totals: weekNutrientsSchema, average: weekNutrientsSchema, averageDays: z.number().int().min(0).max(7),
 }).strict();
 
 export const nutritionDaySchema = z.object({

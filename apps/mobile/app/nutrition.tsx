@@ -59,7 +59,7 @@ export default function NutritionScreen() {
     </Card>
     {week.data && <Card>
       <Text style={styles.section}>This week</Text>
-      <Text style={styles.meta}>{formatNumber(week.data.totals.kcal)} kcal · {formatNumber(week.data.average.kcal)} a day{goals ? ` · goal ${formatNumber(goals.kcal)}` : ''}</Text>
+      <Text style={styles.meta}>{formatNumber(week.data.totals.kcal)} kcal{week.data.averageDays > 0 ? ` · ${formatNumber(week.data.average.kcal)} a day${week.data.averageDays < 7 ? ` over ${week.data.averageDays} ${week.data.averageDays === 1 ? 'day' : 'days'} so far` : ''}` : ''}{goals ? ` · goal ${formatNumber(goals.kcal)}` : ''}</Text>
     </Card>}
 
     {meals.map(meal => { const items = mealEntries(entries, meal), subtotal = dayTotals(items), previous = mealEntries(yesterday.data?.entries ?? [], meal);

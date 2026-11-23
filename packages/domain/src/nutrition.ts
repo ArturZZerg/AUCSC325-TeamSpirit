@@ -51,7 +51,7 @@ export const diningVisible = (setting: DiningSetting, courseCodes: readonly (str
 export const mealAt = (minutes: number): Meal => minutes < 10 * 60 + 30 ? 'breakfast' : minutes < 15 * 60 ? 'lunch' : minutes < 21 * 60 ? 'dinner' : 'snack';
 
 export interface NutritionWeekDay { date: string; nutrients: Nutrients; entries: number }
-export interface NutritionWeek { start: string; through: string; days: NutritionWeekDay[]; totals: Nutrients; average: Nutrients }
+export interface NutritionWeek { start: string; through: string; days: NutritionWeekDay[]; totals: Nutrients; average: Nutrients; averageDays: number }
 
 /** Monday and Sunday of the calendar week that contains `date`. Weeks are date-only. */
 export const weekBounds = (date: string): { start: string; through: string } => {
@@ -59,15 +59,14 @@ export const weekBounds = (date: string): { start: string; through: string } => 
   const start = day.subtract({ days: day.dayOfWeek - 1 });
   return { start: start.toString(), through: start.add({ days: 6 }).toString() };
 };
-/** Monday of the calendar week that contains `date`. */
-export const weekStartMonday = (date: string): string => weekBounds(date).start;
 
 /**
- * Seven-day intake for the Monday–Sunday week containing `anyDate`.
- * Empty days count as zero, so `average` is the week's food spread across the week
- * and can be compared with a daily goal. Entries outside the week are ignored.
+ * Intake for the Monday–Sunday week containing `anyDate`. Entries outside the week are
+ * ignored. `average` spreads the food over the days of the week up to and including
+ * `today` (`averageDays`: all 7 for a past week, 0 for a future one), counting empty
+ * days as zero, so a week in progress compares fairly with a daily goal.
  */
-export function nutritionWeek(entries: readonly { date: string; nutrients: Nutrients }[], anyDate: string): NutritionWeek {
+export function nutritionWeek(entries: readonly { date: string; nutrients: Nutrients }[], anyDate: string, today: string): NutritionWeek {
   const bounds = weekBounds(anyDate);
   const start = Temporal.PlainDate.from(bounds.start);
   const days = Array.from({ length: 7 }, (_, offset) => {
@@ -76,5 +75,8 @@ export function nutritionWeek(entries: readonly { date: string; nutrients: Nutri
     return { date, nutrients: sumNutrients(rows.map(row => row.nutrients)), entries: rows.length };
   });
   const totals = sumNutrients(days.map(day => day.nutrients));
-  return { start: bounds.start, through: bounds.through, days, totals, average: roundNutrients(scaleNutrients(totals, 1 / 7)) };
+  const averageDays = today < bounds.start ? 0 : today >= bounds.through ? 7
+    : start.until(Temporal.PlainDate.from(today), { largestUnit: 'days' }).days + 1;
+  const average = averageDays ? roundNutrients(scaleNutrients(totals, 1 / averageDays)) : zeroNutrients();
+  return { start: bounds.start, through: bounds.through, days, totals, average, averageDays };
 }
