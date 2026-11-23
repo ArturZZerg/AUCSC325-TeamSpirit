@@ -42,8 +42,9 @@ ci_next() {
 }
 
 # Removes the one-run `ci:run` approval after a labelled run.
+# The label is URL-encoded without jq, which Git Bash on Windows does not ship.
 ci_unlabel() {
-  gh api -X DELETE "repos/$REPO/issues/$1/labels/$(printf %s "$CI_LABEL" | jq -sRr @uri)" >/dev/null 2>&1 || true
+  gh api -X DELETE "repos/$REPO/issues/$1/labels/${CI_LABEL//:/%3A}" >/dev/null 2>&1     || echo "could not remove $CI_LABEL from #$1; remove it by hand or the PR is tested again" >&2
 }
 
 # Posts the end of a failed run's log on the PR: contributors cannot read the runner's disk.
