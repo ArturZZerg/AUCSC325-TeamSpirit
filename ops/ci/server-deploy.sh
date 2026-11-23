@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Owner-triggered deploy from the server itself (ADR 017, ADR 028).
+# Deploy from the server itself (ADR 017, ADR 028). The owner runs it by hand, and
+# server-ci.sh runs it after a green main that contains an auto-merged PR (ADR 029).
 #   ssh root@<server> /opt/campusflow-ci/server-deploy.sh
 # Deploys the current head of main, and only when server CI has posted a
 # successful `local-verify` on that exact commit. It runs the unchanged
@@ -27,8 +28,11 @@ state="$(gh api "repos/$REPO/commits/$sha/statuses?per_page=100" --jq '[.[] | se
 echo "Deploying main $sha (local-verify success)"
 
 # Wait for a CI run in progress: the two together would starve the live API of memory.
-exec 9>/run/campusflow-ci.lock
-flock 9
+# server-ci.sh sets CI_LOCK_HELD=1 when it deploys after its own run (ADR 029).
+if [ "${CI_LOCK_HELD:-0}" != 1 ]; then
+  exec 9>/run/campusflow-ci.lock
+  flock 9
+fi
 
 docker run --rm --network host \
   -v /var/run/docker.sock:/var/run/docker.sock \

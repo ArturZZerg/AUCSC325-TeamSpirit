@@ -27,7 +27,7 @@ if [ -s /etc/campusflow-ci/github-token ]; then
   echo "server CI enabled; log: /var/log/campusflow-ci.log"
 else
   echo "Timer not started: put a fine-grained GitHub token (this repo only; Commit statuses RW," >&2
-  echo "Pull requests RW, Issues RW, Contents R) in /etc/campusflow-ci/github-token (mode 600), then" >&2
+  echo "Pull requests RW, Issues RW, Contents RW for automerge, ADR 029) in /etc/campusflow-ci/github-token (mode 600), then" >&2
   echo "  systemctl enable --now campusflow-ci.timer" >&2
 fi
 REMOTE

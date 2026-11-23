@@ -15,6 +15,11 @@
 # ci-local.sh tests each PR merged into the current main (it builds the merge
 # itself) and reports a PR that conflicts with main as a failure.
 #
+# Opt-in auto-merge and deploy (ADR 029): a green PR with the `automerge` label is
+# merged when its head and main are unchanged since the run and no review requests
+# changes. If main moved, the PR gets `ci:run` and is re-tested first. The next
+# green run of main then deploys it with server-deploy.sh, and the merged PR is told.
+#
 # The pipeline itself comes from INSTALL_DIR, installed from main by
 # ops/ci/install.sh, never from the PR being tested.
 set -euo pipefail
@@ -24,6 +29,7 @@ INSTALL_DIR="${CI_INSTALL_DIR:-/opt/campusflow-ci}"
 STATE_DIR="${CI_STATE_DIR:-/var/lib/campusflow-ci}"
 TOKEN_FILE="${CI_TOKEN_FILE:-/etc/campusflow-ci/github-token}"
 LABEL="ci:run"
+AUTOMERGE_LABEL="automerge"
 STALE_MINUTES=90
 MIN_FREE_KB=$((4 * 1024 * 1024))   # leave production at least 4 GB of disk
 export CI_RUNNER="server"
@@ -33,6 +39,7 @@ export CI_NODE_LIMITS="${CI_NODE_LIMITS:---cpus 1.5 --memory 2g --memory-swap 2g
 export JEST_TEST_TIMEOUT="${JEST_TEST_TIMEOUT:-30000}"
 
 log() { echo "$(date -u +%FT%TZ) $*"; }
+comment() { gh api -X POST "repos/$REPO/issues/$1/comments" -f body="$2" >/dev/null || true; }
 
 # One run at a time, and never while a deploy holds the CampusFlow lock.
 exec 9>/run/campusflow-ci.lock
@@ -47,6 +54,7 @@ free_kb="$(df --output=avail -k / | tail -1 | tr -d ' ')"
 [ "$free_kb" -ge "$MIN_FREE_KB" ] || { log "only ${free_kb} KB free on /; not starting CI"; exit 0; }
 
 repo_dir="$STATE_DIR/repo"
+deploy_queue="$STATE_DIR/deploy-queue"   # PRs merged by CI and not yet deployed
 [ -d "$repo_dir/.git" ] || git clone -q "https://github.com/$REPO.git" "$repo_dir"
 git -C "$repo_dir" fetch -q --prune origin '+refs/heads/main:refs/remotes/origin/main'
 
@@ -104,6 +112,54 @@ if [ "$code" != 0 ] && [ "$kind" = pr ]; then
   gh api -X POST "repos/$REPO/issues/$pr/comments" -f body="$body" >/dev/null || true
 fi
 log "finished $kind ${pr:+#$pr }$target exit=$code"
+
+if [ "$code" = 0 ] && [ "$kind" = pr ]; then
+  info="$(gh api "repos/$REPO/pulls/$pr" --jq "[.state, .head.sha, (any(.labels[]; .name == \"$AUTOMERGE_LABEL\"))] | @tsv" 2>/dev/null || true)"
+  IFS=$'\t' read -r pr_state pr_head wants_merge <<<"$info" || true
+  if [ "${wants_merge:-false}" = true ] && [ "${pr_state:-}" = open ]; then
+    # The merge CI tested was built on this main (scripts/ci-local.sh).
+    tested_main="$(git -C "$repo_dir" rev-parse -q --verify refs/ci-local/main || true)"
+    current_main="$(gh api "repos/$REPO/commits/main" --jq .sha 2>/dev/null || true)"
+    # Each reviewer's latest approving or blocking review counts; comments do not.
+    blocked="$(gh api "repos/$REPO/pulls/$pr/reviews?per_page=100" --jq \
+      '[group_by(.user.login)[] | map(select(.state != "COMMENTED")) | last | select(. != null) | .state] | any(. == "CHANGES_REQUESTED")' 2>/dev/null || echo unknown)"
+    if [ "$pr_head" != "$target" ]; then
+      log "#$pr has new commits since the run; not merging"
+    elif [ "$blocked" != false ]; then
+      log "#$pr: a review requests changes (or reviews could not be read); not merging"
+      comment "$pr" "Server CI passed, but a review still requests changes, so \`$AUTOMERGE_LABEL\` is waiting. Once it is addressed and the review is updated, push or add \`$LABEL\` to re-run."
+    elif [ -z "$tested_main" ] || [ "$tested_main" != "$current_main" ]; then
+      log "#$pr: main moved during the run; asking for a re-test"
+      gh api -X POST "repos/$REPO/issues/$pr/labels" -f "labels[]=$LABEL" >/dev/null || true
+    elif gh api -X PUT "repos/$REPO/pulls/$pr/merge" -f sha="$target" -f merge_method=merge >/dev/null 2>"$run_dir/merge.err"; then
+      log "#$pr merged automatically"
+      echo "$pr" >>"$deploy_queue"
+      comment "$pr" "Server CI passed and this PR has \`$AUTOMERGE_LABEL\`, so it was merged. It deploys once \`main\` passes server CI."
+    else
+      log "#$pr: merge refused"
+      comment "$pr" "Server CI passed, but GitHub refused the automatic merge: $(head -c 400 "$run_dir/merge.err" | tr '\n' ' ')"
+    fi
+  fi
+fi
+
+# Deploy auto-merged PRs once main passes (ADR 029). Only the commit just tested is
+# deployed; if main moved meanwhile, its own run deploys it.
+if [ "$kind" = main ] && [ -s "$deploy_queue" ]; then
+  prs="$(sort -un "$deploy_queue" | tr '\n' ' ')"
+  if [ "$code" != 0 ]; then
+    log "main $target failed; deploy of ${prs}held"
+    for p in $prs; do comment "$p" "\`main\` failed server CI at $target after this merge, so the deploy is held until \`main\` is green again."; done
+  elif [ "$(gh api "repos/$REPO/commits/main" --jq .sha 2>/dev/null || true)" = "$target" ]; then
+    log "deploying main $target for ${prs}"
+    deploy_code=0
+    CI_LOCK_HELD=1 "$INSTALL_DIR/server-deploy.sh" >"$run_dir/deploy.log" 2>&1 || deploy_code=$?
+    rm -f "$deploy_queue"
+    log "deploy of $target exit=$deploy_code"
+    if [ "$deploy_code" = 0 ]; then msg="Deployed to production with \`main\` $target."
+    else msg="The production deploy of \`main\` $target failed (exit $deploy_code); \`ops/vps/deploy.sh\` rolls back on failure. The owner can read \`$run_dir/deploy.log\` on the server and retry with \`server-deploy.sh\`."; fi
+    for p in $prs; do comment "$p" "$msg"; done
+  fi
+fi
 
 # Housekeeping: keep logs for 14 days, drop sources, and old CI images and cache.
 find "$run_dir" -name source.tar -delete 2>/dev/null || true
