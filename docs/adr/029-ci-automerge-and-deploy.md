@@ -45,23 +45,34 @@ teammate had requested changes. Merging every green PR would have shipped both.
 ### Merging and deploying: opt-in, on the server
 
 * `ops/ci/server-ci.sh` merges a PR (merge commit) on every tick when it has
-  the `automerge` label, its latest `local-verify` passed on the current `main`
-  (from either runner), and no reviewer's latest review requests changes.
+  the `automerge` label, added by someone with admin or maintain permission
+  (triage and write access can also add labels), its latest `local-verify`
+  passed on the current `main` (from either runner), and no reviewer's latest
+  review requests changes.
   An `automerge` PR that passed on an older `main` is queued for a fresh run
   first. If GitHub refuses the merge (branch protection), the reason is posted.
-* A merged PR is deployed with `server-deploy.sh`, so the deploy keeps its
-  backup, migration, rollback and smoke-test steps. When GitHub's merge commit
-  has exactly the tree that was tested and is still the head of `main`, CI
-  marks it verified and deploys at once. Otherwise the next green run of
-  `main` deploys it. The PR is told when it is deployed, when the deploy fails,
-  or when `main` fails and the deploy is held.
+* `main` can still move between that check and the merge. So CI marks GitHub's
+  merge commit verified only when it has exactly the tree that was tested and
+  is still the head of `main`; any other merge waits for a green run of `main`,
+  which is then the gate for the deploy.
+* Merged PRs are queued and deployed with `server-deploy.sh`, so the deploy
+  keeps its backup, migration, rollback and smoke-test steps. It runs as its
+  own systemd unit (`campusflow-deploy`, its own 60-minute limit, log
+  `/var/log/campusflow-deploy.log`), so a CI time-out cannot stop it partway,
+  and it holds the CI lock so no test runs beside it. A deploy deploys
+  whatever `main` contains, including PRs merged by hand.
+* Every deploy, automatic or by hand, tells the queued PRs whether it went
+  live or failed and clears the queue. A refused deploy (`main` not verified
+  yet) keeps the queue for the next tick. When `main` fails, the queued PRs are
+  told once that the deploy is held.
 * Failing PRs keep getting the end of the log as a comment (ADR 028).
 * PRs without the label are tested, then merged and deployed by hand.
 
 ## Consequences
 
-* Adding `automerge` means "ship this once CI passes". Only maintainers can add
-  labels.
+* Adding `automerge` means "ship this once CI passes". It only works when a
+  maintainer adds it, and there is no separate approval step: a maintainer who
+  labels their own PR ships it.
 * The CI token needs Contents read and write to merge.
 * With the PC runner on, a labelled PR reaches production in about one
   parallel run plus a deploy; on the server alone, about one 20-minute run

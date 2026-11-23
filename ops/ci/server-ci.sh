@@ -24,6 +24,8 @@ TOKEN_FILE="${CI_TOKEN_FILE:-/etc/campusflow-ci/github-token}"
 MIN_FREE_KB=$((4 * 1024 * 1024))   # leave production at least 4 GB of disk
 PC_HEARTBEAT="$STATE_DIR/pc-heartbeat"   # touched by scripts/pc-ci.sh while it runs
 PC_FRESH_MINUTES=5
+DEPLOY_UNIT="campusflow-deploy"
+DEPLOY_LOG="/var/log/campusflow-deploy.log"
 export CI_RUNNER="server"
 # Production and other sites share this host: cap the test container.
 export CI_NODE_LIMITS="${CI_NODE_LIMITS:---cpus 1.5 --memory 2g --memory-swap 2g --pids-limit 4096}"
@@ -53,22 +55,31 @@ export GH_TOKEN
 
 repo_dir="$STATE_DIR/repo"
 deploy_queue="$STATE_DIR/deploy-queue"   # PRs merged by CI and not yet deployed
-work_dir="$STATE_DIR/runs/$(date -u +%Y%m%dT%H%M%SZ)-tick"
 [ -d "$repo_dir/.git" ] || git clone -q "https://github.com/$REPO.git" "$repo_dir"
 fetch_main() { git -C "$repo_dir" fetch -q --prune origin '+refs/heads/main:refs/remotes/origin/main'; git -C "$repo_dir" rev-parse origin/main; }
 
-# Deploys main commit $1 for every queued auto-merged PR and tells each PR.
+# Deploys main commit $1 for every queued auto-merged PR.
 deploy_main() {
-  local sha="$1" prs deploy_code=0 msg
-  prs="$(sort -un "$deploy_queue" | tr '\n' ' ')"
-  mkdir -p "$work_dir"
-  log "deploying main $sha for ${prs}"
-  CI_LOCK_HELD=1 "$INSTALL_DIR/server-deploy.sh" >"$work_dir/deploy.log" 2>&1 || deploy_code=$?
-  rm -f "$deploy_queue"
-  log "deploy of $sha exit=$deploy_code"
-  if [ "$deploy_code" = 0 ]; then msg="Deployed to production with \`main\` $sha."
-  else msg="The production deploy of \`main\` $sha failed (exit $deploy_code); \`ops/vps/deploy.sh\` rolls back on failure. The owner can read \`$work_dir/deploy.log\` on the server and retry with \`server-deploy.sh\`."; fi
-  for p in $prs; do comment "$p" "$msg"; done
+  # Its own unit with its own time limit, so a CI time-out can never stop a deploy
+  # partway. It waits for this run's CI lock, then holds it, so no test runs beside it,
+  # and it tells the queued PRs the result (server-deploy.sh).
+  # A running oneshot unit reports "activating".
+  case "$(systemctl is-active "$DEPLOY_UNIT" 2>/dev/null || true)" in active|activating|deactivating) log "deploy already running"; return 0 ;; esac
+  log "starting deploy of main $1 for $(sort -un "$deploy_queue" | tr '\n' ' ')(log: $DEPLOY_LOG)"
+  systemd-run --quiet --no-block --collect --unit="$DEPLOY_UNIT" -p Type=oneshot -p TimeoutStartSec=60min \
+    -p "StandardOutput=append:$DEPLOY_LOG" -p "StandardError=append:$DEPLOY_LOG" \
+    --setenv=CI_DEPLOY_LOG="$DEPLOY_LOG" "$INSTALL_DIR/server-deploy.sh" \
+    || log "could not start the deploy unit; the next tick retries"
+}
+# Who may ship by label: the person who last added `automerge` needs admin or
+# maintain permission (triage and write can add labels too).
+labelled_by_maintainer() {
+  local who perm
+  who="$(gh api "repos/$REPO/issues/$1/events?per_page=100" --jq \
+    "[.[] | select(.event == \"labeled\" and .label.name == \"$AUTOMERGE_LABEL\")] | last | .actor.login // \"\"" 2>/dev/null || true)"
+  [ -n "$who" ] || return 1
+  perm="$(gh api "repos/$REPO/collaborators/$who/permission" --jq .permission 2>/dev/null || true)"
+  [ "$perm" = admin ] || [ "$perm" = maintain ]
 }
 
 # Merges at most one ready `automerge` PR (main moves after a merge, so the others need
@@ -83,8 +94,15 @@ merge_and_deploy() {
     # Each reviewer's latest approving or blocking review counts; comments do not.
     blocked="$(gh api "repos/$REPO/pulls/$number/reviews?per_page=100" --jq \
       '[group_by(.user.login)[] | map(select(.state != "COMMENTED")) | last | select(. != null) | .state] | any(. == "CHANGES_REQUESTED")' 2>/dev/null || echo unknown)"
-    if [ "$blocked" != false ]; then
+    if [ "$blocked" = true ]; then
       comment_once "$number-$sha-review" "$number" "CI passed, but a review still requests changes, so \`$AUTOMERGE_LABEL\` is waiting. It merges once the review is updated."
+      continue
+    elif [ "$blocked" != false ]; then
+      log "#$number: could not read reviews; trying again next tick"
+      continue
+    fi
+    if ! labelled_by_maintainer "$number"; then
+      comment_once "$number-$sha-labeller" "$number" "CI passed, but \`$AUTOMERGE_LABEL\` was not added by a maintainer (admin or maintain permission), so it was not merged automatically."
       continue
     fi
     err="$(mktemp)"
@@ -121,6 +139,7 @@ merge_and_deploy() {
       for p in $(sort -un "$deploy_queue"); do
         comment_once "$p-$main-held" "$p" "\`main\` failed CI at $main after this merge, so the deploy is held until \`main\` is green again."
       done ;;
+    *) log "main $main has local-verify=${state:-unreadable}; deploy waits" ;;
   esac
 }
 
