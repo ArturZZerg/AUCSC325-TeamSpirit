@@ -6,14 +6,16 @@ export function studyTimeLabel(seconds: number) {
   return [hours ? `${hours}h` : '', minutes ? `${minutes}m` : '', remaining || (!hours && !minutes) ? `${remaining}s` : ''].filter(Boolean).join(' ');
 }
 
-/** Compare a selected week's saved seconds with the current total task estimate.
- * The difference describes recorded time, never remaining work or completion. */
+/** Compare a selected week's saved seconds with the task's whole current estimate.
+ * Only this week's time counts, so the label says so; it never describes remaining
+ * work or completion. */
 export function studyEstimateComparison(seconds: number, estimatedMinutes: number | null | undefined) {
   if (estimatedMinutes == null) return undefined;
   const estimatedSeconds = estimatedMinutes * 60, difference = seconds - estimatedSeconds;
   return { percent: Math.min(100, Math.round(seconds / estimatedSeconds * 100)),
-    label: difference === 0 ? 'Recorded time matches the estimate this week.'
-      : `${studyTimeLabel(Math.abs(difference))} ${difference < 0 ? 'below' : 'above'} estimate this week.` };
+    over: difference > 0,
+    label: difference === 0 ? 'This week’s time equals the full task estimate.'
+      : `This week: ${studyTimeLabel(Math.abs(difference))} ${difference < 0 ? 'under' : 'over'} the full task estimate.` };
 }
 /** Reports only the account/calendar window proven by a validated history read. */
 export function buildStudyReport(raw: unknown, accountId: string, timeZone: string, start: string, now: string) {

@@ -18,13 +18,13 @@ it.each([[0, '0s'], [59, '59s'], [118, '1m 58s'], [3600, '1h'], [3665, '1h 1m 5s
 });
 
 it.each([
-  [0, 1, 0, '1m below estimate this week.'],
-  [59, 1, 98, '1s below estimate this week.'],
-  [60, 1, 100, 'Recorded time matches the estimate this week.'],
-  [61, 1, 100, '1s above estimate this week.'],
-  [7265, 60, 100, '1h 1m 5s above estimate this week.'],
+  [0, 1, 0, 'This week: 1m under the full task estimate.'],
+  [59, 1, 98, 'This week: 1s under the full task estimate.'],
+  [60, 1, 100, 'This week’s time equals the full task estimate.'],
+  [61, 1, 100, 'This week: 1s over the full task estimate.'],
+  [7265, 60, 100, 'This week: 1h 1m 5s over the full task estimate.'],
 ])('compares %s saved seconds with a %s minute estimate', (seconds, estimate, percent, label) => {
-  expect(studyEstimateComparison(seconds, estimate)).toEqual({ percent, label });
+  expect(studyEstimateComparison(seconds, estimate)).toEqual({ percent, label, over: seconds > estimate * 60 });
 });
 it.each([null, undefined])('withholds a comparison for a missing estimate (%s)', estimate => {
   expect(studyEstimateComparison(120, estimate)).toBeUndefined();
