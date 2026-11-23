@@ -343,7 +343,16 @@ Maintainers install or update the server runner with
 
 A maintainer can add the `automerge` label instead ([ADR 029](docs/adr/029-ci-automerge-and-deploy.md)).
 Once CI passes on the current `main` and no review requests changes, the server
-merges the PR, tests `main` again and deploys it, commenting on the PR at each step.
+merges the PR and deploys it, commenting on the PR at each step.
+
+To clear PRs faster, run the PC runner on a machine with Docker, `gh` and SSH
+access to the server. While it runs, it does the testing (all cores, parallel
+mode) and the server only merges and deploys; when it stops, the server tests
+again:
+
+```sh
+scripts/pc-ci.sh
+```
 
 ## Project layout
 

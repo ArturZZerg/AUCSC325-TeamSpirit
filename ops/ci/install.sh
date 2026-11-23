@@ -7,10 +7,10 @@ set -euo pipefail
 SERVER=${SERVER:?Set SERVER, e.g. root@host}
 cd "$(git rev-parse --show-toplevel)"
 [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "Install only from main" >&2; exit 1; }
-[ -z "$(git status --porcelain -- scripts/ci-local.sh ops/ci)" ] || { echo "ops/ci or ci-local.sh has local changes" >&2; exit 1; }
+[ -z "$(git status --porcelain -- scripts/ci-local.sh scripts/ci-queue.sh ops/ci)" ] || { echo "ops/ci or the CI scripts have local changes" >&2; exit 1; }
 
 ssh "$SERVER" 'install -d -m 755 /opt/campusflow-ci && install -d -m 700 /etc/campusflow-ci /var/lib/campusflow-ci /var/lib/campusflow-ci/runs'
-scp -q scripts/ci-local.sh ops/ci/server-ci.sh ops/ci/server-deploy.sh "$SERVER:/opt/campusflow-ci/"
+scp -q scripts/ci-local.sh scripts/ci-queue.sh ops/ci/server-ci.sh ops/ci/server-deploy.sh "$SERVER:/opt/campusflow-ci/"
 scp -q ops/ci/campusflow-ci.service ops/ci/campusflow-ci.timer "$SERVER:/etc/systemd/system/"
 ssh "$SERVER" bash -s <<'REMOTE'
 set -euo pipefail

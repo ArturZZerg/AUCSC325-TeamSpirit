@@ -1,24 +1,17 @@
 #!/usr/bin/env bash
-# Server CI poller (ADR 028). A systemd timer starts it every two minutes. Each start
-# tests at most one commit with scripts/ci-local.sh and posts `local-verify` on it.
+# Server CI (ADR 028, ADR 029). A systemd timer starts it every two minutes. Each start:
+#   1. merges `automerge` PRs that passed on the current main, and deploys merged work;
+#   2. unless the owner's PC runner is active (heartbeat), tests at most one commit with
+#      scripts/ci-local.sh and posts `local-verify` on it; then runs step 1 again.
+# What gets tested, and in which order, is scripts/ci-queue.sh: the head of main, then
+# collaborator PRs, then PRs from anyone else only while a maintainer has added `ci:run`
+# (removed after the run, so outside code never runs here unreviewed).
 #
-# What gets tested, in order:
-#   1. the head of main, after every merge;
-#   2. open PRs from repository collaborators (OWNER, MEMBER, COLLABORATOR);
-#   3. open PRs from anyone else only while a maintainer has added the `ci:run`
-#      label. The label is removed after the run, so every new push needs a new
-#      approval: outside code never runs on this shared server unreviewed.
-# A commit that already has a `local-verify` status is skipped, unless its PR has
-# the `ci:run` label: the label asks for a (re-)run of any PR. A pending status
-# older than STALE_MINUTES (crashed run) is tested again.
-#
-# ci-local.sh tests each PR merged into the current main (it builds the merge
-# itself) and reports a PR that conflicts with main as a failure.
-#
-# Opt-in auto-merge and deploy (ADR 029): a green PR with the `automerge` label is
-# merged when its head and main are unchanged since the run and no review requests
-# changes. If main moved, the PR gets `ci:run` and is re-tested first. The next
-# green run of main then deploys it with server-deploy.sh, and the merged PR is told.
+# Automatic merge is opt-in with the `automerge` label. A PR is merged when its latest
+# `local-verify` passed on the current main (from this server or the PC runner) and no
+# reviewer's latest review requests changes. When GitHub's merge commit has exactly the
+# tested tree, it is marked verified and deployed at once; otherwise the next green run
+# of main deploys it. Each merged PR is told what happened.
 #
 # The pipeline itself comes from INSTALL_DIR, installed from main by
 # ops/ci/install.sh, never from the PR being tested.
@@ -28,29 +21,25 @@ REPO="${CI_LOCAL_REPO:-ArturZZerg/AUCSC325-TeamSpirit}"
 INSTALL_DIR="${CI_INSTALL_DIR:-/opt/campusflow-ci}"
 STATE_DIR="${CI_STATE_DIR:-/var/lib/campusflow-ci}"
 TOKEN_FILE="${CI_TOKEN_FILE:-/etc/campusflow-ci/github-token}"
-LABEL="ci:run"
-AUTOMERGE_LABEL="automerge"
-STALE_MINUTES=90
 MIN_FREE_KB=$((4 * 1024 * 1024))   # leave production at least 4 GB of disk
+PC_HEARTBEAT="$STATE_DIR/pc-heartbeat"   # touched by scripts/pc-ci.sh while it runs
+PC_FRESH_MINUTES=5
 export CI_RUNNER="server"
 # Production and other sites share this host: cap the test container.
 export CI_NODE_LIMITS="${CI_NODE_LIMITS:---cpus 1.5 --memory 2g --memory-swap 2g --pids-limit 4096}"
 # The capped CPU makes a few heavy UI tests exceed Jest's 5 s default; allow 30 s here.
 export JEST_TEST_TIMEOUT="${JEST_TEST_TIMEOUT:-30000}"
+# shellcheck source=../../scripts/ci-queue.sh
+. "$INSTALL_DIR/ci-queue.sh"
 
 log() { echo "$(date -u +%FT%TZ) $*"; }
 comment() { gh api -X POST "repos/$REPO/issues/$1/comments" -f body="$2" >/dev/null || true; }
-# Deploys main commit $1 for every queued auto-merged PR and tells each PR (ADR 029).
-deploy_main() {
-  local sha="$1" prs deploy_code=0 msg
-  prs="$(sort -un "$deploy_queue" | tr '\n' ' ')"
-  log "deploying main $sha for ${prs}"
-  CI_LOCK_HELD=1 "$INSTALL_DIR/server-deploy.sh" >"$run_dir/deploy.log" 2>&1 || deploy_code=$?
-  rm -f "$deploy_queue"
-  log "deploy of $sha exit=$deploy_code"
-  if [ "$deploy_code" = 0 ]; then msg="Deployed to production with \`main\` $sha."
-  else msg="The production deploy of \`main\` $sha failed (exit $deploy_code); \`ops/vps/deploy.sh\` rolls back on failure. The owner can read \`$run_dir/deploy.log\` on the server and retry with \`server-deploy.sh\`."; fi
-  for p in $prs; do comment "$p" "$msg"; done
+# Comments once per key, so a PR waiting on a review is not told again every tick.
+comment_once() { # key pr body
+  local mark="$STATE_DIR/notified/$1"
+  [ -e "$mark" ] && return 0
+  mkdir -p "$STATE_DIR/notified" && touch "$mark"
+  comment "$2" "$3"
 }
 
 # One run at a time, and never while a deploy holds the CampusFlow lock.
@@ -62,41 +51,89 @@ if [ -e /run/campusflow.lock ] && ! flock -n /run/campusflow.lock true; then log
 GH_TOKEN="$(tr -d '[:space:]' <"$TOKEN_FILE")"
 export GH_TOKEN
 
+repo_dir="$STATE_DIR/repo"
+deploy_queue="$STATE_DIR/deploy-queue"   # PRs merged by CI and not yet deployed
+work_dir="$STATE_DIR/runs/$(date -u +%Y%m%dT%H%M%SZ)-tick"
+[ -d "$repo_dir/.git" ] || git clone -q "https://github.com/$REPO.git" "$repo_dir"
+fetch_main() { git -C "$repo_dir" fetch -q --prune origin '+refs/heads/main:refs/remotes/origin/main'; git -C "$repo_dir" rev-parse origin/main; }
+
+# Deploys main commit $1 for every queued auto-merged PR and tells each PR.
+deploy_main() {
+  local sha="$1" prs deploy_code=0 msg
+  prs="$(sort -un "$deploy_queue" | tr '\n' ' ')"
+  mkdir -p "$work_dir"
+  log "deploying main $sha for ${prs}"
+  CI_LOCK_HELD=1 "$INSTALL_DIR/server-deploy.sh" >"$work_dir/deploy.log" 2>&1 || deploy_code=$?
+  rm -f "$deploy_queue"
+  log "deploy of $sha exit=$deploy_code"
+  if [ "$deploy_code" = 0 ]; then msg="Deployed to production with \`main\` $sha."
+  else msg="The production deploy of \`main\` $sha failed (exit $deploy_code); \`ops/vps/deploy.sh\` rolls back on failure. The owner can read \`$work_dir/deploy.log\` on the server and retry with \`server-deploy.sh\`."; fi
+  for p in $prs; do comment "$p" "$msg"; done
+}
+
+# Merges at most one ready `automerge` PR (main moves after a merge, so the others need
+# a fresh run), then deploys anything merged once main is verified.
+merge_and_deploy() {
+  local main number sha state tested blocked merged tested_tree merged_tree err
+  main="$(fetch_main)"
+  while IFS=$'\t' read -r number sha; do
+    [ -n "$number" ] || continue
+    read -r state tested <<<"$(ci_status "$sha")"
+    [ "$state" = success ] && [ "$tested" = "$main" ] || continue
+    # Each reviewer's latest approving or blocking review counts; comments do not.
+    blocked="$(gh api "repos/$REPO/pulls/$number/reviews?per_page=100" --jq \
+      '[group_by(.user.login)[] | map(select(.state != "COMMENTED")) | last | select(. != null) | .state] | any(. == "CHANGES_REQUESTED")' 2>/dev/null || echo unknown)"
+    if [ "$blocked" != false ]; then
+      comment_once "$number-$sha-review" "$number" "CI passed, but a review still requests changes, so \`$AUTOMERGE_LABEL\` is waiting. It merges once the review is updated."
+      continue
+    fi
+    err="$(mktemp)"
+    if merged="$(gh api -X PUT "repos/$REPO/pulls/$number/merge" -f sha="$sha" -f merge_method=merge --jq .sha 2>"$err")"; then
+      log "#$number merged automatically as $merged"
+      echo "$number" >>"$deploy_queue"
+      # The tested merge is main + the PR head (scripts/ci-local.sh builds it the same way).
+      git -C "$repo_dir" fetch -q origin "+refs/pull/$number/head:refs/ci-local/$number/head" || true
+      tested_tree="$(git -C "$repo_dir" merge-tree --write-tree "$main" "$sha" 2>/dev/null | head -1 || true)"
+      main="$(fetch_main)"
+      merged_tree="$(git -C "$repo_dir" rev-parse -q --verify "$merged^{tree}" 2>/dev/null || true)"
+      if [ -n "$tested_tree" ] && [ "$tested_tree" = "$merged_tree" ] && [ "$main" = "$merged" ] \
+        && gh api -X POST "repos/$REPO/statuses/$merged" -f state=success -f context=local-verify \
+             -f description="Same code as the tested merge of #$number" >/dev/null; then
+        comment "$number" "CI passed and this PR has \`$AUTOMERGE_LABEL\`, so it was merged as $merged. That commit has exactly the code CI tested, so it deploys now."
+      else
+        comment "$number" "CI passed and this PR has \`$AUTOMERGE_LABEL\`, so it was merged. It deploys once \`main\` passes CI."
+      fi
+    else
+      log "#$number: merge refused"
+      comment_once "$number-$sha-refused" "$number" "CI passed, but GitHub refused the automatic merge: $(head -c 400 "$err" | tr '\n' ' ')"
+    fi
+    rm -f "$err"
+    break
+  done < <(gh api "repos/$REPO/pulls?state=open&sort=updated&direction=asc&per_page=100" --jq \
+    ".[] | select(.draft | not) | select(any(.labels[]; .name == \"$AUTOMERGE_LABEL\")) | [.number, .head.sha] | @tsv")
+
+  [ -s "$deploy_queue" ] || return 0
+  main="$(fetch_main)"
+  read -r state tested <<<"$(ci_status "$main")"
+  case "$state" in
+    success) deploy_main "$main" ;;
+    failure|error)
+      for p in $(sort -un "$deploy_queue"); do
+        comment_once "$p-$main-held" "$p" "\`main\` failed CI at $main after this merge, so the deploy is held until \`main\` is green again."
+      done ;;
+  esac
+}
+
+merge_and_deploy
+
+# While the PC runner is active it does the testing; the server only merges and deploys.
+if [ -n "$(find "$PC_HEARTBEAT" -mmin -"$PC_FRESH_MINUTES" 2>/dev/null)" ]; then exit 0; fi
+
 free_kb="$(df --output=avail -k / | tail -1 | tr -d ' ')"
 [ "$free_kb" -ge "$MIN_FREE_KB" ] || { log "only ${free_kb} KB free on /; not starting CI"; exit 0; }
 
-repo_dir="$STATE_DIR/repo"
-deploy_queue="$STATE_DIR/deploy-queue"   # PRs merged by CI and not yet deployed
-[ -d "$repo_dir/.git" ] || git clone -q "https://github.com/$REPO.git" "$repo_dir"
-git -C "$repo_dir" fetch -q --prune origin '+refs/heads/main:refs/remotes/origin/main'
-
-# Prints "missing" when the commit needs a run, otherwise the latest state.
-status_of() {
-  gh api "repos/$REPO/commits/$1/statuses?per_page=100" --jq "
-    [.[] | select(.context == \"local-verify\")] | first
-    | if . == null then \"missing\"
-      elif .state == \"pending\" and (now - (.updated_at | fromdateiso8601)) > ($STALE_MINUTES * 60) then \"missing\"
-      else .state end"
-}
-
-target="" kind="" pr="" labelled_run=0
-main_sha="$(git -C "$repo_dir" rev-parse origin/main)"
-if [ "$(status_of "$main_sha")" = missing ]; then
-  target="$main_sha" kind="main"
-else
-  # Oldest-updated first, so a busy PR cannot starve the others.
-  while IFS=$'\t' read -r number sha association labelled; do
-    trusted=0
-    case "$association" in OWNER|MEMBER|COLLABORATOR) trusted=1 ;; esac
-    [ "$trusted" = 1 ] || [ "$labelled" = true ] || continue
-    [ "$labelled" = true ] || [ "$(status_of "$sha")" = missing ] || continue
-    target="$sha" kind="pr" pr="$number"
-    [ "$labelled" = true ] && labelled_run=1
-    break
-  done < <(gh api "repos/$REPO/pulls?state=open&sort=updated&direction=asc&per_page=100" --jq \
-    ".[] | select(.draft | not) | [.number, .head.sha, .author_association, (any(.labels[]; .name == \"$LABEL\"))] | @tsv")
-fi
-[ -n "$target" ] || exit 0
+IFS=$'\t' read -r kind pr target labelled_run <<<"$(ci_next "$(fetch_main)")" || true
+[ -n "${target:-}" ] || exit 0
 
 run_dir="$STATE_DIR/runs/$(date -u +%Y%m%dT%H%M%SZ)-${pr:-main}-${target:0:12}"
 mkdir -p "$run_dir"
@@ -109,78 +146,16 @@ if [ "$kind" = main ]; then
 else
   (cd "$repo_dir" && nice -n 10 "$INSTALL_DIR/ci-local.sh" "$pr") >"$run_dir/runner.log" 2>&1 || code=$?
 fi
-
-if [ "$labelled_run" = 1 ]; then
-  gh api -X DELETE "repos/$REPO/issues/$pr/labels/$(printf %s "$LABEL" | jq -sRr @uri)" >/dev/null 2>&1 || true
-fi
-
-# A failing PR gets the end of the log as a comment: contributors cannot read this server.
-if [ "$code" != 0 ] && [ "$kind" = pr ]; then
-  ci_log="$(find "$run_dir" -name ci.log -print -quit)"
-  tail_text="$(tail -60 "${ci_log:-$run_dir/runner.log}" 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | cut -c1-300)"
-  step="$(grep -o "FAIL at '[^']*'" "$run_dir/runner.log" | head -1 || true)"
-  body="$(printf 'Server CI (`local-verify`) failed for %s. %s\n\n<details><summary>Last 60 log lines</summary>\n\n```text\n%s\n```\n</details>\n\nRun it yourself with `scripts/ci-local.sh %s`.' \
-    "$target" "${step:-}" "$tail_text" "$pr")"
-  gh api -X POST "repos/$REPO/issues/$pr/comments" -f body="$body" >/dev/null || true
-fi
+[ "$labelled_run" = 1 ] && ci_unlabel "$pr"
+[ "$code" != 0 ] && [ "$kind" = pr ] && ci_fail_comment "$pr" "$target" "$run_dir" "$run_dir/runner.log"
 log "finished $kind ${pr:+#$pr }$target exit=$code"
 
-if [ "$code" = 0 ] && [ "$kind" = pr ]; then
-  info="$(gh api "repos/$REPO/pulls/$pr" --jq "[.state, .head.sha, (any(.labels[]; .name == \"$AUTOMERGE_LABEL\"))] | @tsv" 2>/dev/null || true)"
-  IFS=$'\t' read -r pr_state pr_head wants_merge <<<"$info" || true
-  if [ "${wants_merge:-false}" = true ] && [ "${pr_state:-}" = open ]; then
-    # The merge CI tested was built on this main (scripts/ci-local.sh).
-    tested_main="$(git -C "$repo_dir" rev-parse -q --verify refs/ci-local/main || true)"
-    current_main="$(gh api "repos/$REPO/commits/main" --jq .sha 2>/dev/null || true)"
-    # Each reviewer's latest approving or blocking review counts; comments do not.
-    blocked="$(gh api "repos/$REPO/pulls/$pr/reviews?per_page=100" --jq \
-      '[group_by(.user.login)[] | map(select(.state != "COMMENTED")) | last | select(. != null) | .state] | any(. == "CHANGES_REQUESTED")' 2>/dev/null || echo unknown)"
-    if [ "$pr_head" != "$target" ]; then
-      log "#$pr has new commits since the run; not merging"
-    elif [ "$blocked" != false ]; then
-      log "#$pr: a review requests changes (or reviews could not be read); not merging"
-      comment "$pr" "Server CI passed, but a review still requests changes, so \`$AUTOMERGE_LABEL\` is waiting. Once it is addressed and the review is updated, push or add \`$LABEL\` to re-run."
-    elif [ -z "$tested_main" ] || [ "$tested_main" != "$current_main" ]; then
-      log "#$pr: main moved during the run; asking for a re-test"
-      gh api -X POST "repos/$REPO/issues/$pr/labels" -f "labels[]=$LABEL" >/dev/null || true
-    elif merged="$(gh api -X PUT "repos/$REPO/pulls/$pr/merge" -f sha="$target" -f merge_method=merge --jq .sha 2>"$run_dir/merge.err")"; then
-      log "#$pr merged automatically as $merged"
-      echo "$pr" >>"$deploy_queue"
-      # GitHub's merge commit normally has exactly the tree this run tested. Then it is
-      # already verified: mark it and deploy now instead of testing main a second time.
-      git -C "$repo_dir" fetch -q origin '+refs/heads/main:refs/remotes/origin/main' || true
-      tested_tree="$(git -C "$repo_dir" rev-parse -q --verify "refs/ci-local/$pr/merge^{tree}" 2>/dev/null || true)"
-      merged_tree="$(git -C "$repo_dir" rev-parse -q --verify "$merged^{tree}" 2>/dev/null || true)"
-      if [ -n "$tested_tree" ] && [ "$tested_tree" = "$merged_tree" ] && [ "$(git -C "$repo_dir" rev-parse origin/main)" = "$merged" ] \
-        && gh api -X POST "repos/$REPO/statuses/$merged" -f state=success -f context=local-verify \
-             -f description="Same code as the tested merge of #$pr ($CI_RUNNER)" >/dev/null; then
-        comment "$pr" "Server CI passed and this PR has \`$AUTOMERGE_LABEL\`, so it was merged as $merged. That commit has exactly the code CI tested, so it is deploying now."
-        deploy_main "$merged"
-      else
-        comment "$pr" "Server CI passed and this PR has \`$AUTOMERGE_LABEL\`, so it was merged. It deploys once \`main\` passes server CI."
-      fi
-    else
-      log "#$pr: merge refused"
-      comment "$pr" "Server CI passed, but GitHub refused the automatic merge: $(head -c 400 "$run_dir/merge.err" | tr '\n' ' ')"
-    fi
-  fi
-fi
-
-# Deploy auto-merged PRs once main passes (ADR 029). Only the commit just tested is
-# deployed; if main moved meanwhile, its own run deploys it.
-if [ "$kind" = main ] && [ -s "$deploy_queue" ]; then
-  prs="$(sort -un "$deploy_queue" | tr '\n' ' ')"
-  if [ "$code" != 0 ]; then
-    log "main $target failed; deploy of ${prs}held"
-    for p in $prs; do comment "$p" "\`main\` failed server CI at $target after this merge, so the deploy is held until \`main\` is green again."; done
-  elif [ "$(gh api "repos/$REPO/commits/main" --jq .sha 2>/dev/null || true)" = "$target" ]; then
-    deploy_main "$target"
-  fi
-fi
+merge_and_deploy
 
 # Housekeeping: keep logs for 14 days, drop sources, and old CI images and cache.
 find "$run_dir" -name source.tar -delete 2>/dev/null || true
 find "$STATE_DIR/runs" -mindepth 1 -maxdepth 1 -type d -mtime +14 -exec rm -rf -- {} + 2>/dev/null || true
+find "$STATE_DIR/notified" -type f -mtime +14 -delete 2>/dev/null || true
 docker image prune -f --filter until=24h >/dev/null 2>&1 || true
 docker builder prune -f --filter until=72h >/dev/null 2>&1 || true
 exit 0
