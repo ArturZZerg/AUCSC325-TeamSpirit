@@ -24,6 +24,16 @@ beforeEach(() => {
 });
 
 describe('disposable account cache (ToR 19)', () => {
+  it('retries database initialization after the first open fails', async () => {
+    jest.mocked(SQLite.openDatabaseAsync).mockRejectedValueOnce(new Error('SQLite unavailable'));
+    await expect(readCache('first', 'tasks')).rejects.toThrow('SQLite unavailable');
+
+    await writeCache('first', 'tasks', ['Saved after retry']);
+
+    expect(SQLite.openDatabaseAsync).toHaveBeenCalledTimes(2);
+    expect(await readCache('first', 'tasks')).toEqual(['Saved after retry']);
+  });
+
   it('clears all owned journal ranges and legacy check-ins while retaining tasks and another account', async () => {
     for (const key of ['wellness', 'wellnessJournal:old-range', 'wellnessJournal:recent-range']) await writeCache('first', key, ['Private old note']);
     await writeCache('first', 'tasks', ['Saved task']); await writeCache('second', 'wellness', ['Other note']);
