@@ -11,7 +11,7 @@ and separate entities. This adds an identity workflow, not a generic data servic
 ## Export
 
 An authenticated export covers server-saved profile, tasks and completion history,
-coursework/courses, classes, preparation plans, recorded focus, routines/history,
+task templates, coursework/courses, classes, preparation plans, recorded focus, routines/history,
 wellness, saved events, private events, reminders and notification preferences.
 Include a version and capture time. Use explicit DTO fields and consistent
 transactional reads; omit passwords, sessions, provider credentials/OAuth state,

@@ -131,6 +131,7 @@ Primary entities include:
 * ClassSchedule (student-owned timetable; ADR 004)
 * AcademicItem
 * PersonalTask
+* TaskTemplate (reusable task starting point, copied on use; ADR 027)
 * StudyPlan (coursework preparation grouping; ADR 005)
 * FocusSession (recorded study time; ADR 006)
 * GymEnrollment and Workout (strength training; ADR 020)
