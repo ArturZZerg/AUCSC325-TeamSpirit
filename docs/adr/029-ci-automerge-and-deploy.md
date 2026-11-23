@@ -26,9 +26,12 @@ Automatic merge is opt-in per PR, through the `automerge` label.
     `ci:run`, so the PR is re-tested against the new `main` first;
   * no reviewer's latest review requests changes.
   If GitHub refuses the merge (branch protection), the reason is posted on the PR.
-* A merged PR is queued for deployment. The next green run of `main` (tested
-  first after every merge) deploys that exact commit with `server-deploy.sh`,
-  so the deploy keeps its backup, migration, rollback and smoke-test steps.
+* A merged PR is deployed with `server-deploy.sh`, so the deploy keeps its
+  backup, migration, rollback and smoke-test steps. When GitHub's merge commit
+  has exactly the tree CI tested (the usual case, since `main` had not moved)
+  and is still the head of `main`, CI posts `local-verify` on it and deploys at
+  once. Otherwise the PR is queued, and the next green run of `main` deploys
+  that exact commit.
   The PR gets a comment when it is deployed, when the deploy fails, or when
   `main` fails and the deploy is held.
 * Failing PRs keep getting the end of the log as a comment (ADR 028).
@@ -40,6 +43,10 @@ Automatic merge is opt-in per PR, through the `automerge` label.
 * Adding `automerge` means "ship this once CI passes". Only maintainers can add
   labels, and fork PRs still need `ci:run` before any code runs.
 * The CI token needs Contents read and write to merge.
-* A merge waits for its PR run and then a `main` run (about 20 minutes each on
-  the capped server) before it reaches production.
+* A merge normally reaches production one PR run (about 20 minutes on the
+  capped server) plus the deploy after the label is added; only a merge whose
+  code differs from the tested merge waits for another `main` run.
+* `scripts/ci-local.sh` keeps the npm download cache in the
+  `campusflow-ci-npm-cache` Docker volume. npm still verifies each package
+  against the lockfile's integrity hashes.
 * ADR 017's owner-triggered deploy remains available and is unchanged.

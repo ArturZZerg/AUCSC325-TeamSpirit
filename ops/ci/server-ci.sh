@@ -40,6 +40,18 @@ export JEST_TEST_TIMEOUT="${JEST_TEST_TIMEOUT:-30000}"
 
 log() { echo "$(date -u +%FT%TZ) $*"; }
 comment() { gh api -X POST "repos/$REPO/issues/$1/comments" -f body="$2" >/dev/null || true; }
+# Deploys main commit $1 for every queued auto-merged PR and tells each PR (ADR 029).
+deploy_main() {
+  local sha="$1" prs deploy_code=0 msg
+  prs="$(sort -un "$deploy_queue" | tr '\n' ' ')"
+  log "deploying main $sha for ${prs}"
+  CI_LOCK_HELD=1 "$INSTALL_DIR/server-deploy.sh" >"$run_dir/deploy.log" 2>&1 || deploy_code=$?
+  rm -f "$deploy_queue"
+  log "deploy of $sha exit=$deploy_code"
+  if [ "$deploy_code" = 0 ]; then msg="Deployed to production with \`main\` $sha."
+  else msg="The production deploy of \`main\` $sha failed (exit $deploy_code); \`ops/vps/deploy.sh\` rolls back on failure. The owner can read \`$run_dir/deploy.log\` on the server and retry with \`server-deploy.sh\`."; fi
+  for p in $prs; do comment "$p" "$msg"; done
+}
 
 # One run at a time, and never while a deploy holds the CampusFlow lock.
 exec 9>/run/campusflow-ci.lock
@@ -131,10 +143,22 @@ if [ "$code" = 0 ] && [ "$kind" = pr ]; then
     elif [ -z "$tested_main" ] || [ "$tested_main" != "$current_main" ]; then
       log "#$pr: main moved during the run; asking for a re-test"
       gh api -X POST "repos/$REPO/issues/$pr/labels" -f "labels[]=$LABEL" >/dev/null || true
-    elif gh api -X PUT "repos/$REPO/pulls/$pr/merge" -f sha="$target" -f merge_method=merge >/dev/null 2>"$run_dir/merge.err"; then
-      log "#$pr merged automatically"
+    elif merged="$(gh api -X PUT "repos/$REPO/pulls/$pr/merge" -f sha="$target" -f merge_method=merge --jq .sha 2>"$run_dir/merge.err")"; then
+      log "#$pr merged automatically as $merged"
       echo "$pr" >>"$deploy_queue"
-      comment "$pr" "Server CI passed and this PR has \`$AUTOMERGE_LABEL\`, so it was merged. It deploys once \`main\` passes server CI."
+      # GitHub's merge commit normally has exactly the tree this run tested. Then it is
+      # already verified: mark it and deploy now instead of testing main a second time.
+      git -C "$repo_dir" fetch -q origin '+refs/heads/main:refs/remotes/origin/main' || true
+      tested_tree="$(git -C "$repo_dir" rev-parse -q --verify "refs/ci-local/$pr/merge^{tree}" 2>/dev/null || true)"
+      merged_tree="$(git -C "$repo_dir" rev-parse -q --verify "$merged^{tree}" 2>/dev/null || true)"
+      if [ -n "$tested_tree" ] && [ "$tested_tree" = "$merged_tree" ] && [ "$(git -C "$repo_dir" rev-parse origin/main)" = "$merged" ] \
+        && gh api -X POST "repos/$REPO/statuses/$merged" -f state=success -f context=local-verify \
+             -f description="Same code as the tested merge of #$pr ($CI_RUNNER)" >/dev/null; then
+        comment "$pr" "Server CI passed and this PR has \`$AUTOMERGE_LABEL\`, so it was merged as $merged. That commit has exactly the code CI tested, so it is deploying now."
+        deploy_main "$merged"
+      else
+        comment "$pr" "Server CI passed and this PR has \`$AUTOMERGE_LABEL\`, so it was merged. It deploys once \`main\` passes server CI."
+      fi
     else
       log "#$pr: merge refused"
       comment "$pr" "Server CI passed, but GitHub refused the automatic merge: $(head -c 400 "$run_dir/merge.err" | tr '\n' ' ')"
@@ -150,14 +174,7 @@ if [ "$kind" = main ] && [ -s "$deploy_queue" ]; then
     log "main $target failed; deploy of ${prs}held"
     for p in $prs; do comment "$p" "\`main\` failed server CI at $target after this merge, so the deploy is held until \`main\` is green again."; done
   elif [ "$(gh api "repos/$REPO/commits/main" --jq .sha 2>/dev/null || true)" = "$target" ]; then
-    log "deploying main $target for ${prs}"
-    deploy_code=0
-    CI_LOCK_HELD=1 "$INSTALL_DIR/server-deploy.sh" >"$run_dir/deploy.log" 2>&1 || deploy_code=$?
-    rm -f "$deploy_queue"
-    log "deploy of $target exit=$deploy_code"
-    if [ "$deploy_code" = 0 ]; then msg="Deployed to production with \`main\` $target."
-    else msg="The production deploy of \`main\` $target failed (exit $deploy_code); \`ops/vps/deploy.sh\` rolls back on failure. The owner can read \`$run_dir/deploy.log\` on the server and retry with \`server-deploy.sh\`."; fi
-    for p in $prs; do comment "$p" "$msg"; done
+    deploy_main "$target"
   fi
 fi
 

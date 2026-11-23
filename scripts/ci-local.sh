@@ -109,7 +109,10 @@ mark "release:restore-rehearsal"
 REHEARSAL_DATABASE_URL="$DATABASE_URL" PG_BIN=/usr/lib/postgresql/17/bin npm run release:restore-rehearsal
 '
 step="node steps"; echo "==> node steps in $NODE_IMAGE (npm ci, db, check, build:web, restore rehearsal)"
+# The npm download cache survives between runs in a named volume. npm ci still checks
+# every package against the lockfile's integrity hashes, so a run cannot poison it.
 if ! docker run --rm "${NODE_LIMITS[@]}" --network "container:$PG_NAME" -e CI=true -e "JEST_TEST_TIMEOUT=${JEST_TEST_TIMEOUT:-}" -e "DATABASE_URL=$DATABASE_URL" \
+     --mount "type=volume,source=campusflow-ci-npm-cache,target=/root/.npm" \
      --mount "type=bind,source=$src_native,target=/source.tar,readonly" "$NODE_IMAGE" bash -c "$node_steps" >>"$log" 2>&1; then
   step="$(grep -o '^==> .*' "$log" | tail -1 | cut -c5-)"
   tail -80 "$log" >&2; exit 1
