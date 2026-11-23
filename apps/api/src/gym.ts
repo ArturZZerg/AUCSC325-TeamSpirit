@@ -6,7 +6,7 @@ import { Prisma, type BodyWeightEntry as BodyWeightRow, type GymEnrollment as En
   type UserProgram as ProgramRow, type Workout as WorkoutRow } from '@prisma/client';
 import { bodyWeightEntrySchema, dateSchema, exerciseDetailsSchema, gymEnrollmentSchema, gymImportResultSchema, gymOverviewSchema, gymRecentDays, gymRecentLimit,
   programDaySchema, saveBodyWeightSchema, saveGymEnrollmentSchema, saveUserExerciseSchema, saveUserProgramSchema, saveWorkoutSchema, userExerciseSchema,
-  userProgramSchema, workoutSchema, type SaveGymEnrollment, type SaveUserExercise, type SaveUserProgram, type SaveWorkout } from '@campusflow/contracts';
+  userProgramSchema, workoutSchema, saveGymOpeningHoursSchema, type SaveGymEnrollment, type SaveUserExercise, type SaveUserProgram, type SaveWorkout } from '@campusflow/contracts';
 import { findLibraryExercise, localDateAt, resolveExercise, resolveProgram, type GymExercise, type TrainingProgram } from '@campusflow/domain';
 import { z } from 'zod';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, lockAccountRecords, parseUuid } from './common';
@@ -67,16 +67,25 @@ export class GymController {
   @Get() @Header('Cache-Control', 'private, no-store')
   async overview(@CurrentUser() user: RequestUser) {
     const since = new Date(Date.now() - gymRecentDays * 86400_000);
-    const [enrollment, workouts, exercises, programs, weights] = await Promise.all([
+    const [enrollment, workouts, exercises, programs, weights, account] = await Promise.all([
       this.prisma.gymEnrollment.findUnique({ where: { userId: user.id } }),
       this.prisma.workout.findMany({ where: { userId: user.id, endedAt: { gte: since } }, orderBy: [{ endedAt: 'desc' }, { id: 'asc' }], take: gymRecentLimit }),
       this.prisma.userExercise.findMany({ where: { userId: user.id }, orderBy: { name: 'asc' } }),
       this.prisma.userProgram.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'asc' } }),
       this.prisma.bodyWeightEntry.findMany({ where: { userId: user.id }, orderBy: { date: 'desc' }, take: gymRecentDays }),
+      this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { gymOpeningHours: true } }),
     ]);
     return gymOverviewSchema.parse({ accountId: user.id, timeZone: user.timeZone, capturedAt: new Date().toISOString(),
       enrollment: enrollment ? enrollmentDto(enrollment) : null, workouts: workouts.map(workoutDto), exercises: exercises.map(exerciseDto),
-      programs: programs.map(programDto), bodyWeights: weights.map(weightDto) });
+      programs: programs.map(programDto), bodyWeights: weights.map(weightDto), openingHours: account.gymOpeningHours });
+  }
+
+  @Put('opening-hours') @Header('Cache-Control', 'private, no-store')
+  async saveOpeningHours(@CurrentUser() user: RequestUser,
+    @Body(new ZodPipe(saveGymOpeningHoursSchema)) body: z.infer<typeof saveGymOpeningHoursSchema>) {
+    const account = await this.prisma.user.update({ where: { id: user.id },
+      data: { gymOpeningHours: body.openingHours === null ? Prisma.DbNull : json(body.openingHours) }, select: { gymOpeningHours: true } });
+    return saveGymOpeningHoursSchema.parse({ openingHours: account.gymOpeningHours });
   }
 
   @Put('enrollment') @Header('Cache-Control', 'private, no-store')

@@ -48,3 +48,64 @@ Evidence: `packages/domain/__tests__/gym.test.ts` (library),
 `packages/contracts/__tests__/gym.test.ts`, `apps/api/test/opengym-import.spec.ts`,
 `apps/api/test/gym-db.spec.ts`, `apps/mobile/__tests__/program-editor.test.tsx`,
 `gym-feature.test.ts`; browser walk-through with a real openGym backup.
+
+## Saved opening hours — 2026-11-22
+
+Gym → Set gym hours saves a weekly schedule independently of program enrollment.
+Each Monday–Sunday entry is Open (24-hour opening/closing times), Closed, or Not
+set. Weekdays and weekends can differ. A closing time before opening means the
+following day (Saturday 20:00–02:00 ends Sunday). Closed means no new opening on
+that day; it does not shorten a previous day's overnight period. The explicit
+IANA timezone defaults to the account zone and can be changed for the gym.
+Equal opening/closing times are rejected as ambiguous; 24-hour operation and
+split opening periods are outside this small extension.
+
+The Gym section displays the saved schedule and timezone, including closed and
+unknown days. Missing schedules are explicitly labelled. Cancel never writes;
+failed saves preserve the draft for retry; saving disables edits and dismissal.
+An acknowledged save remains visible while waiting for a fresh overview.
+
+Persistence uses one nullable `User.gymOpeningHours` JSONB preference, validated
+by contracts; no new service or table. Authenticated `PUT /gym/opening-hours`
+accepts `{ openingHours: { timeZone, days } }`, or null to remove saved hours.
+`GET /gym` includes `openingHours`; old cached records without that optional
+field still load as unknown. The existing account-scoped Gym cache and mutation
+refresh are reused. Account export includes `gymOpeningHours`; erasure removes
+it with the account. Apply migration `20261122000000_gym_opening_hours` before
+deploying the API; regenerate Prisma and the readiness schema manifest.
+
+Inspection found program rotation, suggested weekly rhythms and recorded workout
+history, but no future workout date/time scheduler. Requirement 3's conditional
+out-of-hours warning therefore does not apply. No workout scheduler is added.
+
+### Focused validation
+
+```sh
+npm run db:generate
+npm run schema:manifest
+npm run build:shared
+npm run test -w @campusflow/contracts -- --runInBand --runTestsByPath __tests__/gym-opening-hours.test.ts __tests__/gym.test.ts __tests__/account.test.ts
+npm run test -w @campusflow/mobile -- --runTestsByPath __tests__/gym-opening-hours.test.tsx __tests__/gym-screen.test.tsx __tests__/gym-feature.test.ts
+# DATABASE_URL pointed only at an isolated temporary PostgreSQL instance:
+npm run db:migrate
+npm run test -w @campusflow/api -- --runTestsByPath test/gym-db.spec.ts test/account-db.spec.ts test/health-db.spec.ts
+npm run typecheck -w @campusflow/contracts
+npm run typecheck -w @campusflow/api
+npm run typecheck -w @campusflow/mobile
+node scripts/check-boundaries.mjs
+node scripts/schema-manifest.mjs --check
+git diff --check
+```
+
+Results: 31 contract, 18 mobile and 23 real PostgreSQL API tests passed (72 total).
+Targeted ESLint on changed TypeScript/TSX files, all three workspace typechecks,
+shared builds, boundary and readiness-manifest checks passed. All migrations
+applied successfully on the disposable database, which was stopped afterward.
+
+New cases verify different weekday/weekend hours, overnight/closed/unknown days,
+invalid/equal times and zones, legacy cached records, editing/removal, pending
+controls, cancel, failed-save retry, stale overview after acknowledged save,
+account isolation, export, enrollment independence and anonymous-write rejection.
+Expected and actual results agree. No existing product defects confirmed.
+Full suites and native visual/device checks were not run. Next step: review and
+check the editor on a phone before deploying the migration and API.
