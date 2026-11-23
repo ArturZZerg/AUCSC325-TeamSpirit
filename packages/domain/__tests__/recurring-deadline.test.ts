@@ -14,6 +14,22 @@ const base: TodayInput = {
 };
 
 describe('recurring tasks with a deadline after their scheduled day', () => {
+  it('retains a shifted midnight deadline and occurrence identity after spring DST', () => {
+    const timed: PersonalTask = { ...task,
+      scheduled: { kind: 'instant', at: '2026-03-07T14:00:00Z' }, // Saturday 09:00 EST
+      due: { kind: 'instant', at: '2026-03-08T05:00:00Z' }, // Sunday 00:00 EST
+      recurrence: { frequency: 'weekly', weekdays: [6] } };
+    const input = { ...base, timeZone: 'America/New_York', personalTasks: [timed] };
+    const scheduled = composeToday({ ...input, date: '2026-03-14', now: '2026-03-14T12:00:00Z' });
+    const deadline = composeToday({ ...input, date: '2026-03-15', now: '2026-03-15T04:00:01Z' });
+    const expected = { key: 'personalTask:weekly-report:2026-03-14', occurrenceKey: '2026-03-14',
+      schedule: { kind: 'instant', at: '2026-03-14T13:00:00Z' }, // Saturday 09:00 EDT
+      due: { kind: 'instant', at: '2026-03-15T04:00:00Z' } }; // Sunday 00:00 EDT
+    expect(scheduled.items).toEqual([expect.objectContaining(expected)]);
+    expect(deadline.items).toEqual([expect.objectContaining({ ...expected, state: 'overdue' })]);
+    expect(deadline.upcoming.some(item => item.key === expected.key)).toBe(false);
+  });
+
   it('shows the weekly occurrence on its scheduled Monday', () => {
     const plan = composeToday({ ...base, date: '2026-11-09', now: '2026-11-09T18:00:00Z' });
     expect(plan.items).toEqual(expect.arrayContaining([
