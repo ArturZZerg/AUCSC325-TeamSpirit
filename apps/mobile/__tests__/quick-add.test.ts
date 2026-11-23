@@ -131,6 +131,17 @@ describe('quick add parsing', () => {
       expect(request('Take vitamins daily')).toMatchObject({ recurrence: { frequency: 'daily', interval: 1 }, scheduled: { kind: 'date', date: today } });
       expect(request('Pay rent every 4 weeks due fri')).toMatchObject({ recurrence: { frequency: 'weekly', interval: 4, weekdays: [5] }, due: { kind: 'date', date: '2026-10-16' } });
     });
+
+    it('preserves a weekday acronym when a biweekly deadline uses midnight', () => {
+      const input = 'Study for SAT every other week fri due midnight';
+      expect(parseQuickAdd(input, today)).toMatchObject({ title: 'Study for SAT',
+        values: { recurrenceMode: 'weekly', interval: '2', weekdays: [5], dueMode: 'instant', dueDate: '2026-10-16', dueTime: '23:59' } });
+      const body = request(input);
+      expect(body).not.toHaveProperty('scheduled');
+      expect(body).toMatchObject({ title: 'Study for SAT',
+        recurrence: { frequency: 'weekly', interval: 2, weekdays: [5] },
+        due: { kind: 'instant', at: '2026-10-17T05:59:00Z' } });
+    });
   });
 
   it('leaves unknown tags, impossible times and long estimates in the title', () => {
