@@ -31,7 +31,7 @@ const draftPrescriptionSchema = z.object({ exerciseId: z.string(), sets: z.numbe
 /** Device-only workout in progress; the server stores it only after Finish (ADR 020). */
 export const gymDraftSchema = z.object({
   owner: z.string(), requestKey: z.string().min(8).max(120), programId: z.string(), dayId: z.string(), title: z.string(),
-  unit: z.enum(['kg', 'lb']), startedAt: z.string().datetime(), note: z.string().max(1000), trackRir: z.boolean().optional(),
+  unit: z.enum(['kg', 'lb']), startedAt: z.string().datetime(), lastActivityAt: z.string().datetime().optional(), note: z.string().max(1000), trackRir: z.boolean().optional(),
   exercises: z.object({ exerciseId: z.string(), prescription: draftPrescriptionSchema, sets: draftSetSchema.array().max(20) }).strict().array().max(30),
 }).strict();
 export type GymDraft = z.infer<typeof gymDraftSchema>;
@@ -53,7 +53,7 @@ export function draftExercise(item: PrescribedExercise, own: readonly GymExercis
 export function createDraft(owner: string, program: TrainingProgram, day: ProgramDay, unit: GymUnit, history: readonly Workout[], today: string, timeZone: string,
   now = new Date(), own: readonly GymExercise[] = [], trackRir = false): GymDraft {
   const logged = toLogged(history);
-  return { owner, requestKey: newKey(), programId: program.id, dayId: day.id, title: day.name, unit, startedAt: now.toISOString(), note: '', trackRir,
+  return { owner, requestKey: newKey(), programId: program.id, dayId: day.id, title: day.name, unit, startedAt: now.toISOString(), lastActivityAt: now.toISOString(), note: '', trackRir,
     exercises: day.exercises.flatMap(item => draftExercise(item, own, logged, unit, today, timeZone) ?? []) };
 }
 
@@ -81,6 +81,11 @@ export function draftToWorkout(draft: GymDraft, now = new Date(), own: readonly 
   return { requestKey: draft.requestKey, programId: draft.programId, dayId: draft.dayId, title: draft.title, unit: draft.unit,
     startedAt: draft.startedAt, endedAt: capped.toISOString(), note: draft.note.trim() || null, exercises };
 }
+/** After this long without a logged change the student has most likely left the gym. */
+export const workoutIdleMs = 30 * 60_000;
+/** Last edit to the draft; drafts saved before activity tracking fall back to their start. */
+export const lastActivity = (draft: GymDraft) => Math.max(Date.parse(draft.lastActivityAt ?? draft.startedAt), Date.parse(draft.startedAt));
+export const isWorkoutIdle = (draft: GymDraft, now: number) => now - lastActivity(draft) > workoutIdleMs;
 export const draftProgress = (draft: GymDraft) => {
   const sets = draft.exercises.flatMap(entry => entry.sets);
   return { done: sets.filter(set => set.done).length, total: sets.length };

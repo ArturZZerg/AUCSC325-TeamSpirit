@@ -24,7 +24,14 @@ export function campusGroups(events: CampusEvent[], options: { date: string; tim
 export function campusDayLabel(date: string, today: string) {
   if (date === today) return 'Today';
   if (date === Temporal.PlainDate.from(today).add({ days: 1 }).toString()) return 'Tomorrow';
-  return Temporal.PlainDate.from(date).toLocaleString('en', { weekday: 'long', month: 'short', day: 'numeric', ...(date.slice(0, 4) !== today.slice(0, 4) ? { year: 'numeric' } : {}) });
+  const [year, month, day] = date.split('-').map(Number);
+  return new Intl.DateTimeFormat('en', {
+    timeZone: 'UTC',
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    ...(date.slice(0, 4) !== today.slice(0, 4) ? { year: 'numeric' } : {}),
+  }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 /** Cached "available" status ages out; device time cannot create fresh coverage. */
 export function campusSourceAvailability(source: CampusSourceStatus, now: string, from: string, through: string, timeZone: string) {

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { Workout } from '@campusflow/contracts';
 import { gymDraftSchema, type DraftExercise, type DraftSet, type GymDraft } from '@/features/gym';
 import { deleteCache, readCache, writeCache } from '@/services/cache';
 import { useSessionStore } from './session';
@@ -6,9 +7,12 @@ import type { Session } from '@/lib/types';
 
 export const gymOwner = (session: Session | null) => session ? JSON.stringify([session.user.id, session.accessToken]) : null;
 const cacheKey = 'gymDraft';
+/** A workout closed after inactivity; `workout` is null when no set was ticked and nothing was saved. */
+export type AutoFinished = { owner: string; title: string; workout: Workout | null };
 type State = {
-  draft: GymDraft | null; restored: string | null;
+  draft: GymDraft | null; restored: string | null; autoFinished: AutoFinished | null;
   restore(owner: string): Promise<void>; start(draft: GymDraft): void; discard(): void;
+  setAutoFinished(value: AutoFinished | null): void;
   updateSet(exercise: number, set: number, change: Partial<DraftSet>): void; addSet(exercise: number): void; removeSet(exercise: number): void;
   setNote(note: string): void;
   addExercise(entry: DraftExercise): void; replaceExercise(index: number, entry: DraftExercise): void; removeExercise(index: number): void;
@@ -25,12 +29,14 @@ export const useGymWorkout = create<State>((set, get) => {
   const edit = (change: (draft: GymDraft) => GymDraft) => {
     const draft = get().draft;
     if (!draft || !current(draft.owner)) return;
-    const next = change(draft); set({ draft: next }); persist(next, draft.owner);
+    const changed = change(draft);
+    if (changed === draft) return;
+    const next = { ...changed, lastActivityAt: new Date().toISOString() }; set({ draft: next }); persist(next, draft.owner);
   };
   const exercises = (draft: GymDraft, index: number, change: (sets: DraftSet[]) => DraftSet[]) =>
     ({ ...draft, exercises: draft.exercises.map((entry, position) => position === index ? { ...entry, sets: change(entry.sets) } : entry) });
   return {
-    draft: null, restored: null,
+    draft: null, restored: null, autoFinished: null,
     async restore(owner) {
       if (get().restored === owner) return;
       const draft = get().draft;
@@ -40,7 +46,8 @@ export const useGymWorkout = create<State>((set, get) => {
       if (!current(owner) || get().restored === owner) return;
       set({ restored: owner, draft: cached.success && accountOf(cached.data.owner) === accountOf(owner) ? { ...cached.data, owner } : null });
     },
-    start(draft) { if (!current(draft.owner)) return; set({ draft, restored: draft.owner }); persist(draft, draft.owner); },
+    start(draft) { if (!current(draft.owner)) return; set({ draft, restored: draft.owner, autoFinished: null }); persist(draft, draft.owner); },
+    setAutoFinished(autoFinished) { set({ autoFinished }); },
     discard() { const draft = get().draft; set({ draft: null }); if (draft) persist(null, draft.owner); },
     updateSet(exercise, index, change) { edit(draft => exercises(draft, exercise, sets => sets.map((item, position) => position === index ? { ...item, ...change } : item))); },
     addSet(exercise) { edit(draft => exercises(draft, exercise, sets => sets.length >= 20 ? sets

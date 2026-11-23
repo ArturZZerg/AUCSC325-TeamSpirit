@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Linking } from 'react-native';
 import Campus from '../app/(tabs)/campus';
-import { campusGroups, campusSourceAvailability, campusWebsite } from '../src/features/campus-discovery';
+import { campusDayLabel, campusGroups, campusSourceAvailability, campusWebsite } from '../src/features/campus-discovery';
 import { useAction, useCampusSources, useEvents } from '../src/features/queries';
 import { eventFixture } from './event-fixture';
 import type { CampusSourceStatus } from '@campusflow/contracts';
@@ -21,6 +21,10 @@ beforeEach(() => {
 });
 afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
 describe('campus discovery calendar rules', () => {
+  it('formats non-relative day labels without Temporal locale formatting', () => {
+    expect(campusDayLabel('2026-10-12', date)).toBe('Monday, Oct 12');
+    expect(campusDayLabel('2027-01-02', date)).toBe('Saturday, Jan 2, 2027');
+  });
   it('groups by the student local date and includes spanning events on Today', () => {
     const overnight = { ...event, id: 'overnight', timing: { kind: 'timed' as const, startsAt: '2026-10-09T23:00:00Z', endsAt: '2026-10-10T08:00:00Z' } };
     expect(campusGroups([event, overnight], options)).toEqual([{ date, events: [overnight, event] }]);
