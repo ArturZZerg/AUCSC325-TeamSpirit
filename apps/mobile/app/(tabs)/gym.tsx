@@ -11,6 +11,7 @@ import { useTodayClock } from '@/features/today-clock';
 import { createDraft, draftProgress, exerciseName, formatDuration, formatSets, ownGym, toLogged, weekMessage } from '@/features/gym';
 import { importOpenGymBackup, pickOpenGymBackup } from '@/services/opengym-import';
 import { ProgramBrowser } from '@/features/gym-program-browser';
+import { GymOpeningHoursCard } from '@/features/gym-opening-hours';
 import { gymOwner, useGymWorkout } from '@/store/gym-workout';
 import { useSessionStore } from '@/store/session';
 
@@ -67,6 +68,8 @@ export default function GymScreen() {
         <Text style={styles.resumeMeta}>{draftProgress(draft).done} of {draftProgress(draft).total} sets · started {formatDuration(Date.now() - Date.parse(draft.startedAt))} ago</Text></View>
       <Ionicons name="chevron-forward" size={20} color={colors.onAccent}/>
     </Pressable>}
+    {gym.data && <GymOpeningHoursCard key={owner} hours={gym.data.openingHours} timeZone={timeZone}
+      onSave={openingHours => action.mutateAsync({ path: '/gym/opening-hours', method: 'PUT', body: { openingHours } })}/>}
     {gym.data && !program && <>
       <View style={styles.intro}><Ionicons name="barbell-outline" size={30} color={colors.moss}/>
         <View style={styles.flex}><Text style={styles.section}>Find a program that fits you</Text>

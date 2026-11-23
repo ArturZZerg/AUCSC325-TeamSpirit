@@ -26,6 +26,34 @@ databaseSuite('Gym enrollment and recorded workouts', () => {
   });
   afterAll(async () => { if (db) await db.user.deleteMany({ where: { email: { startsWith: marker } } }); if (app) await app.close(); });
 
+  it('persists and exports gym hours independently of enrollment, isolates accounts and permits clearing', async () => {
+    expect((await client().get('/gym').set('Authorization', token).expect(200)).body.openingHours).toBeNull();
+    const openingHours = { timeZone: 'America/Edmonton', days: [
+      ...Array.from({ length: 5 }, () => ({ kind: 'open', opens: '06:00', closes: '22:00' })),
+      { kind: 'open', opens: '20:00', closes: '02:00' }, { kind: 'closed' },
+    ] };
+    const saved = await client().put('/gym/opening-hours').set('Authorization', token).send({ openingHours }).expect(200);
+    expect(saved.body).toEqual({ openingHours });
+    expect(saved.headers['cache-control']).toBe('private, no-store');
+    await client().delete('/gym/enrollment').set('Authorization', token).expect(200);
+    expect((await client().get('/gym').set('Authorization', token).expect(200)).body.openingHours).toEqual(openingHours);
+    expect((await client().get('/gym').set('Authorization', otherToken).expect(200)).body.openingHours).toBeNull();
+    expect((await client().get('/me/export').set('Authorization', token).expect(200)).body.gymOpeningHours).toEqual(openingHours);
+    await client().put('/gym/opening-hours').set('Authorization', token).send({ openingHours: null }).expect(200);
+    expect((await client().get('/gym').set('Authorization', token).expect(200)).body.openingHours).toBeNull();
+  });
+  it('rejects invalid hours, account reassignment and unauthenticated writes without changing saved data', async () => {
+    const openingHours = { timeZone: 'UTC', days: Array.from({ length: 7 }, () => ({ kind: 'unknown' })) };
+    await client().put('/gym/opening-hours').set('Authorization', token).send({ openingHours }).expect(200);
+    for (const body of [{ openingHours, userId: randomUUID() }, { openingHours: { ...openingHours, timeZone: 'Bad/Zone' } },
+      { openingHours: { ...openingHours, days: [{ kind: 'open', opens: '24:00', closes: '02:00' }, ...openingHours.days.slice(1)] } }]) {
+      await client().put('/gym/opening-hours').set('Authorization', token).send(body).expect(400);
+    }
+    await client().put('/gym/opening-hours').send({ openingHours: null }).expect(401);
+    expect((await client().get('/gym').set('Authorization', token).expect(200)).body.openingHours).toEqual(openingHours);
+    await client().put('/gym/opening-hours').set('Authorization', token).send({ openingHours: null }).expect(200);
+  });
+
   it('enrolls in a catalog program, keeps the start when only settings change and restarts on a switch', async () => {
     const empty = await client().get('/gym').set('Authorization', token).expect(200);
     expect(empty.headers['cache-control']).toBe('private, no-store');

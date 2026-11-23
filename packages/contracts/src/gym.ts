@@ -11,6 +11,18 @@ export const gymMuscleSchema = z.enum(['chest', 'back', 'traps', 'shoulders', 'b
 export const gymEquipmentSchema = z.enum(['barbell', 'dumbbell', 'machine', 'cable', 'bodyweight', 'kettlebell', 'band', 'other']);
 export const gymLoadSchema = z.enum(['external', 'added', 'bodyweight']);
 
+const openingTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Use HH:mm (24-hour time).');
+export const gymOpeningDaySchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('unknown') }).strict(),
+  z.object({ kind: z.literal('closed') }).strict(),
+  z.object({ kind: z.literal('open'), opens: openingTimeSchema, closes: openingTimeSchema }).strict(),
+]).refine(day => day.kind !== 'open' || day.opens !== day.closes, 'Opening and closing times must differ.');
+/** Monday first. A closing time before opening belongs to the following day. */
+export const gymOpeningHoursSchema = z.object({ timeZone: timeZoneSchema, days: gymOpeningDaySchema.array().length(7) }).strict();
+export const saveGymOpeningHoursSchema = z.object({ openingHours: gymOpeningHoursSchema.nullable() }).strict();
+export type GymOpeningDay = z.infer<typeof gymOpeningDaySchema>;
+export type GymOpeningHours = z.infer<typeof gymOpeningHoursSchema>;
+
 export const saveGymEnrollmentSchema = z.object({ programId: itemIdSchema, unit: gymUnitSchema, weeklyTarget: z.number().int().min(1).max(7),
   trackRir: z.boolean().default(false) }).strict();
 export const gymEnrollmentSchema = saveGymEnrollmentSchema.extend({ trackRir: z.boolean(), startedAt: instantSchema, updatedAt: instantSchema }).strict();
@@ -61,6 +73,7 @@ export const gymOverviewSchema = z.object({
   accountId: idSchema, timeZone: timeZoneSchema, capturedAt: instantSchema, enrollment: gymEnrollmentSchema.nullable(),
   workouts: workoutSchema.array().max(gymRecentLimit), exercises: userExerciseSchema.array().max(500),
   programs: userProgramSchema.array().max(50), bodyWeights: bodyWeightEntrySchema.array().max(gymRecentDays),
+  openingHours: gymOpeningHoursSchema.nullable().optional(),
 }).strict();
 export const gymImportResultSchema = z.object({
   exercises: z.number().int().nonnegative(), programs: z.number().int().nonnegative(), workouts: z.number().int().nonnegative(),
