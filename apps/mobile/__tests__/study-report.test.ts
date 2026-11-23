@@ -1,4 +1,4 @@
-import { buildStudyReport, studyTimeLabel } from '../src/features/study-report';
+import { buildStudyReport, studyEstimateComparison, studyTimeLabel } from '../src/features/study-report';
 import { reportAccount, reportFixture } from './study-report-fixture';
 const build = (raw: unknown) => buildStudyReport(raw, reportAccount, 'America/Edmonton', '2025-03-03', '2025-03-09T18:00:00Z');
 it('derives the selected week and previous full week from one validated read', () => {
@@ -15,4 +15,17 @@ it('does not fabricate a previous week if the read only covers the selected week
 });
 it.each([[0, '0s'], [59, '59s'], [118, '1m 58s'], [3600, '1h'], [3665, '1h 1m 5s']])('formats accumulated seconds precisely: %s', (seconds, label) => {
   expect(studyTimeLabel(seconds)).toBe(label);
+});
+
+it.each([
+  [0, 1, 0, '1m below estimate this week.'],
+  [59, 1, 98, '1s below estimate this week.'],
+  [60, 1, 100, 'Recorded time matches the estimate this week.'],
+  [61, 1, 100, '1s above estimate this week.'],
+  [7265, 60, 100, '1h 1m 5s above estimate this week.'],
+])('compares %s saved seconds with a %s minute estimate', (seconds, estimate, percent, label) => {
+  expect(studyEstimateComparison(seconds, estimate)).toEqual({ percent, label });
+});
+it.each([null, undefined])('withholds a comparison for a missing estimate (%s)', estimate => {
+  expect(studyEstimateComparison(120, estimate)).toBeUndefined();
 });

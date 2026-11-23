@@ -23,7 +23,36 @@ it('shows exact recorded time, meaningful day labels and the live estimate witho
   render(<StudyReportScreen/>); expect(screen.getByText('26m 5s')).toBeOnTheScreen(); expect(screen.getByText('Current task title')).toBeOnTheScreen();
   expect(screen.getByRole('progressbar', { name: 'Current task title: recorded time versus task estimate' })).toHaveAccessibilityValue({ now: 100 });
   expect(screen.getByText(/more time than estimated/)).toBeOnTheScreen();
+  expect(screen.getByText('10m above estimate this week.')).toBeOnTheScreen();
+  expect(screen.getByText('Task still open. Time recorded does not mark it complete.')).toBeOnTheScreen();
   fireEvent.press(screen.getByText('Focus on this task')); expect(mockPush).toHaveBeenCalledWith({ pathname: '/focus', params: { taskId: reportTask } });
+});
+it('compares multiple saved blocks including an early finish, excluding the previous week', () => {
+  const history = reportFixture();
+  history.sessions[1].taskId = reportTask;
+  show({ data: history });
+  jest.mocked(useTasks).mockReturnValue({ data: [{ ...task, estimatedMinutes: 30 }], refetch: refreshTasks } as unknown as ReturnType<typeof useTasks>);
+  render(<StudyReportScreen/>);
+  expect(screen.getByText('26m 5s · 2 blocks')).toBeOnTheScreen();
+  expect(screen.getByText('3m 55s below estimate this week.')).toBeOnTheScreen();
+  expect(screen.getByRole('progressbar', { name: 'Current task title: recorded time versus task estimate' })).toHaveAccessibilityValue({ now: 87 });
+  expect(screen.getByText('Task still open. Time recorded does not mark it complete.')).toBeOnTheScreen();
+});
+it('keeps actual time visible without inventing a comparison when an estimate is missing', () => {
+  jest.mocked(useTasks).mockReturnValue({ data: [{ ...task, estimatedMinutes: null }], refetch: refreshTasks } as unknown as ReturnType<typeof useTasks>);
+  render(<StudyReportScreen/>);
+  expect(screen.getByText('25m · 1 block')).toBeOnTheScreen();
+  expect(screen.getByText('No task estimate set. Recorded time is kept.')).toBeOnTheScreen();
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.queryByText(/(?:below|above) estimate this week/)).toBeNull();
+});
+it('shows an exact comparison for completed work without suggesting more work or reopening it', () => {
+  jest.mocked(useTasks).mockReturnValue({ data: [{ ...task, estimatedMinutes: 25, completedAt: '2025-03-09T12:00:00Z' }], refetch: refreshTasks } as unknown as ReturnType<typeof useTasks>);
+  render(<StudyReportScreen/>);
+  expect(screen.getByText('Recorded time matches the estimate this week.')).toBeOnTheScreen();
+  expect(screen.getByText('Task marked complete. Recorded time is kept.')).toBeOnTheScreen();
+  expect(screen.queryByText('Task still open. Time recorded does not mark it complete.')).toBeNull();
+  expect(screen.queryByText('Focus on this task')).toBeNull();
 });
 it('shows unavailable coverage without totals, then retries both history and task reads', () => {
   show({ data: undefined, error: new Error('Offline') }); render(<StudyReportScreen/>);
@@ -34,6 +63,8 @@ it('uses captured titles when task details fail and retains saved history after 
   show({ error: new Error('Offline'), isCached: true }); jest.mocked(useTasks).mockReturnValue({ data: undefined, error: new Error('Offline'), refetch: refreshTasks } as unknown as ReturnType<typeof useTasks>);
   render(<StudyReportScreen/>); expect(screen.getByText('Captured title')).toBeOnTheScreen(); expect(screen.getByText('26m 5s')).toBeOnTheScreen();
   expect(screen.getByText(/Showing saved study time/)).toBeOnTheScreen(); expect(screen.queryByText('Focus on this task')).toBeNull();
+  expect(screen.queryByRole('progressbar')).toBeNull();
+  expect(screen.queryByText('No task estimate set. Recorded time is kept.')).toBeNull();
 });
 it.each([{ completedAt: '2025-03-09T12:00:00Z' }, { recurrence: { frequency: 'daily', interval: 1 } }])('does not offer focus for completed or recurring task %j', change => {
   jest.mocked(useTasks).mockReturnValue({ data: [{ ...task, ...change }], refetch: refreshTasks } as unknown as ReturnType<typeof useTasks>);
