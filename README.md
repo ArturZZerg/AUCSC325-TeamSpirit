@@ -341,6 +341,19 @@ Maintainers install or update the server runner with
 `SERVER=root@<host> ops/ci/install.sh` from a clean `main`, and deploy a green
 `main` with `ssh root@<host> /opt/campusflow-ci/server-deploy.sh`.
 
+A maintainer can add the `automerge` label instead ([ADR 029](docs/adr/029-ci-automerge-and-deploy.md)).
+Once CI passes on the current `main` and no review requests changes, the server
+merges the PR and deploys it, commenting on the PR at each step.
+
+To clear PRs faster, run the PC runner on a machine with Docker, `gh` and SSH
+access to the server. While it runs, it does the testing (all cores, parallel
+mode) and the server only merges and deploys; when it stops, the server tests
+again:
+
+```sh
+scripts/pc-ci.sh
+```
+
 ## Project layout
 
 | Directory | Responsibility |
