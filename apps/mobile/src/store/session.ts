@@ -7,6 +7,7 @@ import { queryClient } from '@/lib/query-client';
 import { clearAccountCache, deleteCache } from '@/services/cache';
 import { clearScheduledReminders } from '@/services/reminders';
 import { clearUnownedDeviceData } from '@/services/startup-cleanup';
+import { apiBaseUrl } from '@/lib/api-url';
 
 let revision = 0;
 let transition = Promise.resolve();
@@ -20,7 +21,7 @@ async function revokeSession(session: Session) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5_000);
   try {
-    await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'}/auth/logout`, {
+    await fetch(`${apiBaseUrl}/auth/logout`, {
       method: 'POST', headers: { Authorization: `Bearer ${session.accessToken}` }, signal: controller.signal,
     });
   } catch { /* Offline logout cannot guarantee server revocation; local cleanup proceeds. */ }
