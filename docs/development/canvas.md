@@ -27,6 +27,10 @@ the planner) was read in full; a partial read never deletes anything (ADR 025).
 `CanvasSyncWorker` re-syncs each connection about every 30 minutes (6 hours
 after a failure), so new assignments appear without a manual sync. See
 [ADR 019](../adr/019-canvas-personal-access-tokens.md) for the safeguards.
+The private-address check runs again on every connection the API opens to the
+Canvas host (`canvas-network.ts`), so a DNS answer that changes after the
+first check (DNS rebinding) cannot reach internal addresses. 6to4 and Teredo
+addresses are refused too. `canvas-network.spec.ts` covers this.
 
 Live Canvas work a student starts is limited per account (`canvasRateLimits`
 in `canvas.ts`), because one sync can make over 100 Canvas requests:
