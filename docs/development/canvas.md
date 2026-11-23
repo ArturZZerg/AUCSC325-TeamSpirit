@@ -27,9 +27,24 @@ the planner) was read in full; a partial read never deletes anything (ADR 025).
 `CanvasSyncWorker` re-syncs each connection about every 30 minutes (6 hours
 after a failure), so new assignments appear without a manual sync. See
 [ADR 019](../adr/019-canvas-personal-access-tokens.md) for the safeguards.
+
+Live Canvas work a student starts is limited per account (`canvasRateLimits`
+in `canvas.ts`), because one sync can make over 100 Canvas requests:
+
+- `POST /canvas/connect`: 10 attempts per hour, counting rejected tokens;
+- `POST /canvas/sync`: 6 syncs per 15 minutes, counted only once Canvas would
+  be contacted (not when the account has no usable connection);
+- one live sync per account at a time; a second one gets 429 until the first
+  finishes.
+
+Over a limit the API answers 429 with a readable message and contacts no Canvas
+host; saved coursework is unchanged. Counts use the shared `RecoveryRateBucket`
+table (removed with the account). The background worker's syncs are not counted,
+but it does respect the one-sync-at-a-time rule. Fixture mode never contacts
+Canvas and is not limited.
 `canvas-token.spec.ts` covers address validation, sealing, pagination, mapping,
-rejected tokens and the HTTP flow, including grades, planner, calendar and
-removals; `canvas-grades.spec.ts` covers the grade merge. A real student account
+rejected tokens and the HTTP flow, including grades, planner, calendar,
+removals and the limits above; `canvas-grades.spec.ts` covers the grade merge. A real student account
 (3 courses, about 65 assignments) syncs in production. That account has no
 Canvas calendar events, so class times are imported from a calendar file
 instead; see [timetable import](../requirements/timetable-import.md).

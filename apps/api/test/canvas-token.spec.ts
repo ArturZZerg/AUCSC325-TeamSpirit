@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { randomBytes } from 'node:crypto';
 import request from 'supertest';
 import { AuthGuard } from '../src/common';
-import { CanvasController, CanvasService, canvasSource } from '../src/canvas';
+import { CanvasController, CanvasService, canvasRateLimits, canvasSource } from '../src/canvas';
 import { CanvasHttpClient, CanvasRequestError, canvasOrigin } from '../src/integrations/canvas/canvas-http';
 import { CanvasProvider } from '../src/integrations/canvas/canvas-provider';
 import { canvasTokenKey, openCanvasToken, sealCanvasToken } from '../src/integrations/canvas/canvas-token';
@@ -120,6 +120,14 @@ describe('Canvas token connection over HTTP', () => {
   const events = { sync: jest.fn() };
   const http = new CanvasHttpClient();
   const auth = (req: request.Test) => req.set('Authorization', 'Bearer campusflow-session');
+  // Stands in for RecoveryRateBucket: counts attempts per key; other raw queries (locks) return nothing.
+  const buckets = new Map<string, number>();
+  const countingQueries = async (sql: TemplateStringsArray, ...values: unknown[]) => {
+    if (!sql.join('').includes('"RecoveryRateBucket"')) return [];
+    const count = (buckets.get(String(values[0])) ?? 0) + 1;
+    buckets.set(String(values[0]), count);
+    return [{ count }];
+  };
   beforeAll(async () => {
     const module = await Test.createTestingModule({ controllers: [CanvasController], providers: [AuthGuard, CanvasService,
       { provide: ReminderService, useValue: reminders }, { provide: CanvasHttpClient, useValue: http },
@@ -127,10 +135,10 @@ describe('Canvas token connection over HTTP', () => {
     app = module.createNestApplication(); app.useLogger(false); await app.init();
   });
   beforeEach(() => {
-    jest.resetAllMocks(); stored = null;
+    jest.resetAllMocks(); stored = null; buckets.clear();
     process.env.CANVAS_MODE = 'token'; process.env.CANVAS_TOKEN_KEY = key.toString('base64');
     prisma.$transaction.mockImplementation(async (work: (tx: typeof prisma) => Promise<unknown>) => work(prisma));
-    prisma.$queryRaw.mockResolvedValue([]);
+    prisma.$queryRaw.mockImplementation(countingQueries);
     prisma.session.findUnique.mockResolvedValue({ revokedAt: null, expiresAt: new Date('2099-01-01'),
       user: { id, email: 'student@example.test', displayName: 'Student', timeZone: 'America/Edmonton' } });
     prisma.canvasConnection.findUnique.mockImplementation(async () => stored);
@@ -248,5 +256,60 @@ describe('Canvas token connection over HTTP', () => {
   it('reports missing key configuration as unavailable', async () => {
     delete process.env.CANVAS_TOKEN_KEY;
     await auth(request(app.getHttpServer()).post('/canvas/connect')).send({ baseUrl: origin, accessToken: token }).expect(503);
+  });
+
+  describe('limits on live Canvas work (issue #181)', () => {
+    const connect = () => auth(request(app.getHttpServer()).post('/canvas/connect')).send({ baseUrl: origin, accessToken: token });
+    const sync = () => auth(request(app.getHttpServer()).post('/canvas/sync'));
+    const fetchCalls = () => (http.deps.fetch as jest.Mock).mock.calls.length;
+    const connectStored = () => { stored = { userId: id, baseUrl: origin, externalAccountId: '77', encryptedAccessToken: sealCanvasToken(key, id, token) }; };
+
+    it('refuses connect attempts past the limit, counting failed ones, before contacting Canvas', async () => {
+      http.deps = { fetch: fakeFetch({ [`${origin}/api/v1/users/self`]: { status: 401, body: {} } }), lookup: publicDns };
+      for (let attempt = 0; attempt < canvasRateLimits.connect.max; attempt += 1) await connect().expect(400);
+      const before = fetchCalls();
+      const response = await connect().expect(429);
+      expect(response.body.message).toContain('connect Canvas several times');
+      expect(fetchCalls()).toBe(before);
+      expect(stored).toBeNull();
+    });
+    it('refuses manual syncs past the limit before contacting Canvas, keeping saved data', async () => {
+      connectStored();
+      for (let run = 0; run < canvasRateLimits.sync.max; run += 1) await sync().expect(201);
+      const before = fetchCalls(), writes = prisma.course.upsert.mock.calls.length;
+      const response = await sync().expect(429);
+      expect(response.body.message).toContain('synced Canvas several times');
+      expect(fetchCalls()).toBe(before);
+      expect(prisma.course.upsert).toHaveBeenCalledTimes(writes);
+      expect(prisma.canvasConnection.updateMany).not.toHaveBeenCalled();
+    });
+    it('keeps each account and action in its own window, and does not count the background worker', async () => {
+      connectStored();
+      for (let run = 0; run < canvasRateLimits.sync.max; run += 1) await sync().expect(201);
+      await sync().expect(429);
+      // Connecting has a separate allowance, and the worker's syncs never touch the buckets.
+      await connect().expect(201);
+      const service = app.get(CanvasService);
+      await expect(service.syncAccount(id)).resolves.toMatchObject({ status: 'succeeded' });
+      expect([...buckets.keys()].sort()).toEqual([`canvas:connect:user:${id}`, `canvas:sync:user:${id}`]);
+      expect(buckets.get(`canvas:sync:user:${id}`)).toBe(canvasRateLimits.sync.max + 1);
+    });
+    it('runs one live sync per account at a time and frees it afterwards, even after a failure', async () => {
+      connectStored();
+      const routes = fakeFetch({ [coursesUrl]: { body: [{ id: 1, name: 'AUCSC 325' }] }, [assignmentsUrl(1)]: { body: [] } });
+      let entered!: () => void, release!: () => void;
+      const inside = new Promise<void>(resolve => { entered = resolve; }), gate = new Promise<void>(resolve => { release = resolve; });
+      http.deps = { lookup: publicDns, fetch: jest.fn(async (...args: Parameters<typeof fetch>) => { entered(); await gate; return routes(...args); }) as unknown as typeof fetch };
+      const first = sync().then(response => response);
+      await inside;
+      const second = await sync().expect(429);
+      expect(second.body.message).toContain('already syncing');
+      release();
+      expect((await first).status).toBe(201);
+      http.deps = { fetch: fakeFetch({ [coursesUrl]: { status: 401, body: {} } }), lookup: publicDns };
+      await sync().expect(409);
+      http.deps = { fetch: fakeFetch({ [coursesUrl]: { body: [] } }), lookup: publicDns };
+      await sync().expect(201);
+    });
   });
 });
