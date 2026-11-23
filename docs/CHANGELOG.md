@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Gym: a workout left untouched for 30 minutes finishes on its own. Ticked
+  sets are saved with the last logged change as the end time, so the forgotten
+  idle time is not counted; a workout with no ticked sets is dropped. A save
+  that fails keeps the workout on the device for a manual Finish.
+
 - Task templates (ADR 027): save a reusable title, description, estimate and
   up to 30 steps from Tasks → Add template, then use, edit, duplicate or delete
   it under View templates. Using a template opens the task editor prefilled for
