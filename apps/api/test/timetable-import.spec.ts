@@ -5,8 +5,11 @@ import { detectClassPatterns, uploadLimits } from '../src/integrations/timetable
 const zone = 'America/Edmonton', today = '2026-10-18';
 const calendar = (...events: string[]) => ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Test//EN', ...events, 'END:VCALENDAR'].join('\r\n');
 const event = (uid: string, lines: string[]) => ['BEGIN:VEVENT', `UID:${uid}`, 'DTSTAMP:20260901T000000Z', ...lines, 'END:VEVENT'].join('\r\n');
+// The real step, event and component limits, but not the 3 s wall-clock deadline: on a busy
+// CI host that deadline can cut expansion short and make counts depend on machine speed.
+const limits = { ...uploadLimits, deadlineMs: 60_000 };
 async function preview(ics: string, saved: { id: string; title: string; startTime: string; weekdays: number[] }[] = []) {
-  const batch = await new IcsEventProvider(async () => ics, { timeZone: zone, partial: true, limits: uploadLimits })
+  const batch = await new IcsEventProvider(async () => ics, { timeZone: zone, partial: true, limits })
     .fetchEvents({ from: addCalendarDays(today, -90), through: addCalendarDays(today, 275), timeZone: zone });
   if (batch.status === 'failed') throw new Error(batch.issues.join());
   return detectClassPatterns(batch.events, { timeZone: zone, today, saved, unsupported: batch.issues.filter(issue => !icsStopIssues.includes(issue)).length,
