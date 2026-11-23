@@ -11,7 +11,7 @@ import { requestSource, type SourceRequest } from './request-source';
 const eventFields = { id: true, title: true, description: true, category: true, source: true, externalId: true, timing: true, location: true, url: true } as const;
 // Database whitelists: adding a credential column cannot add it to an export.
 const accountFields = {
-  id: true, email: true, displayName: true, timeZone: true, createdAt: true,
+  id: true, email: true, displayName: true, timeZone: true, createdAt: true, gymOpeningHours: true,
   tasks: { select: { id: true, studyPlanId: true, studyPlanOrder: true, title: true, description: true, priority: true, category: true, due: true,
     scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, completedAt: true, snoozedUntil: true,
     mainGoalDate: true, checklist: true, courseId: true, createdAt: true, updatedAt: true } },

@@ -25,9 +25,10 @@ beforeEach(() => {
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>);
 });
 
-it('helps a new student pick a program with level and audience filters', () => {
+it('helps a new student pick a program with level and audience filters', async () => {
   jest.mocked(useGym).mockReturnValue(overview(null) as unknown as ReturnType<typeof useGym>);
   render(<Gym/>);
+  await act(async () => { await Promise.resolve(); });
   expect(screen.getByText('Find a program that fits you')).toBeOnTheScreen();
   fireEvent.press(screen.getByRole('radio', { name: 'Advanced' }));
   expect(screen.getByText('Push / Pull / Legs')).toBeOnTheScreen(); expect(screen.queryByText('Dorm-Room Starter')).toBeNull();
@@ -35,6 +36,17 @@ it('helps a new student pick a program with level and audience filters', () => {
   expect(screen.getByText('Glute Builder')).toBeOnTheScreen(); expect(screen.queryByText('Push / Pull / Legs')).toBeNull();
   fireEvent.press(screen.getByRole('button', { name: /^Glute Builder/ }));
   expect(router.push).toHaveBeenCalledWith({ pathname: '/gym-program', params: { id: 'glute-builder' } });
+});
+it('shows gym hours without requiring enrollment and saves through the existing action API', async () => {
+  jest.mocked(useGym).mockReturnValue(overview(null) as unknown as ReturnType<typeof useGym>);
+  render(<Gym/>);
+  expect(screen.getByText('Gym hours haven’t been set.')).toBeOnTheScreen();
+  fireEvent.press(screen.getByText('Set gym hours'));
+  fireEvent.press(screen.getByRole('radio', { name: 'Sunday closed' }));
+  await act(async () => { fireEvent.press(screen.getByText('Save gym hours')); });
+  expect(save).toHaveBeenCalledWith({ path: '/gym/opening-hours', method: 'PUT', body: { openingHours: {
+    timeZone: 'America/Edmonton', days: [...Array.from({ length: 6 }, () => ({ kind: 'unknown' })), { kind: 'closed' }],
+  } } });
 });
 it('shows the next workout in the rotation, weekly progress and starts a prefilled draft', async () => {
   jest.mocked(useGym).mockReturnValue(overview(enrollment, [{ id: '10000000-0000-4000-8000-0000000000a1', programId: 'upper-lower', dayId: 'upper-a',
