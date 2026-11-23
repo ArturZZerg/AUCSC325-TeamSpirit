@@ -31,6 +31,18 @@ export const updateFoodEntrySchema = z.object({ meal: mealSchema.optional(), gra
   .refine(value => (value.grams === undefined) === (value.nutrients === undefined), 'Send the new amount with its nutrients.');
 export const copyMealSchema = z.object({ fromDate: dateSchema, fromMeal: mealSchema, toDate: dateSchema, toMeal: mealSchema }).strict();
 
+/** A day can hold 300 entries of up to the per-entry nutrient caps, for seven days. */
+const weekNutrientsSchema = z.object({
+  kcal: amount(20_000 * 300 * 7), protein: amount(2000 * 300 * 7), fat: amount(2000 * 300 * 7),
+  carbs: amount(3000 * 300 * 7), fiber: amount(500 * 300 * 7),
+}).strict();
+export const nutritionWeekSchema = z.object({
+  accountId: idSchema, timeZone: timeZoneSchema, start: dateSchema, through: dateSchema,
+  days: z.object({ date: dateSchema, entries: z.number().int().min(0).max(300), nutrients: weekNutrientsSchema }).strict().array().length(7),
+  /** Days of the week up to and including today that `average` is spread over (7 for a past week). */
+  totals: weekNutrientsSchema, average: weekNutrientsSchema, averageDays: z.number().int().min(0).max(7),
+}).strict();
+
 export const nutritionDaySchema = z.object({
   accountId: idSchema, timeZone: timeZoneSchema, date: dateSchema, capturedAt: instantSchema,
   profile: nutritionProfileSchema.nullable(), latestWeightKg: z.number().nullable(), diningAvailable: z.boolean(),
@@ -55,5 +67,6 @@ export type SaveUserFood = z.infer<typeof saveUserFoodSchema>;
 export type SaveFoodEntry = z.infer<typeof saveFoodEntrySchema>;
 export type FoodEntry = z.infer<typeof foodEntrySchema>;
 export type NutritionDay = z.infer<typeof nutritionDaySchema>;
+export type NutritionWeekDto = z.infer<typeof nutritionWeekSchema>;
 export type DiningDish = z.infer<typeof diningDishSchema>;
 export type DiningMenu = z.infer<typeof diningMenuSchema>;

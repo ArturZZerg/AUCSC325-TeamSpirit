@@ -1,9 +1,9 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Header, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { Prisma, type FoodLogEntry as EntryRow, type NutritionProfile as ProfileRow, type UserFood as FoodRow } from '@prisma/client';
-import { copyMealSchema, dateSchema, nutrientsSchema, diningMenuSchema, foodEntrySchema, foodSchema, foodSearchSchema, nutritionDaySchema, nutritionProfileSchema, saveFoodEntrySchema,
+import { copyMealSchema, dateSchema, nutrientsSchema, diningMenuSchema, foodEntrySchema, foodSchema, foodSearchSchema, nutritionDaySchema, nutritionProfileSchema, nutritionWeekSchema, saveFoodEntrySchema,
   saveUserFoodSchema, updateFoodEntrySchema, type Food, type NutritionProfileDto, type SaveFoodEntry, type SaveUserFood } from '@campusflow/contracts';
-import { diningVisible, localDateAt, roundNutrients, type DiningSetting, type Nutrients } from '@campusflow/domain';
+import { diningVisible, localDateAt, nutritionWeek, roundNutrients, weekBounds, type DiningSetting, type Nutrients } from '@campusflow/domain';
 import { z } from 'zod';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, parseUuid } from './common';
 import { searchUsda } from './integrations/food/usda-foods';
@@ -123,6 +123,15 @@ export class NutritionController {
       return source.length;
     });
     return { copied };
+  }
+
+  /** Monday–Sunday intake for the week containing `date`. Derived on read; nothing is stored. */
+  @Get('week/:date') @Header('Cache-Control', 'private, no-store')
+  async week(@CurrentUser() user: RequestUser, @Param('date', new ZodPipe(dateSchema)) date: string) {
+    const { start, through } = weekBounds(date);
+    const rows = await this.prisma.foodLogEntry.findMany({ where: { userId: user.id, date: { gte: start, lte: through } }, select: { date: true, kcal: true, protein: true, fat: true, carbs: true, fiber: true } });
+    const summary = nutritionWeek(rows.map(row => ({ date: row.date, nutrients: nutrients(row) })), date, localDateAt(new Date().toISOString(), user.timeZone));
+    return nutritionWeekSchema.parse({ accountId: user.id, timeZone: user.timeZone, ...summary });
   }
 
   /** The Augustana menu with per-serving estimates. Estimates are recomputed at read time from the stored menu. */
