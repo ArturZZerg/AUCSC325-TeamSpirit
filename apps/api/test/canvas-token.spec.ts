@@ -120,6 +120,14 @@ describe('Canvas token connection over HTTP', () => {
   const events = { sync: jest.fn() };
   const http = new CanvasHttpClient();
   const auth = (req: request.Test) => req.set('Authorization', 'Bearer campusflow-session');
+  // Stands in for RecoveryRateBucket: counts attempts per key; other raw queries (locks) return nothing.
+  const buckets = new Map<string, number>();
+  const countingQueries = async (sql: TemplateStringsArray, ...values: unknown[]) => {
+    if (!sql.join('').includes('"RecoveryRateBucket"')) return [];
+    const count = (buckets.get(String(values[0])) ?? 0) + 1;
+    buckets.set(String(values[0]), count);
+    return [{ count }];
+  };
   beforeAll(async () => {
     const module = await Test.createTestingModule({ controllers: [CanvasController], providers: [AuthGuard, CanvasService,
       { provide: ReminderService, useValue: reminders }, { provide: CanvasHttpClient, useValue: http },
@@ -127,10 +135,10 @@ describe('Canvas token connection over HTTP', () => {
     app = module.createNestApplication(); app.useLogger(false); await app.init();
   });
   beforeEach(() => {
-    jest.resetAllMocks(); stored = null;
+    jest.resetAllMocks(); stored = null; buckets.clear();
     process.env.CANVAS_MODE = 'token'; process.env.CANVAS_TOKEN_KEY = key.toString('base64');
     prisma.$transaction.mockImplementation(async (work: (tx: typeof prisma) => Promise<unknown>) => work(prisma));
-    prisma.$queryRaw.mockResolvedValue([]);
+    prisma.$queryRaw.mockImplementation(countingQueries);
     prisma.session.findUnique.mockResolvedValue({ revokedAt: null, expiresAt: new Date('2099-01-01'),
       user: { id, email: 'student@example.test', displayName: 'Student', timeZone: 'America/Edmonton' } });
     prisma.canvasConnection.findUnique.mockImplementation(async () => stored);
