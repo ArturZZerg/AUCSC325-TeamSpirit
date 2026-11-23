@@ -66,7 +66,7 @@ databaseSuite('student-created courses', () => {
     await client().patch(`/courses/${id}`).set('Authorization', otherToken).send({ name: 'Taken' }).expect(404);
     await client().delete(`/courses/${id}`).set('Authorization', otherToken).expect(200);
     expect(await db.course.findUnique({ where: { id } })).not.toBeNull();
-    await create({ id, name: 'Private' }, otherToken).expect(409);
+    await create({ id, name: 'Private' }, otherToken).expect(404);
     await client().patch(`/courses/${id}`).set('Authorization', token).send({}).expect(400);
     // Concurrent creates near the limit cannot overshoot it.
     const existing = await db.course.count({ where: { userId, source: 'manual' } });

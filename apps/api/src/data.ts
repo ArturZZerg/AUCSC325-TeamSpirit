@@ -393,7 +393,8 @@ const taskTemplateDto = (template: TaskTemplate) => taskTemplateSchema.parse({
      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${u.id}::uuid FOR UPDATE`;
      const existing = await tx.course.findUnique({ where: { id: b.id } });
      if (existing) {
-       if (existing.userId !== u.id || existing.source !== manualCourseSource || existing.name !== b.name) throw new ConflictException('This course ID belongs to a different course.');
+        if (existing.userId !== u.id) throw new NotFoundException('Course not found');
+        if (existing.source !== manualCourseSource || existing.name !== b.name) throw new ConflictException('This course ID belongs to a different course.');
        return courseSchema.parse(existing);
      }
      if (await tx.course.count({ where: { userId: u.id, source: manualCourseSource } }) >= manualCourseLimit) throw new BadRequestException(`You can add up to ${manualCourseLimit} courses.`);
