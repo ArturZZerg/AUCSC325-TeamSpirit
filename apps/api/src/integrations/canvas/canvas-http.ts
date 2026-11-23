@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { lookup as dnsLookup } from 'node:dns/promises';
-import { BlockList, isIP } from 'node:net';
+import { isIP } from 'node:net';
 import { z } from 'zod';
 import { dateSchema } from '@campusflow/contracts';
 import { addCalendarDays, dayBounds } from '@campusflow/domain';
 import { AcademicSnapshot, maxPlannerItems, normalizeCanvasSnapshot } from './canvas-provider';
 import { EventCoverage, ImportedEvent, importedEventSchema } from '../events/event-provider';
+import { BlockedAddressError, isBlockedAddress, pinnedFetch } from './canvas-network';
 
 // Live Canvas REST access with a student's personal access token (ADR 019).
 // Only this module sees Canvas JSON; it returns the normalized snapshot.
@@ -14,12 +15,6 @@ export type CanvasFailure = 'invalid-url' | 'unauthorized' | 'unreachable' | 'in
 export class CanvasRequestError extends Error {
   constructor(readonly kind: CanvasFailure) { super(`Canvas request failed: ${kind}`); }
 }
-
-const blocked = new BlockList();
-for (const [network, prefix] of [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16],
-  ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['224.0.0.0', 3]] as const) blocked.addSubnet(network, prefix, 'ipv4');
-for (const [network, prefix] of [['::', 127], ['64:ff9b::', 96], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8]] as const)
-  blocked.addSubnet(network, prefix, 'ipv6');
 
 /**
  * Accepts "school.instructure.com" or a pasted Canvas page URL and returns the
@@ -39,17 +34,16 @@ export function canvasOrigin(input: string): string {
 
 export type Lookup = (host: string) => Promise<{ address: string; family: number }[]>;
 export interface CanvasHttpDeps { fetch: typeof fetch; lookup: Lookup }
-const defaultDeps: CanvasHttpDeps = { fetch: (...args) => fetch(...args), lookup: host => dnsLookup(host, { all: true, verbatim: true }) };
+// The up-front lookup gives a clear error for a private host; pinnedFetch repeats
+// the check on every connection so a changed DNS answer can't bypass it (#180).
+const defaultDeps: CanvasHttpDeps = { fetch: pinnedFetch(), lookup: host => dnsLookup(host, { all: true, verbatim: true }) };
+/** A request that never got a response; a host that turned private is an invalid address. */
+const failedRequest = (error: unknown) => new CanvasRequestError(error instanceof BlockedAddressError ? 'invalid-url' : 'unreachable');
 
 async function assertPublicHost(origin: string, lookup: Lookup) {
   let addresses: { address: string; family: number }[];
-  try { addresses = await lookup(new URL(origin).hostname); } catch { throw new CanvasRequestError('unreachable'); }
-  // An IPv4-mapped IPv6 address is checked as the IPv4 address it carries.
-  const isBlocked = ({ address, family }: { address: string; family: number }) => {
-    const mapped = family === 6 && /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(address);
-    return mapped ? blocked.check(mapped[1], 'ipv4') : blocked.check(address, family === 6 ? 'ipv6' : 'ipv4');
-  };
-  if (!addresses.length || addresses.some(isBlocked))
+  try { addresses = await lookup(new URL(origin).hostname); } catch (error) { throw failedRequest(error); }
+  if (!addresses.length || addresses.some(isBlockedAddress))
     throw new CanvasRequestError('invalid-url');
 }
 
@@ -134,7 +128,7 @@ export class CanvasHttpClient {
       let response: Response;
       try {
         response = await this.deps.fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, redirect: 'error', signal });
-      } catch { throw new CanvasRequestError('unreachable'); }
+      } catch (error) { throw failedRequest(error); }
       if (response.status === 401) throw new CanvasRequestError('unauthorized');
       // Course tabs can be hidden from students; that course is imported without coursework.
       if (response.status === 403 || response.status === 404) return 'forbidden';
@@ -156,7 +150,7 @@ export class CanvasHttpClient {
     let response: Response;
     try {
       response = await this.deps.fetch(`${origin}/api/v1/users/self`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, redirect: 'error', signal });
-    } catch { throw new CanvasRequestError('unreachable'); }
+    } catch (error) { throw failedRequest(error); }
     if (response.status === 401 || response.status === 403) throw new CanvasRequestError('unauthorized');
     if (!response.ok) throw new CanvasRequestError(response.status === 404 ? 'invalid-url' : 'unreachable');
     const user = userSchema.safeParse(await response.json().catch(() => null));
