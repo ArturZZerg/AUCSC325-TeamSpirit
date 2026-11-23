@@ -1,31 +1,35 @@
 import { useSessionStore } from '@/store/session';
+import { apiBaseUrl } from './api-url';
 
-const configuredBaseUrl = process.env.EXPO_PUBLIC_API_URL;
-const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
-  || process.env.CAMPUSFLOW_ANDROID_PREVIEW === '1';
-if (!configuredBaseUrl && !isDevelopment) throw new Error('EXPO_PUBLIC_API_URL is required outside development.');
-const baseUrl = configuredBaseUrl ?? 'http://localhost:3000';
-const API_TIMEOUT_MS = 15_000;
+/** Default limit for one request, so a stalled connection cannot hang a screen (#199). */
+export const API_TIMEOUT_MS = 15_000;
 export class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** `timeoutMs` overrides the default for calls the server may legitimately take longer on. */
+export type ApiInit = RequestInit & { timeoutMs?: number };
+export async function api<T>(path: string, { timeoutMs = API_TIMEOUT_MS, ...init }: ApiInit = {}): Promise<T> {
   const session = useSessionStore.getState().session;
   const headers = new Headers({ Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}),
     ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}) });
   new Headers(init.headers).forEach((value, key) => headers.set(key, value));
   const timeoutController = new AbortController();
-  const timeout = setTimeout(() => timeoutController.abort(), API_TIMEOUT_MS);
-  let signal = timeoutController.signal;
-  if (init.signal) {
-    signal = typeof AbortSignal.any === 'function'
-      ? AbortSignal.any([init.signal, timeoutController.signal])
-      : timeoutController.signal;
-    if (signal === timeoutController.signal) {
-      if (init.signal.aborted) timeoutController.abort();
-      else init.signal.addEventListener('abort', () => timeoutController.abort(), { once: true });
-    }
-  }
+  const timeout = setTimeout(() => timeoutController.abort(), timeoutMs);
+  // fetch gets one signal for both the caller's cancellation and the timeout. Without
+  // AbortSignal.any, the caller's abort is forwarded until the request settles.
+  const caller = init.signal;
+  const forward = () => timeoutController.abort();
+  let signal = timeoutController.signal, forwarding = false;
+  if (caller && typeof AbortSignal.any === 'function') signal = AbortSignal.any([caller, timeoutController.signal]);
+  else if (caller?.aborted) forward();
+  else if (caller) { caller.addEventListener('abort', forward, { once: true }); forwarding = true; }
   try {
-    const response = await fetch(`${baseUrl}${path}`, { ...init, headers, signal });
+    let response: Response;
+    try { response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers, signal }); }
+    catch (error) {
+      // A timed-out write may still have committed, so it surfaces like a lost connection:
+      // editors then ask the student to check before retrying (TypeError, like fetch's own).
+      if (timeoutController.signal.aborted && !caller?.aborted) throw new TypeError('The request timed out.');
+      throw error;
+    }
     const body = await response.json().catch(() => undefined);
     const current = useSessionStore.getState().session;
     // A private read/write can discover revocation before the foreground check.
@@ -39,6 +43,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     return body as T;
   } finally {
     clearTimeout(timeout);
+    if (forwarding) caller?.removeEventListener('abort', forward);
   }
 }
 export const json = (method: string, value?: unknown): RequestInit => ({ method, body: value === undefined ? undefined : JSON.stringify(value) });

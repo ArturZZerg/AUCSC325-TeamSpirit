@@ -259,7 +259,7 @@ export function useReminders() {
   return { ...query, data, isLoading: query.isLoading && data === undefined };
 }
 
-type ActionRequest = { path: string; method?: string; body?: unknown; taskEditBaseline?: TaskEditBaseline; deletedTask?: PersonalTask };
+type ActionRequest = { path: string; method?: string; body?: unknown; taskEditBaseline?: TaskEditBaseline; deletedTask?: PersonalTask; timeoutMs?: number };
 export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) => Promise<void>, options?: { awaitRefresh: boolean }) {
   const client = useQueryClient();
   const session = useSessionStore(state => state.session);
@@ -273,12 +273,12 @@ export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) =
       catch (error) { endWrite?.(); throw error; }
       return { endWrite, deletedTask: request.deletedTask ?? client.getQueryData<PersonalTask[]>(['account', owner.user.id, 'tasks'])?.find(task => task.id === request.path.split('/')[2]) };
     },
-    mutationFn: async ({ request: { path, method = 'POST', body, taskEditBaseline }, owner, ownershipGeneration }: { request: ActionRequest; owner: typeof session; ownershipGeneration: number; credentialsGeneration: number }) => {
+    mutationFn: async ({ request: { path, method = 'POST', body, taskEditBaseline, timeoutMs }, owner, ownershipGeneration }: { request: ActionRequest; owner: typeof session; ownershipGeneration: number; credentialsGeneration: number }) => {
       // Recheck after cancellation: an account switch must not submit an old
       // screen's write using the new account's credentials.
       if (!owner || !taskOwnerCurrent(owner) || ownershipGeneration !== taskOwnershipGeneration()) throw new Error('Your session has ended.');
       if (taskEditBaseline && !taskEditWriteCurrent(taskEditBaseline)) throw new Error('Reload the task before saving.');
-      return api<T>(path, json(method, body));
+      return api<T>(path, { ...json(method, body), timeoutMs });
     },
     onSuccess: async (data: T, { owner, request, credentialsGeneration }, context) => {
       context?.endWrite?.();
