@@ -14,7 +14,9 @@ Product extension of ToR 15 (wellness); architecture in
 - **Log fast.** Every set is prefilled from the progression target, so a typical
   set is one tap. Ticking a set starts the prescribed rest timer (+30 s, skip,
   vibration at the end). Sets can be added/removed and a note attached. The
-  workout survives navigation and app restart and is saved only on Finish.
+  workout survives navigation and app restart and is saved only on Finish,
+  or automatically after 30 minutes without a logged change (ending at that
+  change; with no ticked sets it is dropped).
 - **Progress.** Each exercise shows the last result and advice: first session,
   add one rep to the weakest set, increase by the equipment step once every set
   reaches the top of the range, hold after reps below the range, or ease back in

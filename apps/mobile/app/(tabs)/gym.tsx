@@ -12,6 +12,7 @@ import { createDraft, draftProgress, exerciseName, formatDuration, formatSets, o
 import { importOpenGymBackup, pickOpenGymBackup } from '@/services/opengym-import';
 import { ProgramBrowser } from '@/features/gym-program-browser';
 import { GymOpeningHoursCard } from '@/features/gym-opening-hours';
+import { useWorkoutAutoFinish } from '@/features/workout-auto-finish';
 import { gymOwner, useGymWorkout } from '@/store/gym-workout';
 import { useSessionStore } from '@/store/session';
 
@@ -22,8 +23,10 @@ export default function GymScreen() {
   const owner = gymOwner(session), timeZone = session?.user.timeZone ?? 'UTC';
   const { date: today } = useTodayClock(timeZone);
   const gym = useGym(); const action = useAction();
-  const { draft: stored, restore, start, discard } = useGymWorkout();
+  const { draft: stored, restore, start, discard, autoFinished, setAutoFinished } = useGymWorkout();
   const draft = stored?.owner === owner ? stored : null;
+  const closed = !draft && autoFinished?.owner === owner ? autoFinished : null;
+  useWorkoutAutoFinish();
   const [choosing, setChoosing] = useState(false); const [confirm, setConfirm] = useState<'replace' | Workout>();
   const [pendingDay, setPendingDay] = useState<ProgramDay>(); const [expanded, setExpanded] = useState<string>(); const [message, setMessage] = useState<string>();
   useEffect(() => { if (owner) void restore(owner); }, [owner, restore]);
@@ -78,6 +81,9 @@ export default function GymScreen() {
       <Text accessibilityRole="header" style={styles.section}>Programs for every level</Text>
       <ProgramBrowser onOpen={open}/>
     </>}
+    {closed && <View style={styles.notice} accessibilityLiveRegion="polite"><Ionicons name="time-outline" size={20} color={colors.moss}/>
+      <Text style={styles.noticeText}>{closed.workout ? `${closed.title} was saved automatically after 30 minutes without activity.` : `${closed.title} ended after 30 minutes without activity. No sets were ticked, so nothing was saved.`}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Dismiss" hitSlop={8} onPress={() => setAutoFinished(null)}><Ionicons name="close" size={20} color={colors.muted}/></Pressable></View>}
     {imported && <View style={styles.notice}><Ionicons name="checkmark-circle" size={20} color={colors.moss}/><Text style={styles.noticeText}>{imported}</Text></View>}
     {program && enrollment && <Overview program={program} own={own.exercises} enrollment={enrollment} workouts={workouts} today={today} timeZone={timeZone}
       programs={own.programs} importing={importing} onImport={() => { void importBackup(); }}
