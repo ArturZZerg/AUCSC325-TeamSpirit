@@ -5,10 +5,11 @@ import { detectClassPatterns, uploadLimits } from '../src/integrations/timetable
 const zone = 'America/Edmonton', today = '2026-10-18';
 const calendar = (...events: string[]) => ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Test//EN', ...events, 'END:VCALENDAR'].join('\r\n');
 const event = (uid: string, lines: string[]) => ['BEGIN:VEVENT', `UID:${uid}`, 'DTSTAMP:20260901T000000Z', ...lines, 'END:VEVENT'].join('\r\n');
-// The real step, event and component limits, but not the 3 s wall-clock deadline: on a busy
-// CI host that deadline can cut expansion short and make counts depend on machine speed.
-const limits = { ...uploadLimits, deadlineMs: 60_000 };
-async function preview(ics: string, saved: { id: string; title: string; startTime: string; weekdays: number[] }[] = []) {
+// Tests that count classes keep the real step, event and component limits but not the 3 s
+// wall-clock deadline: on a busy CI host it can cut expansion short, so counts would depend
+// on machine speed. The "bounds the work" cases pass the real limits, deadline included.
+const countingLimits = { ...uploadLimits, deadlineMs: 60_000 };
+async function preview(ics: string, saved: { id: string; title: string; startTime: string; weekdays: number[] }[] = [], limits = countingLimits) {
   const batch = await new IcsEventProvider(async () => ics, { timeZone: zone, partial: true, limits })
     .fetchEvents({ from: addCalendarDays(today, -90), through: addCalendarDays(today, 275), timeZone: zone });
   if (batch.status === 'failed') throw new Error(batch.issues.join());
@@ -132,7 +133,7 @@ describe('timetable import', () => {
       `RDATE;TZID=${zone}:${Array.from({ length: 50 }, (_, week) => addCalendarDays('2026-10-26', week * 7).replace(/-/g, '') + 'T090000').join(',')}`]))],
   ])('bounds the work for %s', async (_name, events) => {
     const started = Date.now();
-    const result = await preview(calendar(...events));
+    const result = await preview(calendar(...events), [], uploadLimits);
     expect(Date.now() - started).toBeLessThan(8_000);
     expect(result.classes.length).toBeLessThanOrEqual(40);
   });
