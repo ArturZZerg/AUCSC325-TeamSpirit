@@ -9,7 +9,7 @@ const event = (uid: string, lines: string[]) => ['BEGIN:VEVENT', `UID:${uid}`, '
 // wall-clock deadline: on a busy CI host it can cut expansion short, so counts would depend
 // on machine speed. The "bounds the work" cases pass the real limits, deadline included.
 const countingLimits = { ...uploadLimits, deadlineMs: 60_000 };
-async function preview(ics: string, saved: { id: string; title: string; startTime: string; weekdays: number[] }[] = [], limits = countingLimits) {
+async function preview(ics: string, saved: { id: string; title: string; startTime: string; weekdays: number[] }[] = [], limits: typeof uploadLimits = countingLimits) {
   const batch = await new IcsEventProvider(async () => ics, { timeZone: zone, partial: true, limits })
     .fetchEvents({ from: addCalendarDays(today, -90), through: addCalendarDays(today, 275), timeZone: zone });
   if (batch.status === 'failed') throw new Error(batch.issues.join());
