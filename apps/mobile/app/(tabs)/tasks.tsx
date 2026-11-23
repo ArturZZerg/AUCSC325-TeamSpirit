@@ -7,6 +7,8 @@ import { taskOccursOn } from '@campusflow/domain';
 import { Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAcademic, useAction, useCourses, useTasks } from '@/features/queries';
 import { courseColor } from '@/features/course-editor';
+import { TaskTemplateList } from '@/features/task-template-list';
+import { TaskTemplateEditor } from '@/features/task-template-editor';
 import { TaskEditor } from '@/features/task-editor';
 import { filterPersonalTasks, useTaskFilters } from '@/features/task-filters';
 import { TaskFilterControls } from '@/features/task-filter-controls';
@@ -36,6 +38,8 @@ export default function Tasks() {
   const busy = useRef(false);
   const [pending, setPending] = useState<string>();
   const disabled = !!pending || action.isPending;
+  const [viewingTemplates, setViewingTemplates] = useState(false);
+  const [addingTemplate, setAddingTemplate] = useState(false);
   const [editing, setEditing] = useState<PersonalTask | null>();
   const [reminding, setReminding] = useState<PersonalTask>();
   const [deleting, setDeleting] = useState<PersonalTask>();
@@ -78,6 +82,7 @@ export default function Tasks() {
       <View style={styles.top}>
         <View style={styles.heading}><Text accessibilityRole="header" style={styles.title}>Tasks</Text>
           {summary && <Text style={styles.summary}>{tasksSummaryLabel(summary, university?.open)}</Text>}</View>
+        <Button title="Add template" tone="plain" disabled={disabled || !session} onPress={() => setAddingTemplate(true)}/>
         <Pressable accessibilityRole="button" accessibilityLabel="Add task" accessibilityState={{ disabled }} disabled={disabled} onPress={() => setEditing(null)}
           style={({ pressed }) => [styles.add, pressed && styles.pressed, disabled && styles.dim]}><Ionicons name="add" size={26} color={colors.onAccent}/></Pressable>
       </View>
@@ -86,6 +91,7 @@ export default function Tasks() {
         <Chip icon="calendar-outline" label="Calendar" onPress={() => router.push('/calendar')}/>
       </View>
       {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
+      <Button title="View templates" tone="plain" disabled={!session} onPress={() => setViewingTemplates(true)}/>
       <TaskFilterControls filters={filters} onChange={updateFilters} onReset={resetFilters}/>
       {visibleTasks && <Text style={styles.meta}>{visibleTasks.length} personal {visibleTasks.length === 1 ? 'task' : 'tasks'}</Text>}
       <State loading={tasks.isLoading} error={tasks.error}/>
@@ -131,6 +137,8 @@ export default function Tasks() {
       {university && university.open > university.shown.length && <Button title={`All coursework (${university.open} open)`} tone="plain" onPress={() => router.push('/academics')}/>}
       <View style={styles.spacer}/>
     </ScrollView>
+    {viewingTemplates && session && <TaskTemplateList key={session.accessToken} onClose={() => setViewingTemplates(false)}/>}
+    {addingTemplate && <TaskTemplateEditor key={session?.accessToken ?? 'signed-out'} onClose={() => setAddingTemplate(false)}/>}
     {editing !== undefined && <TaskEditor key={editing?.id ?? 'new'} task={editing} timeZone={timeZone} courses={courses.data} onClose={() => setEditing(undefined)}/>}
     {reminding && <TaskReminderEditor key={reminding.id} task={reminding} timeZone={timeZone} onClose={() => setReminding(undefined)}/>}
     {deleting && <Modal visible transparent animationType="fade" onRequestClose={() => { if (!disabled) setDeleting(undefined); }}>

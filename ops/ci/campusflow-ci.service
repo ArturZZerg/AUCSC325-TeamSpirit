@@ -1,0 +1,13 @@
+[Unit]
+Description=CampusFlow server CI: test one pending commit and post local-verify (ADR 028)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/campusflow-ci/server-ci.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=75min
+StandardOutput=append:/var/log/campusflow-ci.log
+StandardError=append:/var/log/campusflow-ci.log

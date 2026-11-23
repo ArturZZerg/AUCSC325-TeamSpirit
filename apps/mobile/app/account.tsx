@@ -54,6 +54,7 @@ function AccountCentre() {
   });
   const counts = copy && [
     ['Tasks & completions', copy.personalTasks.length + copy.taskCompletions.length],
+    ['Task templates', copy.taskTemplates.length],
     ['Courses, coursework & classes', copy.courses.length + copy.academicItems.length + copy.classes.length],
     ['Preparation plans & focus records', copy.studyPlans.length + copy.focusSessions.length],
     ['Routines & history', copy.goals.length + copy.goalCompletions.length],

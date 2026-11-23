@@ -5,18 +5,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 WORKDIR /app
 
 FROM base AS build
+# Manifests first, so the npm ci layer is reused until the lockfile or a package.json changes.
 COPY package.json package-lock.json tsconfig.base.json ./
-COPY apps/api ./apps/api
+COPY apps/api/package.json ./apps/api/package.json
 COPY apps/mobile/package.json ./apps/mobile/package.json
-COPY packages/contracts ./packages/contracts
-COPY packages/domain ./packages/domain
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/domain/package.json ./packages/domain/package.json
 # Optional public CA bundle for development networks with a trusted TLS proxy.
 # BuildKit mounts it temporarily; it is never copied into either image.
 RUN --mount=type=secret,id=build_ca \
     if [ -s /run/secrets/build_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/build_ca; fi; \
     npm ci --ignore-scripts --no-audit --workspace=@campusflow/api \
-    --workspace=@campusflow/contracts --workspace=@campusflow/domain --include-workspace-root \
-    && npm run db:generate && npm run build
+    --workspace=@campusflow/contracts --workspace=@campusflow/domain --include-workspace-root
+COPY apps/api ./apps/api
+COPY packages/contracts ./packages/contracts
+COPY packages/domain ./packages/domain
+# Prisma generate may download its engines, so it gets the same optional CA bundle.
+RUN --mount=type=secret,id=build_ca \
+    if [ -s /run/secrets/build_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/build_ca; fi; \
+    npm run db:generate && npm run build
 
 # The build target retains the pinned Prisma CLI for one-shot migrations.
 FROM build AS production-dependencies

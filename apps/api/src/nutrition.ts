@@ -21,6 +21,8 @@ const profileDto = (row: ProfileRow) => nutritionProfileSchema.parse({ sex: row.
 const ownFood = (row: FoodRow): Food => foodSchema.parse({ id: `own:${row.id}`, name: row.name, source: 'own', per100: row.per100, portions: row.portions });
 const json = (value: unknown) => value as Prisma.InputJsonValue;
 
+const foodsPerDay = 300;
+
 /** Calorie and macro diary, goals and the Augustana dining hall (ADR 023). */
 @Controller('nutrition') @UseGuards(AuthGuard)
 export class NutritionController {
@@ -90,7 +92,7 @@ export class NutritionController {
         if (existing.name !== body.name || existing.grams !== body.grams || existing.date !== body.date) throw new ConflictException('This save key belongs to another food.');
         return entryDto(existing);
       }
-      if (await tx.foodLogEntry.count({ where: { userId: user.id, date: body.date } }) >= 300) throw new BadRequestException('This day already has 300 foods.');
+      if (await tx.foodLogEntry.count({ where: { userId: user.id, date: body.date } }) >= foodsPerDay) throw new BadRequestException('This day already has 300 foods.');
       return entryDto(await tx.foodLogEntry.create({ data: { ...fields, ...values, requestKey, userId: user.id } }));
     });
   }
@@ -109,11 +111,18 @@ export class NutritionController {
   @Post('entries/copy') @Header('Cache-Control', 'private, no-store')
   async copyMeal(@CurrentUser() user: RequestUser, @Body(new ZodPipe(copyMealSchema)) body: z.infer<typeof copyMealSchema>) {
     this.notFuture(user, body.toDate);
-    const source = await this.prisma.foodLogEntry.findMany({ where: { userId: user.id, date: body.fromDate, meal: body.fromMeal }, orderBy: { createdAt: 'asc' } });
-    if (!source.length) throw new BadRequestException('That meal has nothing to copy.');
-    await this.prisma.foodLogEntry.createMany({ data: source.map(({ id, createdAt: _createdAt, requestKey, date: _date, meal: _meal, ...row }) => ({ ...row, date: body.toDate, meal: body.toMeal,
-      requestKey: `copy-${createHash('sha256').update(`${requestKey}:${body.toDate}:${body.toMeal}:${Date.now()}:${id}`).digest('hex').slice(0, 40)}` })) });
-    return { copied: source.length };
+    const copied = await this.prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user.id}::uuid FOR UPDATE`;
+      const source = await tx.foodLogEntry.findMany({ where: { userId: user.id, date: body.fromDate, meal: body.fromMeal }, orderBy: { createdAt: 'asc' } });
+      if (!source.length) throw new BadRequestException('That meal has nothing to copy.');
+      const existing = await tx.foodLogEntry.count({ where: { userId: user.id, date: body.toDate } });
+      // The day read rejects more than 300 lines, so a copy past that limit would hide the whole diary.
+      if (existing + source.length > foodsPerDay) throw new BadRequestException(`This day already has ${existing} foods. A day can hold ${foodsPerDay}, so this meal does not fit.`);
+      await tx.foodLogEntry.createMany({ data: source.map(({ id, createdAt: _createdAt, requestKey, date: _date, meal: _meal, ...row }) => ({ ...row, date: body.toDate, meal: body.toMeal,
+        requestKey: `copy-${createHash('sha256').update(`${requestKey}:${body.toDate}:${body.toMeal}:${Date.now()}:${id}`).digest('hex').slice(0, 40)}` })) });
+      return source.length;
+    });
+    return { copied };
   }
 
   /** Monday–Sunday intake for the week containing `date`. Derived on read; nothing is stored. */

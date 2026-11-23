@@ -45,12 +45,23 @@ export const overlapsDay = (startAt: string, endAt: string | undefined, date: Da
   return Temporal.Instant.compare(start, Temporal.Instant.from(bounds.end)) < 0 && Temporal.Instant.compare(end, Temporal.Instant.from(bounds.start)) > 0;
 };
 const compareDate = (a: DateOnly, b: DateOnly) => Temporal.PlainDate.compare(plainDate(a), plainDate(b));
+const mondayOf = (date: Temporal.PlainDate) => date.subtract({ days: date.dayOfWeek - 1 });
+/**
+ * Weekly intervals count Monday-based calendar weeks from the week of the first
+ * selected weekday on or after the anchor. "Every 2 weeks on Monday and Friday"
+ * therefore keeps both days in the same week, even when the anchor falls between them.
+ * A single weekday still starts on the next matching day, then repeats every N weeks.
+ */
 const occursOn = (recurrence: Recurrence | undefined, anchor: DateOnly | undefined, date: DateOnly): boolean => {
   if (!recurrence) return anchor === date;
   if (!anchor || compareDate(date, anchor) < 0) return false;
   if (recurrence.frequency === 'daily') return plainDate(anchor).until(plainDate(date), { largestUnit: 'days' }).days % (recurrence.interval ?? 1) === 0;
-  const days = plainDate(anchor).until(plainDate(date), { largestUnit: 'days' }).days;
-  return recurrence.weekdays.includes(plainDate(date).dayOfWeek) && Math.floor(days / 7) % (recurrence.interval ?? 1) === 0;
+  if (!recurrence.weekdays.length || !recurrence.weekdays.includes(plainDate(date).dayOfWeek)) return false;
+  let origin = plainDate(anchor);
+  for (let step = 0; step < 7 && !recurrence.weekdays.includes(origin.dayOfWeek); step++) origin = origin.add({ days: 1 });
+  if (!recurrence.weekdays.includes(origin.dayOfWeek)) return false;
+  const weeks = mondayOf(origin).until(mondayOf(plainDate(date)), { largestUnit: 'days' }).days / 7;
+  return weeks % (recurrence.interval ?? 1) === 0;
 };
 /** Recurring task dates use the account timezone; scheduled takes precedence as the anchor. */
 export const taskAnchorDate = (task: Pick<PersonalTask, 'scheduled' | 'due'>, timeZone: string): DateOnly | undefined => {
@@ -149,8 +160,17 @@ export const composeToday = (input: TodayInput): TodayPlan => {
     if (task.recurrence) {
       // Each occurrence has its own identity and deadline. Never carry the template's
       // old deadline onto an off-schedule date or use series-level completedAt.
+      const occurrenceDates = new Set<DateOnly>();
+      const anchor = taskAnchorDate(task, input.timeZone);
+      const dueDate = task.due?.kind === 'instant' ? localDateAt(task.due.at, input.timeZone) : task.due?.date;
+      const deadlineOffset = anchor && dueDate ? plainDate(anchor).until(plainDate(dueDate), { largestUnit: 'days' }).days : 0;
       for (let offset = 0; offset <= 7; offset++) {
-        const occurrenceDate = addCalendarDays(input.date, offset);
+        const date = addCalendarDays(input.date, offset);
+        occurrenceDates.add(date);
+        // Also check the occurrence due on this day, scheduled deadlineOffset days earlier.
+        if (deadlineOffset) occurrenceDates.add(addCalendarDays(date, -deadlineOffset));
+      }
+      for (const occurrenceDate of occurrenceDates) {
         if (!taskOccursOn(task, occurrenceDate, input.timeZone)) continue;
         const timing = taskOccurrenceTiming(task, occurrenceDate, input.timeZone);
         const completed = task.completedOccurrenceKeys?.includes(occurrenceDate) ?? false;
@@ -161,7 +181,7 @@ export const composeToday = (input: TodayInput): TodayPlan => {
             now: input.now, date: input.date, timeZone: input.timeZone }),
           isMainGoal: task.mainGoalDate === occurrenceDate && occurrenceDate === input.date, priority: task.priority,
         };
-        add(item, offset === 0);
+        add(item, occurrenceDate === input.date || inDay(timing.due, input.date, input.timeZone));
       }
       continue;
     }

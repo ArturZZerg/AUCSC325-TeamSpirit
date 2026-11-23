@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { academicItemSchema, courseSchema, dateSchema, dueSchema, eventSchema, goalCompletionSchema, goalSchema, idSchema, instantSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, savedEventSchema, taskCompletionSchema, userSchema, wellnessEntrySchema } from './index';
+import { academicItemSchema, courseSchema, dateSchema, dueSchema, eventSchema, goalCompletionSchema, goalSchema, idSchema, instantSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, savedEventSchema, taskCompletionSchema, taskTemplateSchema, userSchema, wellnessEntrySchema } from './index';
 import { classScheduleSchema } from './classes';
 import { focusSessionSchema } from './focus';
 import { foodEntrySchema, nutritionProfileSchema, saveUserFoodSchema } from './nutrition';
 import { idSchema as foodIdSchema } from './index';
-import { bodyWeightEntrySchema, gymEnrollmentSchema, userExerciseSchema, userProgramSchema, workoutSchema } from './gym';
+import { bodyWeightEntrySchema, gymEnrollmentSchema, gymOpeningHoursSchema, userExerciseSchema, userProgramSchema, workoutSchema } from './gym';
 
 export const deleteAccountSchema = z.object({ currentPassword: z.string().min(1).max(128), confirmation: z.literal('DELETE') }).strict();
 export const accountDeletedSchema = z.object({ deleted: z.literal(true) }).strict();
@@ -15,10 +15,12 @@ export const accountExportSchema = z.object({
   format: z.literal('campusflow-account'), version: z.literal(1), capturedAt: instantSchema,
   coverage: z.literal('server-saved'), profile: userSchema.strict(),
   personalTasks: personalTaskSchema.extend({ studyPlanOrder: z.number().int().nonnegative().nullable() }).strict().array(), taskCompletions: taskCompletionSchema.strict().array(),
+  taskTemplates: taskTemplateSchema.strict().array(),
   courses: courseSchema.extend({ source: z.string().min(1), color: courseSchema.shape.color.unwrap(), assessments: courseSchema.shape.assessments.unwrap(), assessmentGroups: courseSchema.shape.assessmentGroups.unwrap(), targetGrade: courseSchema.shape.targetGrade.unwrap() }).strict().array(),
   academicItems: academicItemSchema.extend({ reminderLeadMinutes: z.number().int().nonnegative().nullable() }).strict().array(),
   classes: classScheduleSchema.array(), studyPlans: exportedStudyPlanSchema.array(), focusSessions: focusSessionSchema.array(),
   gymEnrollment: gymEnrollmentSchema.nullable(), workouts: workoutSchema.array(),
+  gymOpeningHours: gymOpeningHoursSchema.nullable().optional(),
   userExercises: userExerciseSchema.array(), userPrograms: userProgramSchema.array(), bodyWeights: bodyWeightEntrySchema.array(),
   nutritionProfile: nutritionProfileSchema.nullable(), userFoods: saveUserFoodSchema.extend({ id: foodIdSchema }).strict().array(), foodEntries: foodEntrySchema.array(),
   goals: goalSchema.strict().array(), goalCompletions: goalCompletionSchema.strict().array(), wellnessEntries: wellnessEntrySchema.strict().array(),

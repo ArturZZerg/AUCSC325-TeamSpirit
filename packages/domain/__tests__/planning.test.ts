@@ -1,4 +1,4 @@
-import { eventOverlapsRange, eventStartInstant, composeToday, dayBounds, goalOccursOn, isOverdue, overlapsDay, reminderFireAt, temporalState } from '../src';
+import { eventOverlapsRange, eventStartInstant, composeToday, dayBounds, goalOccursOn, isOverdue, overlapsDay, reminderFireAt, taskOccursOn, temporalState } from '../src';
 
 const base = { date: '2026-03-08', timeZone: 'America/Edmonton', now: '2026-03-08T18:00:00Z', academicItems: [], goals: [], goalCompletions: [], events: [], savedEvents: [] };
 
@@ -94,9 +94,35 @@ describe('recurring task occurrence identity', () => {
     expect(next.items[0]).toMatchObject({ state: 'today', occurrenceKey: '2026-03-09', due: { kind: 'date', date: '2026-03-09' } });
   });
 
+  it('keeps every-other-week weekdays in one calendar week', () => {
+    // Wednesday 4 March 2026. Monday and Friday every 2 weeks must not pair Friday
+    // with the Monday of the following week.
+    const task = { recurrence: { frequency: 'weekly' as const, weekdays: [1, 5], interval: 2 }, scheduled: { kind: 'date' as const, date: '2026-03-04' } };
+    expect(taskOccursOn(task, '2026-03-04', 'UTC')).toBe(false);
+    expect(taskOccursOn(task, '2026-03-06', 'UTC')).toBe(true);
+    expect(taskOccursOn(task, '2026-03-09', 'UTC')).toBe(false);
+    expect(taskOccursOn(task, '2026-03-13', 'UTC')).toBe(false);
+    expect(taskOccursOn(task, '2026-03-16', 'UTC')).toBe(true);
+    expect(taskOccursOn(task, '2026-03-20', 'UTC')).toBe(true);
+    // One weekday still begins on the next match, then every second week.
+    const mondays = { recurrence: { frequency: 'weekly' as const, weekdays: [1], interval: 2 }, scheduled: { kind: 'date' as const, date: '2026-03-04' } };
+    expect(taskOccursOn(mondays, '2026-03-09', 'UTC')).toBe(true);
+    expect(taskOccursOn(mondays, '2026-03-16', 'UTC')).toBe(false);
+    expect(taskOccursOn(mondays, '2026-03-23', 'UTC')).toBe(true);
+    const weekly = { recurrence: { frequency: 'weekly' as const, weekdays: [1, 5], interval: 1 }, scheduled: { kind: 'date' as const, date: '2026-03-04' } };
+    expect(['2026-03-06', '2026-03-09', '2026-03-13'].every(date => taskOccursOn(weekly, date, 'UTC'))).toBe(true);
+  });
+
   it('restores only the undone occurrence', () => {
     const undone = composeToday({ ...base, date: '2026-03-02', now: '2026-03-02T18:00:00Z', personalTasks: [{ ...task, completedOccurrenceKeys: ['2026-03-09'] }] });
     expect(undone.items[0].state).toBe('today');
+  });
+
+  it('keeps Sunday in the ending biweekly calendar week across New Year', () => {
+    const task = { recurrence: { frequency: 'weekly' as const, weekdays: [1, 7], interval: 2 },
+      scheduled: { kind: 'date' as const, date: '2026-12-27' } };
+    const dates = ['2026-12-21', '2026-12-27', '2026-12-28', '2027-01-03', '2027-01-04', '2027-01-10'];
+    expect(dates.map(date => taskOccursOn(task, date, 'UTC'))).toEqual([false, true, false, false, true, true]);
   });
 
   it.each([

@@ -3,7 +3,9 @@
 A summary of what exists today, written as the starting point for production
 work. The detailed evidence lives in the linked records; this page does not
 replace them. Updated 2026-10-27 for Canvas token sync (ADR 019), Canvas grades
-and imports (ADR 024, ADR 025) and accessibility.
+and imports (ADR 024, ADR 025) and accessibility; updated 2026-11-20 for
+campus-wide event feeds (ADR 026), quick-add repeats and task templates
+(ADR 027).
 
 ## What the app does
 
@@ -17,12 +19,12 @@ Implemented, with automated behaviour tests (see [MVP roadmap](development/mvp-r
 | Area | Features |
 | --- | --- |
 | Today | Derived `GET /today` plan, progress card, quick capture, next-class status, study windows, exams countdown, day-end review |
-| Tasks | One-time and repeating tasks, steps (ADR 014), course links, grouped buckets, search |
+| Tasks | One-time and repeating tasks, steps (ADR 014), templates (ADR 027), course links, grouped buckets, search, quick add with repeat phrases |
 | Academics | Student-created courses (ADR 015), manual coursework and exams (ADR 003), grade tracking with groups, what-if and Canvas scores (ADR 016, ADR 024), preparation plans (ADR 005) |
 | Schedule | Class timetable with terms/rooms/instructors (ADR 004), weekly planner, month calendar |
 | Focus | Task-linked timer, saved history (ADR 006), recovery after termination (ADR 007), weekly study report |
 | Routines | Goals with cadence, routine library, streaks and weekly targets |
-| Campus | Public Augustana Google Calendar ICS feeds, hourly import, saved events (ADR 008) |
+| Campus | Public Augustana Google Calendar ICS feeds including Campus Events and Career Services, hourly import, saved events (ADR 008, ADR 026) |
 | Wellness | Optional journal check-ins (ADR 012) |
 | Reminders | Server reminder intent, local notification reconciliation, quiet hours, morning overview, reminder center |
 | Account | Email/password auth (scrypt), password recovery (ADR 009), email verification (ADR 010), session lifecycle (ADR 011), data export, account deletion |
@@ -39,8 +41,8 @@ npm-workspace monorepo ([overview](architecture/overview.md), [ADR 001](adr/001-
 - `ops/vps`: pinned Node 22 Dockerfile (build and runtime targets), hardened
   Compose file and an Nginx location include.
 
-Data model: 23 Prisma models and 19 migrations. Entities stay separate (User,
-Session, PersonalTask, Course, AcademicItem, ClassSchedule, StudyPlan,
+Data model: 33 Prisma models and 23 migrations. Entities stay separate (User,
+Session, PersonalTask, TaskTemplate, Course, AcademicItem, ClassSchedule, StudyPlan,
 FocusSession, Goal/GoalCompletion, Event/SavedEvent/CampusFeedState,
 WellnessEntry, Reminder, NotificationPreference, CanvasConnection, plus the
 auth token and quota tables).

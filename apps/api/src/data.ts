@@ -1,10 +1,11 @@
-import { eventRange, selectEvents } from './integrations/events/event-query';
+import { eventRange, selectEvents, withoutRepeatedListings } from './integrations/events/event-query';
 import { createHash, randomUUID } from 'node:crypto';
 import { assessmentGroupLimit, assessmentLimit, courseAssessmentMax, createAssessmentGroupSchema, createAssessmentSchema, updateAssessmentGroupSchema, updateAssessmentSchema, createCourseSchema, createManualAcademicItemSchema, manualCourseLimit, manualCourseSource, updateCourseSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
+import { createTaskTemplateSchema, taskTemplateSchema, updateTaskTemplateSchema } from '@campusflow/contracts';
 import { campusEventSchema } from '@campusflow/contracts';
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Injectable, NotFoundException, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { checklistItemSchema, checklistLimit, createChecklistItemSchema, createPersonalTaskRequestSchema, updateChecklistItemSchema } from '@campusflow/contracts';
-import { Prisma } from '@prisma/client';
+import { Prisma, type TaskTemplate } from '@prisma/client';
 import { z } from 'zod';
 import { configureAcademicReminderSchema, academicReminderConfigurationSchema, dueSchema, eventQuerySchema, pauseGoalSchema, taskQuerySchema, academicItemSchema, completeGoalSchema, completePersonalTaskSchema, courseSchema, createGoalSchema, createPersonalTaskSchema, eventSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, personalTaskSchema, reminderSchema, saveEventSchema, savedEventSchema, setMainGoalSchema, snoozeGoalSchema, snoozePersonalTaskSchema, updateGoalSchema, updateNotificationPreferencesSchema, updatePersonalTaskSchema, updateSavedEventSchema } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, lockAccountRecords, parseUuid, toIso } from './common';
@@ -95,6 +96,47 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
   if (task.recurrence && !task.due && !task.scheduled) throw new BadRequestException('Recurring tasks require a scheduled date or deadline');
 }
 
+const taskTemplateDto = (template: TaskTemplate) => taskTemplateSchema.parse({
+  id: template.id, title: template.title, description: template.description,
+  estimatedMinutes: template.estimatedMinutes, checklist: template.checklist,
+  createdAt: toIso(template.createdAt), updatedAt: toIso(template.updatedAt),
+});
+
+@Controller('task-templates') @UseGuards(AuthGuard) export class TaskTemplatesController {
+  constructor(private readonly prisma: PrismaService) {}
+
+  @Get() async list(@CurrentUser() u: RequestUser) {
+    return (await this.prisma.taskTemplate.findMany({ where: { userId: u.id },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }] })).map(taskTemplateDto);
+  }
+
+  @Post() async create(@CurrentUser() u: RequestUser,
+    @Body(new ZodPipe(createTaskTemplateSchema)) b: z.infer<typeof createTaskTemplateSchema>) {
+    const template = await this.prisma.taskTemplate.create({ data: {
+      userId: u.id, title: b.title, description: b.description ?? null,
+      estimatedMinutes: b.estimatedMinutes ?? null, checklist: b.checklist ?? [],
+    } });
+    return taskTemplateDto(template);
+  }
+
+  @Delete(':id') async remove(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string) {
+    const result = await this.prisma.taskTemplate.deleteMany({ where: { id, userId: u.id } });
+    if (!result.count) throw new NotFoundException('Template not found');
+    return { deleted: true };
+  }
+
+  @Patch(':id') async update(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string,
+    @Body(new ZodPipe(updateTaskTemplateSchema)) b: z.infer<typeof updateTaskTemplateSchema>) {
+    try {
+      const template = await this.prisma.taskTemplate.update({ where: { id, userId: u.id }, data: b });
+      return taskTemplateDto(template);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') throw new NotFoundException('Template not found');
+      throw error;
+    }
+  }
+}
+
 @Controller('tasks') @UseGuards(AuthGuard) export class TasksController {
   constructor(private readonly prisma: PrismaService, private readonly reminders: ReminderService) {}
 
@@ -111,12 +153,15 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
 
   @Post() async create(@CurrentUser() u: RequestUser, @Body(new ZodPipe(createPersonalTaskRequestSchema)) b: z.infer<typeof createPersonalTaskRequestSchema>) {
     validateTaskAnchor(b);
+    if (b.recurrence && b.checklist?.length) throw new BadRequestException('Repeating tasks can’t have steps. Add steps to a one-time task.');
+    if (b.checklist && new Set(b.checklist.map(step => step.id)).size !== b.checklist.length) throw new BadRequestException('Checklist step IDs must be unique.');
     // Zod normalizes nested object field order. Defaults/nulls match persisted
     // task semantics, so omitted defaults and reordered JSON replay identically.
     const requestHash = createHash('sha256').update(JSON.stringify({ title: b.title, description: b.description ?? null,
       priority: b.priority ?? 'medium', category: b.category ?? 'personal', due: canonicalTaskTime(b.due), scheduled: canonicalTaskTime(b.scheduled),
       recurrence: b.recurrence ?? null, reminder: canonicalTaskTime(b.reminder), estimatedMinutes: b.estimatedMinutes ?? null,
-      ...(b.courseId ? { courseId: b.courseId } : {}) })).digest('hex');
+      ...(b.courseId ? { courseId: b.courseId } : {}),
+      ...(b.checklist ? { checklist: b.checklist } : {}) })).digest('hex');
     return this.prisma.$transaction(async tx => {
       await ownedCourseId(tx, u.id, b.courseId);
       if (b.requestKey) {
@@ -132,6 +177,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
       }
       const task = await tx.personalTask.create({ data: {
         userId: u.id, title: b.title, description: b.description ?? null,
+        ...(b.checklist ? { checklist: asJson(b.checklist.map(step => ({ ...step, done: false }))) } : {}),
         priority: b.priority ?? 'medium', category: b.category ?? 'personal',
         due: b.due ? asJson(b.due) : Prisma.JsonNull, scheduled: b.scheduled ? asJson(b.scheduled) : Prisma.JsonNull,
         recurrence: b.recurrence ? asJson(b.recurrence) : Prisma.JsonNull,
@@ -576,7 +622,7 @@ function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; schedul
      OR: [{ sourceScope: 'public' }, { sourceScope: `user:${u.id}` }],
      ...(query.category ? { category: query.category } : {}),
    }, include: { savedBy: { where: { userId: u.id } } } });
-   return selectEvents(rows.map(r => campusEventSchema.parse({ ...eventDto(r), saved: r.savedBy.length > 0, includedInPlan: r.savedBy[0]?.includedInPlan ?? false, savedReminder: r.savedBy[0]?.reminder ?? null })), range, u.timeZone);
+   return selectEvents(withoutRepeatedListings(rows.map(r => campusEventSchema.parse({ ...eventDto(r), saved: r.savedBy.length > 0, includedInPlan: r.savedBy[0]?.includedInPlan ?? false, savedReminder: r.savedBy[0]?.reminder ?? null }))), range, u.timeZone);
  }
  @Put(':id/saved') async save(@CurrentUser() u: RequestUser, @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(saveEventSchema)) b: z.infer<typeof saveEventSchema>) {
    return this.prisma.$transaction(async tx => {

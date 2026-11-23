@@ -1,0 +1,10 @@
+[Unit]
+Description=Poll GitHub for CampusFlow commits that need CI
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=2min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

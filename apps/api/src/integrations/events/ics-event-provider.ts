@@ -17,7 +17,7 @@ class IcsIssue extends Error {}
 class IcsStop extends Error {}
 /** Issues meaning a partial parse stopped early, so later events were never read. */
 export const icsStopIssues = ['step-limit', 'time-limit', 'event-cap'];
-export type IcsLimits = { steps: number; seriesSteps: number; events: number; components: number; deadlineMs?: number };
+export type IcsLimits = { steps: number; seriesSteps: number; events: number; components: number; deadlineMs?: number; bytes?: number };
 const defaultLimits: IcsLimits = { steps: MAX_STEPS, seriesSteps: MAX_STEPS, events: MAX_EVENTS, components: MAX_EVENTS };
 const fail = (message: string): never => { throw new IcsIssue(message); };
 const text = (c: Component, name: string): string | null => {
@@ -73,17 +73,24 @@ function normalize(c: Component, uid: string, start: Stamp, end: Stamp | undefin
     category: text(c, 'categories'), timing, location: text(c, 'location'), url });
 }
 
+const weekdays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 /** Supported RRULE subset is deliberately explicit. Unsupported semantics invalidate the batch. */
-function rule(c: Component) {
+function rule(c: Component, calendarRules = false) {
   const property = c.getFirstProperty('rrule');
   if (!property) return undefined;
   const r = z.object({
-    freq: z.enum(['DAILY', 'WEEKLY']), interval: z.number().int().min(1).max(366).optional(),
+    freq: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']), interval: z.number().int().min(1).max(366).optional(),
     count: z.number().int().positive().optional(), until: z.string().optional(),
     byday: z.union([z.string(), z.array(z.string())]).optional(), wkst: z.number().int().min(1).max(7).optional(),
   }).strict().parse(property.toJSON()[3]);
-  if (r.count && r.until) fail('unsupported-recurrence');
-  const days = (typeof r.byday === 'string' ? [r.byday] : r.byday)?.map(d => ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(d) + 1);
+  if (r.count && r.until || !calendarRules && ['MONTHLY', 'YEARLY'].includes(r.freq)) fail('unsupported-recurrence');
+  const byday = typeof r.byday === 'string' ? [r.byday] : r.byday;
+  // MONTHLY takes numbered weekdays only (4TU, -1FR); without BYDAY it repeats the start's day of the month.
+  const nthDays = r.freq === 'MONTHLY' ? byday?.map(d => {
+    const match = /^(-?[1-5])(MO|TU|WE|TH|FR|SA|SU)$/.exec(d) ?? fail('unsupported-recurrence');
+    return { nth: Number(match[1]), weekday: weekdays.indexOf(match[2]) + 1 };
+  }) : undefined;
+  const days = r.freq === 'MONTHLY' ? undefined : byday?.map(d => weekdays.indexOf(d) + 1);
   if (days && (r.freq !== 'WEEKLY' || days.some(d => !d))) fail('unsupported-recurrence');
   if (r.until) {
     if (r.until.length === 10) Temporal.PlainDate.from(r.until);
@@ -92,17 +99,40 @@ function rule(c: Component) {
   }
   // ICAL uses Sunday=1; Temporal uses Monday=1. WKST anchors interval weeks.
   const weekStart = r.wkst === undefined ? 1 : ((r.wkst + 5) % 7) + 1;
-  return { frequency: r.freq, interval: r.interval ?? 1, count: r.count ?? Infinity, days, until: r.until, weekStart };
+  return { frequency: r.freq, interval: r.interval ?? 1, count: r.count ?? Infinity, days, nthDays, until: r.until, weekStart };
 
+}
+function occursOn(r: NonNullable<ReturnType<typeof rule>>, anchor: Temporal.PlainDate, date: Temporal.PlainDate, offset: number) {
+  if (r.frequency === 'DAILY') return offset % r.interval === 0;
+  if (r.frequency === 'WEEKLY') return Math.floor((offset + (anchor.dayOfWeek - r.weekStart + 7) % 7) / 7) % r.interval === 0 && (r.days ?? [anchor.dayOfWeek]).includes(date.dayOfWeek);
+  // Dates a month or year lacks (the 31st, 29 February) are skipped, per RFC 5545.
+  if (r.frequency === 'YEARLY') return (date.year - anchor.year) % r.interval === 0 && date.month === anchor.month && date.day === anchor.day;
+  if (((date.year - anchor.year) * 12 + date.month - anchor.month) % r.interval) return false;
+  return r.nthDays?.some(({ nth, weekday }) => date.dayOfWeek === weekday
+    && (nth > 0 ? Math.ceil(date.day / 7) === nth : Math.ceil((date.daysInMonth - date.day + 1) / 7) === -nth)) ?? date.day === anchor.day;
+}
+/** Decided from raw values, so years of past entries cost nothing and can't invalidate today's listings. */
+function endedBefore(group: Component[], floor: string) {
+  return group.every(c => {
+    if (c.hasProperty('rdate')) return false;
+    const rrule = c.getFirstProperty('rrule');
+    if (rrule) {
+      const until = (rrule.toJSON()[3] as { until?: unknown }).until;
+      return typeof until === 'string' && until.slice(0, 10) < floor;
+    }
+    const last = c.getFirstProperty('dtend') ?? c.getFirstProperty('dtstart');
+    return !!last && raw(last).slice(0, 10) < floor;
+  });
 }
 
 export class IcsEventProvider implements EventProvider {
   /**
    * `partial` keeps valid events when others fail (student file imports): it skips non-event components, drops a
    * failed series whole, starts open-ended series near the coverage window and stops at the event cap or deadline.
-   * Campus feeds stay all-or-nothing with the default limits.
+   * Campus feeds stay all-or-nothing. `calendarRules` also accepts MONTHLY and YEARLY recurrence, and `pastDays` ignores
+   * series that ended that long before coverage: they can't change current listings.
    */
-  constructor(private readonly load: CalendarLoader, private readonly options: { timeZone?: string; timeoutMs?: number; partial?: boolean; limits?: IcsLimits } = {}) {
+  constructor(private readonly load: CalendarLoader, private readonly options: { timeZone?: string; timeoutMs?: number; partial?: boolean; limits?: IcsLimits; calendarRules?: boolean; pastDays?: number } = {}) {
     if (options.timeZone) timeZoneSchema.parse(options.timeZone);
     if (options.timeoutMs !== undefined && (!Number.isInteger(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 30000)) throw new Error('Invalid timeout');
   }
@@ -117,7 +147,8 @@ export class IcsEventProvider implements EventProvider {
       })]);
     } catch { return { status: 'failed', issues: [controller.signal.aborted ? 'source-timeout' : 'source-failure'] }; }
     finally { if (timer) clearTimeout(timer); }
-    if (typeof payload !== 'string' || Buffer.byteLength(payload) > MAX_BYTES) return { status: 'failed', issues: ['payload-limit'] };
+    const limits = this.options.limits ?? defaultLimits, partial = !!this.options.partial;
+    if (typeof payload !== 'string' || Buffer.byteLength(payload) > (limits.bytes ?? MAX_BYTES)) return { status: 'failed', issues: ['payload-limit'] };
     const events: ImportedEvent[] = [], issues: string[] = [];
     try {
       // Strict envelope and shallow component bounds before handing input to the parser.
@@ -141,7 +172,6 @@ export class IcsEventProvider implements EventProvider {
       const calendar = new ICAL.Component(ICAL.parse(payload));
       if (calendar.name !== 'vcalendar' || text(calendar, 'version') !== '2.0' || (text(calendar, 'method') && text(calendar, 'method') !== 'PUBLISH')) fail('unsupported-calendar');
       const components = calendar.getAllSubcomponents('vevent');
-      const limits = this.options.limits ?? defaultLimits, partial = !!this.options.partial;
       const deadline = limits.deadlineMs === undefined ? Infinity : Date.now() + limits.deadlineMs;
       const others = calendar.getAllSubcomponents().filter(c => !['vevent', 'vtimezone'].includes(c.name));
       if (components.length > limits.components || others.length && !partial) fail('component-limit-or-type');
@@ -151,15 +181,20 @@ export class IcsEventProvider implements EventProvider {
         if (!uid || uid.length > 1000) { issues.push('missing-or-invalid-uid'); continue; }
         groups.set(uid, [...(groups.get(uid) ?? []), c]);
       }
+      const floor = this.options.pastDays === undefined ? undefined : Temporal.PlainDate.from(coverage.from).subtract({ days: this.options.pastDays }).toString();
       let steps = 0;
       const step = (amount = 1) => {
         steps += amount;
         if (steps > limits.steps) { if (partial) throw new IcsStop('step-limit'); fail('expansion-limit'); }
         if (Date.now() > deadline) throw new IcsStop('time-limit');
       };
+      let resumedAt = Date.now();
       for (const [uid, group] of groups) {
+        // Timezone arithmetic adds up over a large feed; let API requests run in between.
+        if (floor && Date.now() - resumedAt > 20) { await new Promise(resolve => setImmediate(resolve)); resumedAt = Date.now(); }
         const groupEvents: ImportedEvent[] = [];
         try {
+          if (floor && endedBefore(group, floor)) continue;
           for (const c of group) {
             for (const key of ['uid', 'dtstart', 'dtend', 'summary', 'rrule', 'recurrence-id', 'status'])
               if (c.getAllProperties(key).length > 1) fail('duplicate-property');
@@ -172,7 +207,7 @@ export class IcsEventProvider implements EventProvider {
           const start = stamp(master.getFirstProperty('dtstart'), this.options.timeZone);
           const end = master.hasProperty('dtend') ? stamp(master.getFirstProperty('dtend'), this.options.timeZone) : undefined;
           normalize(master, uid, start, end);
-          const recurrence = rule(master);
+          const recurrence = rule(master, this.options.calendarRules);
           const recurring = !!recurrence || master.hasProperty('rdate');
           if (!recurring && group.length > 1) fail('exception-without-recurrence');
           const overrides = new Map<string, { c: Component; original: Stamp }>();
@@ -196,13 +231,14 @@ export class IcsEventProvider implements EventProvider {
             let count = 0;
             const anchor = Temporal.PlainDate.from(start.local.slice(0, 10));
             const until = recurrence.until;
-            // Uploads may hold open-ended series from years ago. Start them just before coverage, keeping interval
+            // Uploads and long-lived feeds may hold series from years ago. Start them just before coverage, keeping interval
             // alignment and a margin for the event's own length; skipped days are outside coverage anyway.
             let first = 0;
-            if (partial && recurrence.count === Infinity) {
+            if ((partial || floor) && recurrence.count === Infinity) {
               const lengthDays = end ? Temporal.PlainDate.from(start.local.slice(0, 10)).until(Temporal.PlainDate.from(end.local.slice(0, 10))).days : 0;
               const gap = anchor.until(Temporal.PlainDate.from(coverage.from)).days - 7 - lengthDays;
-              const period = recurrence.frequency === 'DAILY' ? recurrence.interval : 7 * recurrence.interval;
+              // MONTHLY and YEARLY are matched from the calendar date, so any day is a valid place to start.
+              const period = recurrence.frequency === 'DAILY' ? recurrence.interval : recurrence.frequency === 'WEEKLY' ? 7 * recurrence.interval : 1;
               if (gap > 0) first = Math.floor(gap / period) * period;
             }
             let seriesSteps = 0;
@@ -212,9 +248,7 @@ export class IcsEventProvider implements EventProvider {
               const date = anchor.add({ days: offset });
               // One extra local day covers zones west/east of the coverage zone.
               if (Temporal.PlainDate.compare(date, Temporal.PlainDate.from(coverage.through).add({ days: 1 })) > 0) break;
-              const matches = recurrence.frequency === 'DAILY' ? offset % recurrence.interval === 0
-                : Math.floor((offset + (anchor.dayOfWeek - recurrence.weekStart + 7) % 7) / 7) % recurrence.interval === 0 && (recurrence.days ?? [anchor.dayOfWeek]).includes(date.dayOfWeek);
-              if (!matches) continue;
+              if (!occursOn(recurrence, anchor, date, offset)) continue;
               const s = shift(start, offset);
               if (until) {
                 const untilValue = until;
@@ -259,12 +293,12 @@ export class IcsEventProvider implements EventProvider {
 }
 
 /** Trusted operator configuration only; never expose this constructor through a public URL parameter. */
-export function httpsCalendarLoader(configuredUrl: string): CalendarLoader {
+export function httpsCalendarLoader(configuredUrl: string, maxBytes = MAX_BYTES): CalendarLoader {
   const url = new URL(configuredUrl);
   if (url.protocol !== 'https:' || url.username || url.password || url.port || !url.hostname.includes('.') || isIP(url.hostname.replace(/^\[|\]$/g, '')) || /\.(local|localhost|internal)\.?$/i.test(url.hostname)) throw new Error('Expected an approved public HTTPS calendar URL');
   return async signal => {
     const response = await fetch(url, { signal, redirect: 'error', headers: { Accept: 'text/calendar' } });
-    if (!response.ok || !/^text\/calendar(?:;|$)/i.test(response.headers.get('content-type') ?? '') || Number(response.headers.get('content-length') ?? 0) > MAX_BYTES) {
+    if (!response.ok || !/^text\/calendar(?:;|$)/i.test(response.headers.get('content-type') ?? '') || Number(response.headers.get('content-length') ?? 0) > maxBytes) {
       await response.body?.cancel(); throw new Error('Invalid calendar response');
     }
     if (!response.body) throw new Error('Missing calendar body');
@@ -274,7 +308,7 @@ export function httpsCalendarLoader(configuredUrl: string): CalendarLoader {
       for (;;) {
         const { value, done } = await reader.read(); if (done) break;
         size += value.byteLength;
-        if (size > MAX_BYTES) throw new Error('Calendar payload too large');
+        if (size > maxBytes) throw new Error('Calendar payload too large');
         chunks.push(value);
       }
       return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks));

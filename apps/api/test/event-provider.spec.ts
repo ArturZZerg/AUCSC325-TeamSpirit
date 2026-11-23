@@ -146,4 +146,101 @@ describe('configured HTTPS calendar transport', () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(new Response('x'.repeat(1024 * 1024 + 1), { headers: { 'content-type': 'text/calendar' } }));
     expect(await new IcsEventProvider(httpsCalendarLoader('https://example.org/calendar')).fetchEvents(coverage)).toMatchObject({ status: 'failed' });
   });
+  it('lets a reviewed feed raise the payload limit for both transport and parsing', async () => {
+    const large = 2 * 1024 * 1024;
+    const body = calendar(vevent(`${timed}\r\nDESCRIPTION:${'x'.repeat(1024 * 1024 + 1)}`));
+    jest.spyOn(global, 'fetch').mockImplementation(async () => new Response(body, { headers: { 'content-type': 'text/calendar' } }));
+    expect(await new IcsEventProvider(httpsCalendarLoader('https://example.org/calendar', large), { limits: { steps: 100, seriesSteps: 100, events: 10, components: 10, bytes: large } }).fetchEvents(coverage)).toMatchObject({ status: 'complete' });
+    expect(await new IcsEventProvider(httpsCalendarLoader('https://example.org/calendar', large)).fetchEvents(coverage)).toEqual({ status: 'failed', issues: ['payload-limit'] });
+    expect(await new IcsEventProvider(httpsCalendarLoader('https://example.org/calendar'), { limits: { steps: 100, seriesSteps: 100, events: 10, components: 10, bytes: large } }).fetchEvents(coverage)).toEqual({ status: 'failed', issues: ['source-failure'] });
+  });
+});
+
+describe('long-lived campus feeds', () => {
+  const feed = (body: string, window = coverage, options = {}) => new IcsEventProvider(async () => body, { timeZone: 'America/Edmonton', calendarRules: true, pastDays: 30, ...options }).fetchEvents(window);
+  const starts = async (body: string, window = coverage, options = {}) => {
+    const batch = await feed(body, window, options);
+    expect(batch).toMatchObject({ status: 'complete', issues: [] });
+    return batch.status === 'failed' ? [] : batch.events.map(e => e.timing.kind === 'timed' ? e.timing.startsAt : e.timing.startDate);
+  };
+  const edmonton = 'DTSTART;TZID=America/Edmonton:20260127T110000';
+
+  describe('MONTHLY and YEARLY recurrence', () => {
+    it.each([
+      ['fourth Tuesday', `${edmonton}\r\nRRULE:FREQ=MONTHLY;BYDAY=4TU`, ['2026-03-24T17:00:00Z']],
+      ['last Tuesday', `${edmonton}\r\nRRULE:FREQ=MONTHLY;BYDAY=-1TU`, ['2026-03-31T17:00:00Z']],
+      ['every second month from the start', `${edmonton}\r\nRRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=4TU`, ['2026-03-24T17:00:00Z']],
+      ['an off month of the interval', 'DTSTART;TZID=America/Edmonton:20260224T110000\r\nRRULE:FREQ=MONTHLY;INTERVAL=2;BYDAY=4TU', []],
+      ['a series ended by COUNT', `${edmonton}\r\nRRULE:FREQ=MONTHLY;COUNT=2;BYDAY=4TU`, []],
+      ['a series reaching its UNTIL', `${edmonton}\r\nRRULE:FREQ=MONTHLY;UNTIL=20260324T170000Z;BYDAY=4TU`, ['2026-03-24T17:00:00Z']],
+      ['a series stopping before its UNTIL', `${edmonton}\r\nRRULE:FREQ=MONTHLY;UNTIL=20260324T165959Z;BYDAY=4TU`, []],
+      ['a day of the month, skipping months without it', 'DTSTART;VALUE=DATE:20260131\r\nRRULE:FREQ=MONTHLY', ['2026-03-31']],
+      ['an annual date', 'DTSTART;VALUE=DATE:20190310\r\nRRULE:FREQ=YEARLY', ['2026-03-10']],
+      ['an annual date past its UNTIL', 'DTSTART;VALUE=DATE:20190310\r\nRRULE:FREQ=YEARLY;UNTIL=20250101', []],
+      ['every second year from the start', 'DTSTART;VALUE=DATE:20190310\r\nRRULE:FREQ=YEARLY;INTERVAL=2', []],
+    ])('expands %s', async (_name, fields, expected) => {
+      expect(await starts(calendar(vevent(fields)))).toEqual(expected);
+    });
+    it('keeps 29 February to leap years', async () => {
+      const body = calendar(vevent('DTSTART;VALUE=DATE:20240229\r\nRRULE:FREQ=YEARLY'));
+      expect(await starts(body, { from: '2027-02-01', through: '2027-03-02', timeZone: coverage.timeZone })).toEqual([]);
+      expect(await starts(body, { from: '2028-02-01', through: '2028-03-02', timeZone: coverage.timeZone })).toEqual(['2028-02-29']);
+    });
+    it('gives each occurrence its own identity and applies exceptions', async () => {
+      const body = calendar(vevent(`${edmonton}\r\nRRULE:FREQ=MONTHLY;BYDAY=2TU,4TU\r\nEXDATE;TZID=America/Edmonton:20260310T110000`));
+      const batch = await feed(body);
+      expect(batch).toMatchObject({ status: 'complete', events: [{ externalId: '["lecture","instant:2026-03-24T17:00:00Z"]' }] });
+    });
+    it.each(['RRULE:FREQ=MONTHLY;BYDAY=TU', 'RRULE:FREQ=MONTHLY;BYDAY=6TU', 'RRULE:FREQ=MONTHLY;BYMONTHDAY=15', 'RRULE:FREQ=YEARLY;BYDAY=TU', 'RRULE:FREQ=YEARLY;BYMONTH=3'])('still reports %s as unsupported', async rule => {
+      expect(await feed(calendar(vevent(`DTSTART:20260308T160000Z\r\n${rule}`)))).toMatchObject({ status: 'incomplete', events: [] });
+    });
+    it('stays unsupported unless a reviewed feed enables it', async () => {
+      expect(await parse(calendar(vevent('DTSTART;VALUE=DATE:20260310\r\nRRULE:FREQ=YEARLY')))).toMatchObject({ status: 'incomplete', events: [] });
+    });
+  });
+
+  describe('past entries', () => {
+    const oneOff = (date: string, uid: string) => vevent(`DTSTART;VALUE=DATE:${date}`, uid);
+    it('ignores entries ended before the history window and keeps recent and future ones', async () => {
+      expect(await starts(calendar(oneOff('20260129', 'old'), oneOff('20260130', 'edge'), oneOff('20260310', 'now'), oneOff('20270601', 'next')))).toEqual(['2026-01-30', '2026-03-10', '2027-06-01']);
+    });
+    it('keeps a one-off that started long ago but is still running', async () => {
+      expect(await starts(calendar(vevent('DTSTART;VALUE=DATE:20250101\r\nDTEND;VALUE=DATE:20260310')))).toEqual(['2025-01-01']);
+    });
+    it('does not let a malformed old series invalidate current listings', async () => {
+      const legacy = 'DTSTART;TZID=America/Edmonton:20201103T140000\r\nRRULE:FREQ=WEEKLY;UNTIL=20201202;BYDAY=TU';
+      expect(await starts(calendar(vevent(legacy, 'old'), oneOff('20260310', 'now')))).toEqual(['2026-03-10']);
+    });
+    it('still reports a malformed series that reaches the history window', async () => {
+      expect(await feed(calendar(vevent('DTSTART;TZID=America/Edmonton:20260203T140000\r\nRRULE:FREQ=WEEKLY;UNTIL=20260310;BYDAY=TU', 'bad'), oneOff('20260310', 'now')))).toMatchObject({ status: 'incomplete', events: [] });
+    });
+    it('keeps an ended series whose moved occurrence is current', async () => {
+      const master = vevent('DTSTART;TZID=America/Edmonton:20200106T100000\r\nRRULE:FREQ=WEEKLY;UNTIL=20200201T000000Z', 'moved');
+      const moved = vevent('RECURRENCE-ID;TZID=America/Edmonton:20200113T100000\r\nDTSTART;TZID=America/Edmonton:20260310T100000', 'moved');
+      expect(await starts(calendar(master, moved))).toEqual(['2026-03-10T16:00:00Z']);
+    });
+    it('keeps an open-ended old series and anything using explicit dates', async () => {
+      expect(await starts(calendar(vevent('DTSTART;VALUE=DATE:20190310\r\nRRULE:FREQ=YEARLY', 'annual'), vevent('DTSTART;VALUE=DATE:20200101\r\nRDATE;VALUE=DATE:20260311', 'explicit')))).toEqual(['2026-03-10', '2026-03-11']);
+    });
+    it('reads a feed far beyond the event limit when only recent entries matter', async () => {
+      const old = Array.from({ length: 5000 }, (_, i) => vevent('DTSTART:20200106T160000Z', `old-${i}`));
+      const limits = { steps: 20000, seriesSteps: 20000, events: 2000, components: 10000 };
+      expect(await starts(calendar(...old, oneOff('20260310', 'now')), coverage, { limits })).toEqual(['2026-03-10']);
+    });
+    it.each([
+      ['every second week', 'DTSTART;TZID=America/Edmonton:20150105T110000\r\nRRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO'],
+      ['every third week from Sunday', 'DTSTART;TZID=America/Edmonton:20150106T110000\r\nRRULE:FREQ=WEEKLY;INTERVAL=3;WKST=SU;BYDAY=TU,TH'],
+      ['every third day', 'DTSTART;TZID=America/Edmonton:20150105T110000\r\nRRULE:FREQ=DAILY;INTERVAL=3'],
+      ['every fifth month', 'DTSTART;TZID=America/Edmonton:20150114T110000\r\nRRULE:FREQ=MONTHLY;INTERVAL=5;BYDAY=2WE'],
+      ['every second year', 'DTSTART;VALUE=DATE:20160310\r\nRRULE:FREQ=YEARLY;INTERVAL=2'],
+      ['a multi-day weekly event', 'DTSTART;VALUE=DATE:20150103\r\nDTEND;VALUE=DATE:20150106\r\nRRULE:FREQ=WEEKLY'],
+    ])('starts %s near coverage with the same occurrences as a full expansion', async (_name, fields) => {
+      const body = calendar(vevent(fields));
+      const generous = { limits: { steps: 20000, seriesSteps: 20000, events: 2000, components: 2000 } };
+      const full = await feed(body, coverage, { pastDays: undefined, ...generous });
+      expect(full.status).toBe('complete');
+      // A budget far below the ten years since DTSTART shows the old days aren't walked.
+      expect(await feed(body, coverage, { limits: { steps: 400, seriesSteps: 400, events: 2000, components: 2000 } })).toEqual(full);
+    });
+  });
 });

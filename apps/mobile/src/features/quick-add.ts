@@ -22,6 +22,8 @@ const categoryAliases: Record<string, PersonalTask['category']> = {
 };
 const priorities: Record<string, PersonalTask['priority']> = { '!high': 'high', '!h': 'high', '!!!': 'high', '!1': 'high', '!medium': 'medium', '!m': 'medium', '!!': 'medium', '!2': 'medium', '!low': 'low', '!l': 'low', '!3': 'low' };
 
+const fullWeekday = /^(?:mon|tues|wednes|thurs|fri|satur|sun)day$/i;
+const timeNext = /^\s+(?:at\s+)?(?:\d{1,2}(?::\d{2})?\s?(?:am|pm)|\d{1,2}:\d{2}|noon|midnight)(?=\s|$)/i;
 const pad = (value: number) => String(value).padStart(2, '0');
 const weekdayOf = (date: string) => new Date(`${date}T12:00:00Z`).getUTCDay() || 7;
 
@@ -32,9 +34,26 @@ function take(text: string, pattern: string): { rest: string; groups: string[] }
   return { rest: `${text.slice(0, match.index)} ${text.slice(match.index + match[0].length)}`, groups: match.slice(2).map(value => value ?? '') };
 }
 
+/**
+ * A weekday word is only a date when it reads like one: a full name ("friday"), or a short
+ * form ("fri") after on/next/due/by/before, at the end of the text or right before a time.
+ * All-caps short forms ("SAT") are always words. So "Study for SAT" and "Buy sun screen" stay plain text.
+ */
+function takeWeekday(text: string): { rest: string; groups: string[] } | undefined {
+  const pattern = new RegExp(`(^|\\s)(on\\s+)?(next\\s+)?${weekdayPattern}(?=\\s|$)`, 'gi');
+  for (let match = pattern.exec(text); match; match = pattern.exec(text)) {
+    const [whole, , on, next, word] = match, after = text.slice(match.index + whole.length);
+    const fullName = fullWeekday.test(word), caps = !fullName && word === word.toUpperCase();
+    const cued = !!on || !!next || /(^|\s)(due|by|before)$/i.test(text.slice(0, match.index).trimEnd());
+    if (!caps && (fullName || cued || !after.trim() || timeNext.test(after))) return { rest: `${text.slice(0, match.index)} ${after}`, groups: [next ?? '', word] };
+  }
+  return undefined;
+}
+
 function parseTime(text: string) {
-  const noon = take(text, '(?:at\\s+)?(noon|midnight)');
-  if (noon) return { rest: noon.rest, time: noon.groups[0].toLowerCase() === 'noon' ? '12:00' : '00:00' };
+  const noon = take(text, '(?:at\\s+)?(noon|midnight)'); // "Due fri midnight" means the end of Friday, so midnight is the 
+  // day's last minute, not 00:00
+  if (noon) return { rest: noon.rest, time: noon.groups[0].toLowerCase() === 'noon' ? '12:00' : '23:59' };
   const meridiem = take(text, '(?:at\\s+)?(\\d{1,2})(?::(\\d{2}))?\\s?(am|pm)');
   if (meridiem) {
     const [hours, minutes = '00', half] = meridiem.groups, hour = Number(hours), minute = Number(minutes || '0');
@@ -59,7 +78,7 @@ function parseDate(text: string, today: string) {
     const amount = Number(relative.groups[0]) * (relative.groups[1].toLowerCase().startsWith('week') ? 7 : 1);
     if (amount <= 365) return { rest: relative.rest, date: addCalendarDays(today, amount) };
   }
-  const weekday = take(text, `(?:on\\s+)?(next\\s+)?${weekdayPattern}`);
+  const weekday = takeWeekday(text);
   if (weekday) {
     const target = weekdays.findIndex(name => name.startsWith(weekday.groups[1].toLowerCase().slice(0, 3))) + 1;
     const current = weekdayOf(today);
@@ -77,6 +96,56 @@ function parseDate(text: string, today: string) {
     if (dateSchema.safeParse(date).success) return { rest: found.rest, date };
   }
   return undefined;
+}
+
+type Repeat = { mode: 'daily' | 'weekly'; interval: number; weekdays: number[] };
+const weekdayWord = weekdayPattern.replace(/^\(/, '(?:');
+const weekdayList = `(${weekdayWord}(?:(?:\\s*,\\s*|\\s+and\\s+|\\s+)${weekdayWord})*)`;
+const weekdayNumbers = (list: string) => [...new Set((list.match(new RegExp(weekdayWord, 'gi')) ?? [])
+  .map(word => weekdays.findIndex(name => name.startsWith(word.toLowerCase().slice(0, 3))) + 1))].sort((a, b) => a - b);
+
+/**
+ * "daily", "weekly" and "weekdays" on their own are also ordinary title words ("Weekly report",
+ * "Read daily news"), so they only count after some title text, at the end of the text, right
+ * before a time, or (for "weekly") with a weekday list after it. "every ..." phrases always count.
+ */
+function takeRepeatWord(text: string, pattern: string): { rest: string; groups: string[] } | undefined {
+  const found = new RegExp(`(^|\\s)${pattern}(?=\\s|$)`, 'gi');
+  for (let match = found.exec(text); match; match = found.exec(text)) {
+    const before = text.slice(0, match.index), after = text.slice(match.index + match[0].length), listed = !!match[2];
+    if (before.trim() && (listed || !after.trim() || timeNext.test(after))) return { rest: `${before} ${after}`, groups: match.slice(2).map(value => value ?? '') };
+  }
+  return undefined;
+}
+
+/**
+ * Repeat phrases: "daily", "every 2 days", "weekly", "every other week", "every 2 weeks sat",
+ * "every mon wed" and "every weekday". Intervals follow the task form (1–365 days, 1–52 weeks);
+ * anything outside them stays in the title. An empty weekday list means "the start day's weekday".
+ */
+function parseRecurrence(text: string): { rest: string; repeat: Repeat } | undefined {
+  const workweek = take(text, 'every\\s+weekdays?') ?? takeRepeatWord(text, 'weekdays');
+  if (workweek) return { rest: workweek.rest, repeat: { mode: 'weekly', interval: 1, weekdays: [1, 2, 3, 4, 5] } };
+  const daily = take(text, 'every\\s+(?:day|(\\d{1,3})\\s+days?)') ?? takeRepeatWord(text, 'daily');
+  if (daily) {
+    const interval = Number(daily.groups[0] || 1);
+    return interval >= 1 && interval <= 365 ? { rest: daily.rest, repeat: { mode: 'daily', interval, weekdays: [] } } : undefined;
+  }
+  const bareWeekly = takeRepeatWord(text, `weekly(?:\\s+(?:on\\s+)?${weekdayList})?`);
+  const weekly = take(text, `every\\s+(?:(other|\\d{1,2})\\s+)?weeks?(?:\\s+(?:on\\s+)?${weekdayList})?`)
+    ?? (bareWeekly && { rest: bareWeekly.rest, groups: ['', ...bareWeekly.groups] });
+  if (weekly) {
+    const interval = weekly.groups[0].toLowerCase() === 'other' ? 2 : Number(weekly.groups[0] || 1);
+    return interval >= 1 && interval <= 52 ? { rest: weekly.rest, repeat: { mode: 'weekly', interval, weekdays: weekdayNumbers(weekly.groups[1]) } } : undefined;
+  }
+  const days = take(text, `every\\s+${weekdayList}`);
+  return days ? { rest: days.rest, repeat: { mode: 'weekly', interval: 1, weekdays: weekdayNumbers(days.groups[0]) } } : undefined;
+}
+
+function repeatLabel({ mode, interval, weekdays: days }: Repeat) {
+  if (mode === 'daily') return interval === 1 ? 'Repeats daily' : `Repeats every ${interval} days`;
+  const names = days.join() === '1,2,3,4,5' ? 'weekdays' : days.map(day => weekdays[day - 1].slice(0, 1).toUpperCase() + weekdays[day - 1].slice(1, 3)).join(', ');
+  return interval === 1 ? `Repeats ${names}` : `Repeats every ${interval} weeks on ${names}`;
 }
 
 const tidy = (text: string) => text.replace(/\s+/g, ' ').replace(/(^|\s)(at|on|due|by|before)$/i, '').trim();
@@ -113,14 +182,21 @@ export function parseQuickAdd(input: string, today: string, planDate = today, co
     const minutes = Math.round(Number(estimate.groups[0]) * (estimate.groups[1].toLowerCase().startsWith('h') ? 60 : 1));
     if (minutes >= 1 && minutes <= 1440) { text = estimate.rest; values.estimatedMinutes = String(minutes); details.push(`${minutes} min`); }
   }
+  // Repeat phrases go first so "every sat" isn't read as a one-off Saturday.
+  const recurrence = parseRecurrence(text);
+  if (recurrence) text = recurrence.rest;
   const deadline = /(^|\s)(due|by|before)(\s|$)/i.test(text);
   const date = parseDate(text, today);
   if (date) text = date.rest;
   const time = parseTime(text);
   if (time) text = time.rest;
   const resolvedTime = time?.time ?? (date?.tonight ? '20:00' : undefined);
-  if (date || resolvedTime) {
-    const day = date?.date ?? (deadline ? today : planDate);
+  // Without a date, a weekly repeat on chosen weekdays starts on the next of those days.
+  const base = deadline ? today : planDate;
+  const firstRepeat = !date && recurrence?.repeat.weekdays.length
+    ? Array.from({ length: 7 }, (_, offset) => addCalendarDays(base, offset)).find(day => recurrence.repeat.weekdays.includes(weekdayOf(day))) : undefined;
+  if (date || resolvedTime || firstRepeat) {
+    const day = date?.date ?? firstRepeat ?? base;
     const prefix = deadline ? 'due' : 'scheduled';
     Object.assign(values, { [`${prefix}Mode`]: resolvedTime ? 'instant' : 'date', [`${prefix}Date`]: day, [`${prefix}Time`]: resolvedTime ?? '' });
     if (deadline) text = text.replace(/(^|\s)(due|by|before)(?=\s|$)/i, ' ');
@@ -130,6 +206,12 @@ export function parseQuickAdd(input: string, today: string, planDate = today, co
     details.unshift(`${deadline ? 'Due' : 'Planned'} ${dayLabel}${timeLabel ? ` · ${timeLabel}` : ''}`);
   } else {
     Object.assign(values, { scheduledMode: 'date', scheduledDate: planDate, scheduledTime: '' });
+  }
+  if (recurrence) {
+    const { mode, interval } = recurrence.repeat, start = values.dueDate || values.scheduledDate!;
+    const repeat = { ...recurrence.repeat, weekdays: mode === 'daily' ? [] : recurrence.repeat.weekdays.length ? recurrence.repeat.weekdays : [weekdayOf(start)] };
+    Object.assign(values, { recurrenceMode: mode, interval: String(interval), weekdays: repeat.weekdays });
+    details.splice(date || resolvedTime || firstRepeat ? 1 : 0, 0, repeatLabel(repeat));
   }
   const title = tidy(text);
   return { title, values: { ...values, title }, details };

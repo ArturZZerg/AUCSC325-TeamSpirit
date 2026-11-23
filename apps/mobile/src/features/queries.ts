@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { academicItemSchema, academicReminderConfigurationSchema, campusEventSchema, canvasConnectionStatusSchema, completePersonalTaskSchema, courseSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
+import { taskTemplateSchema } from '@campusflow/contracts';
 import { goalOccurrenceDate } from '@campusflow/domain';
 import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
@@ -23,6 +24,7 @@ import { acceptTaskReminderRead, filterTaskReminders, loadTaskReminderSuppressio
 import { suppressConfirmedTaskReminders } from '@/services/reminders';
 
 const schemas = {
+  taskTemplates: taskTemplateSchema.array(),
   courses: courseSchema.array(),
   classes: classScheduleSchema.array(),
   tasks: personalTaskSchema.array(), academic: academicItemSchema.array(), goals: goalSchema.array(),
@@ -133,6 +135,7 @@ export function useToday(selectedDate?: string) {
   return { ...query, data, refetch, isRefetching: query.isRefetching || snapshot.isRefetching,
     isLoading: query.isLoading && data === undefined, date, timeZone };
 }
+export const useTaskTemplates = () => cachedQuery('taskTemplates', '/task-templates', schemas.taskTemplates);
 export const useTasks = () => cachedQuery<PersonalTask[]>('tasks', '/tasks', schemas.tasks);
 export function useFocusHistory(from: string, through: string) {
   const session = useSessionStore(state => state.session);
@@ -263,7 +266,7 @@ export function useReminders() {
   return { ...query, data, isLoading: query.isLoading && data === undefined };
 }
 
-type ActionRequest = { path: string; method?: string; body?: unknown; taskEditBaseline?: TaskEditBaseline; deletedTask?: PersonalTask };
+type ActionRequest = { path: string; method?: string; body?: unknown; taskEditBaseline?: TaskEditBaseline; deletedTask?: PersonalTask; timeoutMs?: number };
 export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) => Promise<void>, options?: { awaitRefresh: boolean }) {
   const client = useQueryClient();
   const session = useSessionStore(state => state.session);
@@ -277,12 +280,12 @@ export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) =
       catch (error) { endWrite?.(); throw error; }
       return { endWrite, deletedTask: request.deletedTask ?? client.getQueryData<PersonalTask[]>(['account', owner.user.id, 'tasks'])?.find(task => task.id === request.path.split('/')[2]) };
     },
-    mutationFn: async ({ request: { path, method = 'POST', body, taskEditBaseline }, owner, ownershipGeneration }: { request: ActionRequest; owner: typeof session; ownershipGeneration: number; credentialsGeneration: number }) => {
+    mutationFn: async ({ request: { path, method = 'POST', body, taskEditBaseline, timeoutMs }, owner, ownershipGeneration }: { request: ActionRequest; owner: typeof session; ownershipGeneration: number; credentialsGeneration: number }) => {
       // Recheck after cancellation: an account switch must not submit an old
       // screen's write using the new account's credentials.
       if (!owner || !taskOwnerCurrent(owner) || ownershipGeneration !== taskOwnershipGeneration()) throw new Error('Your session has ended.');
       if (taskEditBaseline && !taskEditWriteCurrent(taskEditBaseline)) throw new Error('Reload the task before saving.');
-      return api<T>(path, json(method, body));
+      return api<T>(path, { ...json(method, body), timeoutMs });
     },
     onSuccess: async (data: T, { owner, request, credentialsGeneration }, context) => {
       context?.endWrite?.();

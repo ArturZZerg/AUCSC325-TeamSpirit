@@ -7,7 +7,8 @@ Android, NestJS for the API, and PostgreSQL through Prisma.
 Today opens with your progress for the day, one-tap shortcuts and a checklist of
 tasks, deadlines and routines. Type a task in plain language — `Essay due fri 5pm
 #uni !high 45m` — and quick add fills in the deadline, category, priority and
-estimate. Tasks are grouped by when they are due, routines track streaks with a
+estimate; `daily`, `every mon wed` or `every 2 weeks sat` makes it repeat.
+Tasks are grouped by when they are due, routines track streaks with a
 seven-day strip, the month calendar shows every dated task, deadline and saved
 campus event, and an optional morning overview opens Today. The app follows the
 system light or dark appearance, meets WCAG AA colour contrast in both, works
@@ -129,7 +130,7 @@ strings are validated with the Zod schemas from `packages/contracts`.
 | --- | --- |
 | Accounts | `/auth/*` (register, login, logout, verification, recovery), `/me` (profile, export, delete) |
 | Today | `GET /today`, `GET /snapshot` — built on every request, never stored |
-| Personal tasks | `/tasks` — CRUD, complete, snooze, main goal, checklist steps |
+| Personal tasks | `/tasks` — CRUD, complete, snooze, main goal, checklist steps; `/task-templates` — saved task templates |
 | Coursework | `/courses`, `/courses/:id/assessments`, `/courses/:id/assessment-groups`, `/academic-items` (+ reminders) |
 | Canvas | `/canvas/*` — connect a token, status, sync, disconnect |
 | Classes | `/classes` — weekly timetable, ICS calendar import preview |
@@ -169,7 +170,7 @@ A failed or partial fetch keeps the last good data.
 | Source | Adapter | Brings in | How often |
 | --- | --- | --- | --- |
 | Canvas LMS | [`integrations/canvas`](apps/api/src/integrations/canvas) | Courses, assignments, quizzes, deadlines, submission status, scores and assignment groups (ADR 024), planner to-dos and course calendar events as private events (ADR 025); removes work deleted in Canvas after a full read | On demand, plus a background sync every 30 min when stale. Uses the student's own personal access token, sealed on the server ([ADR 019](docs/adr/019-canvas-personal-access-tokens.md)). Fixture data in development |
-| Augustana public Google Calendars (ICS) | [`integrations/events`](apps/api/src/integrations/events) | Campus Rec and student-life events | Hourly; every 15 min after a failure ([ADR 008](docs/adr/008-public-campus-calendar-refresh.md)) |
+| Augustana public Google Calendars (ICS) | [`integrations/events`](apps/api/src/integrations/events) | Campus Rec, Career Services and campus-wide events | Hourly; every 15 min after a failure ([ADR 008](docs/adr/008-public-campus-calendar-refresh.md), [ADR 026](docs/adr/026-campus-wide-event-feeds.md)) |
 | Augustana dining hall (Wagner) menu | [`integrations/dining`](apps/api/src/integrations/dining) | Breakfast, lunch and dinner dishes with calories | Today every 2 h, the next 4 days twice a day ([ADR 023](docs/adr/023-nutrition-and-dining-hall.md)) |
 | USDA FoodData Central | [`integrations/food`](apps/api/src/integrations/food) | Food search with nutrients per 100 g | Bundled file in `apps/api/data`, searched in memory |
 | free-exercise-db | `apps/api/data`, [`ops/vps/sync-exercise-media.py`](ops/vps/sync-exercise-media.py) | Exercise library names, instructions and photos | Bundled; photos copied to the server once |
@@ -323,6 +324,35 @@ API liveness/readiness, production startup requirements, the read-only
 `release:smoke` command and guarded `release:restore-rehearsal` are documented in
 [release operations](docs/development/release-operations.md). CI restores its
 isolated test database and verifies records/relationships and dependency readiness.
+
+CI runs on the project server, not GitHub Actions ([ADR 028](docs/adr/028-server-hosted-ci.md)).
+Every two minutes the server tests the head of `main` and open PRs with
+`scripts/ci-local.sh`, which checks the PR's merge ref in `node:22`, and posts
+the `local-verify` status that branch protection on `main` requires. PRs from
+collaborators run automatically. PRs from forks run once a maintainer adds the
+`ci:run` label; add it again after each new push. The label also re-runs CI for
+any PR that already has a result. A failed run comments the end of its log on the PR. To reproduce a run on your machine (Docker needed):
+
+```sh
+scripts/ci-local.sh <pr-number> --no-status
+```
+
+Maintainers install or update the server runner with
+`SERVER=root@<host> ops/ci/install.sh` from a clean `main`, and deploy a green
+`main` with `ssh root@<host> /opt/campusflow-ci/server-deploy.sh`.
+
+A maintainer can add the `automerge` label instead ([ADR 029](docs/adr/029-ci-automerge-and-deploy.md)).
+Once CI passes on the current `main` and no review requests changes, the server
+merges the PR and deploys it, commenting on the PR at each step.
+
+To clear PRs faster, run the PC runner on a machine with Docker, `gh` and SSH
+access to the server. While it runs, it does the testing (all cores, parallel
+mode) and the server only merges and deploys; when it stops, the server tests
+again:
+
+```sh
+scripts/pc-ci.sh
+```
 
 ## Project layout
 

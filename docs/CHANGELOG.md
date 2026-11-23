@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+- Gym: a workout left untouched for 30 minutes finishes on its own. Ticked
+  sets are saved with the last logged change as the end time, so the forgotten
+  idle time is not counted; a workout with no ticked sets is dropped. A save
+  that fails keeps the workout on the device for a manual Finish.
+
+- Task templates (ADR 027): save a reusable title, description, estimate and
+  up to 30 steps from Tasks → Add template, then use, edit, duplicate or delete
+  it under View templates. Using a template opens the task editor prefilled for
+  review; the new task keeps no link to the template. Task creation now accepts
+  initial checklist steps, saved atomically with the task. Templates appear in
+  the account export and are erased with the account. New `TaskTemplate` table
+  and `/task-templates` routes.
+
+- Today shows the steps of a one-time task under its row, so they can be ticked
+  off without opening Tasks.
+
+- Quick add repeats: `daily`, `every 2 days`, `weekly`, `every other week`,
+  `every 2 weeks sat`, `every mon wed` and `every weekday` make the task repeat.
+  A weekday repeat without a date starts on the next matching day. On their own,
+  "daily", "weekly" and "weekdays" only count as repeats after the title (at the
+  end or before a time), so "Weekly report" stays a title.
+
+- Quick add fixes: `midnight` means the end of the named day (23:59), not its
+  start; short weekday words such as "sat" or "sun" are dates only after
+  on/next/due/by/before, at the end, or before a time, so "Study for SAT" and
+  "Buy sun screen" stay plain titles.
+
+- Fixed: a repeating task whose deadline falls after its scheduled day now
+  stays on Today on the deadline day until completed, and appears once.
+
+- Fixed: after changing the body-weight unit, the weight field's placeholder
+  shows the new unit.
+
+- Fixed: retried food-log saves are serialized so a retry cannot double-log.
+
+- ci: `scripts/ci-local.sh <pr-number>` runs the `ci.yml` steps in Docker
+  against a PR's merge ref and posts the `local-verify` status required on
+  `main` while GitHub Actions is unavailable.
+
+- More campus events (ADR 026): the Augustana Campus Events calendar (the one
+  behind MyUAlberta) and Career Services now appear on Campus. Monthly and yearly
+  events are supported for these feeds. A listing that Campus Events repeats from
+  a more specific calendar shows once.
+
 - Accessibility: colours meet WCAG AA contrast in light and dark mode (dark mode
   now uses dark text on accents), editors open without sliding when Reduce
   Motion or Remove animations is on, small controls reach 44-point touch

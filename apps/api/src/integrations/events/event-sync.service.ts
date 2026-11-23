@@ -21,6 +21,7 @@ export class EventSyncService {
     if (refresh && (source.sourceScope !== 'public' || !Number.isFinite(refresh.now.getTime())
       || ![refresh.successIntervalMs, refresh.failureIntervalMs].every(value => Number.isInteger(value) && value >= 60000))) throw new Error('Invalid public feed refresh');
     // Lock before fetching: a slow old fetch must not overwrite a newer import.
+    // The timeout covers a slow feed's fetch and parse: a rollback would forget the attempt and refetch next minute.
     return this.prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${source.source}), hashtext(${source.sourceScope}))::text`;
       if (source.sourceScope !== 'public') {
@@ -81,6 +82,6 @@ export class EventSyncService {
       }
       await recordAttempt('complete');
       return { status: 'complete' as const, coverage, issues: [], upserted, removed, retainedSaved };
-    }, { timeout: 30000, maxWait: 10000, isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+    }, { timeout: 60000, maxWait: 10000, isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
   }
 }

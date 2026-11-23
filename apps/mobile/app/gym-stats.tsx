@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { bodyWeightTrend, exerciseHistory, gymWeek, muscles, personalRecords, trainingHeatmap, weeklyMuscleSets } from '@campusflow/domain';
+import { bodyWeightTrend, convertWeight, exerciseHistory, gymWeek, muscles, personalRecords, trainingHeatmap, weeklyMuscleSets } from '@campusflow/domain';
 import { BackLink, Button, Card, Screen, State, colors } from '@/components/ui';
 import { useAction, useGym } from '@/features/queries';
 import { useTodayClock } from '@/features/today-clock';
@@ -60,7 +60,7 @@ export default function GymStatsScreen() {
         label="7-day average" secondaryLabel="Weigh-in"/>
       <View style={styles.weightRow}>
         <TextInput accessibilityLabel={`Today's weight in ${unit}`} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" maxLength={6}
-          placeholder={todayWeight ? `${todayWeight.weight}` : `Today's weight`} placeholderTextColor={colors.muted} style={styles.weightInput}/>
+          placeholder={todayWeight ? String(convertWeight(todayWeight.weight, todayWeight.unit, unit)) : `Today's weight`} placeholderTextColor={colors.muted} style={styles.weightInput}/>
         <Text style={styles.unit}>{unit}</Text>
         <Pressable accessibilityRole="button" disabled={action.isPending || !weight.trim()} onPress={() => { void saveWeight(); }}
           style={[styles.save, (action.isPending || !weight.trim()) && styles.dim]}><Text style={styles.saveText}>{todayWeight ? 'Update' : 'Save'}</Text></Pressable>

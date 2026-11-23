@@ -11,11 +11,13 @@ import { requestSource, type SourceRequest } from './request-source';
 const eventFields = { id: true, title: true, description: true, category: true, source: true, externalId: true, timing: true, location: true, url: true } as const;
 // Database whitelists: adding a credential column cannot add it to an export.
 const accountFields = {
-  id: true, email: true, displayName: true, timeZone: true, createdAt: true,
+  id: true, email: true, displayName: true, timeZone: true, createdAt: true, gymOpeningHours: true,
   tasks: { select: { id: true, studyPlanId: true, studyPlanOrder: true, title: true, description: true, priority: true, category: true, due: true,
     scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, completedAt: true, snoozedUntil: true,
     mainGoalDate: true, checklist: true, courseId: true, createdAt: true, updatedAt: true } },
   taskCompletions: { select: { taskId: true, occurrenceKey: true, completedAt: true } },
+  taskTemplates: { select: { id: true, title: true, description: true, estimatedMinutes: true, checklist: true, createdAt: true, updatedAt: true },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
   courses: { select: { id: true, externalId: true, source: true, name: true, code: true, active: true, color: true, assessments: true, assessmentGroups: true, targetGrade: true } },
   academicItems: { select: { id: true, courseId: true, title: true, kind: true, due: true, submissionState: true,
     source: true, externalId: true, mainGoalDate: true, updatedAt: true, reminderLeadMinutes: true } },
