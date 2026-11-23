@@ -11,6 +11,7 @@ import { useTodayClock } from '@/features/today-clock';
 import { adHocPrescription, draftExercise, draftProgress, draftToWorkout, exerciseName, formatClock, formatDuration, formatSets, ownGym, toLogged, type GymDraft } from '@/features/gym';
 import { ExercisePicker } from '@/features/exercise-picker';
 import { ExerciseAnimation, ExerciseThumb } from '@/features/exercise-media';
+import { useWorkoutAutoFinish } from '@/features/workout-auto-finish';
 import { gymOwner, useGymWorkout } from '@/store/gym-workout';
 import { useSessionStore } from '@/store/session';
 
@@ -19,20 +20,30 @@ const adviceTone: Record<ProgressionKind, { icon: 'trending-up' | 'sparkles-outl
   increase: { icon: 'arrow-up-circle', color: colors.moss }, build: { icon: 'trending-up', color: colors.moss }, hold: { icon: 'pause-circle-outline', color: colors.gold },
 };
 const shortDate = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, { timeZone: 'UTC', month: 'short', day: 'numeric' });
-type Summary = { workout: Workout; bests: string[]; weekCount: number; weekTarget: number };
+type Summary = { workout: Workout; bests: string[]; weekCount: number; weekTarget: number; auto?: boolean };
+const summarize = (saved: Workout, earlier: readonly Workout[], today: string, timeZone: string, target: number): Summary => {
+  const others = earlier.filter(item => item.id !== saved.id), week = gymWeek([...others, saved], today, timeZone, target);
+  return { workout: saved, bests: personalBests(toLogged([saved])[0], toLogged(others)), weekCount: week.count, weekTarget: week.target };
+};
 
 export default function WorkoutScreen() {
   const router = useRouter();
   const session = useSessionStore(state => state.session);
   const owner = gymOwner(session), timeZone = session?.user.timeZone ?? 'UTC';
-  const { draft: stored, restored, restore } = useGymWorkout();
+  const { draft: stored, restored, restore, autoFinished, setAutoFinished } = useGymWorkout();
   const [summary, setSummary] = useState<Summary>();
+  const gym = useGym(); const { date: today } = useTodayClock(timeZone);
+  useWorkoutAutoFinish();
   useEffect(() => { if (owner) void restore(owner); }, [owner, restore]);
   const draft = stored?.owner === owner ? stored : null;
+  const closed = !draft && autoFinished?.owner === owner ? autoFinished : null;
+  const leave = () => { if (closed) setAutoFinished(null); router.replace('/gym'); };
   if (summary) return <WorkoutSummary summary={summary} onDone={() => router.replace('/gym')}/>;
-  if (!draft) return <Screen safeArea><View style={styles.content}><BackLink to="gym" onPress={() => router.replace('/gym')}/>
-    <Card><Text style={styles.section}>{restored === owner ? 'No workout in progress.' : 'Loading your workout…'}</Text>
-      {restored === owner && <Button title="Choose a workout" onPress={() => router.replace('/gym')}/>}</Card></View></Screen>;
+  if (closed?.workout) return <WorkoutSummary summary={{ ...summarize(closed.workout, gym.data?.workouts ?? [], today, timeZone, gym.data?.enrollment?.weeklyTarget ?? 3), auto: true }} onDone={leave}/>;
+  if (!draft) return <Screen safeArea><View style={styles.content}><BackLink to="gym" onPress={leave}/>
+    <Card><Text style={styles.section}>{closed ? `${closed.title} ended after 30 minutes without activity.` : restored === owner ? 'No workout in progress.' : 'Loading your workout…'}</Text>
+      {closed && <Text style={styles.meta}>No sets were ticked, so nothing was saved.</Text>}
+      {restored === owner && <Button title="Choose a workout" onPress={leave}/>}</Card></View></Screen>;
   return <ActiveWorkout key={draft.requestKey} draft={draft} timeZone={timeZone} onSaved={setSummary}/>;
 }
 
@@ -63,9 +74,7 @@ function ActiveWorkout({ draft, timeZone, onSaved }: { draft: GymDraft; timeZone
     try { body = draftToWorkout(draft, new Date(), all); } catch (error) { setMessage(error instanceof Error ? error.message : 'Check your sets.'); return; }
     try {
       const saved = await action.mutateAsync({ path: '/gym/workouts', body });
-      const earlier = gym.data?.workouts ?? [];
-      const week = gymWeek([...earlier.filter(item => item.id !== saved.id), saved], today, timeZone, gym.data?.enrollment?.weeklyTarget ?? 3);
-      onSaved({ workout: saved, bests: personalBests(toLogged([saved])[0], toLogged(earlier.filter(item => item.id !== saved.id))), weekCount: week.count, weekTarget: week.target });
+      onSaved(summarize(saved, gym.data?.workouts ?? [], today, timeZone, gym.data?.enrollment?.weeklyTarget ?? 3));
       discard();
     } catch (error) {
       // The draft and its save key stay, so retrying cannot create a duplicate.
@@ -165,12 +174,13 @@ function ActiveWorkout({ draft, timeZone, onSaved }: { draft: GymDraft; timeZone
   </Screen>;
 }
 
-function WorkoutSummary({ summary: { workout, bests, weekCount, weekTarget }, onDone }: { summary: Summary; onDone(): void }) {
+function WorkoutSummary({ summary: { workout, bests, weekCount, weekTarget, auto }, onDone }: { summary: Summary; onDone(): void }) {
   const own = ownGym(useGym().data).exercises;
   const sets = workout.exercises.reduce((total, entry) => total + entry.sets.length, 0), volume = workoutVolume(workout.exercises);
   return <Screen safeArea><ScrollView contentContainerStyle={styles.content}>
     <View style={styles.celebrate}><Ionicons name="trophy" size={48} color={colors.gold}/>
       <Text accessibilityRole="header" style={styles.title}>Workout saved!</Text>
+      {auto && <Text style={styles.meta}>Finished automatically after 30 minutes without activity. The time ends at your last logged set.</Text>}
       <Text style={styles.meta}>{workout.title} is in the books. {weekCount >= weekTarget ? 'Weekly goal reached — great consistency.' : `${weekCount} of ${weekTarget} workouts this week.`}</Text></View>
     <View style={styles.stats}>
       <Stat label="Time" value={formatDuration(Date.parse(workout.endedAt) - Date.parse(workout.startedAt))}/><Stat label="Sets" value={String(sets)}/>

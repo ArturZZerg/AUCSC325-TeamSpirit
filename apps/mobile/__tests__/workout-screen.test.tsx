@@ -24,7 +24,7 @@ beforeEach(() => {
   // The saved workout's end time must fall in the mocked today's week.
   jest.useFakeTimers({ advanceTimers: true }); jest.setSystemTime(new Date('2026-10-23T18:00:00Z'));
   jest.clearAllMocks();
-  useGymWorkout.setState({ draft: createDraft(owner, program, program.days[0], 'kg', [], '2026-10-23', 'America/Edmonton', new Date(Date.now() - 30 * 60_000)), restored: owner });
+  useGymWorkout.setState({ draft: createDraft(owner, program, program.days[0], 'kg', [], '2026-10-23', 'America/Edmonton', new Date(Date.now() - 20 * 60_000)), restored: owner, autoFinished: null });
   jest.mocked(useGym).mockReturnValue({ data: { enrollment: { weeklyTarget: 3 }, workouts: [] } } as unknown as ReturnType<typeof useGym>);
   jest.mocked(useAction).mockReturnValue({ mutateAsync: save, isPending: false } as unknown as ReturnType<typeof useAction>);
 });
@@ -52,4 +52,31 @@ it('keeps the draft and its save key when saving fails', async () => {
   await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Finish workout · 1 sets' })); });
   expect(screen.getByText('Network unavailable. Your sets are kept on this device.')).toBeOnTheScreen();
   expect(useGymWorkout.getState().draft?.requestKey).toBe(key);
+});
+it('saves an idle workout automatically, ending it at the last logged change', async () => {
+  render(<Workout/>);
+  fireEvent.press(screen.getByRole('checkbox', { name: 'Set 1 of Bodyweight squat done' }));
+  const lastChange = useGymWorkout.getState().draft!.lastActivityAt!;
+  save.mockImplementation(async ({ body }) => ({ ...body, id: '10000000-0000-4000-8000-0000000000b2', createdAt: body.endedAt }));
+  await act(async () => { jest.advanceTimersByTime(29 * 60_000); });
+  expect(save).not.toHaveBeenCalled();
+  await act(async () => { jest.advanceTimersByTime(2 * 60_000); });
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(save.mock.calls[0][0].body).toMatchObject({ endedAt: lastChange, exercises: [{ exerciseId: 'bodyweight-squat', sets: [expect.objectContaining({ weight: null })] }] });
+  expect(useGymWorkout.getState().draft).toBeNull();
+  expect(screen.getByText('Workout saved!')).toBeOnTheScreen();
+  expect(screen.getByText(/Finished automatically after 30 minutes without activity/)).toBeOnTheScreen();
+});
+it('drops an idle workout with no ticked sets and keeps an idle one that fails to save', async () => {
+  render(<Workout/>);
+  await act(async () => { jest.advanceTimersByTime(31 * 60_000); });
+  expect(save).not.toHaveBeenCalled(); expect(useGymWorkout.getState().draft).toBeNull();
+  expect(screen.getByText('Workout A ended after 30 minutes without activity.')).toBeOnTheScreen();
+
+  useGymWorkout.setState({ draft: createDraft(owner, program, program.days[0], 'kg', [], '2026-10-23', 'America/Edmonton', new Date()), autoFinished: null });
+  useGymWorkout.getState().updateSet(0, 0, { done: true });
+  const key = useGymWorkout.getState().draft!.requestKey;
+  save.mockRejectedValue(new Error('Network unavailable.'));
+  await act(async () => { jest.advanceTimersByTime(31 * 60_000); });
+  expect(save).toHaveBeenCalled(); expect(useGymWorkout.getState().draft?.requestKey).toBe(key);
 });
