@@ -393,8 +393,11 @@ const taskTemplateDto = (template: TaskTemplate) => taskTemplateSchema.parse({
      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${u.id}::uuid FOR UPDATE`;
      const existing = await tx.course.findUnique({ where: { id: b.id } });
      if (existing) {
-        if (existing.userId !== u.id) throw new NotFoundException('Course not found');
-        if (existing.source !== manualCourseSource || existing.name !== b.name) throw new ConflictException('This course ID belongs to a different course.');
+       // Another account's course is reported like any missing course (#201). Course IDs
+       // are client-generated random UUIDs, so only a caller who already holds that ID can
+       // tell it exists, and nothing else about the course is revealed.
+       if (existing.userId !== u.id) throw new NotFoundException('Course not found');
+       if (existing.source !== manualCourseSource || existing.name !== b.name) throw new ConflictException('This course ID belongs to a different course.');
        return courseSchema.parse(existing);
      }
      if (await tx.course.count({ where: { userId: u.id, source: manualCourseSource } }) >= manualCourseLimit) throw new BadRequestException(`You can add up to ${manualCourseLimit} courses.`);
