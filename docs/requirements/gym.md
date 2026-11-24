@@ -62,6 +62,43 @@ IANA timezone defaults to the account zone and can be changed for the gym.
 Equal opening/closing times are rejected as ambiguous; 24-hour operation and
 split opening periods are outside this small extension.
 
+### Opening-hours editor usability — 2026-11-23
+
+Manual fields accept short or padded 24-hour times (`7:00`, `07:00`), and
+12-hour times with case-insensitive AM/PM (`7am`, `7 AM`, `7:30pm`). Whitespace
+around the input is ignored. Saving normalizes every open day's values to
+24-hour `HH:mm` before existing contract validation and the existing PUT request.
+`12am` is `00:00`, and `12pm` is `12:00`; `24:00`, invalid minutes and equal
+opening/closing times are rejected. Each error identifies its day and field;
+invalid timezones have a separate error. Invalid drafts are retained for correction.
+
+All overnight labels compare parsed minute counts. In particular, `7:00` to
+`10:00` is same-day; `7pm` to `12am` closes the next day. Invalid or equal inputs
+never produce an overnight label. The wire format and overnight semantics remain
+unchanged.
+
+New, unsaved schedules start with editable Monday–Friday 09:00–17:00 hours and
+closed weekends. Existing schedules, including explicitly unknown days, are
+used as saved; opening the editor or cancelling never applies these defaults.
+Confirmed saves and later server snapshots retain the existing persistence flow.
+
+Browser time inputs and native iOS/Android time pickers offer an accessible
+alternative beside the always-available manual field. The iOS picker opens in a
+dialog so it does not compress the text input on narrow screens. Picker values
+are wall-clock hours/minutes, not converted dates or device-zone instants.
+Browsers without a native time UI and unsupported native platforms retain manual
+entry. No new dependency, migration or API contract is required.
+
+Regression coverage: parsing and numeric comparisons, defaults, save payloads,
+invalid fields, midnight and overnight hours, saved-schedule reload/cancel,
+failed-save retention, and picker selection/dismissal/disabled controls.
+
+```sh
+npm run test -w @campusflow/mobile -- --watchman=false --silent --runTestsByPath __tests__/gym-opening-hours-form.test.ts __tests__/gym-opening-hours.test.tsx __tests__/gym-time-picker.test.tsx __tests__/gym-screen.test.tsx __tests__/gym-feature.test.ts
+npm run typecheck -w @campusflow/mobile
+npx eslint apps/mobile/src/features/gym-opening-hours*.ts* apps/mobile/src/features/gym-time-picker*.tsx apps/mobile/__tests__/gym-opening-hours*.ts* apps/mobile/__tests__/gym-time-picker.test.tsx apps/mobile/__tests__/gym-screen.test.tsx
+```
+
 The Gym section displays the saved schedule and timezone, including closed and
 unknown days. Missing schedules are explicitly labelled. Cancel never writes;
 failed saves preserve the draft for retry; saving disables edits and dismissal.

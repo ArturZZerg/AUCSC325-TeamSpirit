@@ -45,7 +45,7 @@ it('shows gym hours without requiring enrollment and saves through the existing 
   fireEvent.press(screen.getByRole('radio', { name: 'Sunday closed' }));
   await act(async () => { fireEvent.press(screen.getByText('Save gym hours')); });
   expect(save).toHaveBeenCalledWith({ path: '/gym/opening-hours', method: 'PUT', body: { openingHours: {
-    timeZone: 'America/Edmonton', days: [...Array.from({ length: 6 }, () => ({ kind: 'unknown' })), { kind: 'closed' }],
+    timeZone: 'America/Edmonton', days: [...Array.from({ length: 5 }, () => ({ kind: 'open', opens: '09:00', closes: '17:00' })), { kind: 'closed' }, { kind: 'closed' }],
   } } });
 });
 it('shows the next workout in the rotation, weekly progress and starts a prefilled draft', async () => {

@@ -41,7 +41,7 @@ it('saves new hours, displays the confirmed schedule and can remove it', async (
   fireEvent.press(screen.getByText('Save gym hours'));
   await screen.findByText('Saturday: 20:00–02:00 (next day)');
   expect(save).toHaveBeenCalledWith({ timeZone: 'America/Edmonton', days: [
-    { kind: 'open', opens: '06:00', closes: '22:00' }, ...Array.from({ length: 4 }, () => ({ kind: 'unknown' })),
+    { kind: 'open', opens: '06:00', closes: '22:00' }, ...Array.from({ length: 4 }, () => ({ kind: 'open', opens: '09:00', closes: '17:00' })),
     { kind: 'open', opens: '20:00', closes: '02:00' }, { kind: 'closed' },
   ] });
   fireEvent.press(screen.getByText('Edit gym hours'));
@@ -93,4 +93,65 @@ it('displays an acknowledged save while the overview is stale, then accepts a re
   await screen.findByText('Monday: 07:00–22:00');
   ui.rerender(<GymOpeningHoursCard hours={{ ...hours, days: hours.days.map(() => ({ kind: 'closed' })) }} timeZone="UTC" onSave={save}/>);
   expect(screen.getByText('Monday: Closed')).toBeOnTheScreen();
+});
+
+it('normalizes short-hour and AM/PM drafts before saving and reopening', async () => {
+  const save = jest.fn().mockResolvedValue(undefined);
+  const ui = render(<GymOpeningHoursCard hours={null} timeZone="America/Edmonton" onSave={save}/>);
+  fireEvent.press(screen.getByText('Set gym hours'));
+  expect(screen.getByLabelText('Monday opens')).toHaveDisplayValue('09:00');
+  expect(screen.getByLabelText('Friday closes')).toHaveDisplayValue('17:00');
+  expect(screen.queryByLabelText('Saturday opens')).toBeNull();
+  fireEvent.changeText(screen.getByLabelText('Monday opens'), '7:00');
+  fireEvent.changeText(screen.getByLabelText('Monday closes'), '10:00');
+  expect(screen.queryByText('Closes the next day.')).toBeNull();
+  fireEvent.changeText(screen.getByLabelText('Tuesday opens'), '7 AM');
+  fireEvent.changeText(screen.getByLabelText('Tuesday closes'), '7:30pm');
+  await act(async () => { fireEvent.press(screen.getByText('Save gym hours')); });
+  expect(save.mock.calls[0][0].days.slice(0, 2)).toEqual([
+    { kind: 'open', opens: '07:00', closes: '10:00' }, { kind: 'open', opens: '07:00', closes: '19:30' },
+  ]);
+  const saved = save.mock.calls[0][0] as GymOpeningHours;
+  ui.unmount();
+  render(<GymOpeningHoursCard hours={saved} timeZone="UTC" onSave={save}/>);
+  fireEvent.press(screen.getByText('Edit gym hours'));
+  expect(screen.getByLabelText('Monday opens')).toHaveDisplayValue('07:00');
+  expect(screen.getByLabelText('Monday closes')).toHaveDisplayValue('10:00');
+  expect(screen.getByLabelText('Tuesday closes')).toHaveDisplayValue('19:30');
+  expect(screen.getByLabelText('Gym timezone')).toHaveDisplayValue('America/Edmonton');
+  fireEvent.changeText(screen.getByLabelText('Monday opens'), '8am');
+  fireEvent.press(screen.getByText('Cancel'));
+  fireEvent.press(screen.getByText('Edit gym hours'));
+  expect(screen.getByLabelText('Monday opens')).toHaveDisplayValue('07:00');
+  expect(save).toHaveBeenCalledTimes(1);
+});
+
+it('shows only genuine overnight labels and reports invalid fields without saving', async () => {
+  const save = jest.fn();
+  render(<GymOpeningHoursCard hours={null} timeZone="UTC" onSave={save}/>);
+  fireEvent.press(screen.getByText('Set gym hours'));
+  fireEvent.changeText(screen.getByLabelText('Monday opens'), '7pm');
+  fireEvent.changeText(screen.getByLabelText('Monday closes'), '12am');
+  expect(screen.getByText('Closes the next day.')).toBeOnTheScreen();
+  fireEvent.changeText(screen.getByLabelText('Monday closes'), 'bad');
+  expect(screen.queryByText('Closes the next day.')).toBeNull();
+  fireEvent.changeText(screen.getByLabelText('Tuesday opens'), '24:00');
+  fireEvent.changeText(screen.getByLabelText('Gym timezone'), 'not/a/zone');
+  fireEvent.press(screen.getByText('Save gym hours'));
+  expect(screen.getByText(/^Monday closing time: Enter a time/)).toBeOnTheScreen();
+  expect(screen.getByText(/^Tuesday opening time: Enter a time/)).toBeOnTheScreen();
+  expect(screen.getByText(/^Gym timezone: Enter a valid IANA/)).toBeOnTheScreen();
+  expect(save).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Monday closes')).toHaveDisplayValue('bad');
+});
+
+it('preserves explicitly unknown, closed and overnight saved days when opening the editor', async () => {
+  const saved: GymOpeningHours = { ...hours, days: [{ kind: 'unknown' }, ...hours.days.slice(1)] };
+  const save = jest.fn().mockResolvedValue(undefined);
+  render(<GymOpeningHoursCard hours={saved} timeZone="UTC" onSave={save}/>);
+  fireEvent.press(screen.getByText('Edit gym hours'));
+  expect(screen.queryByLabelText('Monday opens')).toBeNull();
+  expect(screen.getByLabelText('Saturday closes')).toHaveDisplayValue('02:00');
+  await act(async () => { fireEvent.press(screen.getByText('Save gym hours')); });
+  expect(save).toHaveBeenCalledWith(saved);
 });
