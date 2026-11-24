@@ -10,6 +10,10 @@ import { api } from '@/lib/api';
 import { useSessionStore } from '@/store/session';
 import { syncedLabel } from '@/features/synced-label';
 
+// Connect and sync read Canvas live: the API allows up to 25 s per Canvas request and a
+// 30 s transaction for the sync, so these two calls get more than the default limit.
+const canvasTimeoutMs = 60_000;
+
 // The guide follows Canvas's own wording for creating a personal access token.
 const steps = [
   'Open Canvas in a browser and sign in.',
@@ -49,13 +53,13 @@ function CanvasConnection({ userId, timeZone }: { userId: string; timeZone: stri
     finally { busy.current = false; setWorking(undefined); void status.refetch(); }
   };
   const sync = async () => {
-    const result = canvasSyncResultSchema.parse(await action.mutateAsync({ path: '/canvas/sync', method: 'POST', body: {} }));
+    const result = canvasSyncResultSchema.parse(await action.mutateAsync({ path: '/canvas/sync', method: 'POST', body: {}, timeoutMs: canvasTimeoutMs }));
     return `Synced ${result.coursesUpdated} ${result.coursesUpdated === 1 ? 'course' : 'courses'} and ${result.academicItemsUpdated} ${result.academicItemsUpdated === 1 ? 'assignment' : 'assignments'}.`;
   };
   const connect = () => run('Connecting…', async () => {
     const parsed = canvasTokenConnectSchema.safeParse({ baseUrl, accessToken: token });
     if (!parsed.success) throw new Error(baseUrl.trim() ? 'Paste the whole access token from Canvas.' : 'Enter your Canvas address.');
-    await action.mutateAsync({ path: '/canvas/connect', method: 'POST', body: parsed.data });
+    await action.mutateAsync({ path: '/canvas/connect', method: 'POST', body: parsed.data, timeoutMs: canvasTimeoutMs });
     setToken('');
     try { return `Connected. ${await sync()}`; }
     catch (error) { return `Connected, but the first sync didn’t finish: ${message(error, 'try Sync now.')}`; }

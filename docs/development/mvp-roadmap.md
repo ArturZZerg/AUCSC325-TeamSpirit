@@ -127,6 +127,12 @@ this status summary does not replace those specifications.
     events, and removal of work deleted in Canvas after a full read.
 34. **Accessibility:** WCAG AA contrast in both themes, reduce-motion sheets,
     44-point touch targets, and source and contrast audits in the test suite.
+35. **Campus-wide event feeds (ADR 026):** the Augustana Campus Events and Career
+    Services calendars, monthly/yearly repeats and cross-feed duplicate removal.
+36. **Quick-add repeats:** repeat phrases (`daily`, `every mon wed`,
+    `every 2 weeks sat`), midnight as end of day and stricter weekday-word dates.
+37. **Task templates (ADR 027):** account-owned templates with steps, used through
+    the task editor, plus atomic initial steps on task creation and export.
 
 Each slice gets a branch, behavior tests, lint/typecheck/build/web export,
 responsive visual checks, self-review, hosted CI and a reviewed merge. Native

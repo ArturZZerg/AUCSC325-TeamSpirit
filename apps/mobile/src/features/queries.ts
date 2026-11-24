@@ -8,7 +8,7 @@ import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
 import { focusHistorySchema } from '@campusflow/contracts';
 import { campusSourcesSchema } from '@campusflow/contracts';
-import { diningMenuSchema, exerciseDetailsSchema, foodSearchSchema, gymOverviewSchema, nutritionDaySchema } from '@campusflow/contracts';
+import { diningMenuSchema, exerciseDetailsSchema, foodSearchSchema, gymOverviewSchema, nutritionDaySchema, nutritionWeekSchema } from '@campusflow/contracts';
 import { dayBounds } from '@campusflow/domain';
 import { api, json } from '@/lib/api';
 import type { AcademicItem, CampusEvent, Goal, NotificationPreferences, PersonalTask, Reminder, Today, WellnessEntry } from '@/lib/types';
@@ -234,6 +234,13 @@ export function useNutritionDay(date: string) {
   const schema = useMemo(() => nutritionDaySchema.refine(value => value.accountId === session?.user.id && value.date === date, 'Diary does not belong to this account.'), [session?.user.id, date]);
   return cachedQuery(`nutrition:${date}`, `/nutrition/day/${date}`, schema);
 }
+/** Monday–Sunday intake for the week containing `date`. Derived on the server; cached like the diary day. */
+export function useNutritionWeek(date: string) {
+  const session = useSessionStore(state => state.session);
+  const schema = useMemo(() => nutritionWeekSchema.refine(value => value.accountId === session?.user.id && value.start <= date && value.through >= date,
+    'Week does not belong to this account.'), [session?.user.id, date]);
+  return cachedQuery(`nutrition-week:${date}`, `/nutrition/week/${date}`, schema);
+}
 export function useFoodSearch(query: string) {
   const session = useSessionStore(state => state.session);
   const [debounced, setDebounced] = useState(query.trim());
@@ -259,7 +266,7 @@ export function useReminders() {
   return { ...query, data, isLoading: query.isLoading && data === undefined };
 }
 
-type ActionRequest = { path: string; method?: string; body?: unknown; taskEditBaseline?: TaskEditBaseline; deletedTask?: PersonalTask };
+type ActionRequest = { path: string; method?: string; body?: unknown; taskEditBaseline?: TaskEditBaseline; deletedTask?: PersonalTask; timeoutMs?: number };
 export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) => Promise<void>, options?: { awaitRefresh: boolean }) {
   const client = useQueryClient();
   const session = useSessionStore(state => state.session);
@@ -273,12 +280,12 @@ export function useAction<T = unknown>(afterCommit?: (data: T, owner: Session) =
       catch (error) { endWrite?.(); throw error; }
       return { endWrite, deletedTask: request.deletedTask ?? client.getQueryData<PersonalTask[]>(['account', owner.user.id, 'tasks'])?.find(task => task.id === request.path.split('/')[2]) };
     },
-    mutationFn: async ({ request: { path, method = 'POST', body, taskEditBaseline }, owner, ownershipGeneration }: { request: ActionRequest; owner: typeof session; ownershipGeneration: number; credentialsGeneration: number }) => {
+    mutationFn: async ({ request: { path, method = 'POST', body, taskEditBaseline, timeoutMs }, owner, ownershipGeneration }: { request: ActionRequest; owner: typeof session; ownershipGeneration: number; credentialsGeneration: number }) => {
       // Recheck after cancellation: an account switch must not submit an old
       // screen's write using the new account's credentials.
       if (!owner || !taskOwnerCurrent(owner) || ownershipGeneration !== taskOwnershipGeneration()) throw new Error('Your session has ended.');
       if (taskEditBaseline && !taskEditWriteCurrent(taskEditBaseline)) throw new Error('Reload the task before saving.');
-      return api<T>(path, json(method, body));
+      return api<T>(path, { ...json(method, body), timeoutMs });
     },
     onSuccess: async (data: T, { owner, request, credentialsGeneration }, context) => {
       context?.endWrite?.();

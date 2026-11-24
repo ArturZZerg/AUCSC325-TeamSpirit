@@ -7,7 +7,19 @@ function accountWrite(accountId: string, operation: () => Promise<void>): Promis
   void pending.finally(() => { if (writes.get(accountId) === pending) writes.delete(accountId); }).catch(() => undefined);
   return pending;
 }
-async function database() { if (!dbPromise) dbPromise = SQLite.openDatabaseAsync('campusflow-cache.db'); const db = await dbPromise; await db.execAsync('CREATE TABLE IF NOT EXISTS snapshots (account_id TEXT NOT NULL, cache_key TEXT NOT NULL, payload TEXT NOT NULL, saved_at TEXT NOT NULL, PRIMARY KEY(account_id, cache_key));'); return db; }
+function database() {
+  if (!dbPromise) {
+    const opening = SQLite.openDatabaseAsync('campusflow-cache.db').then(async db => {
+      await db.execAsync('CREATE TABLE IF NOT EXISTS snapshots (account_id TEXT NOT NULL, cache_key TEXT NOT NULL, payload TEXT NOT NULL, saved_at TEXT NOT NULL, PRIMARY KEY(account_id, cache_key));');
+      return db;
+    });
+    dbPromise = opening;
+    void opening.catch(() => {
+      if (dbPromise === opening) dbPromise = undefined;
+    });
+  }
+  return dbPromise;
+}
 export async function readCache<T>(accountId: string, key: string): Promise<T | undefined> {
   const row = await (await database()).getFirstAsync<{ payload: string }>('SELECT payload FROM snapshots WHERE account_id = ? AND cache_key = ?', [accountId, key]);
   if (!row) return undefined;

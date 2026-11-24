@@ -118,6 +118,13 @@ describe('recurring task occurrence identity', () => {
     expect(undone.items[0].state).toBe('today');
   });
 
+  it('keeps Sunday in the ending biweekly calendar week across New Year', () => {
+    const task = { recurrence: { frequency: 'weekly' as const, weekdays: [1, 7], interval: 2 },
+      scheduled: { kind: 'date' as const, date: '2026-12-27' } };
+    const dates = ['2026-12-21', '2026-12-27', '2026-12-28', '2027-01-03', '2027-01-04', '2027-01-10'];
+    expect(dates.map(date => taskOccursOn(task, date, 'UTC'))).toEqual([false, true, false, false, true, true]);
+  });
+
   it.each([
     ['2026-03-07', '2026-03-08', '2026-03-07T16:00:00Z', '2026-03-08T15:00:00Z'],
     ['2025-11-01', '2025-11-02', '2025-11-01T15:00:00Z', '2025-11-02T16:00:00Z'],

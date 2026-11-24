@@ -7,7 +7,7 @@ import { useCourses, useFocusHistory, useStudyPlans, useTasks } from '@/features
 import { courseColor } from '@/features/course-editor';
 import { useTodayClock } from '@/features/today-clock';
 import { calendarLabel, weekStart } from '@/features/weekly-planner';
-import { buildStudyReport, studyTimeByCourse, studyTimeLabel } from '@/features/study-report';
+import { buildStudyReport, studyEstimateComparison, studyTimeByCourse, studyTimeLabel } from '@/features/study-report';
 import { useSessionStore } from '@/store/session';
 import { courseLabel } from '@/features/course-label';
 
@@ -72,15 +72,17 @@ function ReportContent({ accountId, timeZone }: { accountId: string; timeZone: s
         {!tasks.data && <Text style={styles.meta}>Task details haven’t loaded. Recorded titles and time remain available.</Text>}
         {report.tasks.map(row => {
           const task = tasks.data?.find(value => value.id === row.taskId), estimate = task?.estimatedMinutes;
-          const percent = estimate ? Math.min(100, Math.round(row.seconds / (estimate * 60) * 100)) : 0;
+          const comparison = studyEstimateComparison(row.seconds, estimate), percent = comparison?.percent ?? 0;
           return <Card key={row.key}><Text style={styles.item}>{task?.title ?? row.title}</Text>
             <Text style={styles.time}>{studyTimeLabel(row.seconds)} · {row.blocks} {row.blocks === 1 ? 'block' : 'blocks'}</Text>
             {!row.taskId && <Text style={styles.meta}>Free study and blocks whose linked task was removed.</Text>}
             {estimate && <><Text style={styles.meta}>Current task estimate: {estimate} min · {studyTimeLabel(row.seconds)} recorded this week</Text>
+              <Text style={styles.meta}>{comparison?.label}{comparison?.over && !task.completedAt ? ' Consider reviewing the task size.' : ''}</Text>
               <View accessible accessibilityRole="progressbar" accessibilityLabel={`${task.title}: recorded time versus task estimate`} accessibilityValue={{ min: 0, max: 100, now: percent }}
                 aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} style={styles.estimateTrack}><View style={[styles.estimateFill, { width: `${percent}%` }]}/></View>
-              {!task.completedAt && row.seconds > estimate * 60 && <Text style={styles.meta}>You’ve recorded more time than estimated. Consider reviewing the task size.</Text>}</>}
+            </>}
             {task?.completedAt && <Text style={styles.meta}>Task marked complete. Recorded time is kept.</Text>}
+            {task && !estimate && <Text style={styles.meta}>No task estimate set. Recorded time is kept.</Text>}
             {task && !task.completedAt && !task.recurrence && <Button title="Focus on this task" tone="plain" onPress={() => router.push({ pathname: '/focus', params: { taskId: task.id } })}/>}
             {task?.recurrence && !task.completedAt && <Text style={styles.meta}>This task now repeats. Manage its occurrences in Today.</Text>}
           </Card>;

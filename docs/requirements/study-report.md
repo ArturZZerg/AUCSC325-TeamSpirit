@@ -41,3 +41,24 @@ The report also rolls this week's recorded time up to courses
 (`studyTimeByCourse`): a task's own course first, otherwise its study plan's
 coursework course. Time on unlinked or course-less tasks, or while lists are
 unavailable, is shown as Other rather than guessed. Bars use course colours.
+
+## Explicit estimate comparison — 2026-11-22
+
+The existing per-task report now shows how far the selected week's saved Focus
+seconds are under or over the task's full current estimate, or that they match
+exactly, and the label says it counts this week only ("This week: 10m over the
+full task estimate."). Differences retain seconds; the existing percentage bar
+stays capped at 100%. For an open task over its estimate, the same line suggests
+reviewing the task size. A task without an estimate retains its actual time with an explicit missing
+estimate message. Unavailable task details retain captured titles/time without
+claiming an estimate is missing.
+
+This extends the existing report rather than adding another screen or data flow.
+It reuses task estimates and the validated Focus history API, summing completed
+and interrupted blocks by task ID before comparison. Coursework preparation
+tasks are eligible through their existing PersonalTask records; AcademicItems
+have no duration estimate or direct Focus link, so no coursework estimate is
+invented. The comparison is weekly recorded time versus the current total task
+estimate, not lifetime actual duration, remaining work or completion percentage.
+No API, database, dependency or architecture changes.
+
