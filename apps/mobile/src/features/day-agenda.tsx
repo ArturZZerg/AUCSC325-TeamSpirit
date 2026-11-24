@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { classConflicts, localDateAt } from '@campusflow/domain';
-import { Button, Card, colors } from '@/components/ui';
+import { Button, Card, colors, typography } from '@/components/ui';
 import { useClasses, usePlanningSnapshot } from '@/features/queries';
 import { useSessionStore } from '@/store/session';
 import { buildDayCapacity, studyTaskDefaults } from './day-capacity';
@@ -67,9 +67,9 @@ export function DayAgenda({ date, timeZone, onPlan, compact = false }: {
 }
 const styles = StyleSheet.create({
   content: { gap: 16 }, heading: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  section: { color: colors.ink, fontSize: 19, fontWeight: '800' }, copy: { color: colors.muted, lineHeight: 21 }, meta: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+  section: { ...typography, color: colors.ink, fontSize: 16, fontWeight: '600', letterSpacing: -.3 }, copy: { ...typography, color: colors.muted, fontSize: 12, lineHeight: 20 }, meta: { color: colors.muted, fontSize: 12, lineHeight: 18 },
   meeting: { paddingVertical: 12, gap: 5, borderTopWidth: 1, borderColor: colors.line }, next: { padding: 12, backgroundColor: colors.sage, borderRadius: 12, borderTopWidth: 0 },
-  kicker: { color: colors.moss, fontSize: 11, letterSpacing: .6, fontWeight: '800' }, time: { color: colors.moss, fontWeight: '700' }, item: { color: colors.ink, fontWeight: '700', fontSize: 15 },
+  kicker: { color: colors.moss, fontSize: 11, letterSpacing: .6, fontWeight: '800' }, time: { color: colors.moss, fontWeight: '700' }, item: { ...typography, color: colors.ink, fontWeight: '500', fontSize: 14 },
   warning: { color: colors.coral, lineHeight: 21 }, options: { flexDirection: 'row', gap: 8 }, choice: { minHeight: 46, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.line },
   selected: { borderColor: colors.moss, backgroundColor: colors.sage }, window: { gap: 10, borderTopWidth: 1, borderColor: colors.line, paddingTop: 12 }, windowCopy: { gap: 5 },
 });

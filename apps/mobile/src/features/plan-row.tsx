@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/components/ui';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { colors, design, typography } from '@/components/ui';
+import { MotionPressable } from '@/components/motion';
 import type { PlanItem } from '@/lib/types';
 import { isPlanItemDone, kindLabels, planStateLabel, planTimingLabel } from './today-plan';
 
@@ -31,12 +32,12 @@ export function PlanRow({ item, timeZone, date, isCurrentDay, disabled, pendingA
   return <View style={[styles.row, item.isMainGoal && !muted && styles.main]}>
     <View style={styles.top}>
       {canComplete || canUndo
-        ? <Pressable accessibilityRole="button" accessibilityLabel={checkPending ? 'Saving…' : canUndo ? 'Undo completion' : 'Complete'}
+        ? <MotionPressable lift={0} accessibilityRole="button" accessibilityLabel={checkPending ? 'Saving…' : canUndo ? 'Undo completion' : 'Complete'}
           accessibilityHint={item.title} accessibilityState={{ disabled, checked: done }} disabled={disabled} hitSlop={8}
           onPress={() => onAction(canUndo ? 'uncomplete' : 'complete')}
-          style={[styles.check, { borderColor: accent }, done && { backgroundColor: accent }, disabled && !checkPending && styles.dim]}>
-          {checkPending ? <ActivityIndicator size="small" color={done ? colors.onAccent : accent}/> : done ? <Ionicons name="checkmark" size={18} color={colors.onAccent}/> : null}
-        </Pressable>
+          style={({ hovered }) => [styles.check, { borderColor: accent }, hovered && !done && { backgroundColor: `${accent}14` }, done && styles.checkDone, disabled && !checkPending && styles.dim]}>
+          {checkPending ? <ActivityIndicator size="small" color={done ? design.signalInk : accent}/> : done ? <Ionicons name="checkmark" size={18} color={design.signalInk}/> : null}
+        </MotionPressable>
         : <View style={[styles.check, styles.badge, { backgroundColor: done ? accent : `${accent}1A`, borderColor: 'transparent' }]}>
           <Ionicons name={done ? 'checkmark' : kindIcons[item.kind]} size={16} color={done ? colors.onAccent : accent}/></View>}
       <View style={styles.body}>
@@ -63,26 +64,28 @@ export function PlanRow({ item, timeZone, date, isCurrentDay, disabled, pendingA
 }
 
 function Chip({ icon, label, disabled, onPress }: { icon: IconName; label: string; disabled: boolean; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} hitSlop={6}
-    style={({ pressed }) => [styles.action, pressed && styles.pressed, disabled && styles.dim]}>
+  return <MotionPressable lift={0} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} hitSlop={6}
+    style={({ hovered }) => [styles.action, hovered && styles.actionHover, disabled && styles.dim]}>
     <Ionicons name={icon} size={15} color={colors.moss}/><Text style={styles.actionText}>{label}</Text>
-  </Pressable>;
+  </MotionPressable>;
 }
 
 const styles = StyleSheet.create({
-  row: { backgroundColor: colors.card, borderRadius: 16, padding: 14, gap: 10, borderWidth: 1, borderColor: colors.line },
-  main: { borderColor: colors.goldLine, backgroundColor: colors.goldSurface },
+  row: { backgroundColor: colors.card, borderRadius: 12, padding: 14, gap: 3, borderBottomWidth: 1, borderColor: colors.line },
+  main: { borderWidth: 1, borderColor: colors.goldLine, backgroundColor: colors.goldSurface },
   top: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
-  check: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
-  badge: { borderRadius: 10 }, dim: { opacity: .45 }, pressed: { opacity: .7 },
+  check: { width: 30, height: 30, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  checkDone: { backgroundColor: design.signal, borderColor: design.signalInk },
+  badge: { borderRadius: 10 }, dim: { opacity: .45 },
   body: { flex: 1, gap: 4 }, labels: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
-  dot: { width: 7, height: 7, borderRadius: 4 }, kind: { fontSize: 11, fontWeight: '800', letterSpacing: .6 },
+  dot: { width: 7, height: 7, borderRadius: 4 }, kind: { ...typography, fontSize: 9, fontWeight: '600', letterSpacing: .8 },
   star: { color: colors.gold, fontSize: 11, fontWeight: '800', letterSpacing: .6 },
   chip: { fontSize: 11, fontWeight: '700', color: colors.muted, backgroundColor: colors.canvas, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden' },
   overdue: { color: colors.onAccent, backgroundColor: colors.coral }, high: { color: colors.danger, backgroundColor: colors.dangerSurface },
-  title: { color: colors.ink, fontSize: 16, lineHeight: 22, fontWeight: '700' }, done: { color: colors.muted, textDecorationLine: 'line-through' },
-  meta: { color: colors.muted, fontSize: 13 }, overdueText: { color: colors.coral, fontWeight: '600' },
+  title: { ...typography, color: colors.ink, fontSize: 14, lineHeight: 22, fontWeight: '500' }, done: { color: colors.muted, textDecorationLine: 'line-through' },
+  meta: { ...typography, color: colors.muted, fontSize: 11, lineHeight: 18 }, overdueText: { color: colors.coral, fontWeight: '600' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 42 },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 34, paddingHorizontal: 11, borderRadius: 17, backgroundColor: colors.sage },
-  actionText: { color: colors.ink, fontSize: 13, fontWeight: '700' }, error: { color: colors.coral, paddingLeft: 42 },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 46, paddingHorizontal: 7, borderRadius: 8 },
+  actionHover: { backgroundColor: colors.sage },
+  actionText: { ...typography, color: colors.muted, fontSize: 11, fontWeight: '500' }, error: { color: colors.coral, paddingLeft: 42 },
 });

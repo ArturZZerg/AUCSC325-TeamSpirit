@@ -1,4 +1,5 @@
 import { useSessionStore } from '@/store/session';
+import { localPreviewRequest } from '@/services/local-preview';
 import { apiBaseUrl } from './api-url';
 
 /** Default limit for one request, so a stalled connection cannot hang a screen (#199). */
@@ -8,6 +9,8 @@ export class ApiError extends Error { constructor(public status: number, message
 export type ApiInit = RequestInit & { timeoutMs?: number };
 export async function api<T>(path: string, { timeoutMs = API_TIMEOUT_MS, ...init }: ApiInit = {}): Promise<T> {
   const session = useSessionStore.getState().session;
+  if (__DEV__ && process.env.EXPO_PUBLIC_LOCAL_PREVIEW === '1' && session?.accessToken === 'local-preview')
+    return JSON.parse(JSON.stringify(await localPreviewRequest(path, init, session))) as T;
   const headers = new Headers({ Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}),
     ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}) });
   new Headers(init.headers).forEach((value, key) => headers.set(key, value));

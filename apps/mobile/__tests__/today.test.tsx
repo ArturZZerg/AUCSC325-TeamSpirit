@@ -52,6 +52,25 @@ it('opens the day-end review for the displayed calendar day without a mutation',
 });
 
 describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
+  it('filters the plan by kind without changing saved work and restores all items', () => {
+    const coursework = { ...task, key: 'academic:filter', kind: 'academic' as const, title: 'Write the lab report', allowedActions: ['open' as const] };
+    show([task, coursework]);
+    render(<TodayScreen/>);
+    fireEvent.press(screen.getByRole('tab', { name: 'Filter coursework' }));
+    expect(screen.getByText('Write the lab report')).toBeOnTheScreen();
+    expect(screen.queryByText('Buy groceries')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Filter coursework', selected: true })).toBeOnTheScreen();
+    fireEvent.press(screen.getByRole('tab', { name: 'Filter all' }));
+    expect(screen.getByText('Buy groceries')).toBeOnTheScreen();
+    expect(mutate).not.toHaveBeenCalled();
+  });
+  it('keeps task capture available when the selected category has no work', () => {
+    render(<TodayScreen/>);
+    fireEvent.press(screen.getByRole('tab', { name: 'Filter events' }));
+    expect(screen.getByText('Nothing to do in this category. A little breathing room.')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Add a task to this day' })).toBeEnabled();
+    expect(mutate).not.toHaveBeenCalled();
+  });
   it('keeps Today to four shortcuts; workload, review and study plans live in Week and Coursework', () => {
     render(<TodayScreen/>);
     for (const name of ['Focus space', 'Plan your week', 'Month calendar', 'Coursework']) expect(screen.getByRole('button', { name })).toBeOnTheScreen();

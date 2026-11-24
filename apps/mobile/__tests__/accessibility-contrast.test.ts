@@ -1,4 +1,4 @@
-import { palettes } from '../src/components/ui';
+import { design, palettes } from '../src/components/ui';
 
 // WCAG 2.1 relative luminance and contrast ratio for #RRGGBB colours.
 const luminance = (hex: string) => {
@@ -11,6 +11,12 @@ const contrast = (a: string, b: string) => {
   return (high + 0.05) / (low + 0.05);
 };
 const AA = 4.5;
+
+it.each([
+  ['heroText', 'hero'], ['heroMuted', 'hero'], ['chromeText', 'chrome'], ['chromeMuted', 'chrome'], ['signalInk', 'signal'],
+] as const)('%s text on %s in the focused action palette meets WCAG AA', (text, surface) => {
+  expect(contrast(design[text], design[surface])).toBeGreaterThanOrEqual(AA);
+});
 
 describe.each(Object.entries(palettes))('%s theme contrast (WCAG 2.1 AA)', (_, colors) => {
   const text = ['ink', 'muted', 'moss', 'coral', 'danger', 'blue', 'plum', 'gold'] as const;

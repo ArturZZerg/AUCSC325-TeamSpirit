@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -20,6 +20,7 @@ import { SheetModal } from '@/components/sheet-modal';
 const moodIcons = ['sad-outline', 'cloudy-outline', 'partly-sunny-outline', 'sunny-outline', 'happy-outline'] as const;
 
 export default function WellnessScreen() {
+  const wide = useWindowDimensions().width >= 1000;
   const timeZone = useSessionStore(state => state.session?.user.timeZone ?? 'UTC');
   const { date: today } = useTodayClock(timeZone);
   const goals = useGoals(); const entries = useWellnessJournal(today, today); const action = useAction();
@@ -44,8 +45,8 @@ export default function WellnessScreen() {
     onAction={request => { void run(goal.id, () => action.mutateAsync(request)); }}
     onEdit={() => setEditing(goal)} onReminder={() => setReminding(goal)} onHistory={() => setHistory(goal)} onDelete={() => { setMessage(undefined); setDeleting(goal); }}/>;
 
-  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}>
-    <Text accessibilityRole="header" style={styles.title}>Wellness</Text><Text style={styles.sub}>Small routines that support your week.</Text>
+  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={[styles.content, wide && styles.contentWide]}>
+    <View style={styles.pageHeader}><Text style={styles.eyebrow}>A LITTLE MORE BALANCE</Text><Text accessibilityRole="header" style={styles.title}>Wellness</Text><Text style={styles.sub}>Small routines that support your week.</Text></View>
     {message && !deleting && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
     <View style={styles.checkIn}>
       <View style={styles.checkInIcon}><Ionicons name={checkIn?.mood ? moodIcons[checkIn.mood - 1] : 'leaf-outline'} size={28} color={colors.moss}/></View>
@@ -108,17 +109,19 @@ function GoalHistory({ goal, onClose }: { goal: Goal; onClose(): void }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  title: { fontSize: 30, fontWeight: '800', color: colors.ink }, sub: { color: colors.muted, fontSize: 15, marginTop: -8 },
-  section: { fontSize: 18, fontWeight: '800', color: colors.ink }, subsection: { fontSize: 15, fontWeight: '800', color: colors.muted, marginTop: 6 },
+  pageHeader: { gap: 9, marginBottom: 6 }, eyebrow: { color: colors.moss, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40, gap: 18, width: '100%', maxWidth: 1000, alignSelf: 'center' },
+  contentWide: { paddingHorizontal: 36, paddingTop: 36 },
+  title: { fontSize: 34, fontWeight: '600', letterSpacing: -1.2, color: colors.ink }, sub: { color: colors.muted, fontSize: 14, lineHeight: 22 },
+  section: { fontSize: 18, fontWeight: '600', color: colors.ink }, subsection: { fontSize: 15, fontWeight: '800', color: colors.muted, marginTop: 6 },
   item: { color: colors.ink, fontSize: 16, fontWeight: '700' }, meta: { color: colors.muted },
-  checkIn: { flexDirection: 'row', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.sage },
+  checkIn: { flexDirection: 'row', gap: 16, padding: 22, borderRadius: 16, backgroundColor: colors.sage },
   checkInIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }, checkInBody: { flex: 1, gap: 6 },
-  journal: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.moss, borderRadius: 18, paddingHorizontal: 14, minHeight: 38, marginTop: 2 },
+  journal: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.moss, borderRadius: 11, paddingHorizontal: 16, minHeight: 46, marginTop: 2 },
   journalText: { color: colors.onAccent, fontWeight: '700' },
-  food: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  food: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 22, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 6 },
-  add: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center' },
+  add: { width: 46, height: 46, borderRadius: 12, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center' },
   links: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   empty: { alignItems: 'center', gap: 6, padding: 24, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
