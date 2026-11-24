@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -18,6 +18,7 @@ import { useSessionStore } from '@/store/session';
 const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export default function GymScreen() {
+  const wide = useWindowDimensions().width >= 1000;
   const session = useSessionStore(state => state.session);
   const owner = gymOwner(session), timeZone = session?.user.timeZone ?? 'UTC';
   const { date: today } = useTodayClock(timeZone);
@@ -56,10 +57,10 @@ export default function GymScreen() {
     catch (error) { setMessage(error instanceof Error ? error.message : 'Could not delete the workout. Please try again.'); }
   };
 
-  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}
+  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={[styles.content, wide && styles.contentWide]}
     refreshControl={<RefreshControl refreshing={!!gym.isRefetching} onRefresh={() => { void gym.refetch(); }}/>}>
-    <Text accessibilityRole="header" style={styles.title}>Gym</Text>
-    <Text style={styles.sub}>{program ? 'Train with a plan. Every rep counts.' : 'Pick a program and we will guide every workout.'}</Text>
+    <View style={styles.pageHeader}><Text style={styles.eyebrow}>SHOW UP FOR YOURSELF</Text><Text accessibilityRole="header" style={styles.title}>Gym</Text>
+    <Text style={styles.sub}>{program ? 'Train with a plan. Every rep counts.' : 'Pick a program and we will guide every workout.'}</Text></View>
     <State loading={gym.isLoading} error={gym.error}/>
     {message && !confirm && <Text accessibilityRole="alert" style={styles.error}>{message}</Text>}
     {draft && <Pressable accessibilityRole="button" accessibilityLabel={`Resume ${draft.title}`} onPress={() => router.push('/workout')} style={({ pressed }) => [styles.resume, pressed && styles.pressed]}>
@@ -188,20 +189,22 @@ function Overview({ program, own, programs, enrollment, workouts, today, timeZon
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, paddingBottom: 40, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  title: { fontSize: 30, fontWeight: '800', color: colors.ink }, sub: { color: colors.muted, fontSize: 15, marginTop: -8 },
-  section: { fontSize: 18, fontWeight: '800', color: colors.ink }, item: { color: colors.ink, fontSize: 16, fontWeight: '700' }, meta: { color: colors.muted, lineHeight: 20 },
+  pageHeader: { gap: 9, marginBottom: 6 }, eyebrow: { color: colors.moss, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40, gap: 18, width: '100%', maxWidth: 1000, alignSelf: 'center' },
+  contentWide: { paddingHorizontal: 36, paddingTop: 36 },
+  title: { fontSize: 34, fontWeight: '600', letterSpacing: -1.2, color: colors.ink }, sub: { color: colors.muted, fontSize: 14, lineHeight: 22 },
+  section: { fontSize: 18, fontWeight: '600', color: colors.ink }, item: { color: colors.ink, fontSize: 16, fontWeight: '700' }, meta: { color: colors.muted, lineHeight: 20 },
   kicker: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 }, flex: { flex: 1, gap: 2 }, error: { color: colors.coral }, pressed: { opacity: 0.8 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  intro: { flexDirection: 'row', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.sage },
+  intro: { flexDirection: 'row', gap: 16, padding: 22, borderRadius: 16, backgroundColor: colors.sage },
   resume: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: colors.blue },
   resumeTitle: { color: colors.onAccent, fontWeight: '800', fontSize: 16 }, resumeMeta: { color: colors.onAccent, opacity: 0.9 },
-  hero: { gap: 6, padding: 20, borderRadius: 24, backgroundColor: colors.moss },
+  hero: { gap: 10, padding: 28, borderRadius: 18, backgroundColor: colors.moss },
   heroKicker: { color: colors.onAccent, opacity: 0.85, fontSize: 11, fontWeight: '800', letterSpacing: 0.7 },
-  heroTitle: { color: colors.onAccent, fontSize: 30, fontWeight: '900' }, heroMeta: { color: colors.onAccent, fontWeight: '600' },
+  heroTitle: { color: colors.onAccent, fontSize: 32, fontWeight: '600', letterSpacing: -0.8 }, heroMeta: { color: colors.onAccent, fontWeight: '600' },
   heroList: { color: colors.onAccent, opacity: 0.85, lineHeight: 20 },
-  start: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8, minHeight: 50, borderRadius: 25, backgroundColor: colors.card },
-  startText: { color: colors.moss, fontSize: 17, fontWeight: '800' },
+  start: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8, minHeight: 50, borderRadius: 12, backgroundColor: colors.card },
+  startText: { color: colors.moss, fontSize: 15, fontWeight: '600' },
   other: { color: colors.onAccent, fontWeight: '700', textAlign: 'center', paddingVertical: 8, textDecorationLine: 'underline' },
   dayOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.14)' },
   dayName: { color: colors.onAccent, fontWeight: '800' }, dayMeta: { color: colors.onAccent, opacity: 0.85, fontSize: 13 },

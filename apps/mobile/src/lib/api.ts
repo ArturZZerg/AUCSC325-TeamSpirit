@@ -1,9 +1,12 @@
 import { useSessionStore } from '@/store/session';
+import { localPreviewRequest } from '@/services/local-preview';
 
 const baseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 export class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const session = useSessionStore.getState().session;
+  if (__DEV__ && process.env.EXPO_PUBLIC_LOCAL_PREVIEW === '1' && session?.accessToken === 'local-preview')
+    return JSON.parse(JSON.stringify(await localPreviewRequest(path, init, session))) as T;
   const headers = new Headers({ Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}),
     ...(session ? { Authorization: `Bearer ${session.accessToken}` } : {}) });
   new Headers(init.headers).forEach((value, key) => headers.set(key, value));

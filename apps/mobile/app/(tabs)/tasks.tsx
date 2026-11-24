@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -26,6 +26,7 @@ import { useSessionStore } from '@/store/session';
 import { courseLabel } from '@/features/course-label';
 
 export default function Tasks() {
+  const wide = useWindowDimensions().width >= 1000;
   const tasks = useTasks();
   const academic = useAcademic();
   const courses = useCourses();
@@ -78,9 +79,9 @@ export default function Tasks() {
   const university = academic.data ? upcomingAcademic(academic.data, today, universityLimit) : undefined;
 
   return <Screen safeArea edges={['top', 'left', 'right']}>
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={[styles.content, wide && styles.contentWide]} keyboardShouldPersistTaps="handled">
       <View style={styles.top}>
-        <View style={styles.heading}><Text accessibilityRole="header" style={styles.title}>Tasks</Text>
+        <View style={styles.heading}><Text style={styles.eyebrow}>YOUR WORK, AT A GLANCE</Text><Text accessibilityRole="header" style={styles.title}>Tasks</Text>
           {summary && <Text style={styles.summary}>{tasksSummaryLabel(summary, university?.open)}</Text>}</View>
         <Button title="Add template" tone="plain" disabled={disabled || !session} onPress={() => setAddingTemplate(true)}/>
         <Pressable accessibilityRole="button" accessibilityLabel="Add task" accessibilityState={{ disabled }} disabled={disabled} onPress={() => setEditing(null)}
@@ -155,17 +156,19 @@ export default function Tasks() {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, heading: { flex: 1, gap: 2 },
-  title: { fontSize: 30, color: colors.ink, fontWeight: '800' }, summary: { color: colors.muted, fontSize: 15 },
-  add: { width: 50, height: 50, borderRadius: 25, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  eyebrow: { color: colors.moss, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40, gap: 18, width: '100%', maxWidth: 1000, alignSelf: 'center' },
+  contentWide: { paddingHorizontal: 36, paddingTop: 36 },
+  top: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 6 }, heading: { flex: 1, minWidth: 120, gap: 8 },
+  title: { fontSize: 34, color: colors.ink, fontWeight: '600', letterSpacing: -1.2 }, summary: { color: colors.muted, fontSize: 15 },
+  add: { width: 48, height: 48, borderRadius: 13, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   links: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  group: { gap: 8 }, groupHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  section: { fontSize: 18, fontWeight: '800', color: colors.ink }, overdue: { color: colors.coral },
+  group: { gap: 10 }, groupHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
+  section: { fontSize: 18, fontWeight: '600', color: colors.ink }, overdue: { color: colors.coral },
   count: { color: colors.muted, fontWeight: '700', backgroundColor: colors.sage, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 1, overflow: 'hidden', fontSize: 12 },
   empty: { alignItems: 'center', gap: 6, padding: 24, borderRadius: 18, backgroundColor: colors.sage },
-  academic: { gap: 10, backgroundColor: colors.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: colors.line },
+  academic: { gap: 10, backgroundColor: colors.card, borderRadius: 15, padding: 18, borderWidth: 1, borderColor: colors.line },
   academicIcon: { width: 28, height: 28, borderRadius: 9, backgroundColor: colors.blueSurface, alignItems: 'center', justifyContent: 'center' }, academicBody: { flex: 1, gap: 4 }, chevron: { marginTop: 4 }, academicTop: { flexDirection: 'row', gap: 12 }, academicDetails: { gap: 8, paddingLeft: 40 }, course: { fontWeight: '700' },
   main: { borderColor: colors.goldLine, backgroundColor: colors.goldSurface }, star: { color: colors.gold, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   item: { fontSize: 16, fontWeight: '700', color: colors.ink }, done: { textDecorationLine: 'line-through', color: colors.muted }, meta: { color: colors.muted },

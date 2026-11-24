@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { Temporal } from '@js-temporal/polyfill';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { localDateAt } from '@campusflow/domain';
@@ -19,6 +19,7 @@ export default function CampusScreen() {
   return <CampusContent key={JSON.stringify([session?.user.id, session?.accessToken])} timeZone={session?.user.timeZone ?? 'UTC'}/>;
 }
 function CampusContent({ timeZone }: { timeZone: string }) {
+  const wide = useWindowDimensions().width >= 1000;
   const events = useEvents(); const sources = useCampusSources(); const action = useAction();
   const [filter, setFilter] = useState(''); const [view, setView] = useState<'week' | 'month' | 'saved'>('week');
   const [showSources, setShowSources] = useState(false); const [details, setDetails] = useState<string>();
@@ -46,7 +47,7 @@ function CampusContent({ timeZone }: { timeZone: string }) {
     finally { guard.current = false; setPending(undefined); }
   };
   const refresh = () => { void events.refetch(); void sources.refetch(); };
-  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}
+  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={[styles.content, wide && styles.contentWide]}
     refreshControl={<RefreshControl refreshing={events.isRefetching} onRefresh={refresh}/>}>
     <View style={styles.hero}><Text style={styles.eyebrow}>BEYOND THE DESK</Text><Text style={styles.title}>Campus</Text><Text style={styles.sub}>Make room for something you’ll look forward to.</Text></View>
     <View style={styles.choices}>{([['week', 'Next 7 days'], ['month', 'Next 30 days'], ['saved', 'Saved']] as const).map(([key, label]) =>
@@ -108,22 +109,23 @@ function CampusContent({ timeZone }: { timeZone: string }) {
   </Screen>;
 }
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 14, maxWidth: 760, width: '100%', alignSelf: 'center' }, hero: { gap: 6, paddingTop: 6 },
-  eyebrow: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }, title: { fontSize: 30, fontWeight: '800', color: colors.ink }, sub: { color: colors.muted, fontSize: 15, lineHeight: 22 },
-  choices: { flexDirection: 'row', backgroundColor: colors.sage, borderRadius: 12, padding: 3 },
-  choice: { flex: 1, minHeight: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }, selected: { backgroundColor: colors.card },
-  choiceText: { color: colors.muted, fontWeight: '700', fontSize: 13 }, selectedText: { color: colors.ink },
-  search: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 46, borderRadius: 14, paddingHorizontal: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40, gap: 18, maxWidth: 1000, width: '100%', alignSelf: 'center' },
+  contentWide: { paddingHorizontal: 36, paddingTop: 36 }, hero: { gap: 9, paddingBottom: 8 },
+  eyebrow: { color: colors.moss, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }, title: { fontSize: 34, fontWeight: '600', letterSpacing: -1.2, color: colors.ink }, sub: { color: colors.muted, fontSize: 15, lineHeight: 22 },
+  choices: { flexDirection: 'row', backgroundColor: colors.line, borderRadius: 12, padding: 4 },
+  choice: { flex: 1, minHeight: 46, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 }, selected: { backgroundColor: colors.card },
+  choiceText: { color: colors.muted, fontWeight: '600', fontSize: 13 }, selectedText: { color: colors.ink },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 52, borderRadius: 12, paddingHorizontal: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   input: { flex: 1, minHeight: 44, color: colors.ink, fontSize: 15 },
-  sourcePanel: { borderWidth: 1, borderColor: colors.line, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, gap: 8, backgroundColor: colors.card }, sourceControl: { minHeight: 40, gap: 4 },
+  sourcePanel: { borderWidth: 1, borderColor: colors.line, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14, gap: 8, backgroundColor: colors.card }, sourceControl: { minHeight: 40, gap: 4 },
   sourceTitle: { color: colors.ink, fontWeight: '700' }, sourceItem: { gap: 8, paddingVertical: 8 },
-  result: { color: colors.ink, fontWeight: '700' }, group: { gap: 10 }, day: { color: colors.ink, fontWeight: '800', fontSize: 19, marginTop: 4 },
-  card: { backgroundColor: colors.card, borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: colors.line }, savedCard: { borderColor: colors.coral },
+  result: { color: colors.ink, fontWeight: '700' }, group: { gap: 12 }, day: { color: colors.ink, fontWeight: '600', fontSize: 20, marginTop: 10 },
+  card: { backgroundColor: colors.card, borderRadius: 16, padding: 20, gap: 14, borderWidth: 1, borderColor: colors.line }, savedCard: { borderColor: colors.coral },
   cardTop: { flexDirection: 'row', gap: 14 }, cardBody: { flex: 1, gap: 4 },
   badge: { width: 54, borderRadius: 14, backgroundColor: colors.sage, alignItems: 'center', paddingVertical: 8, alignSelf: 'flex-start' }, badgeSaved: { backgroundColor: colors.coral },
   badgeMonth: { color: colors.moss, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 }, badgeDay: { color: colors.ink, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] }, badgeTextSaved: { color: colors.onAccent },
-  event: { color: colors.ink, fontSize: 17, lineHeight: 23, fontWeight: '800' }, metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  event: { color: colors.ink, fontSize: 18, lineHeight: 25, fontWeight: '600' }, metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   meta: { color: colors.moss, fontWeight: '700', lineHeight: 20 }, detail: { color: colors.muted, lineHeight: 20, flexShrink: 1 }, small: { color: colors.muted, fontSize: 12 },
-  detailsControl: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32, alignSelf: 'flex-start' }, link: { color: colors.moss, fontWeight: '700' },
+  detailsControl: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 46, alignSelf: 'flex-start' }, link: { color: colors.moss, fontWeight: '700' },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, error: { color: colors.coral }, footer: { color: colors.muted, lineHeight: 21, paddingBottom: 16 },
 });

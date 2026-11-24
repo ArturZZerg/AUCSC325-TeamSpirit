@@ -24,23 +24,39 @@
   "design": {
     "colorMode": "light",
     "colors": {
-      "moss": "#42745A",
+      "moss": "#285743",
       "blue": "#3C6488",
-      "coral": "#C76750",
+      "coral": "#A4513C",
       "danger": "#A64B36",
       "plum": "#765580",
-      "line": "#DCE4DD",
-      "ink": "#20302A",
-      "canvas": "#F6F8F4",
+      "line": "#E5E9E2",
+      "ink": "#202D27",
+      "canvas": "#F7F8F5",
       "card": "#FFFFFF",
-      "muted": "#63746C",
-      "sage": "#DDECE2"
+      "muted": "#626C64",
+      "sage": "#EAF0E9",
+      "chrome": "#122B24",
+      "signal": "#CBF59A",
+      "signalInk": "#183126",
+      "hero": "#142E26"
     },
-    "typography": {},
+    "typography": {
+      "family": "Avenir Next, Segoe UI, system sans-serif",
+      "headingWeight": 600,
+      "bodyWeight": 400
+    },
     "spacing": {},
-    "radius": {},
+    "radius": {
+      "card": 20,
+      "button": 12
+    },
     "shadows": {},
-    "motion": {},
+    "motion": {
+      "press": "small spring",
+      "hover": "1.5px lift",
+      "progress": "620ms on change",
+      "reducedMotion": "system preference, no transforms or progress animation"
+    },
     "density": "comfortable"
   },
   "components": {
@@ -60,7 +76,7 @@
   },
   "constraints": {
     "must": [
-      "Preserve five-tab navigation",
+      "Preserve six-tab navigation on phones; use a sidebar on desktop web",
       "Show loading, unavailable, empty and stale states",
       "Use account-scoped cached reads",
       "Use existing moss and sage tokens",

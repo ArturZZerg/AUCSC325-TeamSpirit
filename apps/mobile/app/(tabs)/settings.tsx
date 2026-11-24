@@ -1,6 +1,6 @@
 import { useRef, useState, type ComponentProps, type PropsWithChildren } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Screen, State, colors } from '@/components/ui';
 import { useAction, useCanvasStatus, usePreferences, useReminders } from '@/features/queries';
@@ -19,6 +19,7 @@ const categories = [
 ] as const;
 
 export default function SettingsScreen() {
+  const wide = useWindowDimensions().width >= 1000;
   const router = useRouter();
   const session = useSessionStore(state => state.session);
   const signOut = useSessionStore(state => state.signOut);
@@ -58,8 +59,8 @@ export default function SettingsScreen() {
     ? `Connected to ${canvas.data.baseUrl?.replace(/^https:\/\//, '') ?? 'Canvas'}${canvas.data.lastSuccessfulSyncAt ? ` · Synced ${syncedLabel(canvas.data.lastSuccessfulSyncAt, session?.user.timeZone ?? 'UTC')}` : ''}`
     : 'Import your courses and assignments with a Canvas access token';
 
-  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={styles.content}>
-    <Text accessibilityRole="header" style={styles.title}>Settings</Text>
+  return <Screen safeArea edges={['top', 'left', 'right']}><ScrollView contentContainerStyle={[styles.content, wide && styles.contentWide]}>
+    <View style={styles.pageHeader}><Text style={styles.eyebrow}>MAKE YOURSELF AT HOME</Text><Text accessibilityRole="header" style={styles.title}>Settings</Text><Text style={styles.subtitle}>The little details that make CampusFlow yours.</Text></View>
     <View style={styles.profile}>
       <View style={styles.avatar}><Text style={styles.initials}>{initials}</Text></View>
       <View style={styles.profileText}>
@@ -143,21 +144,23 @@ function Row({ icon, tint, title, label, detail, action, disabled, onPress }: {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 14, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  title: { fontSize: 30, fontWeight: '800', color: colors.ink },
-  profile: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  pageHeader: { gap: 9, marginBottom: 6 }, subtitle: { color: colors.muted, fontSize: 14, lineHeight: 22 }, eyebrow: { color: colors.moss, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
+  content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40, gap: 20, width: '100%', maxWidth: 1000, alignSelf: 'center' },
+  contentWide: { paddingHorizontal: 36, paddingTop: 36 },
+  title: { fontSize: 34, fontWeight: '600', letterSpacing: -1.2, color: colors.ink },
+  profile: { flexDirection: 'row', alignItems: 'center', gap: 18, padding: 24, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   avatar: { width: 58, height: 58, borderRadius: 29, backgroundColor: colors.moss, alignItems: 'center', justifyContent: 'center' },
-  initials: { color: colors.onAccent, fontSize: 22, fontWeight: '800' }, profileText: { flex: 1, gap: 2 },
-  name: { color: colors.ink, fontSize: 19, fontWeight: '800' },
+  initials: { color: colors.onAccent, fontSize: 22, fontWeight: '600' }, profileText: { flex: 1, gap: 2 },
+  name: { color: colors.ink, fontSize: 20, fontWeight: '600' },
   zone: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: colors.sage },
-  zoneText: { color: colors.moss, fontSize: 12, fontWeight: '700' },
-  groupWrap: { gap: 6 }, groupTitle: { color: colors.muted, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginLeft: 6 },
-  group: { borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
-  icon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  zoneText: { color: colors.moss, fontSize: 12, fontWeight: '600', flexShrink: 1 },
+  groupWrap: { gap: 10, marginTop: 8 }, groupTitle: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginLeft: 2 },
+  group: { borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 18, minHeight: 68, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  icon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   rowText: { flex: 1, gap: 2 },
   rowTitle: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '600' },
-  action: { color: colors.moss, fontWeight: '700' }, muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  action: { color: colors.moss, fontWeight: '600', fontSize: 12, maxWidth: '42%', flexShrink: 1, textAlign: 'right' }, muted: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   track: { width: 46, height: 28, borderRadius: 14, backgroundColor: colors.line, padding: 3 }, trackOn: { backgroundColor: colors.moss },
   knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' }, knobOn: { transform: [{ translateX: 18 }] },
   signOut: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 50, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
