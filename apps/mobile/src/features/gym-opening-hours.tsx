@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { gymOpeningHoursSchema, type GymOpeningDay, type GymOpeningHours } from '@campusflow/contracts';
+import type { GymOpeningDay, GymOpeningHours } from '@campusflow/contracts';
 import { Button, Card, Field, colors } from '@/components/ui';
+import { gymClosesNextDay, newGymHours, validateGymHours } from './gym-opening-hours-form';
+import { GymTimePicker } from './gym-time-picker';
 
 const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 export function gymOpeningDayLabel(day: GymOpeningDay) {
   return day.kind === 'closed' ? 'Closed' : day.kind === 'unknown' ? 'Hours not set'
-    : `${day.opens}–${day.closes}${day.closes < day.opens ? ' (next day)' : ''}`;
+    : `${day.opens}–${day.closes}${gymClosesNextDay(day.opens, day.closes) ? ' (next day)' : ''}`;
 }
 
 export function GymOpeningHoursCard({ hours, timeZone, onSave }: {
@@ -19,18 +21,22 @@ export function GymOpeningHoursCard({ hours, timeZone, onSave }: {
   const [confirmed, setConfirmed] = useState<{ source: typeof hours; value: GymOpeningHours | null }>();
   const displayed = confirmed && confirmed.source === hours ? confirmed.value : hours;
   const [pending, setPending] = useState(false), [message, setMessage] = useState<string>();
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const edit = () => {
-    setMessage(undefined);
-    setDraft(displayed ?? { timeZone, days: dayNames.map(() => ({ kind: 'unknown' })) });
+    setMessage(undefined); setErrors({});
+    setDraft(displayed ?? newGymHours(timeZone));
   };
-  const changeDay = (index: number, day: GymOpeningDay) => setDraft(value => value && ({ ...value, days: value.days.map((old, i) => i === index ? day : old) }));
+  const changeDay = (index: number, day: GymOpeningDay) => {
+    setErrors(old => Object.fromEntries(Object.entries(old).filter(([key]) => !key.startsWith(`days.${index}.`))));
+    setDraft(value => value && ({ ...value, days: value.days.map((old, i) => i === index ? day : old) }));
+  };
   const save = async (value: GymOpeningHours | null) => {
     if (pending) return;
-    setMessage(undefined);
+    setMessage(undefined); setErrors({});
     if (value) {
-      const parsed = gymOpeningHoursSchema.safeParse(value);
-      if (!parsed.success) { setMessage('Check the timezone and use distinct opening/closing times in HH:mm format.'); return; }
-      value = parsed.data;
+      const parsed = validateGymHours(value);
+      if (!parsed.success) { setErrors(parsed.errors); return; }
+      value = parsed.data; setDraft(value);
     }
     setPending(true);
     try { await onSave(value); setConfirmed({ source: hours, value }); setDraft(undefined); }
@@ -45,8 +51,9 @@ export function GymOpeningHoursCard({ hours, timeZone, onSave }: {
         : <Text style={styles.meta}>Gym hours haven’t been set.</Text>}
       <Button title={displayed ? 'Edit gym hours' : 'Set gym hours'} tone="plain" onPress={edit}/>
     </> : <>
-      <Text style={styles.meta}>Set each day separately. Closing before opening means the next day. Closed days have no new opening; an overnight opening from the previous day can continue.</Text>
-      <Field label="Gym timezone" value={draft.timeZone} editable={!pending} onChangeText={value => setDraft({ ...draft, timeZone: value })}/>
+      <Text style={styles.meta}>Type a time (7:00, 7 AM or 7:30pm) or use the time picker. Closing before opening means the next day. Closed days have no new opening; an overnight opening from the previous day can continue.</Text>
+      <Field label="Gym timezone" value={draft.timeZone} editable={!pending} onChangeText={value => { setErrors(old => ({ ...old, timeZone: '' })); setDraft({ ...draft, timeZone: value }); }}/>
+      {errors.timeZone && <Text accessibilityRole="alert" style={styles.error}>Gym timezone: {errors.timeZone}</Text>}
       {draft.days.map((day, index) => <View key={dayNames[index]} style={styles.day}>
         <Text style={styles.title}>{dayNames[index]}</Text>
         <View style={styles.options}>{(['unknown', 'closed', 'open'] as const).map(kind => <Pressable key={kind} accessibilityRole="radio"
@@ -54,9 +61,13 @@ export function GymOpeningHoursCard({ hours, timeZone, onSave }: {
           onPress={() => { if (day.kind !== kind) changeDay(index, kind === 'open' ? { kind, opens: '09:00', closes: '17:00' } : { kind }); }}
           style={[styles.option, day.kind === kind && styles.selected]}><Text style={styles.meta}>{kind === 'unknown' ? 'Not set' : kind === 'closed' ? 'Closed' : 'Open'}</Text></Pressable>)}</View>
         {day.kind === 'open' && <>
-          <Field label={`${dayNames[index]} opens`} value={day.opens} placeholder="09:00" editable={!pending} onChangeText={opens => changeDay(index, { ...day, opens })}/>
-          <Field label={`${dayNames[index]} closes`} value={day.closes} placeholder="17:00" editable={!pending} onChangeText={closes => changeDay(index, { ...day, closes })}/>
-          {day.closes < day.opens && <Text style={styles.meta}>Closes the next day.</Text>}
+          <Field label={`${dayNames[index]} opens`} value={day.opens} placeholder="09:00" editable={!pending} autoCapitalize="none" autoCorrect={false} onChangeText={opens => changeDay(index, { ...day, opens })}
+            accessory={<GymTimePicker label={`${dayNames[index]} opens`} value={day.opens} disabled={pending} onChange={opens => changeDay(index, { ...day, opens })}/>}/>
+          {errors[`days.${index}.opens`] && <Text accessibilityRole="alert" style={styles.error}>{dayNames[index]} opening time: {errors[`days.${index}.opens`]}</Text>}
+          <Field label={`${dayNames[index]} closes`} value={day.closes} placeholder="17:00" editable={!pending} autoCapitalize="none" autoCorrect={false} onChangeText={closes => changeDay(index, { ...day, closes })}
+            accessory={<GymTimePicker label={`${dayNames[index]} closes`} value={day.closes} disabled={pending} onChange={closes => changeDay(index, { ...day, closes })}/>}/>
+          {errors[`days.${index}.closes`] && <Text accessibilityRole="alert" style={styles.error}>{dayNames[index]} closing time: {errors[`days.${index}.closes`]}</Text>}
+          {gymClosesNextDay(day.opens, day.closes) && <Text style={styles.meta}>Closes the next day.</Text>}
         </>}
       </View>)}
       <Button title={pending ? 'Saving…' : 'Save gym hours'} disabled={pending} onPress={() => { void save(draft); }}/>
