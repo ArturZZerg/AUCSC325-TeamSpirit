@@ -30,8 +30,10 @@ databaseSuite('explicit goal reminder lifecycle with PostgreSQL (ToR 3.4, 13, 19
     await patch(id, { reminder: next }).expect(200); const replaced = await rows(id); expect(replaced).toHaveLength(1); expect(replaced[0].fireAt).toBe('2030-03-09T18:00:00.000Z');
     await patch(id, { reminder: null }).expect(200); expect(await rows(id)).toEqual([]); expect((await db.goal.findUniqueOrThrow({ where: { id } })).reminder).toBeNull();
   });
-  it('preserves date-only configuration without inventing a delivery instant', async () => {
-    const id = await create({ reminder: { kind: 'date', date: '2030-03-08' } }); expect(await rows(id)).toEqual([]);
+  it('reads legacy date-only configuration without inventing a delivery instant', async () => {
+    const id = await create({ reminder: null });
+    await db.goal.update({ where: { id }, data: { reminder: { kind: 'date', date: '2030-03-08' } } });
+    await patch(id, { title: 'Legacy ordinary edit' }).expect(200); expect(await rows(id)).toEqual([]);
     expect((await db.goal.findUniqueOrThrow({ where: { id } })).reminder).toEqual({ kind: 'date', date: '2030-03-08' });
   });
   it('keeps paused edits inactive, restores the latest configuration once, and cleans legacy intent on repeated pause', async () => {

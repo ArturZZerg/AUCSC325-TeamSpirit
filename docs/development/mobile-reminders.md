@@ -4,6 +4,31 @@ This slice supports ToR 13 and account isolation in ToR 19. The API owns reminde
 intent. A mobile service compares that intent with Expo's scheduled notifications;
 screens call the service without calculating fire times.
 
+## Explicit task and goal reminder input
+
+Task and goal POST/PATCH requests accept an explicit UTC reminder such as
+`{ "reminder": { "kind": "instant", "at": "2030-03-10T09:00:00Z" } }`.
+Omitting `reminder` preserves configuration on PATCH; `reminder: null` clears it.
+A date-only reminder (`kind: "date"`) receives HTTP 400 before any entity or
+delivery intent is written. The product has no date-only delivery-time policy,
+so the API requires the student's chosen time instead of inventing one. Date-only
+task deadlines and schedules remain supported and are independent of reminders.
+
+Existing date-only reminder configuration remains readable through task/goal
+responses and offline snapshots. Ordinary edits can omit it; students can clear
+it or replace it with an explicit instant. The mobile reminder editors already
+ask for a delivery time for these legacy values. They convert the account zone
+(tasks) or goal zone to UTC, rejecting missing/repeated DST wall times, while
+retaining an unchanged existing instant exactly. No database/cache migration or
+new reminder time is introduced. Saved-event reminder contracts are unchanged.
+
+`explicit-reminder-input.test.ts` covers write validation and legacy offline
+snapshots. PostgreSQL `date-only-reminders.spec.ts` covers rejection, atomic PATCH
+failure, omission/null, legacy reads and repair, and precise UTC delivery across
+midnight and DST boundaries. Existing task/goal editor tests cover local input.
+
+## Reconciliation and preferences
+
 Stable identities contain the account and reminder ID. Each notification retains
 its effective UTC fire time, so a changed time replaces the existing schedule.
 Deletion, expiry, category disablement, and denied device permission cancel owned
@@ -71,7 +96,7 @@ configuration does not invent a fire time; provider records are not mutated.
 Task/goal snooze now postpones existing enabled explicit intent in the same
 transaction as snoozedUntil. It retains intent identity, never advances a later
 delivery, and preserves reminder configuration. Missing/disabled intent is not
-reactivated; absent/date-only configuration and completed/paused targets clear
+reactivated; absent/legacy date-only configuration and completed/paused targets clear
 legacy stale intent. Reminder edits and undo/resume respect the current snooze
 as a lower bound, without changing the chosen configuration time. The shared
 domain rule compares UTC instants; mobile applies account quiet hours afterward.
@@ -90,7 +115,7 @@ The [Android native reports](../requirements/android-native-reminders-2026-10-04
 record Pixel 10 Pro XL permission, delivery and lifecycle observations, including
 the need to restart a stale API before acceptance. Remaining native scenarios and
 iOS still require evidence. This service reconciles existing API intent; adding
-date-only/recurring reminder intent
+date-only delivery policy/recurring reminder intent
 and reliable remote deadline
 updates remain separate tasks. No push delivery service is introduced.
 

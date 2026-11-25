@@ -20,6 +20,9 @@ export const scheduleSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('date'), date: dateSchema }),
   z.object({ kind: z.literal('instant'), at: instantSchema }),
 ]);
+// New explicit reminder intent needs a delivery instant. Read schemas retain
+// date-only legacy configuration so existing records and offline caches work.
+const explicitReminderInputSchema = z.object({ kind: z.literal('instant'), at: instantSchema });
 export const dueSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('date'), date: dateSchema }),
   z.object({ kind: z.literal('instant'), at: instantSchema }),
@@ -52,7 +55,7 @@ export const createChecklistItemSchema = z.object({ id: idSchema, title: z.strin
 export const updateChecklistItemSchema = z.object({ title: z.string().trim().min(1, 'Enter a step.').max(240).optional(), done: z.boolean().optional() }).strict()
   .refine(value => value.title !== undefined || value.done !== undefined, 'Provide a step change.');
 export const personalTaskSchema = z.object({ id: idSchema, studyPlanId: idSchema.nullable().optional(), title: z.string().min(1).max(240), description: z.string().max(10_000).nullable(), priority: prioritySchema, category: categorySchema, due: dueSchema.nullable(), scheduled: scheduleSchema.nullable(), recurrence: recurrenceSchema.nullable(), reminder: scheduleSchema.nullable(), estimatedMinutes: z.number().int().positive().max(1440).nullable(), completedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), mainGoalDate: dateSchema.nullable(), checklist: z.array(checklistItemSchema).max(checklistLimit).optional(), courseId: idSchema.nullable().optional(), createdAt: instantSchema, updatedAt: instantSchema });
-export const createPersonalTaskSchema = personalTaskSchema.pick({ title: true, description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, courseId: true }).partial({ description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, courseId: true });
+export const createPersonalTaskSchema = personalTaskSchema.pick({ title: true, description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, courseId: true }).extend({ reminder: explicitReminderInputSchema.nullable() }).partial({ description: true, priority: true, category: true, due: true, scheduled: true, recurrence: true, reminder: true, estimatedMinutes: true, courseId: true });
 /** Initial steps and optional retry identity; checklist edits still use item endpoints. */
 export const createPersonalTaskRequestSchema = createPersonalTaskSchema.extend({
   checklist: z.array(createChecklistItemSchema).max(checklistLimit).optional(),
@@ -171,7 +174,7 @@ export const updateManualAcademicItemSchema = createManualAcademicItemSchema.par
 
 export const goalScheduleSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('daily') }), z.object({ kind: z.literal('weekly'), weekdays: z.array(z.number().int().min(1).max(7)).min(1) }), z.object({ kind: z.literal('weeklyTarget'), target: z.number().int().positive().max(7) })]);
 export const goalSchema = z.object({ id: idSchema, title: z.string().min(1).max(240), category: categorySchema, schedule: goalScheduleSchema, timeZone: timeZoneSchema, reminder: scheduleSchema.nullable(), pausedAt: instantSchema.nullable(), snoozedUntil: instantSchema.nullable(), createdAt: instantSchema, updatedAt: instantSchema });
-export const createGoalSchema = goalSchema.pick({ title: true, category: true, schedule: true, timeZone: true, reminder: true }).partial({ category: true, reminder: true });
+export const createGoalSchema = goalSchema.pick({ title: true, category: true, schedule: true, timeZone: true, reminder: true }).extend({ reminder: explicitReminderInputSchema.nullable() }).partial({ category: true, reminder: true });
 export const updateGoalSchema = createGoalSchema.partial();
 export const goalCompletionSchema = z.object({ id: idSchema, goalId: idSchema, occurrenceKey: dateSchema, state: z.enum(['completed', 'skipped']), completedAt: instantSchema.nullable(), createdAt: instantSchema });
 export const completeGoalSchema = z.object({ occurrenceKey: dateSchema, state: z.enum(['completed', 'skipped']) }).strict();
