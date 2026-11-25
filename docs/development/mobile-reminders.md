@@ -27,7 +27,16 @@ both on app resume, and reruns reconciliation after changed reads or successful
 mutations. Settings offers all four category toggles, explicit device permission,
 and a retry button. Quiet-hour editing displays the account timezone, accepts
 same-day and overnight intervals in 24-hour HH:MM format, and requires both bounds
-or neither. Equal bounds are rejected by the editor to avoid ambiguous intent;
+or neither. The stored/read contract rejects incomplete pairs, including cached
+preferences. A PATCH must omit both quiet-hour fields, supply both HH:MM values,
+or explicitly clear both with null; single-bound edits return 400 before writing
+any preference changes. Category-only patches remain supported. The existing
+mobile editor already sends pairs. Migration `20261124000000_quiet_hours_pairs`
+clears legacy incomplete pairs to null/null, preserving their previous disabled
+behavior; valid pairs and category preferences are unchanged. Old incomplete
+SQLite preferences are withheld until a successful refresh replaces them, so
+offline reconciliation does not treat invalid preferences as confirmed settings.
+Equal bounds are rejected by the editor to avoid ambiguous intent;
 previously saved equal bounds still mean disabled. Disable clears both fields in
 the draft; Save submits explicit nulls without changing category preferences.
 Validation and failed writes retain input; pending writes block repeat saves and
@@ -35,6 +44,12 @@ dismissal. Successful saves refresh the existing preference/reminder lifecycle.
 An offline permission grant may reuse validated saved data;
 missing preferences are not replaced with invented defaults. Errors and pending
 controls do not claim a preference write succeeded.
+
+`notification-preferences.test.ts` and PostgreSQL `notification-preferences-db.spec.ts`
+cover paired writes, rejection without partial persistence, category-only patches
+and legacy cleanup. `preferences-cache.test.tsx` verifies valid offline preferences
+remain usable and incomplete cached pairs are withheld; domain quiet-hour tests
+retain midnight and spring/fall DST boundary coverage.
 
 ## Evidence and remaining gates
 

@@ -25,7 +25,7 @@ export const accountExportSchema = z.object({
   nutritionProfile: nutritionProfileSchema.nullable(), userFoods: saveUserFoodSchema.extend({ id: foodIdSchema }).strict().array(), foodEntries: foodEntrySchema.array(),
   goals: goalSchema.strict().array(), goalCompletions: goalCompletionSchema.strict().array(), wellnessEntries: wellnessEntrySchema.strict().array(),
   privateEvents: eventSchema.strict().array(), savedEvents: savedEventSchema.extend({ event: eventSchema.strict() }).strict().array(),
-  reminders: reminderSchema.strict().array(), notificationPreferences: notificationPreferencesSchema.strict().nullable(),
+  reminders: reminderSchema.strict().array(), notificationPreferences: notificationPreferencesSchema.innerType().strict().pipe(notificationPreferencesSchema).nullable(),
   canvasConnection: z.object({ baseUrl: z.string().url(), externalAccountId: z.string().nullable(),
     lastSuccessfulSyncAt: instantSchema.nullable(), lastSyncAttemptAt: instantSchema.nullable(),
     coveredFrom: dateSchema.nullable(), coveredThrough: dateSchema.nullable(),

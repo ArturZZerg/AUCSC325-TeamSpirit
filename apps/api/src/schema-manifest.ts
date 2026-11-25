@@ -538,6 +538,13 @@ export const requiredSchema = {
       "475cc0528feac8449122aa3acde72ef3d3c34389af92ceeb095f1304ac89c7a7",
       "d0ba764c6daf416d05e3a79ed65fe7a4900bda9a35b7207e44428024385c3dbc"
     ]
+  },
+  {
+    "name": "20261124000000_quiet_hours_pairs",
+    "checksums": [
+      "48500bd93a9c0e9496d340aa0fb80d2fe2c03df1470a679953ea346e0548a9f8",
+      "357f698989d48397f8cba8b1f1b03e42aa07a7874f3f7ced6f79a9962d6017a4"
+    ]
   }
 ],
 } as const;
