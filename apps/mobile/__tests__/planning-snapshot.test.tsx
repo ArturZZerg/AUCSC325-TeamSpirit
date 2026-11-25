@@ -70,3 +70,42 @@ describe('Planner snapshot lifecycle', () => {
     await waitFor(() => expect(jest.mocked(api).mock.calls.length).toBeGreaterThan(before));
   });
 });
+
+describe('shared planning snapshot Canvas freshness (#189)', () => {
+  it.each(['cache', 'server'] as const)('ages old available metadata from %s while preserving the complete snapshot', async source => {
+    const snapshot = snapshotFixture();
+    snapshot.capturedAt = '2025-03-09T17:00:00Z';
+    snapshot.sourceStatus = { ...snapshot.sourceStatus, availability: 'available', lastSuccessfulSyncAt: '2025-03-09T16:30:00Z' };
+    const before = JSON.stringify(snapshot);
+    jest.mocked(readCache).mockResolvedValue(source === 'cache' ? snapshot : undefined);
+    if (source === 'server') jest.mocked(api).mockResolvedValue(snapshot);
+    const { result } = renderHook(() => usePlanningSnapshot('2025-03-09'), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data?.capturedAt).toBe(snapshot.capturedAt));
+    expect(result.current.data).toEqual({ ...snapshot, sourceStatus: { ...snapshot.sourceStatus, availability: 'stale' } });
+    expect(JSON.stringify(snapshot)).toBe(before);
+    if (source === 'cache') expect(writeCache).not.toHaveBeenCalled();
+    else expect(writeCache).toHaveBeenCalledWith(accountId, 'snapshot', snapshot);
+  });
+
+  it.each(['stale', 'unavailable', 'notConnected'] as const)('preserves cached %s metadata even with a recent successful timestamp', async availability => {
+    const snapshot = snapshotFixture();
+    snapshot.sourceStatus = { ...snapshot.sourceStatus, availability, lastSuccessfulSyncAt: '2025-03-09T18:00:00Z' };
+    jest.mocked(readCache).mockResolvedValue(snapshot);
+    const { result } = renderHook(() => usePlanningSnapshot('2025-03-09'), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data).toEqual(snapshot));
+  });
+
+  it('reevaluates cached available metadata on resume when the refresh fails', async () => {
+    let onChange!: (state: AppStateStatus) => void;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => { onChange = listener; return { remove: jest.fn() }; });
+    const snapshot = snapshotFixture();
+    snapshot.sourceStatus = { ...snapshot.sourceStatus, availability: 'available', lastSuccessfulSyncAt: '2025-03-09T16:31:00Z' };
+    jest.mocked(readCache).mockResolvedValue(snapshot);
+    const { result } = renderHook(() => usePlanningSnapshot('2025-03-09'), { wrapper: Wrapper });
+    await waitFor(() => expect(result.current.data?.sourceStatus.availability).toBe('available'));
+    jest.setSystemTime(new Date('2025-03-09T18:01:00Z'));
+    await act(async () => { onChange('background'); onChange('active'); });
+    expect(result.current.data).toEqual({ ...snapshot, sourceStatus: { ...snapshot.sourceStatus, availability: 'stale' } });
+    expect(writeCache).not.toHaveBeenCalled();
+  });
+});

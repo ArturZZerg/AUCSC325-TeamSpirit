@@ -34,8 +34,9 @@ cutoff. Exactly 90 minutes, a missing success, or a success ahead of the current
 clock cannot report `available`. A recorded refresh failure remains `unavailable`;
 an absent connection remains `notConnected`. Reads keep saved coursework and
 coverage and never contact Canvas or modify the saved successful-sync time.
-Mobile applies the same age rule to cached snapshots and Today responses on
-read, rerender and resume, and Today displays a stale-data notice. This does not
+Mobile applies the same age rule to cached Today responses and shared snapshots
+used by Today, Planner, Coursework and reviews on read, rerender and resume;
+Today displays a stale-data notice. This does not
 add a continuous foreground freshness timer or change the response shape.
 
 The private-address check runs again on every connection the API opens to the

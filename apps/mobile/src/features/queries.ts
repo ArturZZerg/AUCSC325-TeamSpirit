@@ -199,7 +199,9 @@ export function usePlanningSnapshot(date: string) {
     lastResume.current = resumeCount;
     if (session) void query.refetch({ cancelRefetch: false });
   }, [resumeCount, query.refetch, session]);
-  return { ...query, data, timeZone, accountId: session?.user.id };
+  return { ...query, data: data ? { ...data,
+    sourceStatus: { ...data.sourceStatus, availability: sourceAvailabilityAt(data.sourceStatus, new Date().toISOString()) },
+  } : undefined, timeZone, accountId: session?.user.id };
 }
 export const useGoals = () => cachedQuery<Goal[]>('goals', '/goals', schemas.goals);
 export function useGoalHistory(goalId: string) {
