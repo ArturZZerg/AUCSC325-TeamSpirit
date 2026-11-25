@@ -27,6 +27,17 @@ the planner) was read in full; a partial read never deletes anything (ADR 025).
 `CanvasSyncWorker` re-syncs each connection about every 30 minutes (6 hours
 after a failure), so new assignments appear without a manual sync. See
 [ADR 019](../adr/019-canvas-personal-access-tokens.md) for the safeguards.
+`GET /today` and `GET /snapshot` report Canvas as `stale` once the last
+successful sync is **90 minutes old**, allowing three normal sync intervals.
+Age is elapsed UTC time, so DST and the requested plan date do not change the
+cutoff. Exactly 90 minutes, a missing success, or a success ahead of the current
+clock cannot report `available`. A recorded refresh failure remains `unavailable`;
+an absent connection remains `notConnected`. Reads keep saved coursework and
+coverage and never contact Canvas or modify the saved successful-sync time.
+Mobile applies the same age rule to cached snapshots and Today responses on
+read, rerender and resume, and Today displays a stale-data notice. This does not
+add a continuous foreground freshness timer or change the response shape.
+
 The private-address check runs again on every connection the API opens to the
 Canvas host (`canvas-network.ts`), so a DNS answer that changes after the
 first check (DNS rebinding) cannot reach internal addresses. 6to4 and Teredo

@@ -161,6 +161,7 @@ export default function TodayScreen() {
     </View>
 
     {query.data?.sourceStatus.availability === 'unavailable' && <Text style={styles.offline}>Source refresh is unavailable. These are your last saved items.</Text>}
+    {query.data?.sourceStatus.availability === 'stale' && <Text style={styles.offline}>Canvas information may be out of date. These are your last saved items.</Text>}
     <FocusRecoveryCard/>
     <State loading={query.isLoading} error={query.error}/>
 

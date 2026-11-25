@@ -1,4 +1,4 @@
-import { composeToday, type TodayInput } from '@campusflow/domain';
+import { composeToday, sourceAvailabilityAt, type TodayInput } from '@campusflow/domain';
 import { dateSchema, manualAcademicSource, offlineSnapshotSchema, todayResponseSchema, type OfflineSnapshot, type TodayResponse } from '@campusflow/contracts';
 
 /** Wire/domain mapping belongs to the consuming app, not either shared package. */
@@ -41,7 +41,7 @@ export function composeOfflineToday(value: unknown, accountId: string, timeZone:
         ? ['complete', 'skip', 'snooze', 'open'] : ['open'],
   });
   return todayResponseSchema.parse({ date, timeZone, generatedAt: snapshot.capturedAt,
-    sourceStatus: snapshot.sourceStatus, items: plan.items.map(itemDto), upcoming: plan.upcoming.map(itemDto),
+    sourceStatus: { ...snapshot.sourceStatus, availability: sourceAvailabilityAt(snapshot.sourceStatus, now) }, items: plan.items.map(itemDto), upcoming: plan.upcoming.map(itemDto),
     campusEvents: plan.campusEvents.map(event => events.get(event.id)),
   });
 }

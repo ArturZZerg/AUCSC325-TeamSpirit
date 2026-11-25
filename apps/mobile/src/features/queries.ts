@@ -3,7 +3,7 @@ import { CancelledError, useQuery, useMutation, useQueryClient } from '@tanstack
 import { academicItemSchema, academicReminderConfigurationSchema, campusEventSchema, canvasConnectionStatusSchema, completePersonalTaskSchema, courseSchema, goalCompletionSchema, goalSchema, notificationPreferencesSchema, offlineSnapshotSchema, personalTaskSchema, reminderSchema, todayResponseSchema, wellnessEntrySchema } from '@campusflow/contracts';
 import { z } from 'zod';
 import { taskTemplateSchema } from '@campusflow/contracts';
-import { goalOccurrenceDate } from '@campusflow/domain';
+import { goalOccurrenceDate, sourceAvailabilityAt } from '@campusflow/domain';
 import { classScheduleSchema } from '@campusflow/contracts';
 import { studyPlanSchema } from '@campusflow/contracts';
 import { focusHistorySchema } from '@campusflow/contracts';
@@ -132,6 +132,7 @@ export function useToday(selectedDate?: string) {
     const [today] = await Promise.all([query.refetch(options), snapshot.refetch(options)]);
     return today;
   };
+  if (data) data = { ...data, sourceStatus: { ...data.sourceStatus, availability: sourceAvailabilityAt(data.sourceStatus, now) } };
   return { ...query, data, refetch, isRefetching: query.isRefetching || snapshot.isRefetching,
     isLoading: query.isLoading && data === undefined, date, timeZone };
 }

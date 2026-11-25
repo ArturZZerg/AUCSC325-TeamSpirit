@@ -57,3 +57,12 @@ missing, corrupt, foreign-account, wrong-timezone, or uncovered data cannot conf
 an empty plan. A fresh Today response wins over late disk data; cached fallbacks
 use the newer capture time. Reminder preferences/rescheduling are covered by
 [the reminder slice](mobile-reminders.md). iOS acceptance remains outstanding.
+
+Canvas freshness is reevaluated when composing an offline plan and after choosing
+between a Today response and a snapshot. A cached `available` source becomes
+`stale` at 90 elapsed minutes since its last successful sync; device time never
+upgrades `stale`, `unavailable`, or `notConnected`. The saved capture timestamp,
+source coverage, and plan records stay intact. The rule runs on read, rerender
+and app resume, without a dedicated foreground timer. `offline-today.test.ts`,
+`today-clock.test.tsx`, and `today.test.tsx` cover cached age, final response
+selection without a snapshot, and the visible stale notice (#189).

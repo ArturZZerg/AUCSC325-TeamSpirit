@@ -313,3 +313,13 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     expect(mutate).not.toHaveBeenCalled();
   });
 });
+
+it('warns when Canvas data has aged while retaining saved work (#189)', () => {
+  const data = plan([task]);
+  data.sourceStatus = { availability: 'stale', lastSuccessfulSyncAt: '2026-09-03T12:00:00Z', coveredFrom: null, coveredThrough: null };
+  show([task], { data });
+  render(<TodayScreen/>);
+  expect(screen.getByText('Buy groceries')).toBeOnTheScreen();
+  expect(screen.getByText('Canvas information may be out of date. These are your last saved items.')).toBeOnTheScreen();
+  expect(mutate).not.toHaveBeenCalled();
+});

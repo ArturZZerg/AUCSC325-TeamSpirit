@@ -1,6 +1,6 @@
 import { Controller, Get, Injectable, Query, UseGuards } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { addCalendarDays, composeToday, localDateAt, type TodayInput } from '@campusflow/domain';
+import { addCalendarDays, composeToday, localDateAt, sourceAvailabilityAt, type TodayInput } from '@campusflow/domain';
 import { manualAcademicSource, offlineSnapshotSchema, todayQuerySchema, todayResponseSchema, type OfflineSnapshot } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, toIso } from './common';
 import { PrismaService } from './prisma.service';
@@ -69,7 +69,7 @@ export class TodayService {
         tx.savedEvent.findMany({ where: { userId: user.id, event: visibility } }),
         tx.canvasConnection.findUnique({ where: { userId: user.id } }),
       ]);
-      const sourceStatus = canvas ? {
+      const sourceStatus: OfflineSnapshot['sourceStatus'] = canvas ? {
         lastSuccessfulSyncAt: canvas.lastSuccessfulSyncAt?.toISOString() ?? null,
         availability: canvas.lastError ? 'unavailable' : canvas.lastSuccessfulSyncAt ? 'available' : 'stale',
         coveredFrom: canvas.coveredFrom ?? null, coveredThrough: canvas.coveredThrough ?? null,
@@ -78,7 +78,8 @@ export class TodayService {
       // deadlines. Advertise only an eight-day plan window; each day also has its
       // seven-day upcoming data. Source coverage is independent of this window.
       return offlineSnapshotSchema.parse({ accountId: user.id, capturedAt, timeZone: user.timeZone,
-        coverage: { from, through: addCalendarDays(from, 7), includesOverdue: true, basis: 'persisted' }, sourceStatus,
+        coverage: { from, through: addCalendarDays(from, 7), includesOverdue: true, basis: 'persisted' },
+        sourceStatus: { ...sourceStatus, availability: sourceAvailabilityAt(sourceStatus, capturedAt) },
         courses,
         academicItems: academics.map(item => ({ ...item, updatedAt: toIso(item.updatedAt) })),
         personalTasks: tasks.map(task => ({ ...task, completedAt: task.completedAt?.toISOString() ?? null,
