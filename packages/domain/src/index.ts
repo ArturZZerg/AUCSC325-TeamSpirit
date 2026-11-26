@@ -17,7 +17,8 @@ export type TaskState = 'upcoming' | 'today' | 'completed' | 'overdue' | 'skippe
 export type Recurrence = { frequency: 'daily'; interval?: number } | { frequency: 'weekly'; weekdays: number[]; interval?: number };
 export type GoalSchedule = { kind: 'daily' } | { kind: 'weekly'; weekdays: number[] } | { kind: 'weeklyTarget'; target: number };
 export interface PersonalTask { id: string; title: string; priority: Priority; due?: TimedOrDate; scheduled?: TimedOrDate; recurrence?: Recurrence; completedAt?: string; completedOccurrenceKeys?: DateOnly[]; snoozedUntil?: string; mainGoalDate?: DateOnly; }
-export interface AcademicItem { id: string; title: string; due?: TimedOrDate; submissionState?: 'unsubmitted' | 'submitted' | 'graded' | 'missing'; completed?: boolean; mainGoalDate?: DateOnly; }
+/** `courseActive: false` means the item's course has ended or was set inactive; it is left out of the plan. */
+export interface AcademicItem { id: string; title: string; due?: TimedOrDate; submissionState?: 'unsubmitted' | 'submitted' | 'graded' | 'missing'; completed?: boolean; mainGoalDate?: DateOnly; courseActive?: boolean; }
 export interface Goal { id: string; title: string; priority?: Priority; schedule: GoalSchedule; timeZone: string; pausedAt?: string; snoozedUntil?: string; }
 export interface GoalCompletion { goalId: string; occurrenceKey: DateOnly; state: 'completed' | 'skipped'; completedAt?: string; }
 export type EventTiming = { kind: 'timed'; startsAt: string; endsAt?: string } | { kind: 'allDay'; startDate: DateOnly; endDateExclusive: DateOnly };
@@ -193,6 +194,7 @@ export const composeToday = (input: TodayInput): TodayPlan => {
       isMainGoal: task.mainGoalDate === input.date, priority: task.priority }, today);
   }
   for (const academic of input.academicItems) {
+    if (academic.courseActive === false) continue;
     const terminal = academic.completed || academic.submissionState === 'submitted' || academic.submissionState === 'graded';
     const today = inDay(academic.due, input.date, input.timeZone) || (!terminal && wasOverdueBeforeDay(academic.due, input.date, input.timeZone)) || academic.mainGoalDate === input.date;
     add({ key: `academic:${academic.id}`, kind: 'academic', entityId: academic.id, title: academic.title, due: academic.due, state: academic.completed ? 'completed' : temporalState({ ...academic, now: input.now, date: input.date, timeZone: input.timeZone }), isMainGoal: academic.mainGoalDate === input.date }, today);

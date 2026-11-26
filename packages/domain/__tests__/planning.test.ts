@@ -30,6 +30,19 @@ describe('timezone-aware planning', () => {
     expect(plan.items.some(item => item.entityId === 'old')).toBe(false);
   });
 
+  it('leaves coursework from an ended or inactive course out of the plan (issue #182)', () => {
+    const plan = composeToday({ ...base, personalTasks: [], academicItems: [
+      { id: 'old-term', title: 'Last term essay', due: { kind: 'date', date: '2025-12-01' }, submissionState: 'missing', courseActive: false },
+      { id: 'ended-today', title: 'Due today, course ended', due: { kind: 'date', date: base.date }, courseActive: false },
+      { id: 'ended-soon', title: 'Due soon, course ended', due: { kind: 'date', date: '2026-03-10' }, courseActive: false },
+      { id: 'current', title: 'This term essay', due: { kind: 'date', date: '2026-03-01' }, submissionState: 'unsubmitted', courseActive: true },
+      { id: 'no-course', title: 'Unlinked work', due: { kind: 'date', date: '2026-03-10' } },
+    ] });
+    expect(plan.items.map(item => item.entityId)).toEqual(['current']);
+    expect(plan.items[0].state).toBe('overdue');
+    expect(plan.upcoming.map(item => item.entityId)).toEqual(['no-course']);
+  });
+
   it('keeps a source deadline when a task is snoozed', () => {
     const plan = composeToday({ ...base, personalTasks: [{ id: 't', title: 'Pay bill', priority: 'high', due: { kind: 'date', date: '2026-03-07' }, snoozedUntil: '2026-03-09T18:00:00Z' }] });
     expect(plan.items[0]).toMatchObject({ state: 'overdue', due: { kind: 'date', date: '2026-03-07' } });
