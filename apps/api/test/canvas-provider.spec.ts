@@ -22,6 +22,10 @@ describe('Canvas normalized academic boundary (ToR 9/10)', () => {
     [{ workflow_state: 'pending_review' }, 'submitted'],
     [{ workflow_state: 'unsubmitted', missing: true }, 'missing'],
     [{ workflow_state: 'unsubmitted' }, 'unsubmitted'],
+    // Excused work is finished and never owed, even when Canvas still flags it missing (issue #183).
+    [{ workflow_state: 'unsubmitted', excused: true }, 'graded'],
+    [{ workflow_state: 'unsubmitted', excused: true, missing: true }, 'graded'],
+    [{ workflow_state: 'unsubmitted', excused: false, missing: true }, 'missing'],
   ])('maps student submission %j to %s', (submission, expected) => {
     expect(normalizeCanvasSnapshot(snapshot({ ...assignment, submission })).academicItems[0].submissionState).toBe(expected);
   });
