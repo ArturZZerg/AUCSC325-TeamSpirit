@@ -24,6 +24,11 @@ the student ticks the acknowledgement (`canvas-screen.test.tsx`).
 
 Coursework deleted in Canvas is removed, with its reminders, once its course (or
 the planner) was read in full; a partial read never deletes anything (ADR 025).
+Canvas lists only active enrollments, so a course whose term ended stops
+arriving. When the course listing was read in full, an imported course missing
+from it is marked inactive (issue #182): it and its coursework are kept, its
+reminders stop, and Today (online and offline) leaves its coursework out. A
+course listed again becomes active again; a partial listing changes nothing.
 `CanvasSyncWorker` re-syncs each connection about every 30 minutes (6 hours
 after a failure), so new assignments appear without a manual sync. See
 [ADR 019](../adr/019-canvas-personal-access-tokens.md) for the safeguards.
