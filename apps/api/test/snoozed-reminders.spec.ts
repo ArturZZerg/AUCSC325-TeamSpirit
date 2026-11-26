@@ -47,7 +47,11 @@ databaseSuite('explicit reminder snooze lifecycle with PostgreSQL (ToR 7, 13, 19
   });
   it.each(resources)('does not invent %s delivery for absent/date-only configuration and cleans legacy stale intent', async resource => {
     for (const configuration of [null, { kind: 'date', date: '2030-03-08' }]) {
-      const id = await create(resource, configuration);
+      const id = await create(resource, null);
+      if (configuration) {
+        if (resource === 'tasks') await db.personalTask.update({ where: { id }, data: { reminder: configuration } });
+        else await db.goal.update({ where: { id }, data: { reminder: configuration } });
+      }
       await db.reminder.create({ data: { userId, targetKind: kind(resource), targetId: id, fireAt: new Date(reminder.at) } });
       await snooze(resource, id).expect(201); expect(await rows(resource, id)).toEqual([]); expect((await record(resource, id)).reminder).toEqual(configuration);
     }
