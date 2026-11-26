@@ -12,6 +12,19 @@ describe('snapshot plan composition (ToR 4, 10, 19)', () => {
     const plan = composeOfflineToday(snapshot, accountId, zone, '2025-03-09', now)!;
     expect(plan.items.find(item => item.entityId === id)).toMatchObject({ state: 'completed', allowedActions: ['open'] });
   });
+  it('leaves out coursework from courses the cached snapshot marks inactive (issue #182)', () => {
+    const snapshot = snapshotFixture();
+    const ended = '70000000-0000-4000-8000-000000000001', current = '70000000-0000-4000-8000-000000000002';
+    snapshot.courses = [{ id: ended, externalId: '1', name: 'Last term', code: null, active: false },
+      { id: current, externalId: '2', name: 'This term', code: null, active: true }];
+    const item = (id: string, courseId: string | null) => ({ id, courseId, title: id, kind: 'assignment' as const, source: 'canvas', externalId: id,
+      due: { kind: 'date' as const, date: '2025-01-15' }, submissionState: 'missing' as const, mainGoalDate: null, updatedAt: now });
+    snapshot.academicItems = [item('50000000-0000-4000-8000-000000000001', ended), item('50000000-0000-4000-8000-000000000002', current),
+      item('50000000-0000-4000-8000-000000000003', null)];
+    const plan = composeOfflineToday(snapshot, accountId, zone, '2025-03-09', now)!;
+    expect(plan.items.filter(row => row.kind === 'academic').map(row => row.entityId).sort())
+      .toEqual(['50000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000003']);
+  });
   it('shifts recurrence wall times across DST and preserves occurrence completion/actions', () => {
     const plan = composeOfflineToday(snapshotFixture(), accountId, zone, '2025-03-09', now)!;
     expect(plan.items.find(item => item.entityId === taskId)).toMatchObject({

@@ -7,6 +7,7 @@ import { PrismaService } from './prisma.service';
 
 /** App-level wire/domain mapping; shared packages remain independent. */
 export function snapshotToDomainInput(snapshot: OfflineSnapshot, date: string, now: string): TodayInput {
+  const inactiveCourses = new Set(snapshot.courses.filter(course => !course.active).map(course => course.id));
   return {
     date, now, timeZone: snapshot.timeZone,
     personalTasks: snapshot.personalTasks.map(task => ({
@@ -17,6 +18,7 @@ export function snapshotToDomainInput(snapshot: OfflineSnapshot, date: string, n
       completedOccurrenceKeys: snapshot.taskCompletions.filter(row => row.taskId === task.id).map(row => row.occurrenceKey),
     })),
     academicItems: snapshot.academicItems.map(item => ({ id: item.id, title: item.title, due: item.due ?? undefined,
+      courseActive: !item.courseId || !inactiveCourses.has(item.courseId),
       submissionState: item.source === manualAcademicSource ? undefined : item.submissionState ?? undefined,
       completed: item.source === manualAcademicSource && item.submissionState === 'submitted', mainGoalDate: item.mainGoalDate ?? undefined })),
     goals: snapshot.goals.map(goal => ({ id: goal.id, title: goal.title, schedule: goal.schedule, timeZone: goal.timeZone,
