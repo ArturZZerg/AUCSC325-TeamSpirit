@@ -13,7 +13,7 @@ const manual = { id, userId, source: 'manual', externalId: id, title: 'Essay', k
   due: null, submissionState: 'unsubmitted', mainGoalDate: null, reminderLeadMinutes: null, updatedAt: new Date('2026-10-07T12:00:00Z') };
 describe('Manual coursework HTTP boundaries', () => {
   let app: INestApplication; let item = manual;
-  const prisma = { $transaction: jest.fn(), session: { findUnique: jest.fn() },
+  const prisma = { $transaction: jest.fn(), $queryRaw: jest.fn(), session: { findUnique: jest.fn() },
     academicItem: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
     course: { findFirst: jest.fn() }, reminder: { deleteMany: jest.fn() } };
   const reminders = { lockAcademicReminders: jest.fn(), lockAcademicItem: jest.fn(), reconcileAcademicItem: jest.fn() };
@@ -28,7 +28,7 @@ describe('Manual coursework HTTP boundaries', () => {
     jest.resetAllMocks(); item = manual;
     prisma.$transaction.mockImplementation(async (work: (tx: typeof prisma) => Promise<unknown>) => work(prisma));
     prisma.session.findUnique.mockResolvedValue({ revokedAt: null, expiresAt: new Date('2099-01-01'), user: { id: userId, timeZone: 'America/Denver' } });
-    prisma.academicItem.findFirst.mockImplementation(async ({ where }: { where: { id: string; userId: string; source: string } }) => where.id === item.id && where.userId === item.userId && where.source === item.source ? item : null);
+    prisma.academicItem.findFirst.mockImplementation(async ({ where }: { where: { id: string; userId: string; source?: string } }) => where.id === item.id && where.userId === item.userId && (!where.source || where.source === item.source) ? item : null);
     const result = ({ data }: { data: Record<string, unknown> }) => ({ ...item, ...data, due: data.due === Prisma.JsonNull ? null : data.due ?? item.due });
     prisma.academicItem.create.mockImplementation(result); prisma.academicItem.update.mockImplementation(result);
     prisma.course.findFirst.mockResolvedValue(null);
@@ -68,6 +68,12 @@ describe('Manual coursework HTTP boundaries', () => {
     await client().patch(`/academic-items/${id}`).set(auth).send({ submissionState: 'submitted' }).expect(200);
     expect(prisma.academicItem.update).toHaveBeenCalledWith({ where: { id }, data: { submissionState: 'submitted', due: undefined, mainGoalDate: null } });
     expect(reminders.reconcileAcademicItem).toHaveBeenCalledWith(userId, id, prisma);
+  });
+  it.each(['submitted', 'graded'] as const)('rejects %s coursework as a new Main Goal and locks the item row', async submissionState => {
+    item = { ...manual, submissionState };
+    await client().patch(`/academic-items/${id}/main-goal`).set(auth).send({ date: '2026-10-10' }).expect(400);
+    expect(reminders.lockAcademicItem).toHaveBeenCalledWith(userId, id, prisma);
+    expect(prisma.academicItem.update).not.toHaveBeenCalled();
   });
   it('deletes owned legacy reminder targets along with coursework', async () => {
     await client().delete(`/academic-items/${id}`).set(auth).expect(200, { deleted: true });

@@ -533,8 +533,12 @@ const taskTemplateDto = (template: TaskTemplate) => taskTemplateSchema.parse({
    @Param('id', new ZodPipe(parseUuid)) id: string, @Body(new ZodPipe(setMainGoalSchema)) b: z.infer<typeof setMainGoalSchema>) {
    return this.prisma.$transaction(async tx => {
      await lockMainGoalAccount(tx, u.id);
+     await this.reminders.lockAcademicItem(u.id, id, tx);
      const owned = await tx.academicItem.findFirst({ where: { id, userId: u.id } });
      if (!owned) throw new NotFoundException('Academic item not found');
+     if (b.date && (owned.submissionState === 'submitted' || owned.submissionState === 'graded')) {
+       throw new BadRequestException('Submitted or graded coursework cannot be a Main Goal.');
+     }
      if (b.date) await clearMainGoal(tx, u.id, b.date);
      const item = await tx.academicItem.update({ where: { id }, data: { mainGoalDate: b.date } });
      return academicItemSchema.parse({ ...item, updatedAt: toIso(item.updatedAt) });
