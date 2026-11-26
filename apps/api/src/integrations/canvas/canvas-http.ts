@@ -114,12 +114,7 @@ export class CanvasHttpClient {
   /** Replaced in tests; production uses global fetch and system DNS. */
   deps: CanvasHttpDeps = defaultDeps;
 
-  private async getPages<T>(origin: string, token: string, path: string, schema: z.ZodType<T>, signal: AbortSignal, limit: number): Promise<T[] | 'forbidden'> {
-    const pages = await this.getAllPages(origin, token, path, schema, signal, limit);
-    return pages === 'forbidden' ? pages : pages.rows;
-  }
-
-  /** Like getPages, also saying whether the listing was read to its end without being cut off. */
+  /** Reads a paged listing, saying whether it was read to its end without being cut off. */
   private async getAllPages<T>(origin: string, token: string, path: string, schema: z.ZodType<T>, signal: AbortSignal, limit: number): Promise<{ rows: T[]; complete: boolean } | 'forbidden'> {
     const results: T[] = [];
     let skipped = false;
@@ -201,15 +196,16 @@ export class CanvasHttpClient {
   }
 
   /**
-   * Active courses and their assignments with the current user's submission state, plus assignment groups for grades.
+   * Active courses and their assignments with the current user's submission state, plus assignment groups for grades,
+   * and whether the course listing was read in full (so a course missing from it has ended).
    * With a `window`, also the student's planner to-dos and course calendar events in it (ADR 025).
    */
   async fetchAcademicSnapshot(baseUrl: string, token: string, signal: AbortSignal, window?: EventCoverage): Promise<AcademicSnapshot> {
     const origin = canvasOrigin(baseUrl);
     await assertPublicHost(origin, this.deps.lookup);
-    const courses = await this.getPages(origin, token, '/api/v1/courses?enrollment_state=active&per_page=100', courseSchema, signal, maxCourses);
-    if (courses === 'forbidden') throw new CanvasRequestError('unauthorized');
-    const visible = courses.filter(course => course.name?.trim() && !course.access_restricted_by_date && course.workflow_state !== 'deleted');
+    const listing = await this.getAllPages(origin, token, '/api/v1/courses?enrollment_state=active&per_page=100', courseSchema, signal, maxCourses);
+    if (listing === 'forbidden') throw new CanvasRequestError('unauthorized');
+    const visible = listing.rows.filter(course => course.name?.trim() && !course.access_restricted_by_date && course.workflow_state !== 'deleted');
     const assignments = new Map<number, z.infer<typeof assignmentSchema>[]>();
     const groups = new Map<number, z.infer<typeof groupSchema>[]>();
     // A course counts as complete only when its assignments and groups were all read (ADR 024).
@@ -260,7 +256,7 @@ export class CanvasHttpClient {
         assignment_groups: (groups.get(course.id) ?? []).map(group => ({ id: group.id, name: clip(group.name!.trim(), 240), group_weight: finite(group.group_weight) })),
         complete: complete.has(course.id),
         ...(extra && { planner_items: extra.planner.get(course.id) ?? [], coursework_complete: courseworkComplete.has(course.id) }),
-      })), ...(extra && { planner_window: extra.plannerWindow, calendar: extra.calendar }) });
+      })), courses_complete: listing.complete, ...(extra && { planner_window: extra.plannerWindow, calendar: extra.calendar }) });
     } catch { throw new CanvasRequestError('invalid-response'); }
   }
 }
