@@ -247,6 +247,22 @@ export class CanvasService {
       await tx.academicItem.delete({ where: { id: item.id } });
     }
   }
+  /**
+   * Canvas lists only active enrollments, so a course whose term ended stops arriving
+   * (issue #182). When the listing was read in full, imported courses missing from it
+   * become inactive: their coursework leaves Today and their reminders stop. The course
+   * and its items are kept, and a course that is listed again becomes active again.
+   */
+  private async inactivateEnded(tx: Tx, userId: string, source: string, courseIds: Map<string, string>) {
+    const ended = await tx.course.findMany({ where: { userId, source, active: true, id: { notIn: [...courseIds.values()] } },
+      select: { id: true }, orderBy: { id: 'asc' } });
+    if (!ended.length) return;
+    const ids = ended.map(course => course.id);
+    await tx.course.updateMany({ where: { userId, id: { in: ids } }, data: { active: false } });
+    const configured = await tx.academicItem.findMany({ where: { userId, courseId: { in: ids }, reminderLeadMinutes: { not: null } },
+      select: { id: true }, orderBy: { id: 'asc' } });
+    for (const item of configured) await this.reminders.reconcileAcademicItem(userId, item.id, tx);
+  }
   /** Idempotent upserts keyed by (account, source, Canvas id). */
   private async persist(tx: Tx, userId: string, source: string, batch: AcademicSnapshot, startedAt: Date) {
     await this.reminders.lockAcademicReminders(userId, tx);
@@ -277,6 +293,7 @@ export class CanvasService {
       for (const item of configured) await this.reminders.reconcileAcademicItem(userId, item.id, tx);
     }
     if (batch.coursework) await this.removeDeleted(tx, userId, source, batch, courseIds);
+    if (batch.coursesComplete) await this.inactivateEnded(tx, userId, source, courseIds);
     const finishedAt = new Date();
     await tx.canvasConnection.update({ where: { userId },
       data: { lastSyncAttemptAt: startedAt, lastSuccessfulSyncAt: finishedAt, lastError: null } });

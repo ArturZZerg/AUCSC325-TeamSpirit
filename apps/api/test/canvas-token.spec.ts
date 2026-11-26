@@ -113,7 +113,7 @@ describe('Canvas token connection over HTTP', () => {
   const prisma = {
     $transaction: jest.fn(), $queryRaw: jest.fn(), session: { findUnique: jest.fn() },
     canvasConnection: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn(), updateMany: jest.fn(), deleteMany: jest.fn() },
-    course: { upsert: jest.fn() }, academicItem: { upsert: jest.fn(), findMany: jest.fn(), delete: jest.fn() },
+    course: { upsert: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() }, academicItem: { upsert: jest.fn(), findMany: jest.fn(), delete: jest.fn() },
     user: { findUnique: jest.fn() }, reminder: { deleteMany: jest.fn() },
   };
   const reminders = { lockAcademicReminders: jest.fn(), reconcileAcademicItem: jest.fn(), lockAcademicItem: jest.fn() };
@@ -145,6 +145,7 @@ describe('Canvas token connection over HTTP', () => {
     prisma.canvasConnection.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => { stored = { ...create }; return stored; });
     prisma.canvasConnection.deleteMany.mockImplementation(async () => { stored = null; return { count: 1 }; });
     prisma.course.upsert.mockResolvedValue({ id: 'course-id' }); prisma.academicItem.findMany.mockResolvedValue([]);
+    prisma.course.findMany.mockResolvedValue([]);
     prisma.user.findUnique.mockResolvedValue({ timeZone: 'America/Edmonton' });
     events.sync.mockResolvedValue({ status: 'complete', upserted: 0, removed: 0, retainedSaved: 0, issues: [] });
     http.deps = { fetch: fakeFetch({
@@ -235,6 +236,33 @@ describe('Canvas token connection over HTTP', () => {
     // The calendar endpoint 404s here, so the calendar read is incomplete and nothing is removed from it.
     const batch = await events.sync.mock.calls[0][1].fetchEvents(events.sync.mock.calls[0][2]);
     expect(batch.status).toBe('incomplete');
+  });
+  describe('courses whose term ended (issue #182)', () => {
+    const configured = ({ where }: { where: { courseId?: unknown } }) => where.courseId && typeof where.courseId === 'object' ? [{ id: 'old-essay' }] : [];
+    it('marks imported courses missing from a complete listing inactive and stops their reminders', async () => {
+      await auth(request(app.getHttpServer()).post('/canvas/connect')).send({ baseUrl: origin, accessToken: token }).expect(201);
+      prisma.course.findMany.mockResolvedValue([{ id: 'ended-course' }]);
+      prisma.academicItem.findMany.mockImplementation(async (args: { where: { courseId?: unknown } }) => configured(args));
+      await auth(request(app.getHttpServer()).post('/canvas/sync')).expect(201);
+      // Only this account's Canvas courses that are still active and were not listed.
+      expect(prisma.course.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { userId: id, source: canvasSource, active: true, id: { notIn: ['course-id'] } } }));
+      expect(prisma.course.updateMany).toHaveBeenCalledWith({ where: { userId: id, id: { in: ['ended-course'] } }, data: { active: false } });
+      expect(reminders.reconcileAcademicItem).toHaveBeenCalledWith(id, 'old-essay', prisma);
+      // The listed course stays active.
+      expect(prisma.course.upsert.mock.calls[0][0].update).toMatchObject({ externalId: '1', active: true });
+    });
+    it('changes nothing when the course listing could not be read in full', async () => {
+      await auth(request(app.getHttpServer()).post('/canvas/connect')).send({ baseUrl: origin, accessToken: token }).expect(201);
+      http.deps = { fetch: fakeFetch({
+        [coursesUrl]: { body: [{ id: 1, name: 'AUCSC 325' }, { id: 'unreadable' }] },
+        [assignmentsUrl(1)]: { body: [] },
+      }), lookup: publicDns };
+      prisma.course.findMany.mockResolvedValue([{ id: 'ended-course' }]);
+      await auth(request(app.getHttpServer()).post('/canvas/sync')).expect(201);
+      expect(prisma.course.findMany).not.toHaveBeenCalled();
+      expect(prisma.course.updateMany).not.toHaveBeenCalled();
+    });
   });
   it('rejects a bad token with a readable message and without ending the CampusFlow session', async () => {
     http.deps = { fetch: fakeFetch({ [`${origin}/api/v1/users/self`]: { status: 401, body: {} } }), lookup: publicDns };
