@@ -22,10 +22,12 @@ export async function nativeFingerprint() {
   // The same values build-android.mjs uses for an update-enabled build; config output depends on them.
   Object.assign(process.env, { EXPO_PUBLIC_API_URL: productionApiUrl, CAMPUSFLOW_ANDROID_PREVIEW: '1', NODE_ENV: 'production' });
   delete process.env.CAMPUSFLOW_IOS_SIMULATOR; delete process.env.CAMPUSFLOW_WEB_BASE_URL;
-  const { createFingerprintAsync } = createRequire(path.join(mobile, 'package.json'))('@expo/fingerprint');
+  const { createFingerprintAsync, DEFAULT_SOURCE_SKIPS, SourceSkips } = createRequire(path.join(mobile, 'package.json'))('@expo/fingerprint');
   // android/ and ios/ are regenerated from config by prebuild and are not committed;
   // whether a build already created them must not change the hash.
   const result = await createFingerprintAsync(mobile, { platforms: ['android'], ignorePaths: ['android', 'android/**', 'ios', 'ios/**', 'native-fingerprint.json'],
+    // package.json scripts (test, lint, ...) never reach the APK; native dependencies are still hashed.
+    sourceSkips: DEFAULT_SOURCE_SKIPS | SourceSkips.PackageJsonScriptsAll,
     fileHookTransform: normalizeLineEndings });
   return result.hash;
 }
