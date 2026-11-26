@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- App updates: the Linux deploy and a Windows checkout now compute the same
+  native fingerprint, so `server-deploy.sh` publishes over-the-air updates
+  again (they had been skipped since October). `publish-update.mjs` and
+  `build-android.mjs` rebuild the shared packages first; a stale `dist/` had
+  produced an update that crashed on launch and was silently rolled back.
+  Android's bottom tab bar is visible again after the redesign collapsed it.
+
 - Gym: a workout left untouched for 30 minutes finishes on its own. Ticked
   sets are saved with the last logged change as the end time, so the forgotten
   idle time is not counted; a workout with no ticked sets is dropped. A save
