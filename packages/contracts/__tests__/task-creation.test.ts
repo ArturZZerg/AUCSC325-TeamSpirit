@@ -11,6 +11,12 @@ describe('Optional PersonalTask creation identity', () => {
   it('does not allow creation identity to become editable task state', () => {
     expect(updatePersonalTaskSchema.safeParse({ title: 'Changed', requestKey: 'task-request-12345' }).success).toBe(false);
   });
+  it('rejects whitespace-only titles and trims surrounding whitespace', () => {
+    expect(createPersonalTaskRequestSchema.safeParse({ title: '   ' }).success).toBe(false);
+    expect(createPersonalTaskRequestSchema.parse({ title: '  Study  ' }).title).toBe('Study');
+    expect(updatePersonalTaskSchema.safeParse({ title: '\t\n' }).success).toBe(false);
+    expect(updatePersonalTaskSchema.parse({ title: '  Renamed  ' }).title).toBe('Renamed');
+  });
 });
 
 it('accepts initial checklist steps while keeping them out of task PATCH', () => {
