@@ -142,7 +142,9 @@ const styles = StyleSheet.create({
   profileCopy: { flex: 1, gap: 4 }, profileName: { ...typography, color: design.chromeText, fontWeight: '600', fontSize: 12 },
   profileSubtitle: { ...typography, color: design.chromeMuted, fontSize: 10 }, pressed: { opacity: 0.7 },
   desktopBar: { width: 232, backgroundColor: design.chrome, borderRightColor: design.chromeLine },
-  mobileBar: { backgroundColor: colors.card, borderTopColor: colors.line, elevation: 0, paddingTop: 7, paddingBottom: Platform.OS === 'web' ? 9 : undefined, height: Platform.OS === 'web' ? 76 : undefined },
+  // Native bars keep React Navigation's computed height and safe-area bottom padding:
+  // even an undefined override collapsed the Android bar to 18px, hiding every tab.
+  mobileBar: { backgroundColor: colors.card, borderTopColor: colors.line, elevation: 0, ...(Platform.OS === 'web' ? { paddingTop: 7, paddingBottom: 9, height: 76 } : {}) },
   mobileItem: { minHeight: 46 }, mobileLabel: { fontSize: 10, fontWeight: '600', marginTop: 3 },
   mobileIcon: { width: 40, height: 29, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   mobileIconActive: { backgroundColor: colors.sage },

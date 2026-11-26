@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import TabsLayout from '../app/(tabs)/_layout';
 
 // The phone tab bar must stay visible: Android edge-to-edge keyboard events are
@@ -21,4 +22,13 @@ it('keeps the phone tab bar visible while the keyboard is open', () => {
     expect(options.tabBarPosition).toBe('bottom');
     expect(options.tabBarHideOnKeyboard).not.toBe(true);
   }
+});
+
+it('lets the native tab bar keep its computed height and safe-area padding', () => {
+  render(<TabsLayout/>);
+  const { screenOptions } = mockTabs.mock.calls[0][0] as { screenOptions: (args: { route: { name: string } }) => Record<string, unknown> };
+  // Even an undefined height/paddingBottom overrides React Navigation's values and collapsed the bar to 18px on Android.
+  const style = StyleSheet.flatten(screenOptions({ route: { name: 'today' } }).tabBarStyle as never) as Record<string, unknown>;
+  expect('height' in style).toBe(false);
+  expect('paddingBottom' in style).toBe(false);
 });
