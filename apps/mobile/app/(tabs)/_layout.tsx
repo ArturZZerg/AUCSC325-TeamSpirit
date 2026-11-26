@@ -101,7 +101,6 @@ export default function TabsLayout() {
       tabBarPosition: desktop ? 'left' : 'bottom',
       tabBarActiveTintColor: colors.moss,
       tabBarInactiveTintColor: colors.muted,
-      tabBarHideOnKeyboard: true,
       tabBarStyle: desktop ? styles.desktopBar : styles.mobileBar,
       tabBarItemStyle: styles.mobileItem,
       tabBarLabelStyle: styles.mobileLabel,
