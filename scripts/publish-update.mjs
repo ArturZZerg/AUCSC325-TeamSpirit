@@ -11,6 +11,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { assertRuntimeCurrent } from './native-runtime.mjs';
+import { buildSharedPackages } from './shared-packages.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mobile = path.join(root, 'apps/mobile');
@@ -68,6 +69,7 @@ async function main(argv) {
   if (apk && !existsSync(apk)) throw new Error(`APK not found: ${apk}`);
   // Sets the production build environment and refuses JavaScript the installed native code cannot run.
   const { runtimeVersion } = await assertRuntimeCurrent();
+  buildSharedPackages();
   const env = { ...process.env };
   const exportDir = mkdtempSync(path.join(tmpdir(), 'campusflow-update-'));
   try {

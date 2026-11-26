@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { inspectAndroidPermissions } from './android-permissions.mjs';
 import { androidPreviewTarget, inspectAndroidArchitecture } from './android-preview-target.mjs';
+import { buildSharedPackages } from './shared-packages.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mobile = path.join(root, 'apps/mobile');
@@ -52,6 +53,7 @@ function run(command, args, cwd) {
   if (result.error) fail(result.error.message);
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
+try { buildSharedPackages(); } catch (error) { fail(error.message); }
 run(process.execPath, [path.join(root, 'node_modules/expo/bin/cli'), 'prebuild', '--platform', 'android', '--no-install'], mobile);
 // Gradle 9.1 fixes Windows transform-cache file locks (gradle/gradle#31438).
 // Keep this in the workflow because Expo regenerates the native wrapper.
