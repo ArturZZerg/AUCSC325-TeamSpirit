@@ -9,6 +9,8 @@ it('accepts a complete versioned empty export and rejects unsupported or partial
 });
 it('rejects internal fields in the export boundary', () => {
   for (const change of [{ sessions: [] }, { profile: { ...profile, passwordHash: 'secret' } },
+    { notificationPreferences: { academicEnabled: true, personalEnabled: true, goalEnabled: true, eventEnabled: true,
+      dailyOverviewEnabled: false, quietHoursStart: null, quietHoursEnd: null, userId: profile.id } },
     { canvasConnection: { baseUrl: 'https://canvas.example.test', externalAccountId: null, lastSuccessfulSyncAt: null, lastSyncAttemptAt: null, coveredFrom: null, coveredThrough: null, encryptedAccessToken: 'secret' } }])
     expect(accountExportSchema.safeParse({ ...copy, ...change }).success).toBe(false);
 });

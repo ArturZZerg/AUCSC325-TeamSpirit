@@ -206,8 +206,15 @@ export type CampusSourceStatus = z.infer<typeof campusSourceSchema>;
 export const wellnessEntrySchema = z.object({ id: idSchema, date: dateSchema, mood: z.number().int().min(1).max(5).nullable(), energy: z.number().int().min(1).max(5).nullable(), stress: z.number().int().min(1).max(5).nullable(), note: z.string().max(2_000).nullable(), createdAt: instantSchema });
 export const createWellnessEntrySchema = wellnessEntrySchema.pick({ date: true, mood: true, energy: true, stress: true, note: true });
 export const localTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:MM');
-export const notificationPreferencesSchema = z.object({ academicEnabled: z.boolean(), personalEnabled: z.boolean(), goalEnabled: z.boolean(), eventEnabled: z.boolean(), dailyOverviewEnabled: z.boolean(), quietHoursStart: localTimeSchema.nullable(), quietHoursEnd: localTimeSchema.nullable() });
-export const updateNotificationPreferencesSchema = notificationPreferencesSchema.partial();
+const notificationPreferencesFields = z.object({ academicEnabled: z.boolean(), personalEnabled: z.boolean(), goalEnabled: z.boolean(), eventEnabled: z.boolean(), dailyOverviewEnabled: z.boolean(), quietHoursStart: localTimeSchema.nullable(), quietHoursEnd: localTimeSchema.nullable() });
+const pairedQuietHours = (value: { quietHoursStart?: string | null; quietHoursEnd?: string | null }) =>
+  (value.quietHoursStart === undefined && value.quietHoursEnd === undefined)
+  || (value.quietHoursStart === null && value.quietHoursEnd === null)
+  || (typeof value.quietHoursStart === 'string' && typeof value.quietHoursEnd === 'string');
+const quietHoursPairError = { message: 'Provide both quiet-hours times, or clear both with null.', path: ['quietHoursEnd'] };
+export const notificationPreferencesSchema = notificationPreferencesFields.refine(pairedQuietHours, quietHoursPairError);
+/** Category-only patches remain independent; quiet hours are changed as a pair. */
+export const updateNotificationPreferencesSchema = notificationPreferencesFields.partial().refine(pairedQuietHours, quietHoursPairError);
 export const reminderSchema = z.object({ id: idSchema, targetKind: z.enum(['personalTask', 'goal', 'savedEvent', 'academicItem']), targetId: idSchema, occurrenceKey: dateSchema.nullable(), fireAt: instantSchema, enabled: z.boolean() });
 
 /** How this deployment can connect Canvas: a personal access token held by the API (ADR 019), development fixtures, or not at all. */
