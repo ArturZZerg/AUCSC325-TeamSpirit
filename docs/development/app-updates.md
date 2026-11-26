@@ -29,6 +29,14 @@ SERVER=root@95.217.239.38 ops/vps/upload-update.sh <dir>
 Publish only from a clean `main`; the update must match what the API serves.
 Rolling back means publishing the previous commit again.
 
+`publish-update.mjs` and `build-android.mjs` run `npm run build:shared` first:
+Metro bundles `@campusflow/contracts` and `@campusflow/domain` from their compiled
+`dist/`, and a stale `dist/` ships old schemas. An update that throws while
+loading is rolled back by expo-updates without any visible error, so after
+publishing, restart the app twice and check that **Settings → App updates**
+shows the new update time. If it still shows the old one, read
+`adb logcat -s ReactNativeJS dev.expo.updates` from a fresh install.
+
 ## Native changes (new native module, permission, Expo SDK, config plugin)
 
 `scripts/publish-update.mjs` and production APK builds refuse to run when the
@@ -53,5 +61,8 @@ node scripts/publish-update.mjs --out <dir> --apk artifacts/android/campusflow-p
 SERVER=root@95.217.239.38 ops/vps/upload-update.sh <dir>
 ```
 
-Fingerprints are computed on the owner's Windows checkout; run these commands
-there (line endings of config files are part of the fingerprint).
+The fingerprint is the same on Windows and on the Linux deploy: project line
+endings are normalized, and `native-runtime.mjs` drops the config-loader tooling
+modules that `@expo/fingerprint` fails to ignore on Windows paths, so
+`server-deploy.sh` publishes updates itself. `native-runtime.test.mjs` fails if
+an `@expo/fingerprint` upgrade changes that ignore list.

@@ -2,6 +2,7 @@
 //   node scripts/native-runtime.mjs --check   exit 3 when native inputs changed since the recorded runtime
 //   node scripts/native-runtime.mjs --record  record the fingerprint for the current runtime
 //   node scripts/native-runtime.mjs --bump    increment the runtime and record its fingerprint (needs a new APK)
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -17,6 +18,37 @@ const { productionApiUrl } = createRequire(import.meta.url)(path.join(mobile, 'c
 export const readRuntime = () => JSON.parse(readFileSync(runtimeFile, 'utf8')).runtimeVersion;
 export const readRecord = () => { try { return JSON.parse(readFileSync(recordFile, 'utf8')); } catch { return null; } };
 
+// @expo/fingerprint drops the tooling modules its config loader pulls in (DEFAULT_CONFIG_LOADING_IGNORE_PATHS
+// in build/ExpoConfigLoader.js) by stripping a leading "../" before matching "**/node_modules/...". On Windows the
+// loaded paths are "..\..\node_modules\...", the strip never matches, and ~130 extra files were hashed, so a Windows
+// checkout and the Linux deploy never agreed on the fingerprint. Drop those sources and rehash, as Linux does.
+// native-runtime.test.mjs fails if the installed list changes.
+export const loaderIgnoredPackages = ['@babel', '@expo', '@jridgewell', 'cross-spawn', 'isexe', 'shebang-command', 'shebang-regex',
+  'semver', 'slugify', 'typescript', 'ajv', 'ajv-formats', 'ajv-keywords', 'ansi-styles', 'chalk', 'debug', 'dotenv', 'dotenv-expand',
+  'escape-string-regexp', 'getenv', 'graceful-fs', 'fast-deep-equal', 'fast-uri', 'has-flag', 'imurmurhash', 'jimp-compact', 'js-tokens',
+  'json5', 'json-schema-traverse', 'ms', 'parse-png', 'path-key', 'picocolors', 'pngjs', 'lines-and-columns', 'require-from-string',
+  'resolve-from', 'sax', 'schema-utils', 'signal-exit', 'sucrase', 'supports-color', 'ts-interface-checker', 'write-file-atomic',
+  'xml2js', 'xmlbuilder', 'which'];
+const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const loaderIgnored = new RegExp(`(^|/)node_modules/(${loaderIgnoredPackages.map(escape).join('|')})/|(^|/)node_modules/expo/(config/|config\\.js$|config-plugins\\.js$)`);
+
+/** True for a source that exists only because the config loader required a tooling module Linux already ignores. */
+export function isLoaderToolingSource(source) {
+  return source.type === 'file' && source.reasons?.length === 1 && source.reasons[0] === 'expoConfigPlugins'
+    && loaderIgnored.test(String(source.filePath).replace(/^(\.\.\/)+/, ''));
+}
+
+/** The fingerprint hash over sources, as @expo/fingerprint's createFingerprintFromSourcesAsync computes it. */
+export function hashSources(sources, algorithm = 'sha1') {
+  const hasher = createHash(algorithm);
+  for (const source of sources) {
+    if (source.hash == null) continue;
+    hasher.update(source.type === 'contents' ? source.id : source.overrideHashKey ?? source.filePath);
+    hasher.update(source.hash);
+  }
+  return hasher.digest('hex');
+}
+
 /** Fingerprint of everything native for Android, computed with the production build environment. */
 export async function nativeFingerprint() {
   // The same values build-android.mjs uses for an update-enabled build; config output depends on them.
@@ -29,7 +61,7 @@ export async function nativeFingerprint() {
     // package.json scripts (test, lint, ...) never reach the APK; native dependencies are still hashed.
     sourceSkips: DEFAULT_SOURCE_SKIPS | SourceSkips.PackageJsonScriptsAll,
     fileHookTransform: normalizeLineEndings });
-  return result.hash;
+  return hashSources(result.sources.filter(source => !isLoaderToolingSource(source)));
 }
 
 /** Project text files hash the same with CRLF (Windows checkouts) or LF; installed packages are left as published. */
