@@ -122,7 +122,8 @@ export function normalizeCanvasSnapshot(input: unknown): AcademicSnapshot {
     for (const assignment of assignments) {
       const submission = assignment.submission;
       // Use the current student's submission, never an assignment-wide aggregate.
-      const submissionState = submission?.workflow_state === 'graded' || submission?.score != null ? 'graded'
+      // Excused work is finished with no grade owed, so it reads as graded (issue #183).
+      const submissionState = submission?.excused || submission?.workflow_state === 'graded' || submission?.score != null ? 'graded'
         : submission?.submitted_at || ['submitted', 'pending_review'].includes(submission?.workflow_state ?? '') ? 'submitted'
           : submission?.missing ? 'missing' : 'unsubmitted';
       academicItems.push({ externalId: String(assignment.id), courseExternalId, title: assignment.name,

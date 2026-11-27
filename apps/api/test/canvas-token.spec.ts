@@ -59,6 +59,7 @@ describe('Canvas HTTP client', () => {
         { id: 11, name: 'Essay', due_at: '2026-10-24T05:59:00Z', submission_types: ['online_upload'], submission: { workflow_state: 'graded', score: 9 } },
         { id: 12, name: 'Discussion', due_at: null, submission_types: ['discussion_topic'], submission: { workflow_state: 'unsubmitted', missing: true } },
         { id: 13, name: 'Bad date', due_at: 'tomorrow', submission: null },
+        { id: 14, name: 'Excused lab', due_at: '2026-10-20T05:59:00Z', submission: { workflow_state: 'unsubmitted', missing: true, excused: true } },
       ] },
       [assignmentsUrl(2)]: { status: 403, body: { errors: [] } },
     }).fetchAcademicSnapshot(origin, token, signal);
@@ -67,6 +68,7 @@ describe('Canvas HTTP client', () => {
       { externalId: '11', courseExternalId: '1', title: 'Essay', kind: 'assignment', due: { kind: 'instant', at: '2026-10-24T05:59:00.000Z' }, submissionState: 'graded' },
       { externalId: '12', courseExternalId: '1', title: 'Discussion', kind: 'discussion', due: null, submissionState: 'missing' },
       { externalId: '13', courseExternalId: '1', title: 'Bad date', kind: 'assignment', due: null, submissionState: 'unsubmitted' },
+      { externalId: '14', courseExternalId: '1', title: 'Excused lab', kind: 'assignment', due: { kind: 'instant', at: '2026-10-20T05:59:00.000Z' }, submissionState: 'graded' },
     ]);
   });
   it('reads assignment groups and points for grades, and knows when a course was read in full', async () => {
