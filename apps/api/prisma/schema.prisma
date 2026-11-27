@@ -141,9 +141,11 @@ model TaskCreationRequest {
   requestKey String
   requestHash String
   taskId String? @unique @db.Uuid
+  createdAt DateTime @default(now())
   user User @relation(fields:[userId], references:[id], onDelete:Cascade)
   task PersonalTask? @relation(fields:[taskId], references:[id], onDelete:SetNull)
   @@id([userId, requestKey])
+  @@index([createdAt])
 }
 model StudyPlan {
   id String @id @default(uuid()) @db.Uuid
