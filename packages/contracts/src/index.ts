@@ -179,7 +179,7 @@ export const updateGoalSchema = createGoalSchema.partial();
 export const goalCompletionSchema = z.object({ id: idSchema, goalId: idSchema, occurrenceKey: dateSchema, state: z.enum(['completed', 'skipped']), completedAt: instantSchema.nullable(), createdAt: instantSchema });
 export const completeGoalSchema = z.object({ occurrenceKey: dateSchema, state: z.enum(['completed', 'skipped']) }).strict();
 export const pauseGoalSchema = z.object({ paused: z.boolean() }).strict();
-export const snoozeGoalSchema = z.object({ until: instantSchema, occurrenceKey: dateSchema.optional() });
+export const snoozeGoalSchema = z.object({ until: instantSchema }).strict();
 
 export const eventSchema = z.object({ id: idSchema, title: z.string().min(1), description: z.string().nullable(), category: z.string().nullable(), source: z.string().min(1), externalId: z.string().min(1), timing: z.discriminatedUnion('kind', [z.object({ kind: z.literal('timed'), startsAt: instantSchema, endsAt: instantSchema.nullable() }), z.object({ kind: z.literal('allDay'), startDate: dateSchema, endDateExclusive: dateSchema })]), location: z.string().nullable(), url: z.string().url().nullable() });
 export const savedEventSchema = z.object({ eventId: idSchema, includedInPlan: z.boolean(), reminder: scheduleSchema.nullable(), savedAt: instantSchema });

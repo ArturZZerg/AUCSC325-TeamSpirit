@@ -246,18 +246,18 @@ describe('Today occurrence controls (ToR 3.4, 4, 5, 7)', () => {
     expect(item.due).toEqual(task.due);
   });
 
-  it('snoozes a goal with its timezone-specific occurrence', async () => {
+  it('snoozes a goal without sending an occurrence identity', async () => {
     show([goal]); render(<TodayScreen/>);
     fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
     await waitFor(() => expect(mutate).toHaveBeenCalledWith({ path: `/goals/${goal.entityId}/snooze`,
-      body: { until: '2026-10-03T19:00:00.000Z', occurrenceKey: '2026-10-02' } }));
+      body: { until: '2026-10-03T19:00:00.000Z' } }));
   });
 
-  it('refuses to invent a missing goal occurrence for snooze', async () => {
+  it('snoozes a goal without requiring an occurrence identity', async () => {
     show([{ ...goal, occurrenceKey: null }]); render(<TodayScreen/>);
     fireEvent.press(screen.getByRole('button', { name: 'Snooze 1 hour' }));
-    await screen.findByText('Refresh your plan before changing this goal.');
-    expect(mutate).not.toHaveBeenCalled();
+    await waitFor(() => expect(mutate).toHaveBeenCalledWith({ path: `/goals/${goal.entityId}/snooze`,
+      body: { until: '2026-10-03T19:00:00.000Z' } }));
   });
 
   it('rechecks the current day if midnight passes after rendering a selected plan', async () => {

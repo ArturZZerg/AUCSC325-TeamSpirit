@@ -62,10 +62,8 @@ export default function TodayScreen() {
     try {
       if (selected === 'snooze' && (item.kind === 'personalTask' || item.kind === 'goal')) {
         if (!isAccountToday(date, query.timeZone, Date.now())) throw new Error('Open today’s plan before snoozing.');
-        if (item.kind === 'goal' && !item.occurrenceKey) throw new Error('Refresh your plan before changing this goal.');
         await action.mutateAsync({ path: `/${item.kind === 'goal' ? 'goals' : 'tasks'}/${item.entityId}/snooze`, body: {
           until: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-          ...(item.kind === 'goal' ? { occurrenceKey: item.occurrenceKey } : {}),
         } });
       } else if (item.kind === 'personalTask' && selected !== 'skip') {
         await action.mutateAsync({ path: `/tasks/${item.entityId}/complete`, body: {
