@@ -39,6 +39,29 @@ export interface CanvasHttpDeps { fetch: typeof fetch; lookup: Lookup }
 const defaultDeps: CanvasHttpDeps = { fetch: pinnedFetch(), lookup: host => dnsLookup(host, { all: true, verbatim: true }) };
 /** A request that never got a response; a host that turned private is an invalid address. */
 const failedRequest = (error: unknown) => new CanvasRequestError(error instanceof BlockedAddressError ? 'invalid-url' : 'unreachable');
+const maxJsonBytes = 1024 * 1024;
+
+async function readJsonResponse(response: Response): Promise<unknown> {
+  const declaredLength = Number(response.headers.get('content-length') ?? '');
+  if (Number.isFinite(declaredLength) && declaredLength > maxJsonBytes) throw new Error('Canvas response too large');
+  if (!response.body) throw new Error('Canvas response has no body');
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxJsonBytes) throw new Error('Canvas response too large');
+      chunks.push(value);
+    }
+    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
 
 async function assertPublicHost(origin: string, lookup: Lookup) {
   let addresses: { address: string; family: number }[];
@@ -133,7 +156,8 @@ export class CanvasHttpClient {
       // Course tabs can be hidden from students; that course is imported without coursework.
       if (response.status === 403 || response.status === 404) return 'forbidden';
       if (!response.ok) throw new CanvasRequestError('unreachable');
-      const body: unknown = await response.json().catch(() => { throw new CanvasRequestError('invalid-response'); });
+      let body: unknown;
+      try { body = await readJsonResponse(response); } catch { throw new CanvasRequestError('invalid-response'); }
       const parsed = z.array(z.unknown()).safeParse(body);
       if (!parsed.success) throw new CanvasRequestError('invalid-response');
       for (const entry of parsed.data) { const item = schema.safeParse(entry); if (item.success) results.push(item.data); else skipped = true; }
@@ -153,7 +177,7 @@ export class CanvasHttpClient {
     } catch (error) { throw failedRequest(error); }
     if (response.status === 401 || response.status === 403) throw new CanvasRequestError('unauthorized');
     if (!response.ok) throw new CanvasRequestError(response.status === 404 ? 'invalid-url' : 'unreachable');
-    const user = userSchema.safeParse(await response.json().catch(() => null));
+    const user = userSchema.safeParse(await readJsonResponse(response).catch(() => null));
     if (!user.success) throw new CanvasRequestError('invalid-url');
     return { origin, userId: String(user.data.id) };
   }
