@@ -7,7 +7,7 @@ import { snapshotFixture } from './snapshot-fixture';
 jest.mock('../src/features/queries', () => ({ useCourses: () => ({ data: undefined }), useAction: jest.fn(), useTasks: jest.fn(), useAcademic: () => ({ data: [], isLoading: false }) }));
 jest.mock('../src/store/session', () => ({ useSessionStore: (select: (state: unknown) => unknown) => select({ session: { user: { id: 'account-one', timeZone: 'America/Edmonton' } } }) }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: jest.requireActual('react-native').View }));
-const zone = 'America/Edmonton'; const task = snapshotFixture().personalTasks[0]; const save = jest.fn();
+const zone = 'America/Edmonton'; const task = { ...snapshotFixture().personalTasks[0], recurrence: null }; const save = jest.fn();
 const values = { mode: 'instant' as const, date: '2025-03-08', time: '17:00' };
 beforeEach(() => {
   jest.useFakeTimers(); jest.setSystemTime(new Date('2025-03-08T18:00:00Z')); jest.clearAllMocks(); save.mockReset().mockResolvedValue({});
@@ -22,6 +22,11 @@ describe('explicit task reminder boundary (ToR 7, 13)', () => {
   });
   it('removes a reminder with an explicit null', () => {
     expect(taskReminderRequest({ ...values, mode: 'none' }, task, zone).body).toEqual({ reminder: null });
+  });
+  it('rejects creating a reminder for a repeating task but allows clearing one', () => {
+    const repeating = { ...task, recurrence: { frequency: 'daily' as const, interval: 1 } };
+    expect(() => taskReminderRequest(values, repeating, zone)).toThrow(/Repeating tasks cannot have reminders/);
+    expect(taskReminderRequest({ ...values, mode: 'none' }, repeating, zone).body).toEqual({ reminder: null });
   });
   it('retains an existing repeated-hour instant with its original precision', () => {
     const existing = { ...task, reminder: { kind: 'instant' as const, at: '2025-11-02T08:30:12.345Z' } };
