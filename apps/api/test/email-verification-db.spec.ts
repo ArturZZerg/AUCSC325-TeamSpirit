@@ -246,20 +246,16 @@ import { PrismaService } from '../src/prisma.service';
     await new RecoveryWorker(db, { mode: 'disabled' }, { send }).runOnce();
     expect(await db.emailVerificationToken.count({ where: { userId: user.id } })).toBe(1); expect(send).not.toHaveBeenCalled();
   });
-  it('issues a fresh session only after a verification holding the account lock has committed', async () => {
-    const user = await seed(), code = await readyCode(user);
-    let entered!: () => void, release!: () => void; const arrived = new Promise<void>(resolve => { entered = resolve; }), hold = new Promise<void>(resolve => { release = resolve; });
-    const original = passwords.verifyPassword; let first = true;
-    const spy = jest.spyOn(passwords, 'verifyPassword').mockImplementation(async (...args) => {
-      const valid = await original(...args); if (first) { first = false; entered(); await hold; } return valid;
+  it('rechecks the credential after password verification before issuing a session', async () => {
+    const user = await seed(true), changedHash = await hashPassword(changedPassword), original = db.user.findUnique.bind(db.user);
+    let first = true;
+    const spy = jest.spyOn(db.user, 'findUnique').mockImplementation(args => {
+      const result = original(args).then(async value => { if (first) { first = false; await db.user.update({ where: { id: user.id }, data: { passwordHash: changedHash } }); } return value; });
+      return result as ReturnType<typeof db.user.findUnique>;
     });
-    const verifying = confirm(user.email, code); await arrived;
-    const loggingIn = auth.login({ email: user.email, password }, randomUUID());
-    let result;
-    try { await waitForAccountLock(); }
-    finally { release(); const values = await Promise.all([verifying, loggingIn]); result = values[1]; spy.mockRestore(); }
-    const session = sessionSchema.parse(result);
-    await client().get('/me').set('Authorization', `Bearer ${session.accessToken}`).expect(200);
+    try { await expect(auth.login({ email: user.email, password }, randomUUID())).rejects.toMatchObject({ status: 401 }); }
+    finally { spy.mockRestore(); }
+    expect(await db.session.count({ where: { userId: user.id } })).toBe(0);
   });
   it('bounds resends across replicas and rejects repeated redemption attempts even with forged forwarding headers', async () => {
     const user = await seed();
@@ -285,14 +281,14 @@ import { PrismaService } from '../src/prisma.service';
     } finally { release(); await updating; await failed; }
     expect((await db.user.findUniqueOrThrow({ where: { id: user.id } })).emailVerifiedAt).toBeNull();
   });
-  it('keeps the User locked through password confirmation and verification commit', async () => {
+  it('does not hold the User lock while password verification runs', async () => {
     const user = await seed(), code = await readyCode(user);
     let entered!: () => void, release!: () => void; const arrived = new Promise<void>(resolve => { entered = resolve; }), hold = new Promise<void>(resolve => { release = resolve; });
     const original = passwords.verifyPassword, spy = jest.spyOn(passwords, 'verifyPassword').mockImplementation(async (...args) => { const valid = await original(...args); entered(); await hold; return valid; });
     const confirming = confirm(user.email, code); await arrived;
     const deleting = db.user.delete({ where: { id: user.id } }).then(result => result);
-    try { await waitForAccountLock(); }
-    finally { release(); await Promise.all([confirming, deleting]); spy.mockRestore(); }
-    expect(await db.emailVerificationToken.count({ where: { userId: user.id } })).toBe(0);
+    const completed = deleting.then(() => true), timedOut = new Promise(resolve => setTimeout(() => resolve(false), 1000));
+    try { await expect(Promise.race([completed, timedOut])).resolves.toBe(true); }
+    finally { release(); await Promise.allSettled([confirming, deleting]); spy.mockRestore(); }
   });
 });

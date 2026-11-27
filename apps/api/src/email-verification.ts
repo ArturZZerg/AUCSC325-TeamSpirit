@@ -36,9 +36,11 @@ export class EmailVerificationService {
   }
   async requestCode(input: z.infer<typeof emailVerificationRequestSchema>, source: string): Promise<boolean> {
     const { recipientAllowed } = await this.admit(source, input.email);
+    const candidate = await this.prisma.user.findUnique({ where: { email: input.email }, select: { passwordHash: true } });
+    if (!candidate || !await verifyPassword(input.password, candidate.passwordHash)) throw new UnauthorizedException('Invalid email or password');
     return this.prisma.$transaction(async tx => {
       const [user] = await tx.$queryRaw<VerificationUser[]>`SELECT "id", "email", "passwordHash", "emailVerifiedAt" FROM "User" WHERE "email" = ${input.email} FOR UPDATE`;
-      if (!user || !await verifyPassword(input.password, user.passwordHash)) throw new UnauthorizedException('Invalid email or password');
+      if (!user || user.passwordHash !== candidate.passwordHash) throw new UnauthorizedException('Invalid email or password');
       if (!user.emailVerifiedAt && recipientAllowed) await this.enqueue(tx, user);
       return !user.emailVerifiedAt && recipientAllowed;
     }, { timeout: 5000, maxWait: 5000 });
@@ -49,11 +51,13 @@ export class EmailVerificationService {
   }
   async confirm(input: z.infer<typeof emailVerificationConfirmSchema>, source: string) {
     this.enabled(); await this.rates.record('verify', source, input.email);
+    const candidate = await this.prisma.user.findUnique({ where: { email: input.email }, select: { passwordHash: true } });
+    if (!candidate || !await verifyPassword(input.password, candidate.passwordHash)) throw new BadRequestException('The code or password is invalid. Check them or request a new code.');
     await this.prisma.$transaction(async tx => {
       const [user] = await tx.$queryRaw<VerificationUser[]>`SELECT "id", "email", "passwordHash", "emailVerifiedAt" FROM "User" WHERE "email" = ${input.email} FOR UPDATE`;
       const token = user && await tx.emailVerificationToken.findFirst({ where: { userId: user.id,
         tokenHash: recoveryCodeHash(input.code), credentialHash: verificationCredentialHash(user.passwordHash), expiresAt: { gt: new Date() } } });
-      if (!user || user.emailVerifiedAt || !token || !await verifyPassword(input.password, user.passwordHash))
+      if (!user || user.passwordHash !== candidate.passwordHash || user.emailVerifiedAt || !token)
         throw new BadRequestException('The code or password is invalid. Check them or request a new code.');
       await tx.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
       // Preview credentials must not regain access after mailbox verification.

@@ -39,11 +39,16 @@ export class AuthService {
   async login(input: z.infer<typeof loginRequestSchema>, source = 'unknown') {
     const email = input.email.trim().toLowerCase();
     await this.rates.admitLogin(source, email);
+    const candidate = await this.prisma.user.findUnique({ where: { email }, select: { passwordHash: true } });
+    if (!candidate || !await verifyPassword(input.password, candidate.passwordHash)) {
+      this.rates.loginFailed(email);
+      throw new UnauthorizedException('Invalid email or password');
+    }
     const result = await this.prisma.$transaction(async tx => {
       // Reset/deletion take this same lock before changing credentials or sessions.
       const [user] = await tx.$queryRaw<{ id:string; email:string; displayName:string; timeZone:string; createdAt:Date; passwordHash:string; emailVerifiedAt:Date|null }[]>`
         SELECT "id", "email", "displayName", "timeZone", "createdAt", "passwordHash", "emailVerifiedAt" FROM "User" WHERE "email" = ${email} FOR UPDATE`;
-      if (!user || !await verifyPassword(input.password, user.passwordHash)) return null;
+      if (!user || user.passwordHash !== candidate.passwordHash) return null;
       if (this.registration.mode !== 'preview' && !user.emailVerifiedAt) {
         return { verificationRequired: true as const };
       }
