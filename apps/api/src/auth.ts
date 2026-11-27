@@ -12,6 +12,8 @@ import { AuthRateService } from './auth-rate';
 import { requestSource, type SourceRequest } from './request-source';
 
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
+// Keep login timing independent of whether the requested email has an account.
+const DUMMY_PASSWORD_HASH = `scrypt:${Buffer.alloc(16).toString('base64')}:${Buffer.alloc(64).toString('base64')}`;
 const updateMeSchema = z.object({ displayName: z.string().min(1).max(100).optional(), timeZone: timeZoneSchema.optional() }).strict();
 
 @Injectable()
@@ -43,7 +45,8 @@ export class AuthService {
       // Reset/deletion take this same lock before changing credentials or sessions.
       const [user] = await tx.$queryRaw<{ id:string; email:string; displayName:string; timeZone:string; createdAt:Date; passwordHash:string; emailVerifiedAt:Date|null }[]>`
         SELECT "id", "email", "displayName", "timeZone", "createdAt", "passwordHash", "emailVerifiedAt" FROM "User" WHERE "email" = ${email} FOR UPDATE`;
-      if (!user || !await verifyPassword(input.password, user.passwordHash)) return null;
+      const passwordValid = await verifyPassword(input.password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+      if (!user || !passwordValid) return null;
       if (this.registration.mode !== 'preview' && !user.emailVerifiedAt) {
         return { verificationRequired: true as const };
       }
