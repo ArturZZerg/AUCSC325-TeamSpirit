@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { randomBytes } from 'node:crypto';
 import request from 'supertest';
 import { AuthGuard } from '../src/common';
-import { CanvasController, CanvasService, canvasRateLimits, canvasSource } from '../src/canvas';
+import { CanvasController, CanvasService, canvasCoverageDates, canvasRateLimits, canvasSource } from '../src/canvas';
 import { CanvasHttpClient, CanvasRequestError, canvasOrigin } from '../src/integrations/canvas/canvas-http';
 import { CanvasProvider } from '../src/integrations/canvas/canvas-provider';
 import { canvasTokenKey, openCanvasToken, sealCanvasToken } from '../src/integrations/canvas/canvas-token';
@@ -44,6 +44,19 @@ describe('Canvas address and token storage', () => {
     const production = { NODE_ENV: 'production', DATABASE_URL: 'postgresql://u:p@db/campusflow', CORS_ORIGIN: 'https://app.example.test', CANVAS_MODE: 'token' };
     expect(() => runtimeConfig(production)).toThrow('CANVAS_TOKEN_KEY');
     expect(() => runtimeConfig({ ...production, CANVAS_TOKEN_KEY: randomBytes(32).toString('base64') })).not.toThrow();
+  });
+});
+
+describe('Canvas sync coverage', () => {
+  it('combines planner and calendar coverage into the Today date bounds', () => {
+    expect(canvasCoverageDates({
+      status: 'complete', courses: [], academicItems: [],
+      coursework: { completeCourses: [], planner: { from: '2026-10-01T00:00:00.000Z', to: '2026-11-01T00:00:00.000Z' } },
+      calendar: { complete: true, coverage: { from: '2026-09-15', through: '2026-12-01', timeZone: 'America/Edmonton' }, events: [] },
+    })).toEqual({ from: '2026-09-15', through: '2026-12-01' });
+  });
+  it('returns empty bounds when a sync has no bounded data', () => {
+    expect(canvasCoverageDates({ status: 'complete', courses: [], academicItems: [] })).toEqual({ from: null, through: null });
   });
 });
 
