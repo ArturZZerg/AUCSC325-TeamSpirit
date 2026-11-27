@@ -95,6 +95,11 @@ describe('Canvas HTTP client', () => {
       .fetchAcademicSnapshot(origin, token, signal);
     expect(snapshot.courses).toHaveLength(1);
   });
+  it('rejects oversized Canvas JSON responses before parsing them', async () => {
+    const oversizedCourseName = 'x'.repeat(1024 * 1024);
+    await expect(client({ [coursesUrl]: { body: [{ id: 1, name: oversizedCourseName }] } })
+      .fetchAcademicSnapshot(origin, token, signal)).rejects.toMatchObject({ kind: 'invalid-response' });
+  });
   it('reports a rejected token and a host that resolves to a private address', async () => {
     await expect(client({ [`${origin}/api/v1/users/self`]: { status: 401, body: {} } }).verify(origin, token, signal)).rejects.toMatchObject({ kind: 'unauthorized' });
     await expect(client({}, async () => [{ address: '10.0.0.5', family: 4 }]).verify(origin, token, signal)).rejects.toMatchObject({ kind: 'invalid-url' });
