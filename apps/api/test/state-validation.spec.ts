@@ -96,6 +96,12 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     expect(prisma.reminder.updateMany).toHaveBeenCalledWith({ where: { userId, targetKind: resource === 'tasks' ? 'personalTask' : 'goal', targetId: recordId, enabled: true, fireAt: { lt: until } }, data: { fireAt: until } });
   });
 
+  it('rejects an occurrence date for goal snooze without changing the goal', async () => {
+    await post(`/goals/${recordId}/snooze`).send({ until: '2030-03-09T18:00:00Z', occurrenceKey: '2026-09-27' }).expect(400);
+    expect(prisma.goal.update).not.toHaveBeenCalled();
+    expect(prisma.reminder.updateMany).not.toHaveBeenCalled();
+  });
+
   it('rejects an omitted pause state without changing the goal', async () => {
     await post(`/goals/${recordId}/pause`).send({}).expect(400);
     expect(prisma.goal.update).not.toHaveBeenCalled();
