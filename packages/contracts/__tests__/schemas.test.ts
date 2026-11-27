@@ -1,4 +1,4 @@
-import { campusEventSchema, eventQuerySchema, completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema } from '../src';
+import { campusEventSchema, eventQuerySchema, completePersonalTaskSchema, dateSchema, taskQuerySchema, pauseGoalSchema, updatePersonalTaskSchema, snapshotCoverageSchema, offlineSnapshotSchema, createPersonalTaskSchema, registerRequestSchema, todayResponseSchema, createGoalSchema, updateGoalSchema } from '../src';
 
 describe('public contract validation', () => {
   const event = { id: '50000000-0000-4000-8000-000000000001', title: 'Event', description: null, category: null, source: 'fixture', externalId: 'event', timing: { kind: 'allDay', startDate: '2030-03-08', endDateExclusive: '2030-03-09' }, location: null, url: null };
@@ -14,6 +14,12 @@ describe('public contract validation', () => {
   it('keeps date-only and timed task values unambiguous', () => {
     expect(createPersonalTaskSchema.parse({ title: 'Buy groceries', due: { kind: 'date', date: '2026-09-21' } }).due).toEqual({ kind: 'date', date: '2026-09-21' });
     expect(createPersonalTaskSchema.safeParse({ title: 'Broken', due: { date: '2026-09-21' } }).success).toBe(false);
+  });
+  it('rejects whitespace-only goal titles and trims surrounding whitespace', () => {
+    expect(createGoalSchema.safeParse({ title: '   ', schedule: { kind: 'daily' }, timeZone: 'America/Edmonton' }).success).toBe(false);
+    expect(createGoalSchema.parse({ title: '  Drink water  ', schedule: { kind: 'daily' }, timeZone: 'America/Edmonton' }).title).toBe('Drink water');
+    expect(updateGoalSchema.safeParse({ title: '\t\n' }).success).toBe(false);
+    expect(updateGoalSchema.parse({ title: '  Walk  ' }).title).toBe('Walk');
   });
   it('requires an IANA timezone field at the auth boundary', () => {
     expect(registerRequestSchema.safeParse({ email: 'student@example.ca', password: 'short', displayName: 'Student', timeZone: 'America/Edmonton' }).success).toBe(false);
