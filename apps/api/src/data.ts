@@ -1,4 +1,4 @@
-import { eventRange, selectEvents, withoutRepeatedListings } from './integrations/events/event-query';
+import { defaultEventRange, eventRange, eventSortAtWindow, selectEvents, withoutRepeatedListings } from './integrations/events/event-query';
 import { createHash, randomUUID } from 'node:crypto';
 import { assessmentGroupLimit, assessmentLimit, courseAssessmentMax, createAssessmentGroupSchema, createAssessmentSchema, updateAssessmentGroupSchema, updateAssessmentSchema, createCourseSchema, createManualAcademicItemSchema, manualCourseLimit, manualCourseSource, updateCourseSchema, updateManualAcademicItemSchema, manualAcademicSource } from '@campusflow/contracts';
 import { createTaskTemplateSchema, taskTemplateSchema, updateTaskTemplateSchema } from '@campusflow/contracts';
@@ -621,9 +621,9 @@ const taskTemplateDto = (template: TaskTemplate) => taskTemplateSchema.parse({
 @Controller('events') @UseGuards(AuthGuard) export class EventsController {
  constructor(private readonly prisma: PrismaService, private readonly reminders: ReminderService) {}
  @Get() async list(@CurrentUser() u: RequestUser, @Query(new ZodPipe(eventQuerySchema)) query: z.infer<typeof eventQuerySchema>) {
-   const range = eventRange(query, u.timeZone);
+   const range = query.from || query.through ? eventRange(query, u.timeZone) : defaultEventRange(u.timeZone);
    const rows = await this.prisma.event.findMany({ where: {
-     OR: [{ sourceScope: 'public' }, { sourceScope: `user:${u.id}` }],
+     AND: [{ OR: [{ sourceScope: 'public' }, { sourceScope: `user:${u.id}` }] }, { sortAt: eventSortAtWindow(range) }],
      ...(query.category ? { category: query.category } : {}),
    }, include: { savedBy: { where: { userId: u.id } } } });
    return selectEvents(withoutRepeatedListings(rows.map(r => campusEventSchema.parse({ ...eventDto(r), saved: r.savedBy.length > 0, includedInPlan: r.savedBy[0]?.includedInPlan ?? false, savedReminder: r.savedBy[0]?.reminder ?? null }))), range, u.timeZone);

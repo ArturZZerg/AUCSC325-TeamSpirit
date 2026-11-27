@@ -4,6 +4,7 @@ import { addCalendarDays, composeToday, localDateAt, type TodayInput } from '@ca
 import { manualAcademicSource, offlineSnapshotSchema, todayQuerySchema, todayResponseSchema, type OfflineSnapshot } from '@campusflow/contracts';
 import { AuthGuard, CurrentUser, RequestUser, ZodPipe, toIso } from './common';
 import { PrismaService } from './prisma.service';
+import { eventRange, eventSortAtWindow } from './integrations/events/event-query';
 
 /** App-level wire/domain mapping; shared packages remain independent. */
 export function snapshotToDomainInput(snapshot: OfflineSnapshot, date: string, now: string): TodayInput {
@@ -58,6 +59,7 @@ export class TodayService {
       const capturedAt = new Date().toISOString();
       const from = date ?? localDateAt(capturedAt, user.timeZone);
       const visibility = { OR: [{ sourceScope: 'public' }, { sourceScope: `user:${user.id}` }] };
+      const eventRangeForDate = eventRange({ from, through: addCalendarDays(from, 1) }, user.timeZone);
       const [tasks, taskCompletions, courses, academics, goals, completions, events, saved, canvas] = await Promise.all([
         tx.personalTask.findMany({ where: { userId: user.id } }),
         tx.taskCompletion.findMany({ where: { userId: user.id, task: { userId: user.id } } }),
@@ -65,7 +67,7 @@ export class TodayService {
         tx.academicItem.findMany({ where: { userId: user.id } }),
         tx.goal.findMany({ where: { userId: user.id } }),
         tx.goalCompletion.findMany({ where: { userId: user.id, goal: { userId: user.id } } }),
-        tx.event.findMany({ where: visibility }),
+        tx.event.findMany({ where: { AND: [visibility, { sortAt: eventSortAtWindow(eventRangeForDate) }] } }),
         tx.savedEvent.findMany({ where: { userId: user.id, event: visibility } }),
         tx.canvasConnection.findUnique({ where: { userId: user.id } }),
       ]);
