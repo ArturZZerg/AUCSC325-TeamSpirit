@@ -6,7 +6,7 @@ import { RECOVERY_CONFIG, type RecoveryConfig } from './recovery-config';
 import { RECOVERY_MAILER, type RecoveryMailer } from './recovery-mail';
 import { openRecoveryEnvelope, recoveryCodeHash, recoveryRecipientHash, verificationCredentialHash, type RecoveryEnvelope } from './recovery-secrets';
 
-const leaseMs = 120_000, maxAttempts = 8;
+const leaseMs = 120_000, maxAttempts = 8, cleanupBatch = 500;
 @Injectable()
 export class RecoveryWorker implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(RecoveryWorker.name);
@@ -39,13 +39,21 @@ export class RecoveryWorker implements OnApplicationBootstrap, OnModuleDestroy {
     await this.prisma.$executeRaw`DELETE FROM "RecoveryMail" WHERE "id" IN
       (SELECT "id" FROM "RecoveryMail" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') OR ("attempts" >= ${maxAttempts}
           AND ("leaseUntil" IS NULL OR "leaseUntil" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')))
-        ORDER BY "expiresAt" LIMIT 500 FOR UPDATE SKIP LOCKED)`;
+        ORDER BY "expiresAt" LIMIT ${cleanupBatch} FOR UPDATE SKIP LOCKED)`;
     await this.prisma.$executeRaw`DELETE FROM "PasswordResetToken" WHERE "id" IN
-      (SELECT "id" FROM "PasswordResetToken" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ORDER BY "expiresAt" LIMIT 500 FOR UPDATE SKIP LOCKED)`;
+      (SELECT "id" FROM "PasswordResetToken" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ORDER BY "expiresAt" LIMIT ${cleanupBatch} FOR UPDATE SKIP LOCKED)`;
     await this.prisma.$executeRaw`DELETE FROM "EmailVerificationToken" WHERE "id" IN
-      (SELECT "id" FROM "EmailVerificationToken" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ORDER BY "expiresAt" LIMIT 500 FOR UPDATE SKIP LOCKED)`;
+      (SELECT "id" FROM "EmailVerificationToken" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ORDER BY "expiresAt" LIMIT ${cleanupBatch} FOR UPDATE SKIP LOCKED)`;
     await this.prisma.$executeRaw`DELETE FROM "RecoveryRateBucket" WHERE "key" IN
-      (SELECT "key" FROM "RecoveryRateBucket" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ORDER BY "expiresAt" LIMIT 500 FOR UPDATE SKIP LOCKED)`;
+      (SELECT "key" FROM "RecoveryRateBucket" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ORDER BY "expiresAt" LIMIT ${cleanupBatch} FOR UPDATE SKIP LOCKED)`;
+    await this.prisma.$executeRaw`DELETE FROM "Session" WHERE "id" IN
+      (SELECT "id" FROM "Session" WHERE "expiresAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+          OR "revokedAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - interval '30 days'
+        ORDER BY "expiresAt" LIMIT ${cleanupBatch} FOR UPDATE SKIP LOCKED)`;
+    await this.prisma.$executeRaw`DELETE FROM "TaskCreationRequest" WHERE ("userId", "requestKey") IN
+      (SELECT "userId", "requestKey" FROM "TaskCreationRequest"
+        WHERE "createdAt" <= (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - interval '30 days'
+        ORDER BY "createdAt" LIMIT ${cleanupBatch} FOR UPDATE SKIP LOCKED)`;
   }
   private async claim(): Promise<RecoveryMail | undefined> {
     const lease = randomUUID();
