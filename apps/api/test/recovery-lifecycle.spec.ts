@@ -24,7 +24,7 @@ describe('recovery capability and worker lifecycle', () => {
   });
   it('periodically cleans expired private metadata while disabled and cancels polling at shutdown', async () => {
     const worker = new RecoveryWorker(db, config, port); worker.onApplicationBootstrap();
-    await jest.advanceTimersByTimeAsync(60_000); expect(execute).toHaveBeenCalled(); expect(send).not.toHaveBeenCalled();
+    await jest.advanceTimersByTimeAsync(60_000); expect(execute).toHaveBeenCalledTimes(6); expect(send).not.toHaveBeenCalled();
     const completedQueries = execute.mock.calls.length;
     await worker.onModuleDestroy(); await jest.advanceTimersByTimeAsync(60_000);
     expect(execute).toHaveBeenCalledTimes(completedQueries); expect(jest.getTimerCount()).toBe(0);
