@@ -113,6 +113,23 @@ databaseSuite('Canvas complete-batch synchronization with PostgreSQL (ToR 9/10/1
     await client().get('/snapshot?date=2026-10-10').set('Authorization', token).expect(200);
     expect(provider.fetchAcademicSnapshot).not.toHaveBeenCalled();
   });
+  it('ages a successful source without discarding saved work or contacting Canvas (#189)', async () => {
+    await sync.sync(user);
+    const saved = await db.academicItem.findMany({ where: { userId: user.id }, orderBy: { id: 'asc' } });
+    const lastSuccessfulSyncAt = new Date(Date.now() - 90 * 60_000 - 1_000);
+    await db.canvasConnection.update({ where: { userId: user.id }, data: { lastSuccessfulSyncAt } });
+    provider.fetchAcademicSnapshot.mockReset().mockRejectedValue(new Error('offline'));
+    for (const path of ['/snapshot?date=2026-10-10', '/today?date=2026-10-10']) {
+      const response = await client().get(path).set('Authorization', token).expect(200);
+      expect(response.body.sourceStatus).toMatchObject({ availability: 'stale', lastSuccessfulSyncAt: lastSuccessfulSyncAt.toISOString() });
+    }
+    expect(provider.fetchAcademicSnapshot).not.toHaveBeenCalled();
+    expect(await db.academicItem.findMany({ where: { userId: user.id }, orderBy: { id: 'asc' } })).toEqual(saved);
+    expect((await db.canvasConnection.findUniqueOrThrow({ where: { userId: user.id } })).lastSuccessfulSyncAt).toEqual(lastSuccessfulSyncAt);
+    provider.fetchAcademicSnapshot.mockImplementation(fixture);
+    await sync.sync(user);
+    expect((await client().get('/today?date=2026-10-10').set('Authorization', token).expect(200)).body.sourceStatus.availability).toBe('available');
+  });
   it('imports Canvas grades once, keeps a weight the student edited and lets it be reset (ADR 024)', async () => {
     await sync.sync(user); await sync.sync(user);
     const course = await db.course.findFirstOrThrow({ where: { userId: user.id, source: fixtureSource, externalId: '91001' } });

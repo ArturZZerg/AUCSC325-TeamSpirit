@@ -62,7 +62,7 @@ it.each([
   before.savedEvents = [{ eventId: before.events[1].id, includedInPlan: true, reminder: null, savedAt: before.capturedAt }];
   const oldToday = composeOfflineToday(before, session.user.id, session.user.timeZone, date, new Date().toISOString())!;
   const after = { ...before, capturedAt,
-    sourceStatus: { ...before.sourceStatus, availability: 'available' as const },
+    sourceStatus: { ...before.sourceStatus, availability: 'available' as const, lastSuccessfulSyncAt: capturedAt },
     personalTasks: [
       { ...before.personalTasks[0], due: null, scheduled: { kind: 'date' as const, date: '2026-10-04' } },
       { ...before.personalTasks[1], completedAt: '2026-10-04T01:15:00Z' },
@@ -464,4 +464,22 @@ it('withholds old-zone SQLite Today data after profile synchronization and retai
   jest.mocked(readCache).mockImplementation(async (_account, key) => key === 'today:2026-10-03' ? fresh : undefined);
   await act(async () => { await result.current.refetch(); });
   expect(result.current.data).toEqual(fresh);
+});
+
+it.each(['server', 'cache'] as const)('ages the final %s Today source status without requiring a snapshot (#189)', async source => {
+  const cached = plan('2026-10-03');
+  cached.generatedAt = '2026-10-04T01:00:00.000Z';
+  cached.sourceStatus = { availability: 'available', lastSuccessfulSyncAt: '2026-10-04T00:30:00.000Z',
+    coveredFrom: '2026-10-01', coveredThrough: '2026-10-10' };
+  const before = JSON.stringify(cached);
+  jest.mocked(api).mockImplementation(async path => {
+    if (source === 'server' && path.startsWith('/today')) return cached;
+    throw new Error('Offline');
+  });
+  jest.mocked(readCache).mockImplementation(async (_account, key) => source === 'cache' && key.startsWith('today:') ? cached : undefined);
+  const { result } = renderHook(() => useToday(), { wrapper: Wrapper });
+  await waitFor(() => expect(result.current.data?.items).toEqual(cached.items));
+  expect(result.current.data?.sourceStatus).toEqual({ ...cached.sourceStatus, availability: 'stale' });
+  expect(result.current.data?.generatedAt).toBe(cached.generatedAt);
+  expect(JSON.stringify(cached)).toBe(before);
 });

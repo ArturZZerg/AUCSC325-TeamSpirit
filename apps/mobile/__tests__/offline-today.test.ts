@@ -83,3 +83,27 @@ it('recomposes Tokyo occurrences across goal midnight without changing snapshot 
   expect(composeOfflineToday(snapshot, accountId, zone, '2026-10-04', '2026-10-04T18:00:00Z')!.items[0])
     .toMatchObject({ occurrenceKey: '2026-10-05', state: 'completed' });
 });
+
+describe('cached Canvas freshness (#189)', () => {
+  it.each([
+    ['2025-03-09T16:30:00.001Z', 'available'],
+    ['2025-03-09T16:30:00.000Z', 'stale'],
+    ['2025-03-02T18:00:00.000Z', 'stale'],
+    ['2025-03-09T18:00:00.001Z', 'stale'],
+    [null, 'stale'],
+  ])('ages a cached available source with success %s to %s', (lastSuccessfulSyncAt, availability) => {
+    const snapshot = snapshotFixture();
+    snapshot.sourceStatus = { ...snapshot.sourceStatus, availability: 'available', lastSuccessfulSyncAt };
+    const before = JSON.stringify(snapshot);
+    const plan = composeOfflineToday(snapshot, accountId, zone, '2025-03-09', now)!;
+    expect(plan.sourceStatus).toEqual({ ...snapshot.sourceStatus, availability });
+    expect(plan.generatedAt).toBe(snapshot.capturedAt);
+    expect(plan.items.some(item => item.entityId === taskId)).toBe(true);
+    expect(JSON.stringify(snapshot)).toBe(before);
+  });
+  it.each(['stale', 'unavailable', 'notConnected'] as const)('does not upgrade cached %s status from the device clock', availability => {
+    const snapshot = snapshotFixture();
+    snapshot.sourceStatus = { ...snapshot.sourceStatus, availability, lastSuccessfulSyncAt: now };
+    expect(composeOfflineToday(snapshot, accountId, zone, '2025-03-09', now)!.sourceStatus).toEqual(snapshot.sourceStatus);
+  });
+});

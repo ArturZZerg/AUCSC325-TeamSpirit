@@ -1,6 +1,7 @@
 import { Temporal } from '@js-temporal/polyfill';
 
 export * from './classes';
+export * from './source-freshness';
 export * from './study-windows';
 export * from './study-distribution';
 export * from './focus-report';
