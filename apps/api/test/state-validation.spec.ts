@@ -29,11 +29,12 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     session: { findUnique: jest.fn() },
     goal: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
     event: { findFirst: jest.fn() }, savedEvent: { upsert: jest.fn(), deleteMany: jest.fn() },
-    personalTask: { findFirst: jest.fn(), update: jest.fn() },
+    personalTask: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
     reminder: { deleteMany: jest.fn(), create: jest.fn(), updateMany: jest.fn() },
     taskCompletion: { upsert: jest.fn(), deleteMany: jest.fn() },
   };
   const post = (path: string) => request(app.getHttpServer()).post(path).set('Authorization', 'Bearer test-session');
+  const patch = (path: string) => request(app.getHttpServer()).patch(path).set('Authorization', 'Bearer test-session');
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -94,6 +95,19 @@ describe('task and goal state request validation (ToR sections 5 and 7)', () => 
     const response = await post(`/${resource}/${recordId}/snooze`).send({ until: until.toISOString() }).expect(201);
     expect(response.body.reminder).toEqual(reminder); expect(response.body.snoozedUntil).toBe(until.toISOString());
     expect(prisma.reminder.updateMany).toHaveBeenCalledWith({ where: { userId, targetKind: resource === 'tasks' ? 'personalTask' : 'goal', targetId: recordId, enabled: true, fireAt: { lt: until } }, data: { fireAt: until } });
+  });
+
+  it('rejects reminders on newly repeating tasks without creating the task', async () => {
+    await post('/tasks').send({ title: 'Repeat', scheduled: { kind: 'date', date: '2026-09-27' },
+      recurrence: { frequency: 'daily' }, reminder: { kind: 'instant', at: '2030-03-09T18:00:00Z' } }).expect(400);
+    expect(prisma.personalTask.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects turning a reminded task into a repeating task', async () => {
+    prisma.personalTask.findFirst.mockResolvedValueOnce({ ...task, recurrence: null,
+      reminder: { kind: 'instant', at: '2030-03-09T18:00:00Z' } });
+    await patch(`/tasks/${recordId}`).send({ recurrence: { frequency: 'daily' } }).expect(400);
+    expect(prisma.personalTask.update).not.toHaveBeenCalled();
   });
 
   it('rejects an omitted pause state without changing the goal', async () => {

@@ -7,6 +7,6 @@ export function TaskReminderEditor({ task, timeZone, onClose }: { task: Personal
   // Preserve awaited refresh until it has its own authoritative edit gate.
   const action = useAction(undefined, { awaitRefresh: true });
   return <TimedReminderEditor title="Task reminder" subjectTitle={task.title} reminder={task.reminder} timeZone={timeZone}
-    inactiveHint={task.completedAt ? 'Undo completion to reactivate a future reminder.' : undefined}
+    inactiveHint={task.recurrence ? 'Repeating tasks cannot have reminders. Clear the existing reminder to remove it.' : task.completedAt ? 'Undo completion to reactivate a future reminder.' : undefined}
     onSave={values => action.mutateAsync(taskReminderRequest(values, task, timeZone))} onClose={onClose}/>;
 }

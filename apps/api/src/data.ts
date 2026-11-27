@@ -95,6 +95,9 @@ const taskTiming = (task: { recurrence: unknown; due: unknown; scheduled: unknow
 function validateTaskAnchor(task: { recurrence?: unknown; due?: unknown; scheduled?: unknown }): void {
   if (task.recurrence && !task.due && !task.scheduled) throw new BadRequestException('Recurring tasks require a scheduled date or deadline');
 }
+function validateTaskReminder(recurrence: unknown, reminder: unknown): void {
+  if (recurrence && reminder != null) throw new BadRequestException('Repeating tasks cannot have reminders. Use a one-time task for a reminder.');
+}
 
 const taskTemplateDto = (template: TaskTemplate) => taskTemplateSchema.parse({
   id: template.id, title: template.title, description: template.description,
@@ -153,6 +156,7 @@ const taskTemplateDto = (template: TaskTemplate) => taskTemplateSchema.parse({
 
   @Post() async create(@CurrentUser() u: RequestUser, @Body(new ZodPipe(createPersonalTaskRequestSchema)) b: z.infer<typeof createPersonalTaskRequestSchema>) {
     validateTaskAnchor(b);
+    validateTaskReminder(b.recurrence, b.reminder);
     if (b.recurrence && b.checklist?.length) throw new BadRequestException('Repeating tasks can’t have steps. Add steps to a one-time task.');
     if (b.checklist && new Set(b.checklist.map(step => step.id)).size !== b.checklist.length) throw new BadRequestException('Checklist step IDs must be unique.');
     // Zod normalizes nested object field order. Defaults/nulls match persisted
@@ -202,6 +206,8 @@ const taskTemplateDto = (template: TaskTemplate) => taskTemplateSchema.parse({
       await ownedCourseId(tx, u.id, b.courseId);
       if (b.recurrence && checklistOf(existing).length) throw new BadRequestException('Remove this task’s steps before making it repeat.');
       const recurrence = b.recurrence === undefined ? existing.recurrence : b.recurrence;
+      const reminder = b.reminder === undefined ? existing.reminder : b.reminder;
+      validateTaskReminder(recurrence, reminder);
       if (existing.completedAt && !existing.recurrence && recurrence) throw new BadRequestException('Undo completion before making this task repeat');
       validateTaskAnchor({ recurrence,
         due: b.due === undefined ? existing.due : b.due, scheduled: b.scheduled === undefined ? existing.scheduled : b.scheduled });
