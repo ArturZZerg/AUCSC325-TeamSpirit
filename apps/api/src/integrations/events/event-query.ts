@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { dayBounds, eventOverlapsRange, eventStartInstant } from '@campusflow/domain';
+import { addCalendarDays, dayBounds, eventOverlapsRange, eventStartInstant, localDateAt } from '@campusflow/domain';
 import { Event, eventQuerySchema } from '@campusflow/contracts';
 import { Temporal } from '@js-temporal/polyfill';
 import { z } from 'zod';
@@ -9,6 +9,23 @@ export function eventRange(query: z.infer<typeof eventQuerySchema>, timeZone: st
   const from = boundary(query.from), through = boundary(query.through);
   if (from && through && Temporal.Instant.compare(from, through) >= 0) throw new BadRequestException('Expected from < through (exclusive)');
   return { from, through };
+}
+const EVENT_START_MARGIN_DAYS = 31;
+/** The campus screen needs a bounded discovery window even when it omits query parameters. */
+export function defaultEventRange(timeZone: string, now = new Date().toISOString()) {
+  const date = localDateAt(now, timeZone);
+  return eventRange({ from: date, through: addCalendarDays(date, 31) }, timeZone);
+}
+/**
+ * `sortAt` stores only an event's start. Keep a margin before `from` so a
+ * multi-day event that began earlier can still overlap the requested window;
+ * the domain-level overlap filter remains the source of truth.
+ */
+export function eventSortAtWindow(range: { from?: string; through?: string }) {
+  return {
+    ...(range.from ? { gte: new Date(Date.parse(range.from) - EVENT_START_MARGIN_DAYS * 86_400_000) } : {}),
+    ...(range.through ? { lt: new Date(range.through) } : {}),
+  };
 }
 const timing = (event: Event) => event.timing.kind === 'timed' ? { ...event.timing, endsAt: event.timing.endsAt ?? undefined } : event.timing;
 const listing = (event: Event) => JSON.stringify([event.title.trim().toLowerCase(), event.timing.kind === 'timed' ? event.timing.startsAt : event.timing.startDate]);

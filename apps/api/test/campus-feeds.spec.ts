@@ -6,7 +6,7 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma.service';
 import { CAMPUS_FEEDS, campusWideSource, configuredCampusFeeds } from '../src/integrations/events/campus-feeds';
 import { CampusFeedsService } from '../src/integrations/events/campus-feeds.service';
-import { withoutRepeatedListings } from '../src/integrations/events/event-query';
+import { defaultEventRange, eventSortAtWindow, withoutRepeatedListings } from '../src/integrations/events/event-query';
 import { EventSyncService } from '../src/integrations/events/event-sync.service';
 import { IcsEventProvider } from '../src/integrations/events/ics-event-provider';
 import { calendar, vevent } from './fixtures/campus-calendar';
@@ -41,6 +41,16 @@ describe('listings repeated on the campus-wide calendar', () => {
   });
   it('never hides a copy the student saved', () => {
     expect(ids(listing('wide', campusWideSource, { saved: true }), listing('careers', 'campus:augustana-careers'))).toEqual(['wide', 'careers']);
+  });
+});
+describe('bounded event database windows', () => {
+  it('defaults the discovery feed to the next 31 local calendar days', () => {
+    expect(defaultEventRange('America/Edmonton', '2026-11-27T06:00:00Z')).toEqual({ from: '2026-11-26T07:00:00Z', through: '2026-12-27T07:00:00Z' });
+  });
+  it('keeps a bounded start margin for multi-day events while using the requested upper bound', () => {
+    expect(eventSortAtWindow({ from: '2026-11-27T07:00:00Z', through: '2026-12-04T07:00:00Z' })).toEqual({
+      gte: new Date('2026-10-27T07:00:00Z'), lt: new Date('2026-12-04T07:00:00Z'),
+    });
   });
 });
 const databaseSuite = process.env.DATABASE_URL ? describe : describe.skip;
