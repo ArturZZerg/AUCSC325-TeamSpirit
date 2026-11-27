@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prebuild": "npm run build -w @campusflow/contracts && npm run build -w @campusflow/domain",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "test": "jest --runInBand",
+    "pretypecheck": "npm run build -w @campusflow/contracts && npm run build -w @campusflow/domain",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate deploy --schema prisma/schema.prisma"
