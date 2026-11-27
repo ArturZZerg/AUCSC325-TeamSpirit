@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { randomBytes } from 'node:crypto';
 import request from 'supertest';
 import { AuthGuard } from '../src/common';
-import { CanvasController, CanvasService, canvasCoverageDates, canvasRateLimits, canvasSource } from '../src/canvas';
+import { CanvasController, CanvasService, canvasRateLimits, canvasSource } from '../src/canvas';
 import { CanvasHttpClient, CanvasRequestError, canvasOrigin } from '../src/integrations/canvas/canvas-http';
 import { CanvasProvider } from '../src/integrations/canvas/canvas-provider';
 import { canvasTokenKey, openCanvasToken, sealCanvasToken } from '../src/integrations/canvas/canvas-token';
@@ -11,6 +11,7 @@ import { ReminderService } from '../src/data';
 import { PrismaService } from '../src/prisma.service';
 import { EventSyncService } from '../src/integrations/events/event-sync.service';
 import { runtimeConfig } from '../src/runtime-config';
+import { addCalendarDays, localDateAt } from '@campusflow/domain';
 
 const token = 'canvas-personal-token-0123456789abcdef';
 const publicDns = async () => [{ address: '93.184.216.34', family: 4 }];
@@ -44,19 +45,6 @@ describe('Canvas address and token storage', () => {
     const production = { NODE_ENV: 'production', DATABASE_URL: 'postgresql://u:p@db/campusflow', CORS_ORIGIN: 'https://app.example.test', CANVAS_MODE: 'token' };
     expect(() => runtimeConfig(production)).toThrow('CANVAS_TOKEN_KEY');
     expect(() => runtimeConfig({ ...production, CANVAS_TOKEN_KEY: randomBytes(32).toString('base64') })).not.toThrow();
-  });
-});
-
-describe('Canvas sync coverage', () => {
-  it('combines planner and calendar coverage into the Today date bounds', () => {
-    expect(canvasCoverageDates({
-      status: 'complete', courses: [], academicItems: [],
-      coursework: { completeCourses: [], planner: { from: '2026-10-01T00:00:00.000Z', to: '2026-11-01T00:00:00.000Z' } },
-      calendar: { complete: true, coverage: { from: '2026-09-15', through: '2026-12-01', timeZone: 'America/Edmonton' }, events: [] },
-    })).toEqual({ from: '2026-09-15', through: '2026-12-01' });
-  });
-  it('returns empty bounds when a sync has no bounded data', () => {
-    expect(canvasCoverageDates({ status: 'complete', courses: [], academicItems: [] })).toEqual({ from: null, through: null });
   });
 });
 
@@ -187,6 +175,19 @@ describe('Canvas token connection over HTTP', () => {
     expect(prisma.course.upsert).toHaveBeenCalledTimes(2);
     for (const [call] of prisma.academicItem.upsert.mock.calls)
       expect(call.where).toEqual({ userId_source_externalId: { userId: id, source: canvasSource, externalId: '11' } });
+  });
+  it('persists the local Canvas window for Today in an east-of-UTC timezone', async () => {
+    await auth(request(app.getHttpServer()).post('/canvas/connect')).send({ baseUrl: origin, accessToken: token }).expect(201);
+    const batch = { status: 'complete' as const, courses: [], academicItems: [],
+      coursework: { completeCourses: [], planner: { from: '2026-01-01T00:00:00.000Z', to: '2026-02-01T00:00:00.000Z' } },
+      calendar: { complete: true, coverage: { from: '2026-01-01', through: '2026-02-01', timeZone: 'Asia/Kolkata' }, events: [] } };
+    prisma.user.findUnique.mockResolvedValue({ timeZone: 'Asia/Kolkata' });
+    const fetchSnapshot = jest.spyOn(http, 'fetchAcademicSnapshot').mockResolvedValue(batch);
+    const expectedToday = localDateAt(new Date().toISOString(), 'Asia/Kolkata');
+    await auth(request(app.getHttpServer()).post('/canvas/sync')).expect(201);
+    const update = prisma.canvasConnection.update.mock.calls.at(-1)?.[0].data;
+    expect(update).toMatchObject({ coveredFrom: addCalendarDays(expectedToday, -30), coveredThrough: addCalendarDays(expectedToday, 180) });
+    fetchSnapshot.mockRestore();
   });
   it('imports planner to-dos and calendar events and removes coursework deleted in Canvas (ADR 025)', async () => {
     await auth(request(app.getHttpServer()).post('/canvas/connect')).send({ baseUrl: origin, accessToken: token }).expect(201);

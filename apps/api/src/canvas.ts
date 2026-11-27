@@ -20,23 +20,6 @@ export const fixtureSource = 'canvas:fixture';
 /** Records imported with a student's own access token (ADR 019). */
 export const canvasSource = 'canvas';
 
-export function canvasCoverageDates(batch: AcademicSnapshot): { from: string | null; through: string | null } {
-  const ranges = [
-    batch.coursework?.planner ? {
-      from: batch.coursework.planner.from.slice(0, 10),
-      through: batch.coursework.planner.to.slice(0, 10),
-    } : null,
-    batch.calendar ? {
-      from: batch.calendar.coverage.from,
-      through: batch.calendar.coverage.through,
-    } : null,
-  ].filter((range): range is { from: string; through: string } => range !== null);
-  if (ranges.length === 0) return { from: null, through: null };
-  return {
-    from: ranges.map(range => range.from).sort()[0],
-    through: ranges.map(range => range.through).sort().at(-1)!,
-  };
-}
 /** Planner to-dos and calendar events are read from 30 days ago to 180 days ahead (ADR 025). */
 const importDaysBack = 30, importDaysAhead = 180;
 type Tx = Prisma.TransactionClient;
@@ -221,7 +204,8 @@ export class CanvasService {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('canvas'), hashtext(${user.id}))::text`;
       const current = await tx.canvasConnection.findUnique({ where: { userId: user.id } });
       if (current?.encryptedAccessToken !== connection.encryptedAccessToken) return null;
-      return this.persist(tx, user.id, canvasSource, batch, startedAt);
+      return this.persist(tx, user.id, canvasSource, batch, startedAt,
+        window && batch.coursework?.planner && batch.calendar?.complete ? { from: window.from, through: window.through } : undefined);
     }, { timeout: 30000, maxWait: 10000, isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     if (!result) throw new ConflictException('Canvas was disconnected or reconnected during the sync. Sync again.');
     return { ...result, eventsUpdated: await this.importCalendar(user.id, batch) };
@@ -266,7 +250,8 @@ export class CanvasService {
     }
   }
   /** Idempotent upserts keyed by (account, source, Canvas id). */
-  private async persist(tx: Tx, userId: string, source: string, batch: AcademicSnapshot, startedAt: Date) {
+  private async persist(tx: Tx, userId: string, source: string, batch: AcademicSnapshot, startedAt: Date,
+    coverage?: { from: string; through: string }) {
     await this.reminders.lockAcademicReminders(userId, tx);
     const courseIds = new Map<string, string>();
     for (const course of batch.courses) {
@@ -296,10 +281,9 @@ export class CanvasService {
     }
     if (batch.coursework) await this.removeDeleted(tx, userId, source, batch, courseIds);
     const finishedAt = new Date();
-    const coverage = canvasCoverageDates(batch);
     await tx.canvasConnection.update({ where: { userId },
       data: { lastSyncAttemptAt: startedAt, lastSuccessfulSyncAt: finishedAt, lastError: null,
-        coveredFrom: coverage.from, coveredThrough: coverage.through } });
+        ...(coverage ? { coveredFrom: coverage.from, coveredThrough: coverage.through } : {}) } });
     return canvasSyncResultSchema.parse({ startedAt: startedAt.toISOString(), finishedAt: finishedAt.toISOString(),
       coursesUpdated: batch.courses.length, academicItemsUpdated: batch.academicItems.length, eventsUpdated: 0, status: 'succeeded' });
   }

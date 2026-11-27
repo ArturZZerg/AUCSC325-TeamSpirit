@@ -59,21 +59,6 @@ databaseSuite('Canvas complete-batch synchronization with PostgreSQL (ToR 9/10/1
     const snapshot = await client().get('/snapshot?date=2026-10-10').set('Authorization', token).expect(200);
     expect(snapshot.body).toMatchObject({ accountId: user.id, coverage: { from: '2026-10-10', basis: 'persisted' }, sourceStatus: { availability: 'available' } });
   });
-  it('persists Canvas planner and calendar coverage for Today source freshness', async () => {
-    const batch = await fixture();
-    batch.coursework = { completeCourses: batch.courses.map(course => course.externalId),
-      planner: { from: '2026-09-01T00:00:00.000Z', to: '2026-12-31T00:00:00.000Z' } };
-    batch.calendar = { complete: true, coverage: { from: '2026-09-15', through: '2026-12-01', timeZone: 'America/Edmonton' }, events: [] };
-    provider.fetchAcademicSnapshot.mockResolvedValue(batch);
-
-    await sync.sync(user);
-
-    expect(await db.canvasConnection.findUniqueOrThrow({ where: { userId: user.id } })).toMatchObject({
-      coveredFrom: '2026-09-01', coveredThrough: '2026-12-31',
-    });
-    const today = await client().get('/today?date=2026-10-10').set('Authorization', token).expect(200);
-    expect(today.body.sourceStatus).toMatchObject({ availability: 'available', coveredFrom: '2026-09-01', coveredThrough: '2026-12-31' });
-  });
   it.each(['network', 'malformed', 'incomplete'] as const)('preserves cached records and last success after %s failure', async mode => {
     await sync.sync(user);
     const before = await db.academicItem.findMany({ where: { userId: user.id }, orderBy: { id: 'asc' } });
