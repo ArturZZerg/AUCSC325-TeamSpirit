@@ -33,6 +33,8 @@ export type CanvasCourseGrades = z.infer<typeof courseGrades>;
 export const academicSnapshotSchema = z.object({ status: z.literal('complete'),
   courses: z.array(normalizedCourse).max(200), academicItems: z.array(normalizedItem).max(2000 + maxPlannerItems), grades: z.array(courseGrades).max(200).optional(),
   coursework: courseworkCoverage.optional(), calendar: calendarImport.optional(),
+  // Every active enrollment was listed, so an imported course missing from it has ended (issue #182).
+  coursesComplete: z.boolean().optional(),
 }).strict().superRefine((batch, ctx) => {
   if (batch.coursework?.completeCourses.some(id => !batch.courses.some(course => course.externalId === id)))
     ctx.addIssue({ code: 'custom', message: 'Coverage names an unknown Canvas course' });
@@ -77,7 +79,8 @@ const plannerItemSchema = z.object({ id: canvasId, type: z.enum(['wiki_page', 'd
 const rawSnapshot = z.object({ courses: z.array(z.object({ course: courseSchema, assignments: z.array(assignmentSchema).max(2000),
   assignment_groups: z.array(assignmentGroupSchema).max(100).optional(), complete: z.boolean().optional(),
   planner_items: z.array(plannerItemSchema).max(maxPlannerItems).optional(), coursework_complete: z.boolean().optional() })).max(200),
-  planner_window: z.object({ from: sourceInstant, to: sourceInstant }).strict().nullable().optional(), calendar: calendarImport.optional() }).strict();
+  planner_window: z.object({ from: sourceInstant, to: sourceInstant }).strict().nullable().optional(), calendar: calendarImport.optional(),
+  courses_complete: z.boolean().optional() }).strict();
 type RawCourse = z.infer<typeof rawSnapshot>['courses'][number];
 /** Assignments whose group wasn't readable are pooled here by points. */
 export const otherGroupExternalId = 'other';
@@ -139,7 +142,8 @@ export function normalizeCanvasSnapshot(input: unknown): AcademicSnapshot {
   const coursework = tracked ? { completeCourses: raw.courses.filter(entry => entry.coursework_complete && entry.course.workflow_state !== 'deleted').map(entry => String(entry.course.id)),
     planner: raw.planner_window ?? null } : undefined;
   return academicSnapshotSchema.parse({ status: 'complete', courses, academicItems, ...(grades.length ? { grades } : {}),
-    ...(coursework ? { coursework } : {}), ...(raw.calendar ? { calendar: raw.calendar } : {}) });
+    ...(coursework ? { coursework } : {}), ...(raw.calendar ? { calendar: raw.calendar } : {}),
+    ...(raw.courses_complete !== undefined ? { coursesComplete: raw.courses_complete } : {}) });
 }
 
 /** Default until institution-approved backend OAuth is implemented. No HTTP or tokens. */
